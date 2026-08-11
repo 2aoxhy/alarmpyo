@@ -2,7 +2,7 @@
 
 첫 AlarmPyo APK를 설치해 네이티브 기능과 새 서명 계보를 확인할 때는 공개 direct 릴리스와 분리된 `canary` 경로만 사용해요. 이 경로는 공개 릴리스에 승격하지 않는 EAS internal distribution APK를 만들 뿐이며, APK 공개·운영 Hosting 배포·OTA 게시·Play 제출을 승인하지 않아요.
 
-`release-policy.json`의 `releaseState`가 `blocked`여도 production Hosting URL과 운영 인증서 SHA-256만 미정인 현재 상태에서는 이 내부 경로를 사용할 수 있어요. 기존 `build:apk`, `build:apk:stable`, `release:promote:android`는 운영 정책이 활성화될 때까지 계속 실패해야 해요.
+`release-policy.json`의 `releaseState`가 `blocked`여도 production Hosting URL만 미정인 현재 상태에서는 이 내부 경로를 사용할 수 있어요. 기존 `build:apk`, `build:apk:stable`, `release:promote:android`는 운영 정책이 활성화될 때까지 계속 실패해야 해요.
 
 ## 선행 조건
 
@@ -53,7 +53,7 @@ npm run build:apk:canary
 - 로그아웃한 브라우저에서 설치 URL이 인증 없이 열리지 않는지 확인해요. 열리면 프로젝트의 unauthenticated access를 끄고 새 링크의 접근 제한을 다시 확인하기 전에는 공유하지 않아요.
 - 빌드 ID, Git 커밋, 패키지, versionCode와 실제 서명 인증서 SHA-256을 기록해요.
 - 생성된 APK를 `public/downloads`에 복사하거나 공개 manifest·릴리스 원장에 추가하지 않아요.
-- 내부 검증 결과만으로 `release-policy.json`을 활성화하지 않아요. production Hosting URL과 최종 운영 서명 인증서를 별도로 확정해야 해요.
+- 내부 검증 결과만으로 `release-policy.json`을 활성화하지 않아요. production Hosting URL과 Play App Signing 계보를 별도로 확정해야 해요.
 - APK를 공개하려면 [`release-provenance.md`](release-provenance.md)의 stable 출처·실기기·장기 보관·승격 게이트를 처음부터 통과해요.
 
 canary 설치본은 공개 업데이트 약속이 아니에요. 외부 사용자에게 배포하거나 장기 설치본으로 취급하지 않아요.

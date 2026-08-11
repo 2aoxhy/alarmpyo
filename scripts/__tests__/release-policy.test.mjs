@@ -31,13 +31,12 @@ describe('APK 운영 배포 정책', () => {
         iosBuildNumber: '1',
       },
       releaseState: 'blocked',
-      releaseBlockers: [
-        'productionHostingUrl',
-        'signingCertificateSha256',
-      ],
+      releaseBlockers: ['productionHostingUrl'],
       expoProjectId: 'ffdda16b-a290-4fc6-919b-fddd50e0c25f',
       productionHostingUrl: null,
-      signingCertificateSha256: [],
+      signingCertificateSha256: [
+        '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
+      ],
     });
   });
 

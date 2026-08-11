@@ -44,7 +44,9 @@ describe('비공개 내부 canary APK 게이트', () => {
     expect(fixture().releasePolicy).toMatchObject({
       releaseState: 'blocked',
       productionHostingUrl: null,
-      signingCertificateSha256: [],
+      signingCertificateSha256: [
+        '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
+      ],
     });
   });
 

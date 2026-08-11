@@ -188,11 +188,10 @@ describe('stable 배포 설정', () => {
     const policy = readJson('release-policy.json');
     expect(policy.keepPublicApkVersions).toBe(3);
     expect(policy.releaseState).toBe('blocked');
-    expect(policy.releaseBlockers).toEqual([
-      'productionHostingUrl',
-      'signingCertificateSha256',
-    ]);
+    expect(policy.releaseBlockers).toEqual(['productionHostingUrl']);
     expect(policy.productionHostingUrl).toBeNull();
-    expect(policy.signingCertificateSha256).toEqual([]);
+    expect(policy.signingCertificateSha256).toEqual([
+      '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
+    ]);
   });
 });

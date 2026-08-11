@@ -9,8 +9,7 @@
   },
   "releaseState": "blocked",
   "releaseBlockers": [
-    "productionHostingUrl",
-    "signingCertificateSha256"
+    "productionHostingUrl"
   ],
   "targetSdk": 36,
   "bundletool": {

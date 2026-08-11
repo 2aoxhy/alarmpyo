@@ -6,10 +6,11 @@
 
 Expo 프로젝트 `@2aox.hy/alarmpyo`를 만들고 project ID `ffdda16b-a290-4fc6-919b-fddd50e0c25f`를 앱과 릴리스 정책에 연결했어요.
 
-다음 운영 값은 아직 발급되거나 확정되지 않았어요.
+다음 운영 값은 아직 확정되지 않았어요.
 
 - production Hosting 기준 URL
-- AlarmPyo 앱 서명 인증서 SHA-256
+
+AlarmPyo의 첫 EAS Android 키스토어는 내부 canary 빌드에서 생성했고, 앱 서명 인증서 SHA-256은 `49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a`예요. 이 인증서를 direct APK 계보의 기준으로 유지해요. Play App Signing을 처음 설정할 때 같은 앱 서명 키를 사용할지, Play 전용 최종 인증서를 사용할지 확정하고 실제 Play 설치본의 인증서도 별도로 검증해야 해요.
 
 따라서 `release-policy.json`과 `play-release-policy.json`의 `releaseState`는 `blocked`예요. stable 릴리스·공개 승격·OTA 게시·Play 제출 스크립트는 이 상태에서 성공하면 안 돼요. 임시 UUID, 예제 URL 또는 이전 앱 인증서를 운영 값으로 넣지 않아요.
 
@@ -20,7 +21,7 @@ Expo 프로젝트 `@2aox.hy/alarmpyo`를 만들고 project ID `ffdda16b-a290-4fc
 ## 차단 해제 조건
 
 1. 실제 production Hosting을 만든 뒤 HTTPS 기준 URL을 `productionHostingUrl`에 기록해요.
-2. 새 AlarmPyo 서명 키를 안전하게 준비하고 인증서 SHA-256을 `signingCertificateSha256`에 기록해요.
+2. EAS에 보관된 AlarmPyo 키스토어를 장기 보관하고 Play App Signing 계보를 확정해요.
 3. `releaseBlockers`를 빈 배열로 바꾸고 `releaseState`를 `active`로 전환해요.
 4. 새 패키지로 빌드한 산출물과 실기기 증거를 검증한 뒤에만 `docs/release-ledger.json`에 첫 항목을 추가해요.
 
