@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "timeZone": "Asia/Seoul",
+  "exceptions": [
+    {
+      "advisory": "GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "severity": "high",
+      "expiresOn": "2026-09-09"
+    },
+    {
+      "advisory": "GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "severity": "high",
+      "expiresOn": "2026-09-09"
+    }
+  ]
+}

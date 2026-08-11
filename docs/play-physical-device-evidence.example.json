@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "play-physical-device",
+  "captureMethod": "adb-and-play-console",
+  "packageName": "com.personal.alarmpyo",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "aabSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "easBuildId": "11111111-1111-4111-8111-111111111111",
+  "checkedAt": "2026-08-12T10:00:00.000Z",
+  "device": {
+    "deviceType": "physical",
+    "currentSamsungDevice": true,
+    "manufacturer": "Samsung",
+    "model": "실제 Galaxy 모델",
+    "sdk": 36,
+    "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+    "installerPackageName": "com.android.vending",
+    "signingCertificateSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "checks": {
+    "playInstallAndLaunch": false,
+    "directApkUpgrade": false,
+    "dataPreserved": false,
+    "permissionsPreserved": false,
+    "alarmWhileClosed": false,
+    "alarmAfterReboot": false,
+    "timeAndTimezoneRecovery": false,
+    "notificationDeniedState": false,
+    "exactAlarm": false,
+    "fullScreenAlarm": false,
+    "foregroundAlarmAudio": false,
+    "widgetAvailable": false
+  }
+}

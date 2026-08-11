@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "알람표",
+    "slug": "alarmpyo",
+    "version": "1.0.0",
+    "description": "주간·교대 근무표와 기상 알람을 간편하게 관리해요",
+    "orientation": "portrait",
+    "icon": "./assets/images/alarmpyo-icon.png",
+    "scheme": "alarmpyo",
+    "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "url": "https://u.expo.dev/ffdda16b-a290-4fc6-919b-fddd50e0c25f",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "ios": {
+      "icon": "./assets/images/alarmpyo-icon.png",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.personal.alarmpyo"
+    },
+    "android": {
+      "package": "com.personal.alarmpyo",
+      "versionCode": 1,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.DUMP",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/alarmpyo-adaptive-foreground.png",
+        "monochromeImage": "./assets/images/alarmpyo-adaptive-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/alarmpyo-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/images/splash-transparent.png",
+          "imageWidth": 100
+        }
+      ],
+      "expo-sharing",
+      "expo-status-bar",
+      "./plugins/with-release-signing-guard.js",
+      "./plugins/with-async-storage-database-size.js"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ffdda16b-a290-4fc6-919b-fddd50e0c25f"
+      }
+    },
+    "owner": "2aox.hy"
+  }
+}

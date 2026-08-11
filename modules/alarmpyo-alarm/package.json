@@ -1,0 +1,11 @@
+{
+  "name": "alarmpyo-alarm",
+  "version": "1.0.0",
+  "description": "AlarmPyo Android alarm clock module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

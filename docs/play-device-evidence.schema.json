@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alarmpyo.example/play-device-evidence.schema.json",
+  "title": "AlarmPyo Google Play device evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceType",
+    "captureMethod",
+    "packageName",
+    "versionName",
+    "versionCode",
+    "aabSha256",
+    "sourceCommit",
+    "easBuildId",
+    "checkedAt",
+    "device",
+    "checks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "evidenceType": {
+      "enum": ["play-physical-device", "play-16kb-device"]
+    },
+    "captureMethod": { "const": "adb-and-play-console" },
+    "packageName": { "const": "com.personal.alarmpyo" },
+    "versionName": { "type": "string", "minLength": 1 },
+    "versionCode": { "type": "integer", "minimum": 1 },
+    "aabSha256": { "$ref": "#/$defs/sha256" },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "easBuildId": { "type": "string", "format": "uuid" },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "device": { "type": "object" },
+    "delivery": { "type": "object" },
+    "checks": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "evidenceType": { "const": "play-physical-device" } }
+      },
+      "then": {
+        "properties": {
+          "device": { "$ref": "#/$defs/physicalDevice" },
+          "checks": { "$ref": "#/$defs/physicalChecks" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "evidenceType": { "const": "play-16kb-device" } }
+      },
+      "then": {
+        "required": ["delivery"],
+        "properties": {
+          "device": { "$ref": "#/$defs/pageSize16KbDevice" },
+          "delivery": { "$ref": "#/$defs/pageSize16KbDelivery" },
+          "checks": { "$ref": "#/$defs/pageSize16KbChecks" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "physicalDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviceType",
+        "currentSamsungDevice",
+        "manufacturer",
+        "model",
+        "sdk",
+        "buildFingerprint",
+        "installerPackageName",
+        "signingCertificateSha256"
+      ],
+      "properties": {
+        "deviceType": { "const": "physical" },
+        "currentSamsungDevice": { "const": true },
+        "manufacturer": { "type": "string", "pattern": "[Ss]amsung" },
+        "model": { "type": "string", "minLength": 2 },
+        "sdk": { "type": "integer", "minimum": 31 },
+        "buildFingerprint": { "type": "string", "minLength": 2 },
+        "installerPackageName": { "const": "com.android.vending" },
+        "signingCertificateSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "physicalChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "playInstallAndLaunch",
+        "directApkUpgrade",
+        "dataPreserved",
+        "permissionsPreserved",
+        "alarmWhileClosed",
+        "alarmAfterReboot",
+        "timeAndTimezoneRecovery",
+        "notificationDeniedState",
+        "exactAlarm",
+        "fullScreenAlarm",
+        "foregroundAlarmAudio",
+        "widgetAvailable"
+      ],
+      "properties": {
+        "playInstallAndLaunch": { "const": true },
+        "directApkUpgrade": { "const": true },
+        "dataPreserved": { "const": true },
+        "permissionsPreserved": { "const": true },
+        "alarmWhileClosed": { "const": true },
+        "alarmAfterReboot": { "const": true },
+        "timeAndTimezoneRecovery": { "const": true },
+        "notificationDeniedState": { "const": true },
+        "exactAlarm": { "const": true },
+        "fullScreenAlarm": { "const": true },
+        "foregroundAlarmAudio": { "const": true },
+        "widgetAvailable": { "const": true }
+      }
+    },
+    "pageSize16KbDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deviceType", "sdk", "pageSizeBytes", "buildFingerprint"],
+      "properties": {
+        "deviceType": { "enum": ["physical", "emulator"] },
+        "sdk": { "type": "integer", "minimum": 35 },
+        "pageSizeBytes": { "const": 16384 },
+        "buildFingerprint": { "type": "string", "minLength": 2 }
+      }
+    },
+    "pageSize16KbDelivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "splitApks",
+        "zipalign16Kb",
+        "elfLoadSegments16Kb",
+        "signingCertificateSha256"
+      ],
+      "properties": {
+        "source": { "const": "play-app-bundle-explorer" },
+        "splitApks": { "const": true },
+        "zipalign16Kb": { "const": true },
+        "elfLoadSegments16Kb": { "const": true },
+        "signingCertificateSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "pageSize16KbChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "installAndLaunch",
+        "coreScheduleFlow",
+        "alarmWhileClosed",
+        "alarmAfterReboot",
+        "fullScreenAlarm",
+        "widgetAvailable"
+      ],
+      "properties": {
+        "installAndLaunch": { "const": true },
+        "coreScheduleFlow": { "const": true },
+        "alarmWhileClosed": { "const": true },
+        "alarmAfterReboot": { "const": true },
+        "fullScreenAlarm": { "const": true },
+        "widgetAvailable": { "const": true }
+      }
+    }
+  }
+}

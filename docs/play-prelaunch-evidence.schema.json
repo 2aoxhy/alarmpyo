@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alarmpyo.example/play-prelaunch-evidence.schema.json",
+  "title": "AlarmPyo Google Play pre-launch report evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceType",
+    "captureMethod",
+    "packageName",
+    "versionName",
+    "versionCode",
+    "aabSha256",
+    "sourceCommit",
+    "easBuildId",
+    "completedAt",
+    "status",
+    "categories"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "evidenceType": { "const": "play-pre-launch-report" },
+    "captureMethod": { "const": "play-console" },
+    "packageName": { "const": "com.personal.alarmpyo" },
+    "versionName": { "type": "string", "minLength": 1 },
+    "versionCode": { "type": "integer", "minimum": 1 },
+    "aabSha256": { "$ref": "#/$defs/sha256" },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "easBuildId": { "type": "string", "format": "uuid" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "status": { "const": "completed" },
+    "categories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stability",
+        "compatibility",
+        "performance",
+        "accessibility"
+      ],
+      "properties": {
+        "stability": { "$ref": "#/$defs/category" },
+        "compatibility": { "$ref": "#/$defs/category" },
+        "performance": { "$ref": "#/$defs/category" },
+        "accessibility": { "$ref": "#/$defs/category" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blockingIssueCount"],
+      "properties": { "blockingIssueCount": { "const": 0 } }
+    }
+  }
+}

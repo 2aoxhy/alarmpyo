@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alarmpyo.example/play-release-evidence.schema.json",
+  "title": "AlarmPyo Google Play release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageName",
+    "versionName",
+    "versionCode",
+    "aabSha256",
+    "sourceCommit",
+    "easBuildId",
+    "appSigningCertificateSha256",
+    "highestPreviouslyDistributedVersionCode",
+    "highestExistingPlayVersionCode",
+    "track",
+    "checkedAt",
+    "physicalDeviceEvidence",
+    "pageSize16KbEvidence",
+    "preLaunchReportEvidence"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "packageName": { "const": "com.personal.alarmpyo" },
+    "versionName": { "type": "string", "minLength": 1 },
+    "versionCode": { "type": "integer", "minimum": 1 },
+    "aabSha256": { "$ref": "#/$defs/sha256" },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "easBuildId": { "type": "string", "format": "uuid" },
+    "appSigningCertificateSha256": { "$ref": "#/$defs/sha256" },
+    "highestPreviouslyDistributedVersionCode": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "highestExistingPlayVersionCode": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "track": { "enum": ["internal", "closed"] },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "physicalDeviceEvidence": {
+      "$ref": "#/$defs/deviceEvidencePointer"
+    },
+    "pageSize16KbEvidence": {
+      "$ref": "#/$defs/deviceEvidencePointer"
+    },
+    "preLaunchReportEvidence": {
+      "$ref": "#/$defs/preLaunchEvidencePointer"
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "deviceEvidencePointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\.release/play/device-evidence/[A-Za-z0-9._-]+\\.json$"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "preLaunchEvidencePointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^\\.release/play/prelaunch-evidence/[A-Za-z0-9._-]+\\.json$"
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

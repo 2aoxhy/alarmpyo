@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarmpyo_widget_name">AlarmPyo 근무 현황</string>
+    <string name="alarmpyo_widget_description">오늘 근무와 시간, 다음 근무를 표시해요.</string>
+</resources>

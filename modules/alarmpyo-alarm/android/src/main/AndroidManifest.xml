@@ -1,0 +1,98 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        tools:targetApi="tiramisu" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <provider
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoUpdateFileProvider"
+            android:authorities="${applicationId}.alarmpyo-updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/alarmpyo_update_paths" />
+        </provider>
+
+        <activity
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoAlarmActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/AlarmPyoAlarmTheme"
+            android:turnScreenOn="true" />
+
+        <service
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoAlarmService"
+            android:directBootAware="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="false" />
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoAlarmReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoSleepReminderReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoAlarmSafetyReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoPlanRefreshReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoAlarmRestoreReceiver"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoShiftWidgetProvider"
+            android:enabled="true"
+            android:exported="false"
+            android:label="@string/alarmpyo_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/alarmpyo_shift_widget_info" />
+        </receiver>
+    </application>
+</manifest>

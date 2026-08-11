@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alarmpyo.example/release-policy.schema.json",
+  "title": "AlarmPyo release policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "lineage",
+    "packageName",
+    "initialRelease",
+    "releaseState",
+    "releaseBlockers",
+    "expoProjectId",
+    "productionHostingUrl",
+    "signingCertificateSha256",
+    "keepPublicApkVersions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "lineage": { "const": "alarmpyo" },
+    "packageName": { "const": "com.personal.alarmpyo" },
+    "initialRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["versionName", "androidVersionCode", "iosBuildNumber"],
+      "properties": {
+        "versionName": { "const": "1.0.0" },
+        "androidVersionCode": { "const": 1 },
+        "iosBuildNumber": { "const": "1" }
+      }
+    },
+    "releaseState": { "enum": ["active", "blocked"] },
+    "releaseBlockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "expoProjectId",
+          "productionHostingUrl",
+          "signingCertificateSha256"
+        ]
+      }
+    },
+    "expoProjectId": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "uuid"
+        }
+      ]
+    },
+    "productionHostingUrl": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^/?#]+/?$"
+        }
+      ]
+    },
+    "signingCertificateSha256": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "keepPublicApkVersions": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 20
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "releaseState": { "const": "active" } },
+        "required": ["releaseState"]
+      },
+      "then": {
+        "properties": {
+          "releaseBlockers": { "maxItems": 0 },
+          "expoProjectId": { "type": "string", "format": "uuid" },
+          "productionHostingUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://[^/?#]+/?$"
+          },
+          "signingCertificateSha256": { "minItems": 1 }
+        }
+      },
+      "else": {
+        "properties": { "releaseBlockers": { "minItems": 1 } }
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "lineage": "alarmpyo",
+  "packageName": "com.personal.alarmpyo",
+  "initialRelease": {
+    "versionName": "1.0.0",
+    "androidVersionCode": 1,
+    "iosBuildNumber": "1"
+  },
+  "releaseState": "blocked",
+  "releaseBlockers": [
+    "productionHostingUrl",
+    "signingCertificateSha256"
+  ],
+  "expoProjectId": "ffdda16b-a290-4fc6-919b-fddd50e0c25f",
+  "productionHostingUrl": null,
+  "signingCertificateSha256": [],
+  "keepPublicApkVersions": 3
+}

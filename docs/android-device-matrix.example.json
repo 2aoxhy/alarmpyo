@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 3,
+  "packageName": "com.personal.alarmpyo",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "apkSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "easBuildId": "11111111-1111-4111-8111-111111111111",
+  "nativeFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "checkedAt": "2026-08-09T11:00:00.000Z",
+  "physicalDevice": {
+    "deviceType": "physical",
+    "currentSamsungDevice": true,
+    "sdk": 36,
+    "manufacturer": "Samsung",
+    "model": "실제 사용 중인 Galaxy 모델",
+    "osVersion": "Android 16",
+    "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+    "checkedAt": "2026-08-09T10:10:00.000Z",
+    "evidence": {
+      "path": ".release/device-evidence/current-samsung.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "upgradePreservedData": false,
+    "permissionsPreserved": false,
+    "alarmWhileClosed": false,
+    "alarmAfterReboot": false,
+    "blockedNotificationState": false,
+    "fullScreenAlarm": false,
+    "widgetAvailable": false
+  },
+  "emulators": [
+    {
+      "deviceType": "emulator",
+      "sdk": 31,
+      "avdName": "실제 AVD 이름",
+      "osVersion": "Android 12",
+      "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+      "checkedAt": "2026-08-09T10:20:00.000Z",
+      "evidence": {
+        "path": ".release/device-evidence/emulator-api31.json",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "installAndLaunch": false,
+      "dataMigration": false,
+      "alarmWhileClosed": false,
+      "alarmAfterReboot": false,
+      "blockedNotificationState": false,
+      "fullScreenAlarm": false,
+      "widgetAvailable": false
+    },
+    {
+      "deviceType": "emulator",
+      "sdk": 33,
+      "avdName": "실제 AVD 이름",
+      "osVersion": "Android 13",
+      "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+      "checkedAt": "2026-08-09T10:30:00.000Z",
+      "evidence": {
+        "path": ".release/device-evidence/emulator-api33.json",
+        "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "installAndLaunch": false,
+      "dataMigration": false,
+      "alarmWhileClosed": false,
+      "alarmAfterReboot": false,
+      "blockedNotificationState": false,
+      "fullScreenAlarm": false,
+      "widgetAvailable": false
+    },
+    {
+      "deviceType": "emulator",
+      "sdk": 34,
+      "avdName": "실제 AVD 이름",
+      "osVersion": "Android 14",
+      "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+      "checkedAt": "2026-08-09T10:40:00.000Z",
+      "evidence": {
+        "path": ".release/device-evidence/emulator-api34.json",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "installAndLaunch": false,
+      "dataMigration": false,
+      "alarmWhileClosed": false,
+      "alarmAfterReboot": false,
+      "blockedNotificationState": false,
+      "fullScreenAlarm": false,
+      "widgetAvailable": false
+    },
+    {
+      "deviceType": "emulator",
+      "sdk": 35,
+      "avdName": "실제 AVD 이름",
+      "osVersion": "Android 15",
+      "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+      "checkedAt": "2026-08-09T10:50:00.000Z",
+      "evidence": {
+        "path": ".release/device-evidence/emulator-api35.json",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "installAndLaunch": false,
+      "dataMigration": false,
+      "alarmWhileClosed": false,
+      "alarmAfterReboot": false,
+      "blockedNotificationState": false,
+      "fullScreenAlarm": false,
+      "widgetAvailable": false
+    },
+    {
+      "deviceType": "emulator",
+      "sdk": 36,
+      "avdName": "실제 AVD 이름",
+      "osVersion": "Android 16",
+      "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과",
+      "checkedAt": "2026-08-09T11:00:00.000Z",
+      "evidence": {
+        "path": ".release/device-evidence/emulator-api36.json",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "installAndLaunch": false,
+      "dataMigration": false,
+      "alarmWhileClosed": false,
+      "alarmAfterReboot": false,
+      "blockedNotificationState": false,
+      "fullScreenAlarm": false,
+      "widgetAvailable": false
+    }
+  ]
+}

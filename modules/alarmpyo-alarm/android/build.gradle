@@ -1,0 +1,30 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.alarmpyoalarm'
+version = '1.0.0'
+
+def alarmpyoDistribution = System.getenv('ALARMPYO_DISTRIBUTION') == 'play' ? 'play' : 'direct'
+
+android {
+  namespace 'expo.modules.alarmpyoalarm'
+
+  sourceSets {
+    main.java.srcDir("src/${alarmpyoDistribution}/java")
+    if (alarmpyoDistribution == 'direct') {
+      test.java.srcDir('src/directTest/java')
+    }
+  }
+
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20251224'
+}

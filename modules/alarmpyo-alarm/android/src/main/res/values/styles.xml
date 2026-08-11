@@ -1,0 +1,16 @@
+<resources>
+    <style name="AlarmPyoAlarmTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@color/alarmpyo_background</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:colorAccent">@color/alarmpyo_accent</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:navigationBarColor">@color/alarmpyo_background</item>
+        <item name="android:statusBarColor">@color/alarmpyo_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

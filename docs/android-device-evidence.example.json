@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "captureMethod": "adb",
+  "deviceType": "physical",
+  "sdk": 36,
+  "checkedAt": "2026-08-09T10:10:00.000Z",
+  "properties": {
+    "manufacturer": "Samsung",
+    "model": "실제 사용 중인 Galaxy 모델",
+    "release": "16",
+    "buildFingerprint": "adb shell getprop ro.build.fingerprint 결과"
+  },
+  "checks": {
+    "upgradePreservedData": false,
+    "permissionsPreserved": false,
+    "alarmWhileClosed": false,
+    "alarmAfterReboot": false,
+    "blockedNotificationState": false,
+    "fullScreenAlarm": false,
+    "widgetAvailable": false
+  }
+}

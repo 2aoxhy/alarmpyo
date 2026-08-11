@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/alarmpyo_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:clickable="true"
+    android:contentDescription="@string/alarmpyo_widget_description"
+    android:padding="2dp">
+
+    <LinearLayout
+        android:id="@+id/alarmpyo_widget_card"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/alarmpyo_widget_day_background"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="13dp"
+        android:paddingTop="5dp"
+        android:paddingEnd="7dp"
+        android:paddingBottom="5dp">
+
+        <LinearLayout
+            android:id="@+id/alarmpyo_widget_primary_panel"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="11"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/alarmpyo_widget_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="7월 13일 월요일"
+                android:textColor="@color/alarmpyo_text_secondary"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/alarmpyo_widget_shift_icon"
+                    android:layout_width="21dp"
+                    android:layout_height="21dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/alarmpyo_widget_ic_sun" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/alarmpyo_widget_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="주간 근무 중"
+                        android:textColor="@color/alarmpyo_text_primary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/alarmpyo_widget_schedule"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="1dp"
+                        android:ellipsize="end"
+                        android:fontFamily="sans-serif"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="07:00–18:00"
+                        android:textColor="@color/alarmpyo_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/alarmpyo_widget_secondary_panel"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="10"
+            android:background="@drawable/alarmpyo_widget_bottom_panel"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="2dp">
+
+            <LinearLayout
+                android:id="@+id/alarmpyo_widget_secondary_first"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/alarmpyo_widget_bottom_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="다음 근무"
+                    android:textColor="@color/alarmpyo_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/alarmpyo_widget_bottom_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:lineSpacingExtra="1dp"
+                    android:maxLines="1"
+                    android:text="내일 주간 · 07:00"
+                    android:textColor="@color/alarmpyo_text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/alarmpyo_widget_secondary_divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:alpha="0.18"
+                android:background="@color/alarmpyo_text_primary"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/alarmpyo_widget_secondary_second"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/alarmpyo_widget_secondary_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="다음 알람"
+                    android:textColor="@color/alarmpyo_text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/alarmpyo_widget_secondary_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="내일 05:10 · 주간"
+                    android:textColor="@color/alarmpyo_text_primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
