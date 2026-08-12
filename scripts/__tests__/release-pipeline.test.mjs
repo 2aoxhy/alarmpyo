@@ -51,6 +51,7 @@ describe('릴리스 배포 절차', () => {
       await readFile(resolve(root, 'package.json'), 'utf8'),
     );
     for (const name of ['release:preflight', 'release:preflight:update']) {
+      expect(pkg.scripts[name]).toContain('verify:toolchain');
       expect(pkg.scripts[name]).toContain('release:source');
       expect(pkg.scripts[name]).toContain('audit:tooling');
     }

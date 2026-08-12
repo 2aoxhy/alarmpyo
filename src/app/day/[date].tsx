@@ -358,7 +358,7 @@ export default function DayEditorScreen() {
       setAdditionalSettingsExpanded(true);
       showDialog(
         '근무 시간을 확인해 주세요',
-        '시작과 종료 시간을 07:00 형식으로 입력하고 서로 다르게 지정해 주세요.',
+        '시작과 종료 시간을 06:45 형식으로 입력하고 서로 다르게 지정해 주세요.',
       );
       return;
     }
@@ -414,7 +414,7 @@ export default function DayEditorScreen() {
         <AppButton
           accessibilityHint={
             dayException === null && !timeIsValid
-              ? '추가 설정에서 근무 시간을 확인해 주세요.'
+              ? '특별 일정·시간·알람·메모에서 근무 시간을 확인해 주세요.'
               : '이 날짜의 변경 내용을 저장해요.'
           }
           disabled={saving || !hasChanges}

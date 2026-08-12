@@ -9,7 +9,7 @@
 - 이 저장소는 PostgreSQL, Prisma, PM2, Discord 봇 또는 Guardy 대시보드를 사용하지 않아요. 다른 작업공간의 서버 운영 지침을 이 앱에 적용하지 않아요.
 - 실제 소스 루트는 이 `AGENTS.md`가 있는 디렉터리예요. 상위 폴더의 APK, 스크린샷과 다른 프로젝트는 알람표 소스로 취급하지 않아요.
 - 기본 근무 방식은 `3조 2교대 (주주야야휴휴)`와 `주간 고정`이에요.
-- 기본 주간은 `07:00~17:45`, 기본 야간은 `18:00~다음 날 06:45`예요. 사용자가 시간을 변경할 수 있으므로 화면과 계산 코드에 중복 하드코딩하지 않아요.
+- 회사 명목 시작은 주간 07:00, 야간 18:00이지만 앱의 기본 실제 근무는 교대 완료 뒤인 주간 `06:45~17:45`, 야간 `17:45~다음 날 06:45`예요. 사용자가 시간을 변경할 수 있으므로 화면과 계산 코드에 중복 하드코딩하지 않아요.
 - 주간 고정은 월요일~금요일 주간, 토요일·일요일은 휴무예요.
 - 앱의 공식 설명과 현재 기능은 먼저 `README.md`에서 확인해요.
 
@@ -30,7 +30,7 @@ Android Gradle 도구의 경로 문제를 피하려면 저장소를 `C:\work\Ala
 필요한 환경은 다음과 같아요.
 
 - Git
-- Node.js 24 계열과 npm (`eas.json`의 빌드는 Node 24.16.0을 사용해요.)
+- Node.js 24.16.0과 npm 11.13.0 (`.node-version`, `packageManager`, `eas.json`과 같아야 해요.)
 - Android Studio와 Android SDK
 - JDK 17
 - 네이티브 또는 배포 작업을 할 때만 Expo/EAS 계정
@@ -72,13 +72,14 @@ Expo Go에서는 Kotlin 네이티브 알람과 위젯을 검증할 수 없어요
 - URL 스킴: `alarmpyo`
 - Expo project ID: `ffdda16b-a290-4fc6-919b-fddd50e0c25f` (`@2aox.hy/alarmpyo`)
 - production Hosting URL: 아직 미정이며 `release-policy.json`에서 명시적으로 차단
+- Play 개인정보처리방침 URL: 실제 공개 Pages 주소를 확인하기 전까지 `play-release-policy.json`에서 명시적으로 차단
 - `alarmpyo:*` AsyncStorage 키
 - `modules/alarmpyo-alarm` 모듈 이름과 기존 네이티브 PendingIntent 식별자
-- 운영 APK 서명 인증서: 아직 미정이며 이전 앱 인증서를 재사용하지 않음
+- direct 운영 APK 서명 인증서: 내부 canary에서 확정한 새 AlarmPyo 인증서를 `release-policy.json`의 신뢰 지문으로 유지
 
 화면 표시명은 `알람표`, 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`를 사용해요. 이전 앱의 릴리스 원장·서명·배포 기준은 `docs/legacy-today-shift`에만 보존하고 새 계보와 섞지 않아요.
 
-production Hosting URL과 앱 서명 인증서 SHA-256이 모두 실제 값으로 확정될 때까지 릴리스·OTA 게시·Play 제출은 차단해요. 임시 주소나 예제 인증서를 성공 값으로 만들지 않아요.
+direct 인증서는 확정됐고 `release-policy.json`의 남은 공개 배포 blocker는 production Hosting URL뿐이에요. 이 URL이 확정될 때까지 stable 릴리스·공개 승격·OTA 게시는 차단해요. Play 정책은 direct Hosting과 독립적이며, Google 관리 별도 App Signing 계보와 인증서는 2026-08-12에 Play Console에서 확인했어요. Play 정책의 남은 blocker는 실제 공개 개인정보처리방침 HTTPS URL뿐이며, 이를 `play-release-policy.json`에 기록하기 전에는 일반 Play 빌드·제출을 진행하지 않아요. 임시 주소나 예제 인증서를 성공 값으로 만들지 않아요.
 
 ## 데이터 변경 규칙
 
@@ -109,7 +110,7 @@ production Hosting URL과 앱 서명 인증서 SHA-256이 모두 실제 값으�
 - 버튼은 `저장하기`, `뒤로가기`, `설정하기`처럼 행동이 분명한 이름을 사용해요.
 - 공용 색상·간격·모서리·타이포그래피는 `src/design-system`과 `src/constants/app-theme.ts`를 우선 사용해요.
 - 임의의 웹 CSS 클래스명이나 기기별 고정 픽셀 값에 의존하지 않아요.
-- 라이트·다크 테마, 320dp 폭, 글자 크기 200%, 화면 회전 제한과 Safe Area를 확인해요.
+- 다크 테마, 320dp 폭, 글자 크기 200%, 화면 회전 제한과 Safe Area를 확인해요.
 - 터치 대상은 가능하면 최소 48×48dp를 유지하고 색상이나 아이콘만으로 상태를 구분하지 않아요.
 - TalkBack용 레이블·역할·상태를 제공하고 반복 갱신되는 시간 문구를 불필요하게 재낭독하지 않아요.
 - 애니메이션은 기기의 동작 줄이기 설정을 존중하고, 화면이 비활성일 때 타이머와 장식 애니메이션을 멈춰요.

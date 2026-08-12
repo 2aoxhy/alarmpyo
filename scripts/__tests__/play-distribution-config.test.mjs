@@ -54,9 +54,19 @@ describe('Google Play 배포 설정', () => {
   it('Play 프로필은 AAB와 내부 테스트 초안 제출로 고정해요', () => {
     const eas = readJson('eas.json');
 
+    expect(eas.build.stable).toMatchObject({
+      env: { ALARMPYO_DISTRIBUTION: 'direct' },
+      android: { buildType: 'apk' },
+    });
     expect(eas.build.production).toMatchObject({
       distribution: 'store',
       environment: 'production',
+      env: { ALARMPYO_DISTRIBUTION: 'play' },
+      android: { buildType: 'app-bundle' },
+    });
+    expect(eas.build['play-signing-bootstrap']).toMatchObject({
+      distribution: 'store',
+      environment: 'preview',
       env: { ALARMPYO_DISTRIBUTION: 'play' },
       android: { buildType: 'app-bundle' },
     });

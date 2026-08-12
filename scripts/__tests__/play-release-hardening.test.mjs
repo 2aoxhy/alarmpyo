@@ -71,6 +71,21 @@ describe('Play AAB 하드닝', () => {
     expect(() =>
       validatePlayManifest(
         manifestXml.replace(
+          'android:targetSdkVersion="36"',
+          'android:targetSdkVersion="35"',
+        ),
+        {
+          packageName: 'com.personal.alarmpyo',
+          versionCode: 1,
+          versionName: '1.0.0',
+          targetSdk: 35,
+        },
+      ),
+    ).toThrow('targetSdk는 36 이상');
+
+    expect(() =>
+      validatePlayManifest(
+        manifestXml.replace(
           '</manifest>',
           '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /></manifest>',
         ),
@@ -114,6 +129,8 @@ describe('Play AAB 하드닝', () => {
       versionCode: 1,
       targetSdk: 36,
       pageAlignment: 'PAGE_ALIGNMENT_16K',
+      releasePurpose: 'play-release',
+      submissionEligible: true,
     };
     expect(
       validateProvenanceBinding(
@@ -164,13 +181,22 @@ describe('Play AAB 하드닝', () => {
   it('Play 전용 사전 검증·AAB 빌드·내부 테스트 제출 명령을 고정해요', () => {
     const scripts = JSON.parse(source('package.json')).scripts;
     const preflight = source('scripts/run-play-preflight.mjs');
+    const aabValidator = source('scripts/validate-play-aab.mjs');
+    const evidenceValidator = source(
+      'scripts/validate-play-release-evidence.mjs',
+    );
+    const submit = source('scripts/submit-play-internal.mjs');
     expect(scripts['release:preflight:play']).toBe('node scripts/run-play-preflight.mjs');
     expect(scripts['release:verify:aab']).toBe('node scripts/validate-play-aab.mjs');
     expect(scripts['release:verify:play-evidence']).toBe(
       'node scripts/validate-play-release-evidence.mjs',
     );
+    expect(scripts['release:verify:play-privacy-url']).toBe(
+      'node scripts/validate-play-privacy-url.mjs',
+    );
     expect(scripts['build:aab']).toContain('--profile production');
     expect(scripts['submit:internal']).toBe('node scripts/submit-play-internal.mjs');
+    expect(preflight).toContain('verifyExactToolchain();');
     for (const commonCheck of [
       "['run', 'release:source']",
       "['run', 'check']",
@@ -185,6 +211,19 @@ describe('Play AAB 하드닝', () => {
     expect(preflight).not.toContain("['run', 'release:preflight']");
     expect(preflight).not.toContain('audit:artifacts');
     expect(preflight).not.toContain('validate-release.mjs');
+    expect(preflight).toContain(
+      "runNpm(['run', 'release:verify:play-privacy-url'])",
+    );
+    expect(preflight).toContain(
+      'readReleasePolicy(root, { allowBlocked: true })',
+    );
+    expect(aabValidator).toContain(
+      'readReleasePolicy(root, { allowBlocked: true })',
+    );
+    expect(evidenceValidator).toContain(
+      'readReleasePolicy(root, { allowBlocked: true })',
+    );
+    expect(submit).not.toContain('readReleasePolicy');
   });
 
   it('Play 생성 APK·16KB 기기·사전 출시 보고서를 production 증거로 묶어요', () => {

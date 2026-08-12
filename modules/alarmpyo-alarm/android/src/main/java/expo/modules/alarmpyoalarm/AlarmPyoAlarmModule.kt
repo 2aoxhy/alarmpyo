@@ -100,7 +100,7 @@ class AlarmPyoAlarmModule : Module() {
 
     AsyncFunction("getSleepReminderStatusAsync") {
       AlarmPyoSleepReminderChannels.ensure(context)
-      sleepReminderStatus(AlarmPyoSleepReminderScheduler.reconcile(context))
+      currentSleepReminderStatus()
     }
 
     AsyncFunction("requestSleepReminderPermissionAsync") { promise: Promise ->
@@ -110,7 +110,7 @@ class AlarmPyoAlarmModule : Module() {
     AsyncFunction("openSleepReminderSettingsAsync") {
       AlarmPyoSleepReminderChannels.ensure(context)
       AlarmPyoSleepReminderChannels.openSettings(context)
-      sleepReminderStatus(AlarmPyoSleepReminderScheduler.reconcile(context))
+      currentSleepReminderStatus()
     }
 
     AsyncFunction("getAlarmSoundAsync") {
@@ -230,7 +230,7 @@ class AlarmPyoAlarmModule : Module() {
             AlarmPyoSleepReminderChannels.openSettings(context)
           }
           promise.resolve(
-            sleepReminderStatus(AlarmPyoSleepReminderScheduler.reconcile(context))
+            currentSleepReminderStatus()
           )
         },
         Manifest.permission.POST_NOTIFICATIONS
@@ -240,12 +240,17 @@ class AlarmPyoAlarmModule : Module() {
     if (!AlarmPyoSleepReminderChannels.notificationsAllowed(context)) {
       AlarmPyoSleepReminderChannels.openSettings(context)
     }
-    promise.resolve(sleepReminderStatus(AlarmPyoSleepReminderScheduler.reconcile(context)))
+    promise.resolve(currentSleepReminderStatus())
   }
 
   private fun sleepReminderStatus(
-    snapshot: AlarmPyoSleepReminderSnapshot
+    snapshot: AlarmPyoSleepReminderSnapshot?
   ): Map<String, Any> = AlarmPyoSleepReminderScheduler.status(context, snapshot).toMap()
+
+  private fun currentSleepReminderStatus(): Map<String, Any> {
+    if (AlarmPyoSleepReminderStore.read(context) == null) return sleepReminderStatus(null)
+    return sleepReminderStatus(AlarmPyoSleepReminderScheduler.reconcile(context))
+  }
 
   private fun syncRecords(
     records: List<AlarmPyoAlarmPlanRecord>,

@@ -95,6 +95,7 @@ export function Screen({
   footerBottomOffset = 0,
   maxContentWidth = 600,
   safeAreaEdges = DEFAULT_SCREEN_SAFE_AREA_EDGES,
+  showsVerticalScrollIndicator = true,
 }: PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
@@ -102,6 +103,7 @@ export function Screen({
   footerBottomOffset?: number;
   maxContentWidth?: number;
   safeAreaEdges?: readonly Edge[];
+  showsVerticalScrollIndicator?: boolean;
 }>) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -137,7 +139,7 @@ export function Screen({
             contentContainerStyle={styles.scrollContent}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={showsVerticalScrollIndicator}>
             {content}
           </ScrollView>
         ) : (

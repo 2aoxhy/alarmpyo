@@ -13,6 +13,8 @@ import {
 
 describe('app-data-defaults', () => {
   it('운영 중인 기본 근무 종류와 시간을 그대로 만들어요', () => {
+    expect(DAY_SHIFT_START_MINUTES).toBe(6 * 60 + 45);
+    expect(NIGHT_SHIFT_START_MINUTES).toBe(17 * 60 + 45);
     const shifts = createDefaultShiftTypes();
     expect(shifts.map((shift) => shift.id)).toEqual([
       'day',

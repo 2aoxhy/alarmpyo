@@ -94,7 +94,7 @@ export function ShiftTimingEditor({
 
   const timeErrorMessage =
     startMinutes === null || endMinutes === null
-      ? '07:00 형식으로 입력해 주세요.'
+      ? '06:45 형식으로 입력해 주세요.'
       : !duration
         ? '시작과 종료 시간은 다르게 입력해 주세요.'
         : undefined;
@@ -237,7 +237,7 @@ export function ShiftTimingEditor({
           accessibilityLabel={`${shift.name} 시작 시간`}
           autoCorrect={false}
           containerStyle={styles.timeField}
-          errorText={startMinutes === null ? '07:00 형식으로 입력해 주세요.' : undefined}
+          errorText={startMinutes === null ? '06:45 형식으로 입력해 주세요.' : undefined}
           inputMode="numeric"
           inputStyle={[
             styles.timeInput,
@@ -256,7 +256,7 @@ export function ShiftTimingEditor({
             onChange({ start: formatTimeInputWhileTyping(start) })
           }
           onFocus={() => setFocusedField('start')}
-          placeholder={isNightShiftId(shift.id) ? '18:00' : '07:00'}
+          placeholder={isNightShiftId(shift.id) ? '17:45' : '06:45'}
           selectTextOnFocus
           value={draft.start}
         />
@@ -265,7 +265,7 @@ export function ShiftTimingEditor({
           accessibilityLabel={`${shift.name} 종료 시간`}
           autoCorrect={false}
           containerStyle={styles.timeField}
-          errorText={endMinutes === null ? '18:00 형식으로 입력해 주세요.' : undefined}
+          errorText={endMinutes === null ? '17:45 형식으로 입력해 주세요.' : undefined}
           inputMode="numeric"
           inputStyle={[
             styles.timeInput,

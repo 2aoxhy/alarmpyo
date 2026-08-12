@@ -4,12 +4,14 @@
 
 `알람표`는 주간·교대 근무자의 근무표, 기상 알람, 수면 준비와 위젯을 한곳에서 관리하는 앱입니다. 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`, 앱 패키지는 `com.personal.alarmpyo`예요.
 
-AlarmPyo는 이전 앱과 별개의 새 계보예요. Expo 프로젝트 `@2aox.hy/alarmpyo`에는 연결됐지만 production Hosting URL과 앱 서명 인증서가 아직 정해지지 않아 릴리스·OTA 게시·Play 제출은 의도적으로 차단되어 있어요. 준비 상태는 [`docs/release-lineage.md`](docs/release-lineage.md)에서 확인해요.
+AlarmPyo는 이전 앱과 별개의 새 계보예요. Expo 프로젝트 `@2aox.hy/alarmpyo`와 direct APK 인증서는 확정됐지만 production Hosting URL은 아직 정해지지 않아 stable 공개 릴리스와 OTA 게시를 의도적으로 차단하고 있어요. Play는 Google 관리 별도 App Signing 계보를 2026-08-12에 확인했으며, direct Hosting과 별개인 공개 개인정보처리방침 URL이 아직 없어 일반 빌드·제출을 차단해요. 준비 상태는 [`docs/release-lineage.md`](docs/release-lineage.md)에서 확인해요.
 
 ## 근무 방식
 
 - `3조 2교대 (주주야야휴휴)`
-- `주간 고정`: 월요일~금요일 07:00~17:45 근무, 토요일·일요일 고정 휴무
+- `주간 고정`: 월요일~금요일 06:45~17:45 실제 근무, 토요일·일요일 고정 휴무
+
+새 근무표의 실제 기본 시간은 주간 `06:45~17:45`, 야간 `17:45~다음 날 06:45`예요. 기본 출근 루틴은 실제 시작 15분 전인 `06:30`까지 교대를 마치도록 계산하며, 기존 사용자가 저장한 근무 시간은 업데이트가 임의로 덮어쓰지 않아요.
 
 근무 방식은 설정에서 변경할 수 있어요. 변경 전에 현재 근무표를 자동 백업하고, 오늘 이후 직접 변경한 근무와 시간은 새 근무 방식에 맞게 정리해요. 메모, 휴가·교육·예비군 일정과 과거 날짜의 직접 변경은 유지해요.
 
@@ -18,8 +20,7 @@ AlarmPyo는 이전 앱과 별개의 새 계보예요. Expo 프로젝트 `@2aox.h
 ## 주요 기능
 
 - 연차·교육·예비군을 기본 근무표를 바꾸지 않고 날짜별 예외 일정으로 기록합니다.
-- 달력에서 선택한 달의 총 근무시간과 주간·야간·휴무·대체근무 횟수를 확인합니다. 해당 연도의 법정공휴일과 전월 16일~당월 15일 기준 급여일도 함께 표시합니다.
-- 선택한 달의 근무와 예외 일정을 표준 iCalendar 파일로 내보냅니다. 알람표 알람은 중복되지 않도록 달력 파일에 넣지 않습니다.
+- 달력에서 날짜별 근무와 예외 일정을 확인합니다. 해당 연도의 법정공휴일과 전월 16일~당월 15일 기준 급여일도 함께 표시합니다.
 - 알람이 울리면 5분 뒤 예비 알람을 한 번만 자동으로 예약합니다. 알람 끄기는 예비 알람까지 취소하며, 직접 다시 울리기를 선택해도 같은 한 번으로 합쳐 중복되지 않습니다.
 - 설정에서 최근 알람 재생·끄기·5분 뒤 다시 울리기·실패·재시도 기록을 확인합니다. 기록은 휴대폰 안에 최근 12건만 보관합니다.
 - Android 홈 화면 위젯은 4×1 전용으로 고정됩니다. 왼쪽에는 오늘 날짜와 현재 상태, 오른쪽에는 다음 근무만 분리해 표시하며 주간·야간·휴무에 맞는 아이콘과 색상을 사용합니다.
@@ -34,11 +35,11 @@ AlarmPyo는 이전 앱과 별개의 새 계보예요. Expo 프로젝트 `@2aox.h
 ## 실행
 
 ```powershell
-npm install
+npm ci
 npm start
 ```
 
-휴대폰에서 엑스포 고로 QR 코드를 스캔하거나 다음 명령으로 각 환경을 열 수 있습니다.
+Node.js 24.16.0과 함께 배포된 npm 11.13.0을 사용해요. 휴대폰에서 엑스포 고로 QR 코드를 스캔하거나 다음 명령으로 각 환경을 열 수 있습니다.
 
 ```powershell
 npm run android
@@ -70,12 +71,9 @@ npm run release:check
 
 ## 직접 설치용 APK와 업데이트
 
-direct APK와 Play AAB의 분리 구성 및 새 Expo 프로젝트 연결은 준비됐지만, 나머지 AlarmPyo 운영 값은 아직 없어요. `release-policy.json`의 `releaseState`가 `blocked`인 동안 빌드 결과를 운영으로 승격하거나 OTA를 게시하거나 Play에 제출하지 않아요.
+direct APK와 Play AAB의 분리 구성, 새 Expo 프로젝트 연결과 두 배포판의 인증서 지문은 준비됐어요. direct 공개 정책의 남은 blocker는 production Hosting URL이며, `release-policy.json`의 `releaseState`가 `blocked`인 동안 빌드 결과를 운영으로 승격하거나 OTA를 게시하지 않아요. Play 정책의 남은 blocker는 공개 개인정보처리방침 URL이며, 이를 `play-release-policy.json`에 확정하기 전까지 일반 빌드·제출하지 않아요. 자세한 절차는 [`docs/google-play-release-runbook-ko.md`](docs/google-play-release-runbook-ko.md)를 따라요.
 
-다음 값이 실제로 발급된 뒤에만 차단을 해제해요.
-
-- production Hosting의 HTTPS 기준 URL
-- `com.personal.alarmpyo`용 앱 서명 인증서 SHA-256
+production Hosting의 실제 HTTPS 기준 URL을 기록한 뒤에만 direct 공개 차단을 해제해요. 이 direct 차단은 Play를 자동으로 막지 않으며, Play에는 실제 공개·검증한 개인정보처리방침 HTTPS 주소를 별도로 기록해요. Play App Signing도 direct 인증서를 자동으로 가정하지 않고 선택한 전략과 최종 인증서 SHA-256을 별도 정책에 기록해요. same-signer일 때만 direct→Play 교차 업데이트 검사를 요구하고, 별도 signer라면 외부 백업 후 제거·새 설치·복원 경로를 안내해요.
 
 예제 UUID·주소나 이전 앱의 서명 인증서를 대신 넣지 않아요. 차단을 해제한 뒤 APK 파일명은 `AlarmPyo_YYYYMMDD.apk`, 환경 변수는 `ALARMPYO_*` 접두사를 사용하고, EAS 증거·Samsung 실기기·Android 12~16 검증을 모두 완료한 뒤 첫 원장 항목을 추가해요. 자세한 절차는 [`docs/release-provenance.md`](docs/release-provenance.md)를 따라요.
 
@@ -131,10 +129,10 @@ node scripts/audit-public-apks.mjs --keep-recent 3 --apply
 
 ### 화면·데이터
 
-- 오늘·달력·설정 화면을 라이트·다크 모드와 큰 글자 설정에서 확인해요.
+- 오늘·달력·설정 화면을 다크 전용 테마와 큰 글자 설정에서 확인해요.
 - 달력의 주간·야간·휴무·교육·예비군·공휴일·급여일이 겹치지 않는지 확인해요.
 - 4×1 위젯이 주간·야간·휴무와 다음 근무를 현재 날짜에 맞게 표시하는지 확인해요.
-- 백업 파일 저장·가져오기, 근무표 공유와 달력 내보내기를 실제 파일로 확인해요.
+- 백업 파일 저장·가져오기와 근무표 공유를 실제 파일로 확인해요.
 - 앱을 하루 이상 열지 않은 뒤 다시 열어 날짜 변경, 다음 근무와 알람 예약이 갱신되는지 확인해요.
 
 ### 배포 완료

@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 import { writeJsonAtomic } from './atomic-json-file.mjs';
 import { assertPlayReleaseEvidence } from './play-release-evidence.mjs';
+import { readPlayReleasePolicy } from './play-release-policy.mjs';
 import { readReleasePolicy } from './release-policy.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -73,11 +74,12 @@ export async function validatePlayReleaseEvidence({
   outputPath,
   now,
 }) {
-  const [releaseEvidence, artifact, releasePolicy] = await Promise.all([
+  const [releaseEvidence, artifact, directPolicy] = await Promise.all([
     readJson(resolve(root, evidencePath), 'Play 릴리스 증거 파일이 없어요.'),
     readJson(resolve(root, provenancePath), '검증된 Play AAB 출처 기록이 없어요.'),
-    readReleasePolicy(root),
+    readReleasePolicy(root, { allowBlocked: true }),
   ]);
+  const playPolicy = await readPlayReleasePolicy(root, directPolicy);
   const [physicalDevice, pageSize16KbDevice, preLaunchReport] = await Promise.all([
     readLinkedEvidence(
       releaseEvidence.physicalDeviceEvidence,
@@ -98,7 +100,7 @@ export async function validatePlayReleaseEvidence({
   const binding = assertPlayReleaseEvidence(
     releaseEvidence,
     artifact,
-    releasePolicy,
+    playPolicy,
     { physicalDevice, pageSize16KbDevice, preLaunchReport },
     { now },
   );

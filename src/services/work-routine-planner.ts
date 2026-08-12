@@ -27,7 +27,8 @@ export type WorkRoutineStepId =
   | 'depart'
   | 'arrive-and-change'
   | 'final-prepare'
-  | 'handover';
+  | 'handover'
+  | 'ready-for-work';
 
 export type WorkRoutineStep = {
   id: WorkRoutineStepId;
@@ -42,6 +43,7 @@ export type WorkRoutinePlan = {
   wakeAt: number;
   departAt: number;
   arriveAt: number;
+  /** 교대를 마치는 시각이에요. */
   handoverAt: number;
   workStartAt: number;
   summary: string;
@@ -220,8 +222,12 @@ export function buildWorkRoutinePlan(
     kind === 'night'
       ? NIGHT_PREP_STEP_TEMPLATES
       : DAY_PREP_STEP_TEMPLATES;
-  const arrivalPreparationSplit =
-    arriveAt + Math.round(((handoverAt - arriveAt) * 2) / 3);
+  const arrivalToHandoverMinutes =
+    (handoverAt - arriveAt) / MINUTE_IN_MS;
+  const arrivalChangeEnd =
+    arriveAt + Math.round(arrivalToHandoverMinutes / 3) * MINUTE_IN_MS;
+  const handoverStartAt =
+    arriveAt + Math.round((arrivalToHandoverMinutes * 2) / 3) * MINUTE_IN_MS;
   const milestoneSteps: WorkRoutineStep[] = [
     {
       id: 'depart',
@@ -232,20 +238,26 @@ export function buildWorkRoutinePlan(
     {
       id: 'arrive-and-change',
       at: arriveAt,
-      endAt: arrivalPreparationSplit,
+      endAt: arrivalChangeEnd,
       instruction: '도착 후 옷을 갈아입고 복장을 정리하세요.',
     },
     {
       id: 'final-prepare',
-      at: arrivalPreparationSplit,
-      endAt: handoverAt,
+      at: arrivalChangeEnd,
+      endAt: handoverStartAt,
       instruction: '교대 전 준비를 마무리하세요.',
     },
     {
       id: 'handover',
+      at: handoverStartAt,
+      endAt: handoverAt,
+      instruction: '교대를 마치세요.',
+    },
+    {
+      id: 'ready-for-work',
       at: handoverAt,
       endAt: workStartAt,
-      instruction: '교대하세요.',
+      instruction: '교대 후 실제 근무 시작을 준비하세요.',
     },
   ];
   const steps: WorkRoutineStep[] = [
@@ -264,7 +276,7 @@ export function buildWorkRoutinePlan(
     arriveAt,
     handoverAt,
     workStartAt,
-    summary: `${formatClock(wakeAt)} 기상 · ${formatClock(departAt)} 출발 · ${formatClock(handoverAt)} 교대`,
+    summary: `${formatClock(wakeAt)} 기상 · ${formatClock(departAt)} 출발 · ${formatClock(handoverAt)} 교대 완료`,
     steps,
     currentStep,
   };

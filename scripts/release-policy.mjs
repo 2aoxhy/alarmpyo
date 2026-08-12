@@ -35,9 +35,9 @@ function isReleasePolicyShape(policy) {
     policy?.schemaVersion === 2 &&
     policy?.lineage === 'alarmpyo' &&
     policy?.packageName === 'com.personal.alarmpyo' &&
-    policy?.initialRelease?.versionName === '1.0.0' &&
-    policy?.initialRelease?.androidVersionCode === 1 &&
-    policy?.initialRelease?.iosBuildNumber === '1' &&
+    policy?.initialRelease?.versionName === '1.0.1' &&
+    policy?.initialRelease?.androidVersionCode === 2 &&
+    policy?.initialRelease?.iosBuildNumber === '2' &&
     ['active', 'blocked'].includes(policy?.releaseState) &&
     Array.isArray(policy?.releaseBlockers) &&
     new Set(policy.releaseBlockers).size === policy.releaseBlockers.length &&

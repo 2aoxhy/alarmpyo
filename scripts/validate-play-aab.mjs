@@ -15,16 +15,20 @@ import {
   assertBundlePageAlignment16K,
   assertNoForbiddenDexStrings,
   assertPlayJavascriptBundle,
+  readPlayReleasePolicy,
   validatePlayManifest,
   validateProvenanceBinding,
 } from './play-release-policy.mjs';
+import {
+  assertPlaySigningBootstrapAllowed,
+} from './play-signing-bootstrap.mjs';
 import { readZipEntries } from './zip-entry-reader.mjs';
 import { normalizeEasBuildProvenance } from './release-artifact-provenance.mjs';
 import { readReleasePolicy } from './release-policy.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -125,8 +129,18 @@ export async function validatePlayAab({
   provenancePath,
   easBuildEvidencePath = null,
   requireCleanSource = true,
+  allowPlaySigningBootstrap = false,
 }) {
-  await readReleasePolicy(root);
+  const policyOptions = allowPlaySigningBootstrap ? { allowBlocked: true } : {};
+  const directPolicy = await readReleasePolicy(root, { allowBlocked: true });
+  const playPolicy = await readPlayReleasePolicy(root, directPolicy, policyOptions);
+  const releaseContext = allowPlaySigningBootstrap
+    ? assertPlaySigningBootstrapAllowed({ directPolicy, playPolicy })
+    : {
+        purpose: 'play-release',
+        buildProfile: 'production',
+        submissionEligible: true,
+      };
   const absoluteAabPath = resolve(root, aabPath);
   const aabStat = await stat(absoluteAabPath).catch(() => null);
   if (!aabStat?.isFile() || aabStat.size < 1024 * 1024) {
@@ -140,9 +154,6 @@ export async function validatePlayAab({
   }
 
   const app = JSON.parse(await readFile(resolve(root, 'app.json'), 'utf8')).expo;
-  const playPolicy = JSON.parse(
-    await readFile(resolve(root, 'play-release-policy.json'), 'utf8'),
-  );
   const expected = {
     packageName: app.android.package,
     versionCode: app.android.versionCode,
@@ -202,6 +213,8 @@ export async function validatePlayAab({
     targetSdk: manifest.targetSdk,
     pageAlignment,
     distribution: 'play',
+    releasePurpose: releaseContext.purpose,
+    submissionEligible: releaseContext.submissionEligible,
     signed: true,
     sourceCommit,
     sourceDirty,
@@ -219,7 +232,7 @@ export async function validatePlayAab({
       await readFile(resolve(root, easBuildEvidencePath), 'utf8'),
     );
     const provenance = normalizeEasBuildProvenance(evidence, {
-      buildProfile: 'production',
+      buildProfile: releaseContext.buildProfile,
       versionName: app.version,
       versionCode: app.android.versionCode,
       projectId: app.extra?.eas?.projectId,

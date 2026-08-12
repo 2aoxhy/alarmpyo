@@ -1,6 +1,11 @@
 import type { RotationPattern } from '@/models/app-data';
 
-import { addDays, isValidDateKey, parseDateKey } from './date';
+import {
+  addDays,
+  differenceInCalendarDays,
+  isValidDateKey,
+  parseDateKey,
+} from './date';
 
 export type WorkPatternKind = 'rotation' | 'weekday';
 
@@ -43,6 +48,35 @@ export function getWorkPatternName(kind: WorkPatternKind): string {
 /** 월요일 0부터 일요일 6까지 반환합니다. */
 export function getWeekdayPatternPosition(dateKey: string): number {
   return (parseDateKey(dateKey).getDay() + 6) % 7;
+}
+
+/** 기준 날짜의 순번을 실제로 확인할 날짜의 순번으로 옮겨요. */
+export function getRotationPatternPositionForDate({
+  date,
+  referenceDate,
+  referencePosition,
+}: {
+  date: string;
+  referenceDate: string;
+  referencePosition: number;
+}): number {
+  if (!isValidDateKey(date) || !isValidDateKey(referenceDate)) {
+    throw new RangeError('근무 순번을 계산할 날짜가 올바르지 않아요.');
+  }
+  if (
+    !Number.isInteger(referencePosition) ||
+    referencePosition < 0 ||
+    referencePosition >= ROTATION_PATTERN_SHIFT_TYPE_IDS.length
+  ) {
+    throw new RangeError('기준 날짜의 실제 근무를 선택해 주세요.');
+  }
+
+  const offset = differenceInCalendarDays(date, referenceDate);
+  const sequenceLength = ROTATION_PATTERN_SHIFT_TYPE_IDS.length;
+  return (
+    ((referencePosition + offset) % sequenceLength + sequenceLength) %
+    sequenceLength
+  );
 }
 
 /** 기준 날짜의 실제 근무 위치를 바탕으로 반복 근무표의 시작점을 계산해요. */

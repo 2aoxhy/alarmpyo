@@ -180,6 +180,14 @@ describe('app-store-mutations', () => {
   it('테마와 초기 설정을 불변 방식으로 반영해요', () => {
     const current = createDefaultAppData('2026-08-09');
     expect(applyThemeMode(current, current.settings.themeMode)).toBe(current);
+    expect(applyThemeMode(current, 'light')).toBe(current);
+    expect(applyThemeMode(current, 'system')).toBe(current);
+
+    const legacyLight = {
+      ...current,
+      settings: { ...current.settings, themeMode: 'light' as const },
+    };
+    expect(applyThemeMode(legacyLight, 'system').settings.themeMode).toBe('dark');
 
     const completed = applySetupCompletion(current);
     expect(completed.settings.setupCompleted).toBe(true);

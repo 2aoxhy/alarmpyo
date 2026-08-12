@@ -65,7 +65,7 @@ export function RoutineTimingEditor({
   }[] = [
     { key: 'departMinutesBefore', label: '출발' },
     { key: 'arriveMinutesBefore', label: '도착' },
-    { key: 'handoverMinutesBefore', label: '교대' },
+    { key: 'handoverMinutesBefore', label: '교대 완료' },
   ];
 
   return (
@@ -74,7 +74,7 @@ export function RoutineTimingEditor({
         expanded={expanded}
         icon="time-outline"
         onPress={() => onExpandedChange(!expanded)}
-        subtitle={`${formatMilestoneTime(profile.departMinutesBefore)} 출발 · ${formatMilestoneTime(profile.arriveMinutesBefore)} 도착 · ${formatMilestoneTime(profile.handoverMinutesBefore)} 교대`}
+        subtitle={`${formatMilestoneTime(profile.departMinutesBefore)} 출발 · ${formatMilestoneTime(profile.arriveMinutesBefore)} 도착 · ${formatMilestoneTime(profile.handoverMinutesBefore)} 교대 완료`}
         title={`${kind === 'night' ? '야간' : '주간'} 출근 루틴`}
       />
 

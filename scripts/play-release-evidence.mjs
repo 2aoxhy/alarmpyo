@@ -13,6 +13,11 @@ export const REQUIRED_PLAY_PHYSICAL_CHECKS = Object.freeze([
   'foregroundAlarmAudio',
   'widgetAvailable',
 ]);
+export const PLAY_DIRECT_UPGRADE_CHECKS = Object.freeze([
+  'directApkUpgrade',
+  'dataPreserved',
+  'permissionsPreserved',
+]);
 export const REQUIRED_PLAY_16KB_CHECKS = Object.freeze([
   'installAndLaunch',
   'coreScheduleFlow',
@@ -88,7 +93,13 @@ function assertChecks(value, required, label) {
   }
 }
 
-function assertPhysicalEvidence(value, releaseEvidence, artifact, checkedAt) {
+function assertPhysicalEvidence(
+  value,
+  releaseEvidence,
+  artifact,
+  checkedAt,
+  directUpgradeCompatible,
+) {
   ensure(
     value?.schemaVersion === 1 &&
       value?.evidenceType === 'play-physical-device' &&
@@ -126,7 +137,27 @@ function assertPhysicalEvidence(value, releaseEvidence, artifact, checkedAt) {
       ),
     'Samsung 실기기 APK 서명 인증서가 Play 앱 서명 인증서와 달라요.',
   );
-  assertChecks(value.checks, REQUIRED_PLAY_PHYSICAL_CHECKS, 'Play Samsung 실기기');
+  assertChecks(
+    value.checks,
+    REQUIRED_PLAY_PHYSICAL_CHECKS.filter(
+      (check) => !PLAY_DIRECT_UPGRADE_CHECKS.includes(check),
+    ),
+    'Play Samsung 실기기',
+  );
+  if (directUpgradeCompatible) {
+    assertChecks(
+      value.checks,
+      PLAY_DIRECT_UPGRADE_CHECKS,
+      'Play Samsung direct 업데이트',
+    );
+  } else {
+    for (const check of PLAY_DIRECT_UPGRADE_CHECKS) {
+      ensure(
+        value.checks?.[check] === false,
+        `별도 Play 서명 계보에서는 ${check} 검사를 false로 기록해 주세요.`,
+      );
+    }
+  }
 }
 
 function assert16KbEvidence(value, releaseEvidence, artifact, checkedAt) {
@@ -199,7 +230,7 @@ function assertPreLaunchEvidence(value, artifact, checkedAt) {
 export function assertPlayReleaseEvidence(
   releaseEvidence,
   artifact,
-  releasePolicy,
+  playPolicy,
   rawEvidence,
   options = {},
 ) {
@@ -213,6 +244,11 @@ export function assertPlayReleaseEvidence(
     '깨끗한 소스에서 서명·검증된 Play AAB 출처 기록이 아니에요.',
   );
   ensure(
+    artifact?.releasePurpose === 'play-release' &&
+      artifact?.submissionEligible === true,
+    'Play 서명 부트스트랩 AAB 출처는 릴리스·제출 증거로 사용할 수 없어요.',
+  );
+  ensure(
     artifact?.pageAlignment === 'PAGE_ALIGNMENT_16K',
     'AAB가 PAGE_ALIGNMENT_16K 검증을 통과하지 않았어요.',
   );
@@ -221,16 +257,15 @@ export function assertPlayReleaseEvidence(
   ensure(EAS_BUILD_ID_PATTERN.test(artifact?.easBuildId ?? ''), 'AAB EAS 빌드 ID가 올바르지 않아요.');
   assertArtifactBinding(releaseEvidence, artifact, 'Play 릴리스 증거');
 
-  const trustedSigners = (releasePolicy?.signingCertificateSha256 ?? []).map(
-    (value) => String(value).toLowerCase(),
-  );
+  const trustedSigner = playPolicy?.appSigningCertificateSha256;
   const appSigningCertificateSha256 = normalizeSha256(
     releaseEvidence.appSigningCertificateSha256,
     'Play 앱 서명 인증서',
   );
   ensure(
-    trustedSigners.includes(appSigningCertificateSha256),
-    'Play 앱 서명 인증서가 AlarmPyo 릴리스 정책 인증서와 일치하지 않아요.',
+    typeof trustedSigner === 'string' &&
+      trustedSigner.toLowerCase() === appSigningCertificateSha256,
+    'Play 앱 서명 인증서가 Play 배포 정책 인증서와 일치하지 않아요.',
   );
   ensure(
     ['internal', 'closed'].includes(releaseEvidence.track),
@@ -262,7 +297,15 @@ export function assertPlayReleaseEvidence(
     'Play 릴리스 증거가 14일보다 오래됐어요.',
   );
 
-  assertPhysicalEvidence(rawEvidence.physicalDevice, releaseEvidence, artifact, checkedAt);
+  const directUpgradeCompatible =
+    playPolicy.directUpgradeCompatible !== false;
+  assertPhysicalEvidence(
+    rawEvidence.physicalDevice,
+    releaseEvidence,
+    artifact,
+    checkedAt,
+    directUpgradeCompatible,
+  );
   assert16KbEvidence(rawEvidence.pageSize16KbDevice, releaseEvidence, artifact, checkedAt);
   assertPreLaunchEvidence(rawEvidence.preLaunchReport, artifact, checkedAt);
 
@@ -272,6 +315,7 @@ export function assertPlayReleaseEvidence(
     easBuildId: artifact.easBuildId,
     versionCode: artifact.versionCode,
     appSigningCertificateSha256,
+    directUpgradeCompatible,
     checkedAt: new Date(checkedAt).toISOString(),
   };
 }

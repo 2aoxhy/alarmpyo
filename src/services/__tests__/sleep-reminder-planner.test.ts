@@ -66,8 +66,8 @@ describe('수면 시작 알림 계획', () => {
     });
 
     expect(plans[0]).toEqual({
-      id: `sleep-reminder:sleep:main:2026-07-11:${at('2026-07-10', 21, 10)}`,
-      reminderAt: at('2026-07-10', 21, 10),
+      id: `sleep-reminder:sleep:main:2026-07-11:${at('2026-07-10', 20, 55)}`,
+      reminderAt: at('2026-07-10', 20, 55),
       shiftDate: '2026-07-11',
       shiftName: '주간',
       title: '수면 시작 시간이에요',

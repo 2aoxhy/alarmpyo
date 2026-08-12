@@ -53,23 +53,6 @@ export function WorkPatternOverview({
         </View>
       </View>
 
-      <View style={[styles.details, stacked && styles.detailsStacked]}>
-        <OverviewDetail
-          label="일정 적용 시작일"
-          value={formatKoreanDate(overview.scheduleStartDate, true)}
-        />
-        {overview.kind === 'rotation' ? (
-          <OverviewDetail
-            label={`${overview.referenceDate}의 근무`}
-            value={overview.referenceShiftLabel}
-          />
-        ) : (
-          <OverviewDetail label="주말" value="토·일요일 고정 휴무" />
-        )}
-      </View>
-
-      <View style={styles.divider} />
-
       <View style={styles.previewHeading}>
         <AppText variant="label">미리 보기</AppText>
         <AppText color={palette.inkMuted} variant="caption">
@@ -98,26 +81,13 @@ export function WorkPatternOverview({
       </View>
 
       <AppButton
-        accessibilityHint="근무 방식, 적용 시작일, 순번을 변경해요."
+        accessibilityHint="근무 방식을 변경해요."
         icon="options-outline"
         label="근무 방식 수정하기"
         onPress={onEdit}
         variant="secondary"
       />
     </Card>
-  );
-}
-
-function OverviewDetail({ label, value }: { label: string; value: string }) {
-  const { palette } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.detailItem}>
-      <AppText color={palette.inkMuted} variant="caption">
-        {label}
-      </AppText>
-      <AppText variant="label">{value}</AppText>
-    </View>
   );
 }
 
@@ -145,25 +115,6 @@ function createStyles(palette: AppPalette) {
       minWidth: 0,
       flex: 1,
       gap: 2,
-    },
-    details: {
-      flexDirection: 'row',
-      gap: spacing.small,
-    },
-    detailsStacked: {
-      flexDirection: 'column',
-    },
-    detailItem: {
-      minWidth: 0,
-      flex: 1,
-      gap: 3,
-      padding: spacing.medium,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: palette.line,
     },
     previewHeading: {
       minHeight: 28,

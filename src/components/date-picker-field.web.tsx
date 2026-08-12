@@ -27,6 +27,8 @@ export function DatePickerField({
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [pickerFocused, setPickerFocused] = useState(false);
+  const [manualEntryFocused, setManualEntryFocused] = useState(false);
   const valid = isValidDateKey(value);
   const pickerAccessibilityLabel = valid
     ? `${accessibilityLabel}, 현재 ${formatKoreanDate(value, true)}`
@@ -38,10 +40,12 @@ export function DatePickerField({
         {createElement('input', {
           'aria-label': pickerAccessibilityLabel,
           max: '9999-12-31',
+          onBlur: () => setPickerFocused(false),
           onChange: (event: { currentTarget: { value: string } }) => {
             void Haptics.selectionAsync();
             onChange(event.currentTarget.value);
           },
+          onFocus: () => setPickerFocused(true),
           style: {
             minWidth: 210,
             minHeight: 52,
@@ -51,9 +55,12 @@ export function DatePickerField({
             background: palette.canvas,
             padding: `0 ${spacing.medium}px`,
             color: palette.ink,
+            colorScheme: 'dark',
             fontFamily: fontFamily.label,
             fontSize: 18,
             textAlign: 'center',
+            outline: pickerFocused ? `3px solid ${palette.indigo}` : 'none',
+            outlineOffset: 2,
           },
           type: 'date',
           value: valid ? value : '',
@@ -94,11 +101,17 @@ export function DatePickerField({
           autoCorrect={false}
           maxLength={10}
           onChangeText={onChange}
+          onBlur={() => setManualEntryFocused(false)}
+          onFocus={() => setManualEntryFocused(true)}
           placeholder={placeholder}
           placeholderTextColor={palette.inkSoft}
           selectTextOnFocus
           selectionColor={palette.indigo}
-          style={[styles.dateInput, !valid && styles.inputError]}
+          style={[
+            styles.dateInput,
+            !valid && styles.inputError,
+            manualEntryFocused && styles.inputFocused,
+          ]}
           value={value}
         />
       ) : null}
@@ -106,7 +119,7 @@ export function DatePickerField({
   );
 }
 
-function createStyles(palette: AppPalette, isDark: boolean) {
+function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     container: { gap: spacing.small },
     primaryRow: {
@@ -121,7 +134,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       borderRadius: radii.medium,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
-      backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
+      backgroundColor: palette.surfaceSoft,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
       color: palette.ink,
@@ -132,6 +145,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       outlineWidth: 0,
     },
     inputError: { borderColor: palette.danger },
+    inputFocused: {
+      borderColor: palette.indigo,
+      borderWidth: 2,
+      outlineColor: palette.indigo,
+      outlineWidth: 2,
+    },
     helpText: { textAlign: 'center' },
   });
 }

@@ -98,7 +98,7 @@ export default function DataSettingsScreen() {
     importData,
     previewImportData,
     previewSharedWorkSettings,
-    resetAllData,
+    resetAllDataDetailed,
     restoreLatestBackup,
     retryPendingRestoreBackup,
   } = useAppStore();
@@ -508,7 +508,7 @@ export default function DataSettingsScreen() {
   const reset = () => {
     showDialog(
       '모든 데이터를 초기화할까요?',
-      '직접 변경한 날짜와 메모, 근무 시간이 사라지고 기본 근무표로 돌아가요. 초기화 전에 자동으로 안전 백업해요.',
+      '직접 변경한 날짜와 메모, 근무 시간 등 앱 데이터를 지우고 처음 설정 화면으로 돌아가요. 휴대폰 밖에 저장한 백업 파일은 지우지 않으며, 초기화 전에 자동으로 안전 백업해요.',
       [
         { text: '뒤로 가기', style: 'cancel' },
         {
@@ -516,15 +516,33 @@ export default function DataSettingsScreen() {
           style: 'destructive',
           onPress: () => {
             if (!beginOperation('reset-data')) return;
-            void resetAllData()
-              .then((success) => {
+            void resetAllDataDetailed()
+              .then((result) => {
+                if (result.status === 'success') {
+                  showDialog(
+                    '앱 데이터를 초기화했어요',
+                    '오늘 근무 위치부터 다시 설정해 주세요.',
+                  );
+                } else if (result.status === 'partial') {
+                  showDialog(
+                    '초기화 후 확인이 필요해요',
+                    '앱 데이터는 초기화했지만 수면 알림을 포함한 알람 예약이나 안전 백업 후속 처리는 끝나지 않았어요. 처음 설정을 마친 뒤 알람 화면에서 상태를 확인해 주세요.',
+                  );
+                } else {
+                  showDialog(
+                    '초기화하지 못했어요',
+                    result.reason === 'backup-failed'
+                      ? '안전 백업을 만들지 못해 현재 데이터를 유지했어요.'
+                      : '안전 백업은 만들었지만 현재 데이터를 지우지 못했어요. 다시 시도해 주세요.',
+                  );
+                }
+                if (result.dataReset) void refreshBackup();
+              })
+              .catch(() => {
                 showDialog(
-                  success ? '모든 데이터를 초기화했어요' : '초기화하지 못했어요',
-                  success
-                    ? '오늘 근무 위치부터 다시 설정해 주세요.'
-                    : '안전 백업을 만들지 못해 현재 데이터를 유지했어요.',
+                  '초기화 결과를 확인하지 못했어요',
+                  '앱을 다시 연 뒤 데이터와 알람 상태를 확인해 주세요.',
                 );
-                if (success) void refreshBackup();
               })
               .finally(finishOperation);
           },

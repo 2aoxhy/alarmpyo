@@ -25,9 +25,9 @@
       "additionalProperties": false,
       "required": ["versionName", "androidVersionCode", "iosBuildNumber"],
       "properties": {
-        "versionName": { "const": "1.0.0" },
-        "androidVersionCode": { "const": 1 },
-        "iosBuildNumber": { "const": "1" }
+        "versionName": { "const": "1.0.1" },
+        "androidVersionCode": { "const": 2 },
+        "iosBuildNumber": { "const": "2" }
       }
     },
     "releaseState": { "enum": ["active", "blocked"] },

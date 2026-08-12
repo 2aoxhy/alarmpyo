@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createDefaultAppData,
@@ -12,6 +12,7 @@ import {
   APP_DATA_LAST_KNOWN_GOOD_KEY,
   APP_DATA_PENDING_RESTORE_BACKUP_KEY,
   APP_DATA_STORAGE_KEY,
+  MAX_PENDING_RESTORE_DOCUMENT_BYTES,
   createLatestStorageValueCoordinator,
   createSerializedStorageWriter,
   findMatchingLastKnownGoodSnapshot,
@@ -77,6 +78,7 @@ describe('본문과 최근 정상 저장본 저장', () => {
 
     expect(result).toMatchObject({
       primarySaved: true,
+      primaryChanged: true,
       lastKnownGoodSaved: false,
       operationSucceeded: true,
       announceSuccess: false,
@@ -103,6 +105,7 @@ describe('본문과 최근 정상 저장본 저장', () => {
     );
 
     expect(result).toMatchObject(getSnapshotPersistenceOutcome(false, false));
+    expect(result.primaryChanged).toBe(false);
     expect(storage.writes).toEqual([APP_DATA_STORAGE_KEY]);
     expect(storage.values.has(APP_DATA_LAST_KNOWN_GOOD_KEY)).toBe(false);
   });
@@ -122,7 +125,35 @@ describe('본문과 최근 정상 저장본 저장', () => {
     );
 
     expect(result).toMatchObject(getSnapshotPersistenceOutcome(true, true));
+    expect(result.primaryChanged).toBe(false);
     expect(storage.writes).toEqual([]);
+  });
+
+  it('같은 본문을 강제로 다시 써도 실제 내용 변경으로 표시하지 않아요', async () => {
+    const storage = new ControlledStorage();
+    const writer = createSerializedStorageWriter(storage);
+    const coordinator = createLatestStorageValueCoordinator(writer, APP_DATA_STORAGE_KEY);
+    const snapshot = serializeAppData(createDefaultAppData('2026-07-14'));
+    coordinator.setPersistedValue(snapshot);
+
+    const result = await persistSnapshotWithLastKnownGood(
+      coordinator,
+      writer,
+      snapshot,
+      snapshot,
+      { force: true },
+    );
+
+    expect(result).toMatchObject({
+      ...getSnapshotPersistenceOutcome(true, true),
+      primaryChanged: false,
+      persistedSnapshot: snapshot,
+      lastKnownGoodSnapshot: snapshot,
+    });
+    expect(storage.writes).toEqual([
+      APP_DATA_STORAGE_KEY,
+      APP_DATA_LAST_KNOWN_GOOD_KEY,
+    ]);
   });
 
   it('본문은 상한 이하여도 안전 백업이 상한을 넘으면 쓰기 전에 함께 거부해요', async () => {
@@ -478,6 +509,51 @@ describe('최근 자동 백업 복원 순서', () => {
     expect(storage.values.has(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(false);
   });
 
+  it('각 자료는 4MB 이하이지만 합친 pending 문서가 4MB를 넘어도 보존해요', async () => {
+    const storage = new ControlledStorage();
+    const currentBase = createDefaultAppData('2026-07-14');
+    const targetBase = createDefaultAppData('2026-07-11');
+    const createLargeNotes = (fill: string) => Object.fromEntries(
+      Array.from({ length: 22 }, (_, index) => [
+        new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
+        fill.repeat(100_000),
+      ]),
+    );
+    const current = {
+      ...currentBase,
+      notes: createLargeNotes('a'),
+    };
+    const target = {
+      ...targetBase,
+      notes: createLargeNotes('b'),
+    };
+    const writer = createSerializedStorageWriter(storage);
+    storage.failedWriteKeys.add(APP_DATA_AUTOMATIC_BACKUP_KEY);
+
+    const result = await restoreWithAutomaticBackupCommit(
+      writer,
+      current,
+      target,
+      async () => ({ primarySaved: true, operationSucceeded: true }),
+      now,
+    );
+
+    expect(result).toMatchObject({
+      restoreStarted: true,
+      automaticBackupSaved: false,
+      pendingBackupAvailable: true,
+    });
+    const raw = storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+    expect(raw).toBeDefined();
+    const rawBytes = new TextEncoder().encode(raw).length;
+    expect(rawBytes).toBeGreaterThan(MAX_APP_DATA_BYTES);
+    expect(rawBytes).toBeLessThanOrEqual(MAX_PENDING_RESTORE_DOCUMENT_BYTES);
+    await expect(readPendingRestoreBackup(storage, target)).resolves.toMatchObject({
+      phase: 'committed',
+      recoveryState: 'committed',
+    });
+  });
+
   it('이미 갈라진 prepared는 현재 자료로 확정하지 않고 확인 후에만 보관해요', async () => {
     const storage = new ControlledStorage();
     const target = createDefaultAppData('2026-07-11');
@@ -534,5 +610,54 @@ describe('최근 자동 백업 복원 순서', () => {
       retryPendingRestoreBackupCommit(storage, writer, current),
     ).resolves.toEqual({ status: 'unavailable' });
     expect(storage.values.get(APP_DATA_AUTOMATIC_BACKUP_KEY)).toBe(originalBackup);
+  });
+
+  it('전용 상한을 넘는 pending 복원 입력은 JSON 파싱 전에 거절해요', async () => {
+    const storage = new ControlledStorage();
+    const current = createDefaultAppData('2026-07-14');
+    storage.values.set(
+      APP_DATA_PENDING_RESTORE_BACKUP_KEY,
+      ' '.repeat(MAX_PENDING_RESTORE_DOCUMENT_BYTES + 1),
+    );
+
+    const parseSpy = vi.spyOn(JSON, 'parse');
+    try {
+      await expect(readPendingRestoreBackup(storage, current)).resolves.toBeNull();
+      expect(parseSpy).not.toHaveBeenCalled();
+    } finally {
+      parseSpy.mockRestore();
+    }
+  });
+
+  it('pending 내부 백업과 대상 본문은 각각 4MB를 넘으면 내부 파싱 전에 거절해요', async () => {
+    const current = createDefaultAppData('2026-07-14');
+    const validBackup = exportAppDataToJson(current, now, { pretty: false });
+    const validTarget = serializeAppData(current);
+    const oversized = ' '.repeat(MAX_APP_DATA_BYTES + 1);
+
+    for (const oversizedField of ['backup', 'targetSnapshot'] as const) {
+      const storage = new ControlledStorage();
+      storage.values.set(
+        APP_DATA_PENDING_RESTORE_BACKUP_KEY,
+        JSON.stringify({
+          format: 'alarmpyo-pending-restore-backup',
+          version: 1,
+          phase: 'prepared',
+          createdAt: now.toISOString(),
+          backup: oversizedField === 'backup' ? oversized : validBackup,
+          targetSnapshot:
+            oversizedField === 'targetSnapshot' ? oversized : validTarget,
+        }),
+      );
+
+      const parseSpy = vi.spyOn(JSON, 'parse');
+      try {
+        await expect(readPendingRestoreBackup(storage, current)).resolves.toBeNull();
+        // 바깥 pending 문서만 파싱하고, 크기를 넘은 내부 JSON은 파싱하지 않아요.
+        expect(parseSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        parseSpy.mockRestore();
+      }
+    }
   });
 });

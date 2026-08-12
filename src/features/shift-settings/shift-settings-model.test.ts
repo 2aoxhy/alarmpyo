@@ -19,7 +19,7 @@ describe('shift settings model', () => {
     const drafts = createShiftDrafts(data.shiftTypes);
 
     expect(drafts.find((draft) => draft.id === 'day')).toMatchObject({
-      start: '07:00',
+      start: '06:45',
       alarmEnabled: true,
     });
     expect(drafts.some((draft) => draft.id === 'off')).toBe(false);
@@ -65,11 +65,11 @@ describe('shift settings model', () => {
   it('시간과 알람 구역의 요약 문구를 만들어요', () => {
     const data = createDefaultAppData('2026-08-09');
 
-    expect(formatShiftTimeSummary(data.shiftTypes)).toContain('주간 07:00~17:45');
-    expect(formatWakeTimeSummary(data.shiftTypes)).toBe('주간 05:10 · 야간 16:10');
-    expect(formatWakeTimeSummary(data.shiftTypes, false)).toBe('주간 05:10');
+    expect(formatShiftTimeSummary(data.shiftTypes)).toContain('주간 06:45~17:45');
+    expect(formatWakeTimeSummary(data.shiftTypes)).toBe('주간 04:55 · 야간 15:55');
+    expect(formatWakeTimeSummary(data.shiftTypes, false)).toBe('주간 04:55');
     expect(formatDraftWakeTimeSummary(createShiftDrafts(data.shiftTypes))).toBe(
-      '주간 05:10 · 야간 16:10',
+      '주간 04:55 · 야간 15:55',
     );
     expect(formatAlarmOption(90)).toBe('90분 전');
     expect(formatAlarmOption(120)).toBe('2시간 전');

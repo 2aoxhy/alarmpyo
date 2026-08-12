@@ -9,6 +9,8 @@ expo-env.d.ts
 *.orig.*
 *.jks
 *.keystore
+*.jceks
+*.bks
 *.p8
 *.p12
 *.pfx
@@ -16,12 +18,18 @@ expo-env.d.ts
 *.mobileprovision
 *.pem
 local.properties
+keystore.properties
+credentials.json
+credentials*.json
 google-services.json
 service-account*.json
+firebase-adminsdk*.json
 .release/
 .env
 .env.*
 !.env.example
+.npmrc
+.netrc
 *.tsbuildinfo
 npm-debug.*
 yarn-debug.*

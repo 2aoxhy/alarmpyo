@@ -14,6 +14,8 @@ expo-env.d.ts
 *.orig.*
 *.jks
 *.keystore
+*.jceks
+*.bks
 *.p8
 *.p12
 *.pfx
@@ -22,8 +24,12 @@ expo-env.d.ts
 *.apk
 *.aab
 local.properties
+keystore.properties
+credentials.json
+credentials*.json
 google-services.json
 service-account*.json
+firebase-adminsdk*.json
 .release/
 
 # Metro
@@ -43,6 +49,8 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+.npmrc
+.netrc
 
 # typescript
 *.tsbuildinfo

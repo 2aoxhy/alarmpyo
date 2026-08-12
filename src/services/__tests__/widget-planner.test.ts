@@ -133,7 +133,7 @@ describe('buildAlarmPyoWidgetSnapshot', () => {
 
     expect(snapshot.displayOptions).toEqual(data.settings.widgetDisplayOptions);
     expect(snapshot.alarms[0]).toMatchObject({
-      alarmAt: new Date(2026, 6, 13, 5, 10).getTime(),
+      alarmAt: new Date(2026, 6, 13, 4, 55).getTime(),
       shiftTypeId: 'day',
       shiftName: '주간',
     });

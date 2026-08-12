@@ -26,9 +26,9 @@ describe('APK 운영 배포 정책', () => {
       lineage: 'alarmpyo',
       packageName: 'com.personal.alarmpyo',
       initialRelease: {
-        versionName: '1.0.0',
-        androidVersionCode: 1,
-        iosBuildNumber: '1',
+        versionName: '1.0.1',
+        androidVersionCode: 2,
+        iosBuildNumber: '2',
       },
       releaseState: 'blocked',
       releaseBlockers: ['productionHostingUrl'],

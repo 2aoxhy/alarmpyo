@@ -177,13 +177,31 @@ export function CalendarMonthCard({
           visibleMonth={visibleMonth}
         />
         {calendarLayout.needsHorizontalScroll ? (
-          <ScrollView
-            directionalLockEnabled
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator>
-            {calendarGrid}
-          </ScrollView>
+          <>
+            <View
+              accessible
+              accessibilityLabel="날짜 영역을 좌우로 밀어 일주일을 확인해요."
+              style={styles.horizontalScrollHint}>
+              <AppIcon
+                accessible={false}
+                color={palette.inkMuted}
+                name="swap-horizontal"
+                size={17}
+              />
+              <AppText color={palette.inkMuted} variant="caption">
+                날짜 영역을 좌우로 밀어 보세요
+              </AppText>
+            </View>
+            <ScrollView
+              accessibilityHint="좌우로 밀어 가려진 날짜를 확인해요."
+              accessibilityLabel="월간 달력 날짜 영역"
+              directionalLockEnabled
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator>
+              {calendarGrid}
+            </ScrollView>
+          </>
         ) : (
           calendarGrid
         )}
@@ -318,6 +336,18 @@ function createStyles(palette: AppPalette) {
       paddingHorizontal: 8,
       borderRadius: radii.pill,
       backgroundColor: palette.mintSoft,
+    },
+    horizontalScrollHint: {
+      minHeight: 36,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.small,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.line,
+      backgroundColor: palette.surfaceSoft,
     },
     monthSummaryDot: {
       width: 6,

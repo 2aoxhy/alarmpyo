@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alarmpyo.example/play-release-policy.schema.json",
+  "title": "AlarmPyo Google Play release policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "lineage",
+    "packageName",
+    "initialRelease",
+    "releaseState",
+    "releaseBlockers",
+    "privacyPolicyUrl",
+    "appSigningStrategy",
+    "appSigningCertificateSha256",
+    "targetSdk",
+    "bundletool"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "lineage": { "const": "alarmpyo" },
+    "packageName": { "const": "com.personal.alarmpyo" },
+    "initialRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["versionName", "androidVersionCode", "iosBuildNumber"],
+      "properties": {
+        "versionName": { "const": "1.0.1" },
+        "androidVersionCode": { "const": 2 },
+        "iosBuildNumber": { "const": "2" }
+      }
+    },
+    "releaseState": { "enum": ["active", "blocked"] },
+    "releaseBlockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["privacyPolicyUrl", "appSigningCertificateSha256"]
+      }
+    },
+    "privacyPolicyUrl": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^/?#@]+(?:/[^?#]*)?$"
+        }
+      ]
+    },
+    "appSigningStrategy": {
+      "enum": [
+        null,
+        "direct-compatible",
+        "google-play-managed-separate"
+      ]
+    },
+    "appSigningCertificateSha256": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      ]
+    },
+    "targetSdk": { "const": 36 },
+    "bundletool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256"],
+      "properties": {
+        "version": { "const": "1.18.3" },
+        "sha256": {
+          "const": "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "releaseState": { "const": "active" } },
+        "required": ["releaseState"]
+      },
+      "then": {
+        "properties": { "releaseBlockers": { "maxItems": 0 } }
+      },
+      "else": {
+        "properties": { "releaseBlockers": { "minItems": 1 } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "privacyPolicyUrl": { "type": "null" } },
+        "required": ["privacyPolicyUrl"]
+      },
+      "then": {
+        "properties": {
+          "releaseBlockers": { "contains": { "const": "privacyPolicyUrl" } }
+        }
+      },
+      "else": {
+        "properties": {
+          "releaseBlockers": {
+            "not": { "contains": { "const": "privacyPolicyUrl" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "appSigningCertificateSha256": { "type": "null" }
+        },
+        "required": ["appSigningCertificateSha256"]
+      },
+      "then": {
+        "properties": {
+          "releaseBlockers": {
+            "contains": { "const": "appSigningCertificateSha256" }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "releaseBlockers": {
+            "not": {
+              "contains": { "const": "appSigningCertificateSha256" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "appSigningStrategy": { "type": "null" } },
+        "required": ["appSigningStrategy"]
+      },
+      "then": {
+        "properties": {
+          "appSigningCertificateSha256": { "type": "null" }
+        }
+      }
+    }
+  ]
+}

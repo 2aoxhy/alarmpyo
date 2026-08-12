@@ -6,6 +6,7 @@ export type SleepReminderStatus = {
   enabled: boolean;
   notificationsAllowed: boolean;
   scheduledCount: number;
+  storageHealth?: 'normal' | 'recovered' | 'corrupt';
 };
 
 type SleepReminderNativeModule = {
@@ -16,15 +17,20 @@ type SleepReminderNativeModule = {
   openSleepReminderSettingsAsync?: () => Promise<unknown>;
 };
 
-const nativeModule = getAlarmPyoNativeModule() as
+function getSleepReminderNativeModule():
   | (ReturnType<typeof getAlarmPyoNativeModule> & SleepReminderNativeModule)
-  | null;
+  | null {
+  return getAlarmPyoNativeModule() as
+    | (ReturnType<typeof getAlarmPyoNativeModule> & SleepReminderNativeModule)
+    | null;
+}
 
 const UNSUPPORTED_STATUS: Readonly<SleepReminderStatus> = {
   supported: false,
   enabled: false,
   notificationsAllowed: false,
   scheduledCount: 0,
+  storageHealth: 'normal',
 };
 
 function unsupportedStatus(): SleepReminderStatus {
@@ -42,15 +48,21 @@ function normalizeStatus(value: unknown): SleepReminderStatus {
     (value.scheduledCount as number) >= 0
       ? (value.scheduledCount as number)
       : 0;
+  const storageHealth =
+    value.storageHealth === 'recovered' || value.storageHealth === 'corrupt'
+      ? value.storageHealth
+      : 'normal';
   return {
     supported: value.supported === true,
     enabled: value.enabled === true,
     notificationsAllowed: value.notificationsAllowed === true,
     scheduledCount,
+    storageHealth,
   };
 }
 
 export function isSleepReminderNativeSupported(): boolean {
+  const nativeModule = getSleepReminderNativeModule();
   return Boolean(
     nativeModule?.syncSleepRemindersAsync &&
       nativeModule.cancelSleepRemindersAsync &&
@@ -63,27 +75,32 @@ export function isSleepReminderNativeSupported(): boolean {
 export async function syncAlarmPyoSleepReminders(
   plans: readonly SleepReminderPlan[],
 ): Promise<SleepReminderStatus> {
+  const nativeModule = getSleepReminderNativeModule();
   if (!nativeModule?.syncSleepRemindersAsync) return unsupportedStatus();
   const snapshot = plans.map((plan) => ({ ...plan }));
   return normalizeStatus(await nativeModule.syncSleepRemindersAsync(snapshot));
 }
 
 export async function cancelAlarmPyoSleepReminders(): Promise<SleepReminderStatus> {
+  const nativeModule = getSleepReminderNativeModule();
   if (!nativeModule?.cancelSleepRemindersAsync) return unsupportedStatus();
   return normalizeStatus(await nativeModule.cancelSleepRemindersAsync());
 }
 
 export async function getAlarmPyoSleepReminderStatus(): Promise<SleepReminderStatus> {
+  const nativeModule = getSleepReminderNativeModule();
   if (!nativeModule?.getSleepReminderStatusAsync) return unsupportedStatus();
   return normalizeStatus(await nativeModule.getSleepReminderStatusAsync());
 }
 
 export async function requestAlarmPyoSleepReminderPermission(): Promise<SleepReminderStatus> {
+  const nativeModule = getSleepReminderNativeModule();
   if (!nativeModule?.requestSleepReminderPermissionAsync) return unsupportedStatus();
   return normalizeStatus(await nativeModule.requestSleepReminderPermissionAsync());
 }
 
 export async function openAlarmPyoSleepReminderSettings(): Promise<SleepReminderStatus> {
+  const nativeModule = getSleepReminderNativeModule();
   if (!nativeModule?.openSleepReminderSettingsAsync) return unsupportedStatus();
   return normalizeStatus(await nativeModule.openSleepReminderSettingsAsync());
 }

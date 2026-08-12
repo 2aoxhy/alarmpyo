@@ -1,4 +1,5 @@
 import type { AppData } from '../models/app-data';
+import { getUtf8ByteLength } from '../utils/utf8';
 import {
   createDefaultAppData,
   exportAppDataToJson,
@@ -10,6 +11,8 @@ import {
 import {
   getCheckedAppDataContentsByteSize,
   getCheckedBackupContentsByteSize,
+  MAX_APP_DATA_BYTES,
+  MAX_BACKUP_FILE_BYTES,
 } from './backup-file-policy';
 
 export const APP_DATA_STORAGE_KEY = 'alarmpyo:app-data:v1';
@@ -88,6 +91,20 @@ export type LatestStorageValueCoordinator = {
     options?: { force?: boolean },
   ) => Promise<{ persistedValue: string; wrote: boolean }>;
 };
+
+// pending 문서는 최대 크기의 백업과 대상 본문을 JSON 문자열로 함께 담아요.
+// 각 문자열이 바깥 JSON에서 한 번 더 escape될 수 있는 최악의 경우와
+// 고정 메타데이터 여유를 합친 별도 상한으로, JSON 파싱 전 메모리 사용을 제한해요.
+export const MAX_PENDING_RESTORE_DOCUMENT_BYTES =
+  2 * (MAX_BACKUP_FILE_BYTES + MAX_APP_DATA_BYTES) + 4 * 1024;
+
+function getCheckedPendingRestoreDocumentByteSize(contents: string): number {
+  const size = getUtf8ByteLength(contents);
+  if (size > MAX_PENDING_RESTORE_DOCUMENT_BYTES) {
+    throw new Error('대기 중인 복원 백업 문서가 너무 커요.');
+  }
+  return size;
+}
 
 export type AppDataLoadResult =
   | {
@@ -279,6 +296,7 @@ type ExplicitResetMarker = {
 function isExplicitResetMarker(raw: string | null): boolean {
   if (raw === null || raw.length === 0) return false;
   try {
+    getCheckedBackupContentsByteSize(raw);
     const parsed = JSON.parse(raw) as Partial<ExplicitResetMarker>;
     return (
       parsed.format === EXPLICIT_RESET_MARKER_FORMAT &&
@@ -433,9 +451,10 @@ export async function loadAppDataFromStorage(
     return { ok: true, data: fallback, source: 'empty', persistedSnapshot: null };
   }
 
-  let parsed = tryParseAppDataJson(raw);
+  let parsed: ReturnType<typeof tryParseAppDataJson>;
   try {
     getCheckedAppDataContentsByteSize(raw);
+    parsed = tryParseAppDataJson(raw);
   } catch (error) {
     parsed = {
       ok: false,
@@ -507,6 +526,7 @@ export async function writeLastKnownGoodBackup(
   snapshot: string,
   now: Date = new Date(),
 ): Promise<string> {
+  getCheckedAppDataContentsByteSize(snapshot);
   const parsed = tryParseAppDataJson(snapshot);
   if (!parsed.ok) throw new Error(parsed.error.message);
   const backup = exportAppDataToJson(parsed.value.data, now, { pretty: false });
@@ -516,6 +536,8 @@ export async function writeLastKnownGoodBackup(
 }
 
 export type PersistSnapshotWithBackupResult = SnapshotPersistenceOutcome & {
+  /** 이번 저장 처리에서 본문 내용이 실제로 달라졌는지 나타내요. */
+  primaryChanged: boolean;
   persistedSnapshot: string | null;
   lastKnownGoodSnapshot: string | null;
 };
@@ -542,30 +564,37 @@ export async function persistSnapshotWithLastKnownGood(
   } catch {
     return {
       ...getSnapshotPersistenceOutcome(false, false),
+      primaryChanged: false,
       persistedSnapshot: coordinator.getPersistedValue(),
       lastKnownGoodSnapshot,
     };
   }
 
+  const previousPersistedSnapshot = coordinator.getPersistedValue();
   let persistedSnapshot: string;
   let wrotePrimary: boolean;
+  let primaryChanged: boolean;
   try {
     const result = await coordinator.writeLatest(
       snapshot,
       options?.force === true ? { force: true } : undefined,
     );
+    const resultChanged = previousPersistedSnapshot !== result.persistedValue;
     if (options?.force && result.persistedValue !== snapshot) {
       return {
         ...getSnapshotPersistenceOutcome(false, false),
+        primaryChanged: resultChanged,
         persistedSnapshot: result.persistedValue,
         lastKnownGoodSnapshot,
       };
     }
     persistedSnapshot = result.persistedValue;
     wrotePrimary = result.wrote;
+    primaryChanged = resultChanged;
   } catch {
     return {
       ...getSnapshotPersistenceOutcome(false, false),
+      primaryChanged: false,
       persistedSnapshot: coordinator.getPersistedValue(),
       lastKnownGoodSnapshot,
     };
@@ -574,6 +603,7 @@ export async function persistSnapshotWithLastKnownGood(
   if (!wrotePrimary && lastKnownGoodSnapshot === persistedSnapshot) {
     return {
       ...getSnapshotPersistenceOutcome(true, true),
+      primaryChanged,
       persistedSnapshot,
       lastKnownGoodSnapshot,
     };
@@ -597,12 +627,14 @@ export async function persistSnapshotWithLastKnownGood(
     await writer.write(APP_DATA_LAST_KNOWN_GOOD_KEY, backup);
     return {
       ...getSnapshotPersistenceOutcome(true, true),
+      primaryChanged,
       persistedSnapshot,
       lastKnownGoodSnapshot: persistedSnapshot,
     };
   } catch {
     return {
       ...getSnapshotPersistenceOutcome(true, false),
+      primaryChanged,
       persistedSnapshot,
       lastKnownGoodSnapshot,
     };
@@ -686,6 +718,7 @@ function parsePendingRestoreBackup(
 ): PendingRestoreBackupDocument | null {
   if (raw === null || raw === CLEARED_PENDING_RESTORE_BACKUP) return null;
   try {
+    getCheckedPendingRestoreDocumentByteSize(raw);
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const candidate = value as Partial<PendingRestoreBackupDocument>;
@@ -700,6 +733,8 @@ function parsePendingRestoreBackup(
     ) {
       return null;
     }
+    getCheckedBackupContentsByteSize(candidate.backup);
+    getCheckedAppDataContentsByteSize(candidate.targetSnapshot);
     previewAppDataImport(candidate.backup);
     const target = tryParseAppDataJson(candidate.targetSnapshot);
     if (!target.ok) return null;
@@ -712,7 +747,11 @@ function parsePendingRestoreBackup(
 function serializePendingRestoreBackup(
   document: PendingRestoreBackupDocument,
 ): string {
-  return JSON.stringify(document);
+  getCheckedBackupContentsByteSize(document.backup);
+  getCheckedAppDataContentsByteSize(document.targetSnapshot);
+  const serialized = JSON.stringify(document);
+  getCheckedPendingRestoreDocumentByteSize(serialized);
+  return serialized;
 }
 
 function pendingRestoreBackupDocument(

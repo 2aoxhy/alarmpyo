@@ -1,0 +1,94 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+function source(relativePath) {
+  return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
+}
+
+const publicPolicy = source('public/privacy-policy.html');
+const inAppPolicy = source('src/app/privacy.tsx');
+const listing = source('docs/google-play-listing-ko.md');
+const dataSafety = source('docs/google-play-data-safety-ko.md');
+
+describe('Google Play 개인정보·건강 선언 계약', () => {
+  it('EAS Update 실제 구성과 공개·앱 내 방침이 일치해요', () => {
+    const app = JSON.parse(source('app.json')).expo;
+
+    expect(app.updates).toMatchObject({
+      enabled: true,
+      checkAutomatically: 'ON_LOAD',
+      url: 'https://u.expo.dev/ffdda16b-a290-4fc6-919b-fddd50e0c25f',
+    });
+    for (const contents of [publicPolicy, inAppPolicy]) {
+      expect(contents).toContain('EAS Update');
+      expect(contents).toContain('무작위 설치 토큰');
+      expect(contents).toContain('IP 주소');
+      expect(contents).not.toContain(
+        '별도 업데이트 서버에 접속하지 않아요',
+      );
+    }
+    expect(dataSafety).toContain(
+      '“수집하는 데이터 없음”을 바로 선택하면 안 돼요',
+    );
+    expect(dataSafety).toContain('`수집·필수·앱 기능`');
+  });
+
+  it('GitHub Pages 방문 로그를 앱 데이터 전송과 구분해요', () => {
+    for (const contents of [publicPolicy, inAppPolicy]) {
+      expect(contents).toContain('GitHub Pages');
+      expect(contents).toContain('보안과 무결성');
+      expect(contents).toContain('IP 주소');
+      expect(contents).toContain('근무표·메모·알람 설정');
+    }
+    expect(publicPolicy).toContain(
+      'https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages',
+    );
+    expect(inAppPolicy).toContain('앱이 GitHub Pages에 자동 접속하지 않아요');
+  });
+
+  it('초기화가 내부 안전 백업을 남긴다는 삭제 범위를 숨기지 않아요', () => {
+    const store = source('src/store/app-store.tsx');
+    const resetStart = store.indexOf('const resetAllData');
+    const resetFlow = store.slice(resetStart, resetStart + 1_200);
+
+    expect(resetFlow.indexOf('await createBackupInternal()')).toBeGreaterThan(
+      -1,
+    );
+    const replacementIndex = resetFlow.indexOf(
+      'replaceDataAndPersistDetailedInternal',
+    );
+    expect(replacementIndex).toBeGreaterThan(-1);
+    expect(resetFlow.indexOf('await createBackupInternal()')).toBeLessThan(
+      replacementIndex,
+    );
+    for (const contents of [publicPolicy, inAppPolicy, dataSafety]) {
+      expect(contents).toContain('내부 안전 백업');
+      expect(contents).toContain('앱을 삭제하면');
+      expect(contents).toContain('외부로 내보낸 백업');
+    }
+  });
+
+  it('Sleep Management 범위와 비의료 안내를 정확히 제한해요', () => {
+    for (const contents of [publicPolicy, inAppPolicy, listing]) {
+      expect(contents).toContain('진단·치료·치유·예방');
+      expect(contents).toContain('의료 전문가와 상담');
+    }
+    expect(dataSafety).toContain('`Sleep Management`');
+    expect(dataSafety).toContain('Health Connect·센서·의료 데이터 권한');
+    expect(dataSafety).toContain('의료·연구·다른 건강 기능은 선택하지 않아요');
+  });
+
+  it('공개 방침을 앱과 같은 시행일·다크 전용으로 유지해요', () => {
+    expect(publicPolicy).toContain('Content-Security-Policy');
+    expect(publicPolicy).toContain("default-src 'none'");
+    expect(publicPolicy).toContain('<meta name="referrer" content="no-referrer"');
+    expect(publicPolicy).toContain('<meta name="color-scheme" content="dark"');
+    expect(publicPolicy).toContain('color-scheme: dark');
+    expect(publicPolicy).not.toContain('prefers-color-scheme');
+    expect(publicPolicy).not.toContain('light dark');
+    expect(publicPolicy).toContain('시행일 2026년 8월 12일');
+    expect(inAppPolicy).toContain('시행일 2026년 8월 12일');
+  });
+});

@@ -39,7 +39,7 @@ function fixture() {
 }
 
 describe('비공개 내부 canary APK 게이트', () => {
-  it('운영 Hosting과 서명 정책이 차단된 첫 canary 설정을 허용해요', async () => {
+  it('운영 Hosting만 차단된 direct canary 설정을 허용해요', async () => {
     await expect(validateInternalCanary(root)).resolves.toBe(true);
     expect(fixture().releasePolicy).toMatchObject({
       releaseState: 'blocked',
@@ -74,7 +74,7 @@ describe('비공개 내부 canary APK 게이트', () => {
     invalid.app.expo.android.package = 'com.example.other';
     invalid.app.expo.extra.eas.projectId =
       '00000000-0000-4000-8000-000000000000';
-    invalid.app.expo.version = '1.0.1';
+    invalid.app.expo.version = '1.0.2';
     expect(() => assertInternalCanaryConfig(invalid)).toThrow(
       /Android 패키지[\s\S]*앱 버전|앱 버전[\s\S]*Android 패키지/u,
     );
@@ -115,6 +115,7 @@ describe('비공개 내부 canary APK 게이트', () => {
       'npm run release:preflight && node scripts/run-eas-cli.mjs build --platform android --profile stable',
     );
     expect(pkg.scripts['build:apk:stable']).toBe('npm run build:apk');
+    expect(preflight).toContain('verifyExactToolchain();');
 
     for (const required of [
       "['run', 'release:source']",

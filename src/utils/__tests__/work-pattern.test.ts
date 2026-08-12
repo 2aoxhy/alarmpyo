@@ -5,6 +5,7 @@ import { createDefaultAppData, resolveShiftFromAppData } from '../../services/ap
 import {
   createWorkPatternFromReference,
   getPositionAfterReferenceDateChange,
+  getRotationPatternPositionForDate,
   getWeekdayPatternPosition,
   getWorkPatternKind,
   getWorkPatternName,
@@ -48,6 +49,23 @@ describe('주간 고정 요일 위치', () => {
 });
 
 describe('기준 날짜로 근무표 시작점 계산', () => {
+  it('일정 적용 시작일의 순번을 기준일과의 날짜 차이로 계산해요', () => {
+    expect(
+      getRotationPatternPositionForDate({
+        date: '2026-06-01',
+        referenceDate: '2026-07-14',
+        referencePosition: 2,
+      }),
+    ).toBe(1);
+    expect(
+      getRotationPatternPositionForDate({
+        date: '2026-07-16',
+        referenceDate: '2026-07-14',
+        referencePosition: 2,
+      }),
+    ).toBe(4);
+  });
+
   it('3조 2교대에서 기준 날짜의 실제 순번을 앵커 날짜로 환산합니다', () => {
     const pattern = createWorkPatternFromReference({
       kind: 'rotation',

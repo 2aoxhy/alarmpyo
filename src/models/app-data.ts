@@ -47,6 +47,7 @@ export type ResolvedThemeMode = Exclude<ThemeMode, 'system'>;
 export type WorkRoutineTiming = {
   departMinutesBefore: number;
   arriveMinutesBefore: number;
+  /** 실제 근무 시작 전, 교대를 마쳐야 하는 시점까지의 분 수예요. */
   handoverMinutesBefore: number;
 };
 

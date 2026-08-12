@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { DAY_SHIFT_START_MINUTES } from '../../constants/shift-schedule';
 import { createDefaultAppData } from '../app-data-service';
 import {
   applyWorkSettingsPreview,
@@ -67,7 +68,7 @@ describe('근무 설정 공유 파일', () => {
     expect(preview.summary.patternKind).toBe('rotation');
     expect(preview.summary.anchorDate).toBe('2026-07-13');
     expect(preview.summary.scheduleStartDate).toBe('2026-07-13');
-    expect(preview.summary.day.startMinutes).toBe(7 * 60);
+    expect(preview.summary.day.startMinutes).toBe(DAY_SHIFT_START_MINUTES);
     expect(preview.summary.night.endsNextDay).toBe(true);
     expect(preview.document.workSettings.shiftTypes.map((shift) => shift.id)).toEqual([
       'day',

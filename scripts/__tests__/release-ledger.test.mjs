@@ -85,14 +85,18 @@ describe('지속 가능한 릴리스 원장', () => {
     });
   });
 
-  it('빈 원장에는 완전히 검증된 1.0.0(1)만 첫 기록으로 추가해요', () => {
+  it('빈 원장에는 완전히 검증된 1.0.1(2)만 첫 기록으로 추가해요', () => {
     const empty = {
       schemaVersion: 1,
       packageName: 'com.personal.alarmpyo',
       apkReleases: [],
       otaPromotions: [],
     };
-    const first = ledger().apkReleases[0];
+    const first = createApkLedgerEntry(
+      candidateManifest(),
+      matrixBinding(),
+      '2026-08-09T12:00:00.000Z',
+    );
     expect(appendApkLedgerEntry(empty, first).apkReleases).toEqual([first]);
     expect(() =>
       appendApkLedgerEntry(empty, {

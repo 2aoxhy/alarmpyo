@@ -138,6 +138,10 @@ expect(
   'stable 빌드는 production 환경이어야 해요.',
 );
 expect(
+  eas.build?.stable?.env?.ALARMPYO_DISTRIBUTION === 'direct',
+  'stable 빌드는 direct 배포 구분으로 고정해야 해요.',
+);
+expect(
   eas.build?.stable?.android?.buildType === 'apk',
   'stable 안드로이드 빌드는 APK 형식이어야 해요.',
 );

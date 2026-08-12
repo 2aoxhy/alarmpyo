@@ -37,6 +37,7 @@ import { SleepReminderToggle } from "@/features/alarm/sleep-reminder-toggle";
 import {
   resolveAlarmScheduleEmptyCopy,
   resolveAlarmStatusBannerTone,
+  resolveSleepReminderStorageNotice,
   resolveVisibleAlarmAutoCheckStatus,
 } from "@/features/alarm/alarm-settings-view-model";
 import { formatWakeTimeSummary } from "@/features/shift-settings/shift-settings-model";
@@ -234,6 +235,10 @@ export default function AlarmSettingsScreen() {
   const alarmPlatformSupported = Platform.OS === "android";
   const sleepReminderSupported =
     alarmPlatformSupported && isSleepReminderNativeSupported();
+  const sleepReminderStorageNotice = resolveSleepReminderStorageNotice({
+    enabled: data.settings.sleepReminderEnabled,
+    status: sleepReminderStatus,
+  });
   const alarmSyncVersion = data.settings.lastNotificationSyncAt;
 
   const refreshAlarmState = useCallback(async () => {
@@ -256,9 +261,8 @@ export default function AlarmSettingsScreen() {
       setSleepReminderStatus(null);
       return;
     }
-    setSleepReminderStatus(
-      await getAlarmPyoSleepReminderStatus().catch(() => null),
-    );
+    const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
+    if (status !== null) setSleepReminderStatus(status);
   }, [sleepReminderSupported]);
 
   useFocusEffect(
@@ -516,10 +520,23 @@ export default function AlarmSettingsScreen() {
           "수면 시작 알림을 저장하지 못했어요",
           "저장 공간을 확인한 뒤 다시 시도해 주세요.",
         );
-      } else if (enabled && alarmPlatformSupported) {
+      } else if (alarmPlatformSupported) {
         const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
-        setSleepReminderStatus(status);
-        if (status?.supported && !status.notificationsAllowed) {
+        if (status !== null) setSleepReminderStatus(status);
+        if (status?.storageHealth === "corrupt") {
+          showDialog(
+            enabled
+              ? "수면 알림 계획을 아직 복구하지 못했어요"
+              : "설정은 껐지만 확인이 필요해요",
+            enabled
+              ? "기존 예약은 임의로 지우지 않았어요. 현재 일정에 예정된 수면 알림이 생기면 복구를 다시 시도해 주세요."
+              : "수면 시작 알림 설정은 껐지만 이전 예약을 안전하게 확인하거나 지우지 못했어요. 알람 화면에서 복구를 다시 시도해 주세요.",
+          );
+        } else if (
+          enabled &&
+          status?.supported &&
+          !status.notificationsAllowed
+        ) {
           showDialog(
             "수면 시작 알림을 켰어요",
             "일반 알림 권한을 허용하면 권장 취침 시각에 알려요.",
@@ -529,6 +546,47 @@ export default function AlarmSettingsScreen() {
     } catch {
       showDialog(
         "수면 시작 알림을 저장하지 못했어요",
+        "잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setSleepReminderBusy(false);
+    }
+  };
+
+  const retrySleepReminderStorage = async () => {
+    if (sleepReminderBusy) return;
+    setSleepReminderBusy(true);
+    try {
+      const saved = await setSleepReminderEnabled(true);
+      if (!saved) {
+        showDialog(
+          "복구 설정을 저장하지 못했어요",
+          "저장 공간을 확인한 뒤 다시 시도해 주세요.",
+        );
+        return;
+      }
+
+      const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
+      if (status !== null) setSleepReminderStatus(status);
+      if (!status?.supported) {
+        showDialog(
+          "복구 상태를 확인하지 못했어요",
+          "앱을 다시 연 뒤 알람 화면에서 상태를 확인해 주세요.",
+        );
+      } else if (status.storageHealth === "corrupt") {
+        showDialog(
+          "아직 복구하지 못했어요",
+          "현재 일정에 예정된 수면 알림이 없어 손상된 계획을 안전하게 바꾸지 않았어요. 다음 근무 일정이 생긴 뒤 다시 시도해 주세요.",
+        );
+      } else {
+        showDialog(
+          "수면 알림 계획을 복구했어요",
+          "현재 일정과 예약 상태를 다시 확인했어요.",
+        );
+      }
+    } catch {
+      showDialog(
+        "수면 알림 계획을 복구하지 못했어요",
         "잠시 후 다시 시도해 주세요.",
       );
     } finally {
@@ -645,6 +703,20 @@ export default function AlarmSettingsScreen() {
               onValueChange={(enabled) => void toggleSleepReminder(enabled)}
               value={data.settings.sleepReminderEnabled}
             />
+            {sleepReminderStorageNotice ? (
+              <StatusBanner
+                actionLabel={sleepReminderStorageNotice.actionLabel}
+                message={sleepReminderStorageNotice.message}
+                onAction={
+                  sleepReminderStorageNotice.actionLabel
+                    ? () => void retrySleepReminderStorage()
+                    : undefined
+                }
+                testID="sleep-reminder-storage-health"
+                title={sleepReminderStorageNotice.title}
+                tone={sleepReminderStorageNotice.tone}
+              />
+            ) : null}
             {data.settings.sleepReminderEnabled &&
             sleepReminderStatus?.supported &&
             !sleepReminderStatus.notificationsAllowed ? (

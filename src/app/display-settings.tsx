@@ -5,18 +5,12 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { SegmentedControl, ToggleRow } from '@/design-system';
+import { ToggleRow } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import type { ThemeMode, WidgetDisplayOptions } from '@/models/app-data';
+import type { WidgetDisplayOptions } from '@/models/app-data';
 import { requestPreparedAlarmPyoWidgetPin } from '@/services/widget-pin-service';
 import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
-
-const THEME_OPTIONS: readonly { label: string; value: ThemeMode }[] = [
-  { label: '자동', value: 'system' },
-  { label: '라이트', value: 'light' },
-  { label: '다크', value: 'dark' },
-];
 
 const WIDGET_OPTIONS: readonly {
   key: keyof WidgetDisplayOptions;
@@ -30,7 +24,7 @@ const WIDGET_OPTIONS: readonly {
 export default function DisplaySettingsScreen() {
   const { showDialog } = useAppDialog();
   const { data } = useAppStoreData();
-  const { setThemeMode, toggleWidgetDisplayOption } = useAppStoreActions();
+  const { toggleWidgetDisplayOption } = useAppStoreActions();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [widgetPinBusy, setWidgetPinBusy] = useState(false);
@@ -66,14 +60,10 @@ export default function DisplaySettingsScreen() {
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
           <AppText accessibilityRole="header" variant="heading">화면 테마</AppText>
-          <AppText color={palette.inkMuted}>휴대폰과 앱의 밝기를 맞춰요.</AppText>
+          <AppText color={palette.inkMuted} style={styles.centerText}>
+            알람표는 눈부심을 줄인 다크 테마만 사용해요.
+          </AppText>
         </View>
-        <SegmentedControl
-          label="화면 테마"
-          onChange={setThemeMode}
-          options={THEME_OPTIONS}
-          value={data.settings.themeMode}
-        />
       </Card>
 
       <Card style={styles.section}>
@@ -147,6 +137,7 @@ const createStyles = (_palette: AppPalette) =>
     },
     section: { gap: spacing.large },
     sectionHeader: { alignItems: 'center', gap: spacing.tiny },
+    centerText: { textAlign: 'center' },
     widgetOptions: {
       gap: spacing.small,
     },

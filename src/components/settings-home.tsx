@@ -45,13 +45,6 @@ export default function SettingsHome() {
       ? `${data.settings.scheduledNotificationCount}개 예약`
       : '켜짐 · 예약 준비'
     : '꺼짐';
-  const themeLabel =
-    data.settings.themeMode === 'system'
-      ? '자동 테마'
-      : data.settings.themeMode === 'light'
-        ? '라이트 테마'
-        : '다크 테마';
-
   return (
     <Screen contentStyle={styles.screenContent}>
       <View style={styles.header}>
@@ -99,7 +92,7 @@ export default function SettingsHome() {
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
-          subtitle={`${themeLabel} · 홈 화면 위젯`}
+          subtitle="다크 화면과 홈 화면 위젯을 설정해요"
           title="화면·위젯"
         />
         <MenuDivider />

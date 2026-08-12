@@ -2,7 +2,7 @@
 
 알람표 릴리스는 로컬 APK, EAS 빌드, Git 소스, 실기기 검증 결과가 모두 같은 산출물을 가리킬 때만 배포해요. 사람이 버전 번호만 맞춰 적는 방식은 사용하지 않아요.
 
-현재는 Expo 프로젝트 연결을 마쳤지만 production Hosting URL과 앱 서명 인증서가 미정이라 stable 빌드와 모든 공개 릴리스 작업이 차단돼요. 남은 실제 값을 발급받아 `release-policy.json`을 활성화하기 전에는 아래 절차를 실행하지 않아요. 첫 릴리스 기준은 `1.0.0(1)`이에요.
+현재는 Expo 프로젝트 연결과 direct 앱 서명 인증서 확정을 마쳤고 production Hosting URL만 미정이에요. 실제 HTTPS 기준 URL을 기록해 `release-policy.json`을 활성화하기 전에는 stable 빌드와 공개 릴리스 절차를 실행하지 않아요. 첫 공개 릴리스 후보는 `1.0.1(2)`예요.
 
 공개하지 않는 첫 설치·네이티브 QA용 APK만 [`internal-canary-apk-ko.md`](internal-canary-apk-ko.md)의 별도 경로로 만들 수 있어요. 내부 canary는 아래 stable 출처 증명이나 공개 승격을 대체하지 않아요.
 
@@ -105,7 +105,7 @@ npm run release:promote:android
 
 승격 과정은 출처 증명이 있는 비공개 후보를 먼저 확인하고, 그 후보에 묶인 Samsung 실기기와 Android 12~16 에뮬레이터 결과를 확인한 뒤에만 APK를 `public/downloads`로 원자적으로 복사해요. 어느 한 값이라도 다르면 공개 경로는 바뀌지 않아요.
 
-첫 `1.0.0(1)` 승격에서는 AlarmPyo 원장과 공개 manifest가 모두 비어 있어야 해요. 승격 과정은 검증된 첫 APK만 공개하고 새 원장 항목을 추가해요. 이전 앱의 공개 폴더·versionCode·서명 인증서를 자동으로 가져오거나 정리하지 않아요.
+첫 `1.0.1(2)` 승격에서는 AlarmPyo 원장과 공개 manifest가 모두 비어 있어야 해요. 내부 canary `1.0.0(1)`을 공개하거나 승격하지 않아요. 승격 과정은 검증된 첫 공개 후보 APK만 공개하고 새 원장 항목을 추가해요. 이전 앱의 공개 폴더·versionCode·서명 인증서를 자동으로 가져오거나 정리하지 않아요.
 
 후속 승격에서는 운영 manifest보다 높은 미승격 versionCode 폴더가 `public/downloads`에 남아 있으면 일반 웹 배포를 차단해요. 검증 없이 노출된 후보는 자동으로 계보에 편입하지 않고 별도로 검토해요.
 

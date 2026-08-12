@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ShiftType } from '../../models/app-data';
+import { createDefaultWorkShift } from '../../application/app-data-defaults';
 import { dateAtMinutes } from '../../utils/date';
 import {
   buildWorkRoutinePlan,
@@ -36,6 +37,52 @@ function at(dateKey: string, hours: number, minutes = 0): number {
 }
 
 describe('buildWorkRoutinePlan', () => {
+  it('기본 실제 근무 06:45 전에 06:30까지 교대를 마쳐요', () => {
+    const plan = buildWorkRoutinePlan(
+      '2026-07-16',
+      createDefaultWorkShift('day'),
+      new Date(2026, 6, 16, 6, 20),
+    );
+
+    expect(plan).toMatchObject({
+      handoverAt: at('2026-07-16', 6, 30),
+      workStartAt: at('2026-07-16', 6, 45),
+      summary: '04:55 기상 · 05:45 출발 · 06:30 교대 완료',
+    });
+    expect(plan?.steps.slice(-2)).toEqual([
+      {
+        id: 'handover',
+        at: at('2026-07-16', 6, 20),
+        endAt: at('2026-07-16', 6, 30),
+        instruction: '교대를 마치세요.',
+      },
+      {
+        id: 'ready-for-work',
+        at: at('2026-07-16', 6, 30),
+        endAt: at('2026-07-16', 6, 45),
+        instruction: '교대 후 실제 근무 시작을 준비하세요.',
+      },
+    ]);
+  });
+
+  it('기본 야간도 실제 근무 17:45 전에 17:30까지 교대를 마쳐요', () => {
+    const plan = buildWorkRoutinePlan(
+      '2026-07-16',
+      createDefaultWorkShift('night'),
+      new Date(2026, 6, 16, 17, 20),
+    );
+
+    expect(plan).toMatchObject({
+      handoverAt: at('2026-07-16', 17, 30),
+      workStartAt: at('2026-07-16', 17, 45),
+      summary: '15:55 기상 · 16:45 출발 · 17:30 교대 완료',
+    });
+    expect(plan?.steps.at(-2)).toMatchObject({
+      id: 'handover',
+      endAt: at('2026-07-16', 17, 30),
+    });
+  });
+
   it('주간 루틴의 주요 시각과 상세 단계를 계산합니다', () => {
     const plan = buildWorkRoutinePlan('2026-07-16', DAY, new Date(2026, 6, 16, 5, 35));
 
@@ -48,7 +95,7 @@ describe('buildWorkRoutinePlan', () => {
       arriveAt: at('2026-07-16', 6, 15),
       handoverAt: at('2026-07-16', 6, 45),
       workStartAt: at('2026-07-16', 7),
-      summary: '05:10 기상 · 06:00 출발 · 06:45 교대',
+      summary: '05:10 기상 · 06:00 출발 · 06:45 교대 완료',
       currentStep: {
         id: 'dress-and-prepare',
         at: at('2026-07-16', 5, 30),
@@ -90,20 +137,26 @@ describe('buildWorkRoutinePlan', () => {
       {
         id: 'arrive-and-change',
         at: at('2026-07-16', 6, 15),
-        endAt: at('2026-07-16', 6, 35),
+        endAt: at('2026-07-16', 6, 25),
         instruction: '도착 후 옷을 갈아입고 복장을 정리하세요.',
       },
       {
         id: 'final-prepare',
-        at: at('2026-07-16', 6, 35),
-        endAt: at('2026-07-16', 6, 45),
+        at: at('2026-07-16', 6, 25),
+        endAt: at('2026-07-16', 6, 35),
         instruction: '교대 전 준비를 마무리하세요.',
       },
       {
         id: 'handover',
+        at: at('2026-07-16', 6, 35),
+        endAt: at('2026-07-16', 6, 45),
+        instruction: '교대를 마치세요.',
+      },
+      {
+        id: 'ready-for-work',
         at: at('2026-07-16', 6, 45),
         endAt: at('2026-07-16', 7),
-        instruction: '교대하세요.',
+        instruction: '교대 후 실제 근무 시작을 준비하세요.',
       },
     ]);
   });
@@ -119,7 +172,7 @@ describe('buildWorkRoutinePlan', () => {
       arriveAt: at('2026-07-16', 17, 15),
       handoverAt: at('2026-07-16', 17, 45),
       workStartAt: at('2026-07-16', 18),
-      summary: '16:10 기상 · 17:00 출발 · 17:45 교대',
+      summary: '16:10 기상 · 17:00 출발 · 17:45 교대 완료',
       currentStep: {
         id: 'meal-or-snack',
         at: at('2026-07-16', 16, 35),
@@ -132,9 +185,10 @@ describe('buildWorkRoutinePlan', () => {
       ['meal-or-snack', at('2026-07-16', 16, 35), at('2026-07-16', 16, 50)],
       ['belongings-check', at('2026-07-16', 16, 50), at('2026-07-16', 17)],
       ['depart', at('2026-07-16', 17), at('2026-07-16', 17, 15)],
-      ['arrive-and-change', at('2026-07-16', 17, 15), at('2026-07-16', 17, 35)],
-      ['final-prepare', at('2026-07-16', 17, 35), at('2026-07-16', 17, 45)],
-      ['handover', at('2026-07-16', 17, 45), at('2026-07-16', 18)],
+      ['arrive-and-change', at('2026-07-16', 17, 15), at('2026-07-16', 17, 25)],
+      ['final-prepare', at('2026-07-16', 17, 25), at('2026-07-16', 17, 35)],
+      ['handover', at('2026-07-16', 17, 35), at('2026-07-16', 17, 45)],
+      ['ready-for-work', at('2026-07-16', 17, 45), at('2026-07-16', 18)],
     ]);
   });
 
@@ -147,7 +201,7 @@ describe('buildWorkRoutinePlan', () => {
 
     expect(plan).toMatchObject({
       wakeAt: at('2026-07-16', 5),
-      summary: '05:00 기상 · 06:00 출발 · 06:45 교대',
+      summary: '05:00 기상 · 06:00 출발 · 06:45 교대 완료',
       currentStep: { id: 'wake-and-shower', at: at('2026-07-16', 5) },
     });
     expect(plan?.steps[0].endAt).toBe(at('2026-07-16', 5, 30));
@@ -181,7 +235,7 @@ describe('buildWorkRoutinePlan', () => {
 
     expect(plan).toMatchObject({
       wakeAt: at('2026-07-16', 5, 10),
-      summary: '05:10 기상 · 06:00 출발 · 06:45 교대',
+      summary: '05:10 기상 · 06:00 출발 · 06:45 교대 완료',
     });
   });
 
@@ -199,7 +253,7 @@ describe('buildWorkRoutinePlan', () => {
     });
   });
 
-  it('주간 사용자 지정 출발·도착·교대 시간을 반영해요', () => {
+  it('주간 사용자 지정 출발·도착·교대 완료 시간을 반영해요', () => {
     const profiles = {
       day: {
         departMinutesBefore: 90,
@@ -227,15 +281,15 @@ describe('buildWorkRoutinePlan', () => {
       arriveAt: at('2026-07-16', 6),
       handoverAt: at('2026-07-16', 6, 40),
       workStartAt: at('2026-07-16', 7),
-      summary: '05:10 기상 · 05:30 출발 · 06:40 교대',
+      summary: '05:10 기상 · 05:30 출발 · 06:40 교대 완료',
       currentStep: { id: 'depart' },
     });
     expect(
       plan?.steps.map(({ id, at, endAt }) => ({ id, at, endAt })),
     ).toContainEqual({
       id: 'handover',
-      at: at('2026-07-16', 6, 40),
-      endAt: at('2026-07-16', 7),
+      at: at('2026-07-16', 6, 27),
+      endAt: at('2026-07-16', 6, 40),
     });
   });
 
@@ -270,7 +324,7 @@ describe('buildWorkRoutinePlan', () => {
       departAt: at('2026-07-16', 16, 45),
       arriveAt: at('2026-07-16', 17, 10),
       handoverAt: at('2026-07-16', 17, 50),
-      summary: '16:10 기상 · 16:45 출발 · 17:50 교대',
+      summary: '16:10 기상 · 16:45 출발 · 17:50 교대 완료',
     });
   });
 

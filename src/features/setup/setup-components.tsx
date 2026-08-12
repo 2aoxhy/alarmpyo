@@ -390,7 +390,7 @@ function TimeInputRow({
           }}
           onChangeText={(value) => onChangeStart(formatTimeInputWhileTyping(value))}
           onFocus={() => setFocusedField('start')}
-          placeholder="07:00"
+          placeholder="06:45"
           placeholderTextColor={palette.inkSoft}
           selectTextOnFocus
           selectionColor={palette.indigo}
@@ -413,7 +413,7 @@ function TimeInputRow({
           }}
           onChangeText={(value) => onChangeEnd(formatTimeInputWhileTyping(value))}
           onFocus={() => setFocusedField('end')}
-          placeholder="18:00"
+          placeholder="17:45"
           placeholderTextColor={palette.inkSoft}
           selectTextOnFocus
           selectionColor={palette.indigo}

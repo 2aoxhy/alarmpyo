@@ -109,9 +109,9 @@
       ],
       "properties": {
         "playInstallAndLaunch": { "const": true },
-        "directApkUpgrade": { "const": true },
-        "dataPreserved": { "const": true },
-        "permissionsPreserved": { "const": true },
+        "directApkUpgrade": { "type": "boolean" },
+        "dataPreserved": { "type": "boolean" },
+        "permissionsPreserved": { "type": "boolean" },
         "alarmWhileClosed": { "const": true },
         "alarmAfterReboot": { "const": true },
         "timeAndTimezoneRecovery": { "const": true },

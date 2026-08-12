@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 
 internal val ALARMPYO_SLEEP_REMINDER_RESTORE_ACTIONS = setOf(
   Intent.ACTION_BOOT_COMPLETED,
@@ -18,7 +19,33 @@ internal val ALARMPYO_SLEEP_REMINDER_RESTORE_ACTIONS = setOf(
 internal fun shouldRestoreSleepReminders(action: String?): Boolean =
   action in ALARMPYO_SLEEP_REMINDER_RESTORE_ACTIONS
 
+internal fun persistSleepReminderReconciliation(
+  snapshot: AlarmPyoSleepReminderSnapshot,
+  schedulingFailures: List<Pair<String, Throwable>>,
+  persist: (AlarmPyoSleepReminderSnapshot) -> AlarmPyoSleepReminderSnapshot
+): AlarmPyoSleepReminderSnapshot {
+  val stored = persist(snapshot)
+  if (schedulingFailures.isEmpty()) return stored
+
+  val failedIds = schedulingFailures.mapTo(linkedSetOf()) { (id, _) -> id }
+  val error = IllegalStateException(
+    "수면 시작 알림 ${failedIds.size}개를 예약하지 못해 다시 시도해요.",
+    schedulingFailures.first().second
+  )
+  schedulingFailures.drop(1).forEach { (_, cause) -> error.addSuppressed(cause) }
+  throw error
+}
+
+internal fun requireAuthoritativePlansForCorruptSleepReminderReseed(
+  activePlanCount: Int
+) {
+  check(activePlanCount > 0) {
+    "수면 시작 알림 저장소가 손상됐지만 확인할 계획이 없어 빈 계획으로 덮어쓰지 않았어요."
+  }
+}
+
 internal object AlarmPyoSleepReminderScheduler {
+  private const val TAG = "AlarmPyoSleepReminder"
   private const val REQUEST_CODE_SALT = 0x534C50
 
   @Synchronized
@@ -33,8 +60,22 @@ internal object AlarmPyoSleepReminderScheduler {
     val normalized = AlarmPyoSleepReminderPolicy.normalize(plans)
     require(normalized.size == plans.size) { "중복된 수면 시작 알림이 있어요." }
 
-    val previous = AlarmPyoSleepReminderStore.read(context)
     val active = AlarmPyoSleepReminderPolicy.active(normalized, nowMillis)
+    val previous = AlarmPyoSleepReminderStore.read(context)
+    if (previous == null) {
+      // 계획이 비어 있으면 ‘알림이 없음’과 ‘손상 때문에 읽지 못함’을 구분할 수 없어요.
+      // 이때는 손상을 정상 빈 스냅샷으로 확정하지 않고 다음 포그라운드 동기화를 기다려요.
+      requireAuthoritativePlansForCorruptSleepReminderReseed(active.size)
+      // JS가 보낸 전체 계획만 새 current로 확정합니다. 손상본에서 알 수 없는 기존 ID는
+      // 취소하지 않아, 프로세스 중단이나 잘못된 빈 복구로 기존 예약을 잃지 않게 해요.
+      AlarmPyoSleepReminderStore.reseedAfterCorruption(
+        context,
+        AlarmPyoSleepReminderSnapshot(active, emptySet())
+      )
+      val reseeded = reconcile(context, nowMillis)
+      AlarmPyoSleepReminderStore.markHealthy(context)
+      return reseeded
+    }
     if (
       AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot(
         previous,
@@ -56,6 +97,7 @@ internal object AlarmPyoSleepReminderScheduler {
     (previous.scheduledIds - result.scheduledIds).forEach {
       cancelPendingIntent(context, it)
     }
+    AlarmPyoSleepReminderStore.markHealthy(context)
     return result
   }
 
@@ -65,7 +107,7 @@ internal object AlarmPyoSleepReminderScheduler {
     nowMillis: Long = System.currentTimeMillis(),
     recalculateLocalTimes: Boolean = false
   ): AlarmPyoSleepReminderSnapshot {
-    val current = AlarmPyoSleepReminderStore.read(context)
+    val current = requireStoredSnapshot(context)
     val restoredPlans = if (recalculateLocalTimes) {
       current.plans.map { plan ->
         plan.copy(
@@ -81,13 +123,16 @@ internal object AlarmPyoSleepReminderScheduler {
 
     (current.scheduledIds - desiredIds).forEach { cancelPendingIntent(context, it) }
     val scheduledIds = linkedSetOf<String>()
+    val schedulingFailures = mutableListOf<Pair<String, Throwable>>()
     desired.forEach { plan ->
       runCatching { schedulePendingIntent(context, plan) }
         .onSuccess { scheduledIds.add(plan.id) }
+        .onFailure { error -> schedulingFailures.add(plan.id to error) }
     }
     val result = AlarmPyoSleepReminderSnapshot(active, scheduledIds)
-    AlarmPyoSleepReminderStore.write(context, result)
-    return result
+    return persistSleepReminderReconciliation(result, schedulingFailures) { snapshot ->
+      AlarmPyoSleepReminderStore.write(context, snapshot)
+    }
   }
 
   @Synchronized
@@ -97,7 +142,7 @@ internal object AlarmPyoSleepReminderScheduler {
     reminderAt: Long,
     nowMillis: Long = System.currentTimeMillis()
   ): AlarmPyoSleepReminderPlan? {
-    val current = AlarmPyoSleepReminderStore.read(context)
+    val current = AlarmPyoSleepReminderStore.read(context) ?: return null
     val (matched, remaining) = AlarmPyoSleepReminderPolicy.consume(
       current.plans,
       id,
@@ -111,26 +156,39 @@ internal object AlarmPyoSleepReminderScheduler {
       context,
       AlarmPyoSleepReminderSnapshot(remaining, current.scheduledIds - matched.id)
     )
-    reconcile(context, nowMillis)
+    // 다음 알림 보충 실패는 부분 스냅샷에 남아 다음 앱 복귀·재부팅에서 다시 시도해요.
+    // 이미 도착한 현재 알림까지 잃지 않도록 수신기에는 일치한 계획을 반환합니다.
+    runCatching { reconcile(context, nowMillis) }
+      .onFailure { error -> Log.e(TAG, "수면 시작 알림을 보충하지 못했어요.", error) }
     return matched
   }
 
   @Synchronized
   fun cancelAll(context: Context): AlarmPyoSleepReminderSnapshot {
-    val current = AlarmPyoSleepReminderStore.read(context)
+    val current = requireStoredSnapshot(context)
     current.plans.forEach { cancelPendingIntent(context, it.id) }
     current.scheduledIds.forEach { cancelPendingIntent(context, it) }
     val empty = AlarmPyoSleepReminderSnapshot(emptyList(), emptySet())
-    AlarmPyoSleepReminderStore.write(context, empty)
-    return empty
+    val stored = AlarmPyoSleepReminderStore.write(context, empty)
+    AlarmPyoSleepReminderStore.markHealthy(context)
+    return stored
   }
 
-  fun status(context: Context, snapshot: AlarmPyoSleepReminderSnapshot): AlarmPyoSleepReminderStatus =
+  fun status(
+    context: Context,
+    snapshot: AlarmPyoSleepReminderSnapshot?
+  ): AlarmPyoSleepReminderStatus =
     AlarmPyoSleepReminderStatus(
-      enabled = snapshot.plans.isNotEmpty(),
+      enabled = snapshot?.plans?.isNotEmpty() == true,
       notificationsAllowed = AlarmPyoSleepReminderChannels.notificationsAllowed(context),
-      scheduledCount = snapshot.scheduledIds.size
+      scheduledCount = snapshot?.scheduledIds?.size ?: 0,
+      storageHealth = AlarmPyoSleepReminderStore.storageHealth(context)
     )
+
+  private fun requireStoredSnapshot(context: Context): AlarmPyoSleepReminderSnapshot =
+    requireNotNull(AlarmPyoSleepReminderStore.read(context)) {
+      "수면 시작 알림 저장소가 손상되어 복구를 나중에 다시 시도해요."
+    }
 
   private fun schedulePendingIntent(context: Context, plan: AlarmPyoSleepReminderPlan) {
     val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager

@@ -1,7 +1,10 @@
 import { Buffer } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 export const PLAY_DISTRIBUTION = 'play';
-export const MIN_PLAY_TARGET_SDK = 35;
+// 2026-08-31부터 신규 앱과 업데이트에 필요한 Android 16 기준이에요.
+export const MIN_PLAY_TARGET_SDK = 36;
 export const REQUEST_INSTALL_PACKAGES =
   'android.permission.REQUEST_INSTALL_PACKAGES';
 export const DIRECT_UPDATE_PROVIDER =
@@ -9,6 +12,22 @@ export const DIRECT_UPDATE_PROVIDER =
 export const DIRECT_UPDATE_BUNDLE_SENTINEL = 'ALARMPYO_DIRECT_APK_UPDATE_V1';
 export const PLAY_UPDATE_BUNDLE_SENTINEL = 'ALARMPYO_PLAY_STORE_UPDATE_V1';
 export const PLAY_PAGE_ALIGNMENT = 'PAGE_ALIGNMENT_16K';
+export const PLAY_PRIVACY_POLICY_BLOCKER = 'privacyPolicyUrl';
+export const PLAY_APP_SIGNING_BLOCKER = 'appSigningCertificateSha256';
+export const PLAY_APP_SIGNING_STRATEGY_DIRECT_COMPATIBLE =
+  'direct-compatible';
+export const PLAY_APP_SIGNING_STRATEGY_SEPARATE =
+  'google-play-managed-separate';
+
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+const PLAY_RELEASE_BLOCKERS = Object.freeze([
+  PLAY_PRIVACY_POLICY_BLOCKER,
+  PLAY_APP_SIGNING_BLOCKER,
+]);
+const PLAY_RELEASE_BLOCKER_LABELS = Object.freeze({
+  [PLAY_PRIVACY_POLICY_BLOCKER]: '공개 개인정보처리방침 URL',
+  [PLAY_APP_SIGNING_BLOCKER]: 'Play App Signing 인증서 SHA-256',
+});
 
 export const FORBIDDEN_PLAY_DEX_STRINGS = Object.freeze([
   'expo/modules/alarmpyoalarm/AlarmPyoApkInstaller',
@@ -73,6 +92,105 @@ export function parsePlayManifest(xml) {
 
 function ensure(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+export function isHttpsPrivacyPolicyUrl(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname.length > 0 &&
+      url.username === '' &&
+      url.password === '' &&
+      url.search === '' &&
+      url.hash === '' &&
+      !value.includes('?') &&
+      !value.includes('#')
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function validatePlayReleasePolicy(
+  policy,
+  directPolicy,
+  { allowBlocked = false } = {},
+) {
+  const blockers = policy?.releaseBlockers;
+  const privacyPolicyUrl = policy?.privacyPolicyUrl;
+  const privacyPolicyBlocked = blockers?.includes(
+    PLAY_PRIVACY_POLICY_BLOCKER,
+  );
+  const signer = policy?.appSigningCertificateSha256;
+  const signingStrategy = policy?.appSigningStrategy;
+  const directSigners = (directPolicy?.signingCertificateSha256 ?? []).map(
+    (value) => value.toLowerCase(),
+  );
+
+  ensure(
+      policy?.schemaVersion === 2 &&
+      policy?.lineage === 'alarmpyo' &&
+      !Object.hasOwn(policy, 'productionHostingUrl') &&
+      policy?.packageName === directPolicy?.packageName &&
+      JSON.stringify(policy?.initialRelease) ===
+        JSON.stringify(directPolicy?.initialRelease) &&
+      ['active', 'blocked'].includes(policy?.releaseState) &&
+      Array.isArray(blockers) &&
+      new Set(blockers).size === blockers.length &&
+      blockers.every((value) => PLAY_RELEASE_BLOCKERS.includes(value)) &&
+      (privacyPolicyUrl === null ||
+        isHttpsPrivacyPolicyUrl(privacyPolicyUrl)) &&
+      privacyPolicyBlocked === (privacyPolicyUrl === null) &&
+      [
+        null,
+        PLAY_APP_SIGNING_STRATEGY_DIRECT_COMPATIBLE,
+        PLAY_APP_SIGNING_STRATEGY_SEPARATE,
+      ].includes(signingStrategy) &&
+      (signer === null ||
+        (typeof signer === 'string' && SHA256_PATTERN.test(signer))) &&
+      (signingStrategy !== null || signer === null) &&
+      (signingStrategy !== PLAY_APP_SIGNING_STRATEGY_DIRECT_COMPATIBLE ||
+        (signer !== null &&
+          directSigners.includes(signer.toLowerCase()))) &&
+      (signingStrategy !== PLAY_APP_SIGNING_STRATEGY_SEPARATE ||
+        signer === null ||
+        !directSigners.includes(signer.toLowerCase())) &&
+      blockers.includes(PLAY_APP_SIGNING_BLOCKER) === (signer === null) &&
+      (policy.releaseState === 'blocked') === (blockers.length > 0),
+    'Play AAB 배포 정책 파일이 올바르지 않아요.',
+  );
+
+  const normalized = {
+    ...policy,
+    appSigningCertificateSha256:
+      signer === null ? null : signer.toLowerCase(),
+    directUpgradeCompatible:
+      signer === null
+        ? null
+        : signingStrategy === PLAY_APP_SIGNING_STRATEGY_DIRECT_COMPATIBLE,
+  };
+  if (!allowBlocked && normalized.releaseState === 'blocked') {
+    const labels = blockers.map(
+      (value) => PLAY_RELEASE_BLOCKER_LABELS[value] ?? value,
+    );
+    throw new Error(
+      `Play 릴리스 계보가 아직 차단되어 있어요: ${labels.join(', ')}`,
+    );
+  }
+  return normalized;
+}
+
+export async function readPlayReleasePolicy(
+  projectRoot,
+  directPolicy,
+  options = {},
+) {
+  const policy = JSON.parse(
+    await readFile(resolve(projectRoot, 'play-release-policy.json'), 'utf8'),
+  );
+  return validatePlayReleasePolicy(policy, directPolicy, options);
 }
 
 /** bundletool dump config 결과가 Play 생성 APK에 16KB ZIP 정렬을 요청하는지 확인해요. */
@@ -173,6 +291,8 @@ export function validateProvenanceBinding(provenance, artifact) {
     'versionCode',
     'targetSdk',
     'pageAlignment',
+    'releasePurpose',
+    'submissionEligible',
   ]) {
     ensure(
       provenance?.[key] === artifact[key],

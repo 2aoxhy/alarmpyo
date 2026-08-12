@@ -42,9 +42,7 @@ export default function PlayAppUpdateScreen() {
         contentStyle={styles.screen}
         safeAreaEdges={['left', 'right']}>
         <Card density="compact" style={styles.updateCard}>
-          <View
-            accessibilityLabel="Google Play에서 업데이트해요. 새 버전은 Google Play가 안전하게 설치하고 관리해요."
-            style={styles.summary}>
+          <View style={styles.summary}>
             <View
               style={[
                 styles.iconTile,
@@ -58,7 +56,9 @@ export default function PlayAppUpdateScreen() {
               />
             </View>
             <View style={styles.copy}>
-              <AppText variant="heading">Google Play에서 업데이트해요</AppText>
+              <AppText accessibilityRole="header" variant="heading">
+                Google Play에서 업데이트해요
+              </AppText>
               <AppText color={palette.inkMuted} variant="caption">
                 새 버전은 Google Play가 안전하게 설치하고 관리해요.
               </AppText>

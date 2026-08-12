@@ -1,3 +1,5 @@
+import { getCheckedEncryptedBackupContentsByteSize } from './backup-file-policy';
+
 export const ENCRYPTED_BACKUP_FORMAT_IDENTIFIER =
   'alarmpyo-encrypted-backup' as const;
 export const LEGACY_ENCRYPTED_BACKUP_FORMAT_IDENTIFIER =
@@ -13,6 +15,7 @@ export type EncryptedBackupFormatIdentifier =
  */
 export function hasEncryptedBackupEnvelope(contents: string): boolean {
   try {
+    getCheckedEncryptedBackupContentsByteSize(contents);
     const normalized =
       contents.charCodeAt(0) === 0xfeff ? contents.slice(1) : contents;
     const value: unknown = JSON.parse(normalized);

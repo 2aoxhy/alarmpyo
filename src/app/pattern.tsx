@@ -26,6 +26,7 @@ import { formatTimeInput } from '@/utils/shift-time';
 import {
   createWorkPatternFromReference,
   getPositionAfterReferenceDateChange,
+  getRotationPatternPositionForDate,
   getWeekdayPatternPosition,
   getWorkPatternKind,
   ROTATION_PATTERN_NAME,
@@ -81,13 +82,19 @@ export default function PatternEditorScreen() {
     patternKind === 'weekday'
       ? WEEKDAY_PATTERN_SHIFT_TYPE_IDS
       : ROTATION_PATTERN_SHIFT_TYPE_IDS;
-  const previewDate = patternKind === 'weekday' ? scheduleStartDate : referenceDate;
+  const previewDate = scheduleStartDate;
   const previewPosition =
     patternKind === 'weekday'
       ? scheduleStartDateValid
         ? getWeekdayPatternPosition(scheduleStartDate)
         : null
-      : selectedPosition;
+      : scheduleStartDateValid && referenceDateValid && selectedPosition !== null
+        ? getRotationPatternPositionForDate({
+            date: scheduleStartDate,
+            referenceDate,
+            referencePosition: selectedPosition,
+          })
+        : null;
   const hasUnsavedChanges =
     patternKind !== initialPatternKind ||
     scheduleStartDate !== initialScheduleStartDate ||
@@ -498,7 +505,7 @@ export default function PatternEditorScreen() {
       ) : null}
 
       <View>
-        <SectionHeader centered title="미리 보기" />
+        <SectionHeader centered title="적용 첫날부터 미리 보기" />
         <Card style={[styles.previewCard, stackPreview && styles.previewCardStacked]}>
           {preview.length > 0 ? (
             preview.map((item, index) => (

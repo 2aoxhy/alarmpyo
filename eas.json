@@ -25,6 +25,9 @@
       "environment": "production",
       "distribution": "internal",
       "channel": "stable",
+      "env": {
+        "ALARMPYO_DISTRIBUTION": "direct"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -34,6 +37,17 @@
       "environment": "production",
       "distribution": "store",
       "channel": "production",
+      "env": {
+        "ALARMPYO_DISTRIBUTION": "play"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "play-signing-bootstrap": {
+      "extends": "base",
+      "environment": "preview",
+      "distribution": "store",
       "env": {
         "ALARMPYO_DISTRIBUTION": "play"
       },

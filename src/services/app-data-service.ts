@@ -5,10 +5,11 @@ import {
 import {
   DAY_SHIFT_END_MINUTES,
   DAY_SHIFT_START_MINUTES,
+  LEGACY_DAY_SHIFT_START_MINUTES,
   LEGACY_DAY_SHIFT_END_MINUTES,
   LEGACY_NIGHT_SHIFT_END_MINUTES,
+  LEGACY_NIGHT_SHIFT_START_MINUTES,
   NIGHT_SHIFT_END_MINUTES,
-  NIGHT_SHIFT_START_MINUTES,
 } from '../constants/shift-schedule';
 import {
   DEFAULT_ALARM_MINUTES_BEFORE,
@@ -66,6 +67,10 @@ import {
   isValidWorkRoutineTiming,
   WORK_ROUTINE_MAX_MINUTES_BEFORE,
 } from './work-routine-settings';
+import {
+  getCheckedAppDataContentsByteSize,
+  getCheckedBackupContentsByteSize,
+} from './backup-file-policy';
 
 export const APP_DATA_VERSION = 19 as const;
 export { APP_DATA_BACKUP_FORMAT, APP_DATA_BACKUP_FORMAT_VERSION };
@@ -153,10 +158,11 @@ function legacySubstituteTargetId(shiftTypes: readonly ShiftType[]): SubstituteS
 
   const night = shiftTypes.find((shift) => shift.id === 'night');
   const startsWithNight =
-    night !== undefined &&
     substitute.startMinutes !== null &&
-    night.startMinutes !== null &&
-    substitute.startMinutes === night.startMinutes;
+    (substitute.startMinutes === LEGACY_NIGHT_SHIFT_START_MINUTES ||
+      (night !== undefined &&
+        night.startMinutes !== null &&
+        substitute.startMinutes === night.startMinutes));
   return substitute.endsNextDay || startsWithNight ? 'substitute-night' : 'substitute-day';
 }
 
@@ -248,14 +254,14 @@ function migrateLegacyDefaultShiftTimes(
   return shiftTypes.map((shift) => {
     const legacyDay =
       (shift.id === 'day' || shift.id === 'substitute-day') &&
-      shift.startMinutes === DAY_SHIFT_START_MINUTES &&
+      shift.startMinutes === LEGACY_DAY_SHIFT_START_MINUTES &&
       shift.endMinutes === LEGACY_DAY_SHIFT_END_MINUTES &&
       !shift.endsNextDay;
     if (legacyDay) return { ...shift, endMinutes: DAY_SHIFT_END_MINUTES };
 
     const legacyNight =
       (shift.id === 'night' || shift.id === 'substitute-night') &&
-      shift.startMinutes === NIGHT_SHIFT_START_MINUTES &&
+      shift.startMinutes === LEGACY_NIGHT_SHIFT_START_MINUTES &&
       shift.endMinutes === LEGACY_NIGHT_SHIFT_END_MINUTES &&
       shift.endsNextDay;
     if (legacyNight) return { ...shift, endMinutes: NIGHT_SHIFT_END_MINUTES };
@@ -313,7 +319,7 @@ export function createDefaultAppData(anchorDate = toDateKey(new Date())): AppDat
       scheduledNotificationCount: 0,
       lastNotificationSyncAt: null,
       setupCompleted: false,
-      themeMode: 'light',
+      themeMode: 'dark',
       workRoutineProfiles: createDefaultWorkRoutineProfiles(),
       widgetDisplayOptions: { ...DEFAULT_WIDGET_DISPLAY_OPTIONS },
     },
@@ -962,14 +968,14 @@ function parseWorkRoutineTiming(
     ),
     handoverMinutesBefore: integerInRange(
       item.handoverMinutesBefore,
-      `${label} 교대 시간`,
+      `${label} 교대 완료 시간`,
       5,
       WORK_ROUTINE_MAX_MINUTES_BEFORE,
     ),
   };
   if (!isValidWorkRoutineTiming(timing)) {
     throw new AppDataValidationError(
-      `${label}은 5분 단위로 출발, 도착, 교대 순서에 맞춰 설정해 주세요.`,
+      `${label}은 5분 단위로 출발, 도착, 교대 완료 순서에 맞춰 설정해 주세요.`,
     );
   }
   return timing;
@@ -1014,7 +1020,7 @@ function parseSettings(value: unknown, sourceVersion: AppDataVersion): AppSettin
       scheduledNotificationCount: legacyCount(item.scheduledNotificationCount, 0, '예약 알람 개수'),
       lastNotificationSyncAt: legacyIsoDate(item.lastNotificationSyncAt, null, '마지막 알람 동기화'),
       setupCompleted: false,
-      themeMode: 'light',
+      themeMode: 'dark',
       workRoutineProfiles: createDefaultWorkRoutineProfiles(),
       widgetDisplayOptions: { ...DEFAULT_WIDGET_DISPLAY_OPTIONS },
     };
@@ -1031,7 +1037,7 @@ function parseSettings(value: unknown, sourceVersion: AppDataVersion): AppSettin
     setupCompleted: requiredBoolean(item.setupCompleted, '첫 설정 완료 여부'),
     themeMode:
       sourceVersion < 5 || item.themeMode === undefined
-        ? 'light'
+        ? 'dark'
         : parseThemeMode(item.themeMode, '테마'),
     workRoutineProfiles: parseWorkRoutineProfiles(
       item.workRoutineProfiles,
@@ -1139,7 +1145,7 @@ export function validateAndMigrateAppData(
       )
     : parsedOverrides;
   const normalizedShiftTypes =
-    patternKind === 'weekday'
+    patternKind === 'weekday' && sourceVersion !== APP_DATA_VERSION
       ? shiftTypes.map((shift) =>
           shift.id === 'day'
             ? {
@@ -1151,6 +1157,8 @@ export function validateAndMigrateAppData(
             : shift,
         )
       : shiftTypes;
+  const parsedSettings = parseSettings(source.settings, sourceVersion);
+  const normalizedLegacyTheme = parsedSettings.themeMode !== 'dark';
   const data: AppData = {
     version: APP_DATA_VERSION,
     shiftTypes: normalizedShiftTypes,
@@ -1161,7 +1169,11 @@ export function validateAndMigrateAppData(
     alarmOverrides,
     notes: parseNotes(source.notes, legacyV1),
     scheduleChangeHistory: [],
-    settings: parseSettings(source.settings, sourceVersion),
+    settings: {
+      ...parsedSettings,
+      // 이전 백업의 자동·라이트 값은 읽기 호환만 유지하고 현재 앱에서는 다크로 확정해요.
+      themeMode: 'dark',
+    },
   };
 
   const removedLegacyActivityData =
@@ -1189,11 +1201,38 @@ export function validateAndMigrateAppData(
       repairState.oversizedAlarmMinutes ||
       repairState.removedCompanyExceptions ||
       removedLegacyActivityData ||
-      removedScheduleChangeHistory,
+      removedScheduleChangeHistory ||
+      normalizedLegacyTheme,
   };
 }
 
+/** 저장·상태·알람 계획에서 함께 사용할 현재 버전의 정규화된 앱 데이터를 만들어요. */
+export function canonicalizeAppData(data: AppData): AppData {
+  return validateAndMigrateAppData(data).data;
+}
+
+function assertAppDataJsonByteSize(raw: string): void {
+  try {
+    getCheckedAppDataContentsByteSize(raw);
+  } catch (error) {
+    throw new AppDataValidationError(
+      error instanceof Error ? error.message : '근무표 데이터가 너무 커요.',
+    );
+  }
+}
+
+function assertBackupJsonByteSize(raw: string): void {
+  try {
+    getCheckedBackupContentsByteSize(raw);
+  } catch (error) {
+    throw new AppDataValidationError(
+      error instanceof Error ? error.message : '백업 파일이 너무 커요.',
+    );
+  }
+}
+
 export function parseAppDataJson(raw: string): ParsedAppData {
+  assertAppDataJsonByteSize(raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(stripOptionalUtf8Bom(raw)) as unknown;
@@ -1218,7 +1257,7 @@ export function tryParseAppDataJson(raw: string): AppDataParseResult {
 }
 
 export function serializeAppData(data: AppData): string {
-  return JSON.stringify(validateAndMigrateAppData(data).data);
+  return JSON.stringify(canonicalizeAppData(data));
 }
 
 export type AppDataExportOptions = {
@@ -1232,7 +1271,7 @@ export function exportAppDataToJson(
   options: AppDataExportOptions = {},
 ): string {
   const exportedAt = now.toISOString();
-  const normalized = validateAndMigrateAppData(data).data;
+  const normalized = canonicalizeAppData(data);
   return JSON.stringify(
     {
       format: APP_DATA_BACKUP_FORMAT,
@@ -1246,6 +1285,7 @@ export function exportAppDataToJson(
 }
 
 export function previewAppDataImport(raw: string): AppDataImportPreview {
+  assertBackupJsonByteSize(raw);
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(stripOptionalUtf8Bom(raw)) as unknown;
@@ -1280,5 +1320,5 @@ export function previewAppDataImport(raw: string): AppDataImportPreview {
 }
 
 export function appDataFromImportPreview(preview: AppDataImportPreview): AppData {
-  return validateAndMigrateAppData(preview.data).data;
+  return canonicalizeAppData(preview.data);
 }

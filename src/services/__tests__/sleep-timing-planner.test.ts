@@ -78,10 +78,10 @@ describe('buildSleepTimingGuidance', () => {
       kind: 'main',
       relatedDateKey: '2026-07-11',
       shiftTypeId: 'day',
-      startAt: at('2026-07-10', 21, 10),
-      endAt: at('2026-07-11', 5, 10),
-      bedtimeRangeStartAt: at('2026-07-10', 20, 40),
-      bedtimeRangeEndAt: at('2026-07-10', 22, 10),
+      startAt: at('2026-07-10', 20, 55),
+      endAt: at('2026-07-11', 4, 55),
+      bedtimeRangeStartAt: at('2026-07-10', 20, 25),
+      bedtimeRangeEndAt: at('2026-07-10', 21, 55),
       usesFallbackAlarmLead: false,
     });
     expect(guidance.transitionMode).toMatchObject({
@@ -103,8 +103,8 @@ describe('buildSleepTimingGuidance', () => {
 
     expect(guidance.primary).toMatchObject({
       kind: 'main',
-      startAt: at('2026-07-10', 21),
-      endAt: at('2026-07-11', 5),
+      startAt: at('2026-07-10', 20, 45),
+      endAt: at('2026-07-11', 4, 45),
       usesFallbackAlarmLead: false,
     });
   });
@@ -155,10 +155,10 @@ describe('buildSleepTimingGuidance', () => {
       expect.objectContaining({
         kind: 'pre-night-nap',
         relatedDateKey: '2026-07-13',
-        startAt: at('2026-07-13', 14, 40),
-        endAt: at('2026-07-13', 16, 10),
-        bedtimeRangeStartAt: at('2026-07-13', 14, 30),
-        bedtimeRangeEndAt: at('2026-07-13', 14, 40),
+        startAt: at('2026-07-13', 14, 25),
+        endAt: at('2026-07-13', 15, 55),
+        bedtimeRangeStartAt: at('2026-07-13', 14, 15),
+        bedtimeRangeEndAt: at('2026-07-13', 14, 25),
       }),
     );
     expect(guidance.transitionMode).toMatchObject({
@@ -172,7 +172,7 @@ describe('buildSleepTimingGuidance', () => {
   it.each([
     new Date(2026, 6, 13, 7),
     new Date(2026, 6, 13, 10),
-    new Date(2026, 6, 13, 14, 29),
+    new Date(2026, 6, 13, 14, 14),
   ])('첫 야간 보충 수면 전에는 깨어 있는 전환 시간을 빠짐없이 안내해요', (now) => {
     const guidance = buildSleepTimingGuidance(appData(), {
       now,
@@ -183,9 +183,9 @@ describe('buildSleepTimingGuidance', () => {
       kind: 'first-night-awake',
       title: '야간 전환 시간',
       startAt: at('2026-07-13', 7),
-      endAt: at('2026-07-13', 14, 30),
-      nextSleepStartAt: at('2026-07-13', 14, 40),
-      nextWakeAt: at('2026-07-13', 16, 10),
+      endAt: at('2026-07-13', 14, 15),
+      nextSleepStartAt: at('2026-07-13', 14, 25),
+      nextWakeAt: at('2026-07-13', 15, 55),
       relatedDateKey: '2026-07-13',
       shiftTypeId: 'night',
       shiftName: '야간',
@@ -194,8 +194,8 @@ describe('buildSleepTimingGuidance', () => {
 
   it.each([
     new Date(2026, 6, 13, 6, 59),
-    new Date(2026, 6, 13, 14, 30),
-    new Date(2026, 6, 13, 14, 40),
+    new Date(2026, 6, 13, 14, 15),
+    new Date(2026, 6, 13, 14, 25),
   ])('첫 야간 전환 시간의 경계 밖에서는 전환 안내를 닫아요', (now) => {
     const guidance = buildSleepTimingGuidance(appData(), {
       now,
@@ -221,8 +221,8 @@ describe('buildSleepTimingGuidance', () => {
 
     expect(guidance.transition).toMatchObject({
       startAt: at('2026-07-13', 7),
-      endAt: at('2026-07-13', 14, 30),
-      nextSleepStartAt: at('2026-07-13', 14, 40),
+      endAt: at('2026-07-13', 14, 15),
+      nextSleepStartAt: at('2026-07-13', 14, 25),
     });
   });
 
@@ -235,10 +235,10 @@ describe('buildSleepTimingGuidance', () => {
     expect(guidance.primary).toMatchObject({
       kind: 'post-night',
       relatedDateKey: '2026-07-13',
-      startAt: at('2026-07-14', 8, 10),
-      endAt: at('2026-07-14', 16, 10),
+      startAt: at('2026-07-14', 8),
+      endAt: at('2026-07-14', 15, 55),
       bedtimeRangeStartAt: at('2026-07-14', 8),
-      bedtimeRangeEndAt: at('2026-07-14', 9, 10),
+      bedtimeRangeEndAt: at('2026-07-14', 8, 55),
       title: '연속 야간 사이 주수면',
     });
   });
@@ -324,8 +324,8 @@ describe('buildSleepTimingGuidance', () => {
     expect(guidance.primary).toMatchObject({
       kind: 'main',
       title: '주간 전환 수면',
-      startAt: at('2026-07-10', 21, 10),
-      endAt: at('2026-07-11', 5, 10),
+      startAt: at('2026-07-10', 20, 55),
+      endAt: at('2026-07-11', 4, 55),
     });
   });
 
@@ -368,8 +368,8 @@ describe('buildSleepTimingGuidance', () => {
       relatedDateKey: '2026-07-13',
       shiftTypeId: `exception-${type}`,
       shiftName: name,
-      startAt: at('2026-07-12', 21, 10),
-      endAt: at('2026-07-13', 5, 10),
+      startAt: at('2026-07-12', 20, 55),
+      endAt: at('2026-07-13', 4, 55),
     });
   });
 
@@ -397,8 +397,8 @@ describe('buildSleepTimingGuidance', () => {
       expect.objectContaining({
         kind: 'pre-night-nap',
         shiftTypeId: 'substitute-night',
-        startAt: at('2026-07-13', 14, 40),
-        endAt: at('2026-07-13', 16, 10),
+        startAt: at('2026-07-13', 14, 25),
+        endAt: at('2026-07-13', 15, 55),
       }),
     );
   });
@@ -432,7 +432,7 @@ describe('buildSleepTimingGuidance', () => {
         kind: 'post-night',
         relatedDateKey: '2026-07-13',
         startAt: at('2026-07-14', 10, 15),
-        endAt: at('2026-07-14', 16, 10),
+        endAt: at('2026-07-14', 15, 55),
       }),
     );
     expectNoWorkOverlap(data, guidance, '2026-07-12', 5);
@@ -510,8 +510,8 @@ describe('buildSleepTimingGuidance', () => {
 
     expect(guidance.primary).toMatchObject({
       kind: 'main',
-      startAt: at('2026-07-10', 21),
-      endAt: at('2026-07-11', 5),
+      startAt: at('2026-07-10', 20, 45),
+      endAt: at('2026-07-11', 4, 45),
     });
   });
 
@@ -532,7 +532,7 @@ describe('buildSleepTimingGuidance', () => {
       kind: 'post-night',
       relatedDateKey: '2026-07-13',
       startAt: at('2026-07-14', 8, 15),
-      endAt: at('2026-07-14', 16, 10),
+      endAt: at('2026-07-14', 15, 55),
     });
     expectNoWorkOverlap(data, guidance, '2026-07-13', 4);
   });
@@ -571,7 +571,7 @@ describe('buildSleepTimingGuidance', () => {
   });
 
   it.each([true, false])(
-    '알람 사용 여부가 %s여도 주간 05:10과 야간 16:10 기상 경계를 유지해요',
+    '알람 사용 여부가 %s여도 주간 04:55와 야간 15:55 기상 경계를 유지해요',
     (alarmEnabled) => {
       const data = appData();
       data.shiftTypes = data.shiftTypes.map((shift) =>
@@ -587,21 +587,21 @@ describe('buildSleepTimingGuidance', () => {
         additionalLimit: 8,
       });
 
-      expect(dayGuidance.primary.endAt).toBe(at('2026-07-11', 5, 10));
+      expect(dayGuidance.primary.endAt).toBe(at('2026-07-11', 4, 55));
       expect(allWindows(nightGuidance)).toContainEqual(
         expect.objectContaining({
           kind: 'pre-night-nap',
-          endAt: at('2026-07-13', 16, 10),
+          endAt: at('2026-07-13', 15, 55),
         }),
       );
     },
   );
 
   it.each([
-    { now: new Date(2026, 6, 11, 5, 9), relatedDateKey: '2026-07-11' },
-    { now: new Date(2026, 6, 11, 5, 10), relatedDateKey: '2026-07-12' },
-    { now: new Date(2026, 6, 11, 5, 11), relatedDateKey: '2026-07-12' },
-  ])('주간 05:10 기상 직전·정각·직후에 지난 수면 창을 정확히 닫아요', ({ now, relatedDateKey }) => {
+    { now: new Date(2026, 6, 11, 4, 54), relatedDateKey: '2026-07-11' },
+    { now: new Date(2026, 6, 11, 4, 55), relatedDateKey: '2026-07-12' },
+    { now: new Date(2026, 6, 11, 4, 56), relatedDateKey: '2026-07-12' },
+  ])('주간 04:55 기상 직전·정각·직후에 지난 수면 창을 정확히 닫아요', ({ now, relatedDateKey }) => {
     const guidance = buildSleepTimingGuidance(appData(), {
       now,
       additionalLimit: 5,
@@ -614,10 +614,10 @@ describe('buildSleepTimingGuidance', () => {
   });
 
   it.each([
-    { now: new Date(2026, 6, 13, 16, 9), expectedKind: 'pre-night-nap' },
-    { now: new Date(2026, 6, 13, 16, 10), expectedKind: 'post-night' },
-    { now: new Date(2026, 6, 13, 16, 11), expectedKind: 'post-night' },
-  ])('야간 16:10 기상 직전·정각·직후에 보충 수면 창을 정확히 닫아요', ({ now, expectedKind }) => {
+    { now: new Date(2026, 6, 13, 15, 54), expectedKind: 'pre-night-nap' },
+    { now: new Date(2026, 6, 13, 15, 55), expectedKind: 'post-night' },
+    { now: new Date(2026, 6, 13, 15, 56), expectedKind: 'post-night' },
+  ])('야간 15:55 기상 직전·정각·직후에 보충 수면 창을 정확히 닫아요', ({ now, expectedKind }) => {
     const guidance = buildSleepTimingGuidance(appData(), {
       now,
       additionalLimit: 5,
@@ -676,7 +676,7 @@ describe('buildSleepTimingGuidance', () => {
 
     expect(guidance.primary).toMatchObject({
       kind: 'main',
-      endAt: at('2026-07-11', 5, 10),
+      endAt: at('2026-07-11', 4, 55),
       usesFallbackAlarmLead: true,
     });
   });
@@ -725,7 +725,7 @@ describe('buildSleepTimingGuidance', () => {
     );
   });
 
-  it('주간 근무일의 일반 수면 종료는 05시 10분 기상을 넘지 않아요', () => {
+  it('주간 근무일의 일반 수면 종료는 04시 55분 기상을 넘지 않아요', () => {
     const data = appData();
     data.pattern = {
       name: '주간 고정',
@@ -742,7 +742,7 @@ describe('buildSleepTimingGuidance', () => {
     expect(guidance.primary).toMatchObject({
       kind: 'main',
       relatedDateKey: '2026-07-10',
-      endAt: at('2026-07-10', 5, 10),
+      endAt: at('2026-07-10', 4, 55),
     });
   });
 

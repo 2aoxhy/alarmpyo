@@ -8,7 +8,7 @@ Windows에서는 Android Gradle 도구의 경로 문제를 피하도록 `C:\work
 
 필요한 도구:
 
-- Node.js 24 계열과 npm
+- Node.js 24.16.0과 npm 11.13.0
 - JDK 17
 - Android Studio와 Android SDK
 - Git
@@ -26,12 +26,12 @@ Expo Go에서는 Kotlin 네이티브 알람과 위젯을 검증할 수 없어요
 - 한 PR에는 하나의 문제나 밀접한 변경만 담아 주세요.
 - 계정·광고·분석 SDK·자체 서버를 새로 도입하려면 먼저 이슈에서 제품·개인정보 영향을 논의해 주세요.
 - 사용자 문구는 자연스러운 한국어 해요체로 작성해 주세요.
-- 320dp 폭, 글자 200%, 라이트·다크 테마와 TalkBack을 고려해 주세요.
+- 320dp 폭, 글자 200%, 다크 테마와 TalkBack을 고려해 주세요.
 - 모델이나 저장 의미를 바꾸면 데이터 버전, 마이그레이션, 백업·복원과 손상 복구를 함께 다뤄 주세요.
 - 알람 변경은 앱 종료·재부팅·시간대 변경 복구, 예비 알람 중복 방지와 실제 Android 기기 동작을 함께 확인해 주세요.
 - 생성물인 `android`, `dist`, `.expo`, `.release`, `node_modules`와 모든 `build` 폴더는 소스 변경으로 제출하지 마세요.
 
-표시명은 `알람표`, 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`, 패키지는 `com.personal.alarmpyo`예요. Expo 프로젝트는 `@2aox.hy/alarmpyo`에 연결됐고, production Hosting URL과 운영 서명은 아직 미정이므로 임시 값을 운영 설정처럼 추가하지 마세요.
+표시명은 `알람표`, 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`, 패키지는 `com.personal.alarmpyo`예요. Expo 프로젝트는 `@2aox.hy/alarmpyo`에 연결됐고 direct APK 인증서는 새 AlarmPyo 계보로 확정됐어요. 남은 direct 공개 배포 blocker는 production Hosting URL이며, Play App Signing signer 전략은 아직 결정하지 않았어요. Google 관리 별도 signer를 선택한 경우의 첫 인증서 확인용 draft AAB도 명시적 1회성 opt-in과 깨끗한 커밋에서만 만들며 자동 제출하지 않아요. 임시 URL이나 예제 인증서를 운영 설정처럼 추가하지 마세요.
 
 ## 검사
 

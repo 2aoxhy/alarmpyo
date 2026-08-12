@@ -98,7 +98,7 @@ export function ShiftTimeEditor({
               onStartTimeChange(formatTimeInputWhileTyping(value))
             }
             onFocus={() => setFocusedTime('start')}
-            placeholder="07:00"
+            placeholder="06:45"
             placeholderTextColor={palette.inkSoft}
             selectTextOnFocus
             selectionColor={appearance.accentColor}
@@ -136,7 +136,7 @@ export function ShiftTimeEditor({
               onEndTimeChange(formatTimeInputWhileTyping(value))
             }
             onFocus={() => setFocusedTime('end')}
-            placeholder="18:00"
+            placeholder="17:45"
             placeholderTextColor={palette.inkSoft}
             selectTextOnFocus
             selectionColor={appearance.accentColor}
@@ -176,7 +176,7 @@ export function ShiftTimeEditor({
                 }${endTime}까지예요.`
               : parsedStartMinutes !== null && parsedEndMinutes !== null
                 ? '시작과 종료 시간은 같을 수 없어요.'
-                : '07:00 형식으로 정확히 입력해 주세요.'}
+                : '06:45 형식으로 정확히 입력해 주세요.'}
           </AppText>
         </View>
       </View>

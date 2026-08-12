@@ -10,7 +10,8 @@ import {
 
 import { AppText } from '@/components/ui-kit';
 
-const SPLASH_BACKGROUND = '#000000';
+// app.json의 네이티브 스플래시와 맞춰 첫 프레임의 배경 전환을 없애요.
+const SPLASH_BACKGROUND = '#06111F';
 
 export type LaunchFontMode = 'pending' | 'wanted' | 'fallback';
 

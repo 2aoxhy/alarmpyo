@@ -38,7 +38,6 @@ import {
 } from '@/store/app-store';
 import {
   formatKoreanDate,
-  formatMonthTitle,
   moveMonth,
   parseDateKey,
   toDateKey,
@@ -701,11 +700,8 @@ export default function CalendarScreen() {
             });
             if (amount === 0) return;
 
-            const next = changeMonth(amount);
+            changeMonth(amount);
             void Haptics.selectionAsync();
-            AccessibilityInfo.announceForAccessibility(
-              `${formatMonthTitle(next.year, next.month)}로 이동했어요.`,
-            );
           },
           onResponderTerminate: () => {
             calendarSwipeStartRef.current = null;

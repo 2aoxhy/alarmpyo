@@ -2,16 +2,21 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
     <meta name="description" content="알람표 개인정보 처리방침" />
+    <meta name="referrer" content="no-referrer" />
     <title>알람표 개인정보 처리방침</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f5f6fa;
-        color: #181a24;
+        background: #06111f;
+        color: #f3f7ff;
       }
       body {
         margin: 0;
@@ -24,8 +29,8 @@
       }
       header,
       section {
-        background: #ffffff;
-        border: 1px solid #e3e5ec;
+        background: #0b1728;
+        border: 1px solid #243650;
         border-radius: 20px;
         padding: 24px;
       }
@@ -55,28 +60,11 @@
         padding-left: 22px;
       }
       a {
-        color: #5b49d6;
+        color: #9dc4ff;
         font-weight: 700;
       }
       .muted {
-        color: #656978;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          background: #0c0e15;
-          color: #f5f6fa;
-        }
-        header,
-        section {
-          background: #161923;
-          border-color: #2b3040;
-        }
-        .muted {
-          color: #b5b9c7;
-        }
-        a {
-          color: #b8adff;
-        }
+        color: #b8c5d8;
       }
     </style>
   </head>
@@ -84,7 +72,7 @@
     <main>
       <header>
         <h1>알람표 개인정보 처리방침</h1>
-        <p class="muted">시행일 2026년 8월 11일</p>
+        <p class="muted">시행일 2026년 8월 12일</p>
       </header>
 
       <section>
@@ -118,26 +106,54 @@
       <section>
         <h2>4. 업데이트 서비스가 처리할 수 있는 기술 정보</h2>
         <p>
-          앱은 Google Play와 Expo 업데이트 서비스를 이용해 새 버전을 확인할 수
-          있어요. 이 과정에서 서비스 운영에 필요한 다음 기술 정보가 처리될 수
+          앱은 실행할 때 Expo의 EAS Update 서버에 HTTPS로 호환되는
+          업데이트가 있는지 확인할 수 있어요. 이 과정에서 Expo가 업데이트
+          제공·보안·오류 확인과 서비스 운영을 위해 다음 기술 정보를 처리할 수
           있어요.
         </p>
         <ul>
-          <li>기기 운영체제와 앱 버전</li>
+          <li>기기 운영체제와 앱·런타임 버전, Expo 프로젝트 식별자</li>
           <li>업데이트 요청을 구분하는 무작위 설치 토큰</li>
           <li>IP 주소와 네트워크 요청 정보</li>
           <li>업데이트 설치 실패와 성능 진단 정보</li>
         </ul>
         <p>
-          이 정보는 업데이트 제공과 오류 확인에 사용되며 광고 목적으로 판매하거나
-          공유하지 않아요. Expo의 처리 기준은
-          <a href="https://expo.dev/privacy">Expo 개인정보 처리방침</a>에서 확인할
-          수 있어요.
+          개발자는 이 정보를 광고에 사용하거나 판매하지 않아요. Expo의 처리·보관·삭제
+          기준은 <a href="https://expo.dev/privacy">Expo 개인정보 처리방침</a>과
+          <a href="https://expo.dev/privacy-explained">Expo 개인정보 설명</a>에서 확인할 수
+          있어요.
         </p>
       </section>
 
       <section>
-        <h2>5. 권한 사용</h2>
+        <h2>5. 공개 방침 페이지 호스팅</h2>
+        <p>
+          이 방침을 GitHub Pages 주소에서 열면 GitHub가 서비스의 보안과 무결성을
+          유지하기 위해 로그인 여부와 관계없이 방문자의 IP 주소를 기록하고 저장해요.
+          이 처리는 공개 방침 페이지를 방문할 때만 발생하며, 알람표 앱이
+          근무표·메모·알람 설정을 GitHub로 보내는 것은 아니에요. 자세한 기준은
+          <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages"
+            >GitHub Pages 안내</a
+          >와
+          <a
+            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            >GitHub 개인정보처리방침</a
+          >에서 확인할 수 있어요.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. 수면 안내와 건강 정보</h2>
+        <p>
+          수면 준비 시점은 기기에 저장된 근무 일정으로만 계산해요. 수면 패턴·수면
+          질·건강 상태나 신체 센서 정보를 입력받거나 측정·기록·전송하지 않아요.
+          알람표는 의료기기가 아니며 질환을 진단·치료·치유·예방하지 않아요. 의료
+          조언이 필요하면 의료 전문가와 상담하세요.
+        </p>
+      </section>
+
+      <section>
+        <h2>7. 권한 사용</h2>
         <ul>
           <li>알림·정확한 알람·전체 화면 알람: 근무 알람 전달</li>
           <li>진동·알람음 재생: 알람 동작</li>
@@ -148,21 +164,23 @@
       </section>
 
       <section>
-        <h2>6. 보관과 삭제</h2>
+        <h2>8. 보관과 삭제</h2>
         <p>
-          앱 안의 정보는 사용자가 설정에서 초기화하거나 앱을 삭제할 때까지 기기에
-          보관해요. 외부로 내보낸 백업은 사용자가 저장한 위치에서 직접 삭제해야
-          해요. 계정이 없으므로 별도의 계정 삭제 절차는 필요하지 않아요.
+          설정에서 초기화하면 현재 근무표·메모·설정은 초기화되지만, 복구할 수 있도록
+          초기화 직전 자료를 앱 내부 안전 백업으로 남겨요. 앱을 삭제하면 현재 자료와 내부
+          안전 백업이 함께 삭제돼요. 외부로 내보낸 백업은 사용자가 저장한 위치에서 직접
+          삭제해야 해요. 계정이 없으므로 별도의 계정 삭제 절차는 필요하지 않아요. Expo가
+          처리하는 업데이트 기술 정보는 Expo의 보관·삭제 기준을 따라요.
         </p>
       </section>
 
       <section>
-        <h2>7. 아동의 개인정보</h2>
+        <h2>9. 아동의 개인정보</h2>
         <p>알람표는 아동을 대상으로 개인정보를 수집하지 않아요.</p>
       </section>
 
       <section>
-        <h2>8. 문의</h2>
+        <h2>10. 문의</h2>
         <p>
           개인정보 보호 책임자는 개발자 2aox.hy(윤강현)예요.<br />
           문의 이메일:
@@ -171,7 +189,7 @@
       </section>
 
       <section>
-        <h2>9. 방침 변경</h2>
+        <h2>11. 방침 변경</h2>
         <p>
           내용이 변경되면 이 페이지의 시행일을 수정하고 앱 또는 배포 페이지에서
           안내해요.

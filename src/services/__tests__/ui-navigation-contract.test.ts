@@ -16,6 +16,16 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings).toContain("router.push('/shift-settings?focus=wake')");
   });
 
+  it('근무 방식 개요는 시작일과 기준일 근무를 반복해서 보여 주지 않아요', () => {
+    const overview = source(
+      'src/features/shift-settings/work-pattern-overview.tsx',
+    );
+
+    expect(overview).not.toContain('label="일정 적용 시작일"');
+    expect(overview).not.toContain('overview.referenceShiftLabel');
+    expect(overview).toContain('label="근무 방식 수정하기"');
+  });
+
   it('오늘 화면에 문구가 있는 일정 수정 버튼을 유지해요', () => {
     const today = source('src/features/today/today-hero.tsx');
     expect(today).toContain('일정 수정');
@@ -46,6 +56,15 @@ describe('핵심 화면 탐색 계약', () => {
     }
   });
 
+  it('데이터 초기화는 후속 알람 정리 실패를 완전 성공으로 표시하지 않아요', () => {
+    const dataSettings = source('src/app/data-settings.tsx');
+
+    expect(dataSettings).toContain('resetAllDataDetailed');
+    expect(dataSettings).toContain("result.status === 'partial'");
+    expect(dataSettings).toContain('초기화 후 확인이 필요해요');
+    expect(dataSettings).toContain('휴대폰 밖에 저장한 백업 파일은 지우지 않으며');
+  });
+
   it('오늘 화면은 날짜를 화면 제목으로 안내해요', () => {
     const today = source('src/app/(tabs)/index.tsx');
     expect(today).toContain(
@@ -65,6 +84,88 @@ describe('핵심 화면 탐색 계약', () => {
       "label={selectionMode ? '선택 취소하기' : '일정 선택하기'}",
     );
     expect(calendarSupport).not.toContain('title="일정 선택"');
+  });
+
+  it('달력 메뉴는 이달 요약과 달력 내보내기를 보여 주지 않아요', () => {
+    const calendarSupport = source(
+      'src/features/calendar/calendar-support-sections.tsx',
+    );
+
+    expect(calendarSupport).not.toContain('title="이달 요약"');
+    expect(calendarSupport).not.toContain('title="달력 내보내기"');
+    expect(calendarSupport).toContain('title="표시 안내"');
+  });
+
+  it('좁은 달력은 가로 탐색 단서를 보이고 월 이동은 한 번만 알립니다', () => {
+    const calendar = source('src/app/(tabs)/calendar.tsx');
+    const monthCard = source('src/features/calendar/calendar-month-card.tsx');
+
+    expect(monthCard).toContain('날짜 영역을 좌우로 밀어 보세요');
+    expect(monthCard).toContain('showsHorizontalScrollIndicator');
+    expect(monthCard).toContain('accessibilityLiveRegion="polite"');
+    expect(calendar).not.toContain('`${formatMonthTitle(next.year, next.month)}로 이동했어요.`');
+  });
+
+  it('화면 설정은 테마 선택 없이 다크 테마만 안내해요', () => {
+    const settings = source('src/components/settings-home.tsx');
+    const displaySettings = source('src/app/display-settings.tsx');
+    const themeProvider = source('src/providers/app-theme-provider.tsx');
+
+    expect(settings).toContain('subtitle="다크 화면과 홈 화면 위젯을 설정해요"');
+    expect(displaySettings).toContain('다크 테마만 사용해요');
+    expect(displaySettings).not.toContain('SegmentedControl');
+    expect(displaySettings).not.toContain("value: 'light'");
+    expect(themeProvider).toContain("mode: 'dark'");
+    expect(themeProvider).toContain("Appearance.setColorScheme('dark')");
+    expect(themeProvider).toContain("document.documentElement.style.colorScheme = 'dark'");
+    expect(themeProvider).not.toContain('useColorScheme');
+    expect(themeProvider).not.toContain('lightPalette');
+  });
+
+  it('긴 화면과 웹 날짜 입력은 스크롤·키보드 포커스 단서를 보여 줘요', () => {
+    const uiKit = source('src/components/ui-kit.tsx');
+    const datePicker = source('src/components/date-picker-field.web.tsx');
+    const nativeDatePicker = source('src/components/date-picker-field.tsx');
+
+    expect(uiKit).toContain('showsVerticalScrollIndicator = true');
+    expect(uiKit).toContain(
+      'showsVerticalScrollIndicator={showsVerticalScrollIndicator}',
+    );
+    expect(datePicker).toContain('pickerFocused');
+    expect(datePicker).toContain('manualEntryFocused && styles.inputFocused');
+    expect(datePicker).toContain('outlineColor: palette.indigo');
+    expect(datePicker).toContain("colorScheme: 'dark'");
+    expect(nativeDatePicker).toContain('themeVariant="dark"');
+    expect(nativeDatePicker).not.toContain("'light'");
+  });
+
+  it('날짜·시간 설정과 업데이트 요약을 구체적인 이름과 의미로 안내해요', () => {
+    const additional = source(
+      'src/features/day-editor/additional-settings-section.tsx',
+    );
+    const shiftSettings = source('src/app/shift-settings.tsx');
+    const playUpdate = source('src/features/update/play-app-update-screen.tsx');
+
+    expect(additional).toContain('title="특별 일정·시간·알람·메모"');
+    expect(shiftSettings.indexOf('title="근무 시간과 기상 시간"')).toBeLessThan(
+      shiftSettings.indexOf('title="근무 방식"'),
+    );
+    expect(playUpdate).toContain('accessibilityRole="header"');
+    expect(playUpdate).not.toContain(
+      'accessibilityLabel="Google Play에서 업데이트해요.',
+    );
+  });
+
+  it('출근 루틴은 교대를 시작 시각이 아니라 완료 시각으로 안내해요', () => {
+    const timingEditor = source(
+      'src/features/shift-settings/routine-timing-editor.tsx',
+    );
+    const routinePanel = source('src/components/work-routine-panel.tsx');
+
+    expect(timingEditor).toContain("label: '교대 완료'");
+    expect(timingEditor).toContain('교대 완료`}');
+    expect(routinePanel).toContain('까지 교대를 마치는 일정이에요.');
+    expect(routinePanel).not.toContain('교대에 맞춘 일정이에요.');
   });
 
   it('수면 참고 일정은 접힌 상태에서도 비의료 안내를 보여 줘요', () => {
@@ -124,5 +225,17 @@ describe('핵심 화면 탐색 계약', () => {
     expect(sleepReminderToggle).toContain(
       '권장 취침 시각에 일반 알림으로 알려요. 무음·방해 금지 설정을 따라요.',
     );
+  });
+
+  it('알람 화면은 수면 계획 손상·복구 상태와 접근 가능한 재시도를 보여 줘요', () => {
+    const alarmSettings = source('src/app/alarm-settings.tsx');
+    const statusBanner = source('src/design-system/status-banner.tsx');
+
+    expect(alarmSettings).toContain('resolveSleepReminderStorageNotice');
+    expect(alarmSettings).toContain('testID="sleep-reminder-storage-health"');
+    expect(alarmSettings).toContain('retrySleepReminderStorage');
+    expect(statusBanner).toContain("accessibilityLiveRegion={tone === 'danger' ? 'assertive' : 'polite'}");
+    expect(statusBanner).toContain('accessibilityRole="button"');
+    expect(statusBanner).toContain('accessibilityLabel={actionLabel}');
   });
 });

@@ -2,11 +2,10 @@ AlarmPyo source archive
 Display name: 알람표
 Lineage: alarmpyo
 Package: com.personal.alarmpyo
-Initial version: 1.0.0
-Initial Android versionCode: 1
-Initial iOS buildNumber: 1
-Release status: BLOCKED - initial lineage has no published artifacts
+Internal canary: 1.0.0 (Android 1 / iOS 1)
+Initial public candidate: 1.0.1 (Android 2 / iOS 2)
+Release status: BLOCKED - production Hosting URL is not configured; Play signing is decided separately
 Expo project ID: ffdda16b-a290-4fc6-919b-fddd50e0c25f (@2aox.hy/alarmpyo)
 Production Hosting URL: NOT CONFIGURED
-Signing certificate SHA-256: NOT CONFIGURED
+Direct signing certificate SHA-256: CONFIRMED IN release-policy.json
 Excluded: .git, node_modules, build caches, APK/AAB/ZIP, downloads/updates, environment files, signing keys and credentials

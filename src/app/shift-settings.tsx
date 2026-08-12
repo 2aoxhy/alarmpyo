@@ -231,7 +231,7 @@ export default function ShiftSettingsScreen() {
       focusDraft(firstInvalidDraft.id);
       showDialog(
         '시간을 확인해 주세요',
-        `${invalidShift?.name ?? '근무'} 시간을 07:00 형식으로 정확히 입력해 주세요.`,
+        `${invalidShift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해 주세요.`,
       );
       return;
     }
@@ -240,7 +240,7 @@ export default function ShiftSettingsScreen() {
       setRoutineExpanded(true);
       showDialog(
         '출근 루틴을 확인해 주세요',
-        '기상 알람, 출발, 도착, 교대 순서가 맞도록 5분 단위로 설정해 주세요.',
+        '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해 주세요.',
       );
       return;
     }
@@ -259,7 +259,7 @@ export default function ShiftSettingsScreen() {
         focusDraft(draft.id);
         showDialog(
           '시간을 확인해 주세요',
-          `${shift?.name ?? '근무'} 시간을 07:00 형식으로 정확히 입력해 주세요.`,
+          `${shift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해 주세요.`,
         );
         return;
       }
@@ -362,15 +362,6 @@ export default function ShiftSettingsScreen() {
           <AppText color={palette.inkMuted} style={styles.centerText} variant="body">
             회사 근무 방식과 시간을 한곳에서 확인해요.
           </AppText>
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader centered title="근무 방식" />
-          <WorkPatternOverview
-            data={data}
-            onEdit={() => router.push('/pattern')}
-            today={today}
-          />
         </View>
 
         <View style={styles.section}>
@@ -496,6 +487,15 @@ export default function ShiftSettingsScreen() {
               ) : null}
             </View>
           ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader centered title="근무 방식" />
+          <WorkPatternOverview
+            data={data}
+            onEdit={() => router.push('/pattern')}
+            today={today}
+          />
         </View>
       </Screen>
     </>

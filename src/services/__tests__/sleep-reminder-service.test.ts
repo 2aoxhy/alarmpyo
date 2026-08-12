@@ -1,54 +1,60 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as sleepReminderService from '../sleep-reminder-service';
+
 const getAlarmPyoNativeModule = vi.hoisted(() => vi.fn());
 
 vi.mock('../../infrastructure/alarmpyo-native-module', () => ({
   getAlarmPyoNativeModule,
 }));
 
-async function loadService(module: Record<string, unknown> | null) {
+function loadService(module: Record<string, unknown> | null) {
   getAlarmPyoNativeModule.mockReturnValue(module);
-  return import('../sleep-reminder-service');
+  return sleepReminderService;
 }
 
 beforeEach(() => {
-  vi.resetModules();
   getAlarmPyoNativeModule.mockReset();
 });
 
 describe('수면 시작 알림 네이티브 서비스', () => {
   it('웹과 이전 APK에서는 안전한 미지원 상태를 반환해요', async () => {
-    const service = await loadService(null);
+    const service = loadService(null);
 
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toEqual({
       supported: false,
       enabled: false,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.syncAlarmPyoSleepReminders([])).resolves.toEqual({
       supported: false,
       enabled: false,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.cancelAlarmPyoSleepReminders()).resolves.toEqual({
       supported: false,
       enabled: false,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.requestAlarmPyoSleepReminderPermission()).resolves.toEqual({
       supported: false,
       enabled: false,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.openAlarmPyoSleepReminderSettings()).resolves.toEqual({
       supported: false,
       enabled: false,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     expect(service.isSleepReminderNativeSupported()).toBe(false);
   });
@@ -59,6 +65,7 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       enabled: true,
       notificationsAllowed: false,
       scheduledCount: 2,
+      storageHealth: 'normal',
     }));
     const native = {
       syncSleepRemindersAsync,
@@ -67,7 +74,7 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       requestSleepReminderPermissionAsync: vi.fn(async () => ({})),
       openSleepReminderSettingsAsync: vi.fn(async () => ({})),
     };
-    const service = await loadService(native);
+    const service = loadService(native);
     const plans = [
       {
         id: 'sleep-reminder:day',
@@ -84,6 +91,7 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       enabled: true,
       notificationsAllowed: false,
       scheduledCount: 2,
+      storageHealth: 'normal',
     });
     expect(syncSleepRemindersAsync).toHaveBeenCalledWith(plans);
     expect(syncSleepRemindersAsync.mock.calls[0][0]).not.toBe(plans);
@@ -96,6 +104,7 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       enabled: false,
       notificationsAllowed: true,
       scheduledCount: 0,
+      storageHealth: 'normal',
     }));
     const getSleepReminderStatusAsync = vi.fn(async () => ({
       supported: true,
@@ -115,7 +124,7 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       notificationsAllowed: false,
       scheduledCount: 0,
     }));
-    const service = await loadService({
+    const service = loadService({
       syncSleepRemindersAsync: vi.fn(async () => ({})),
       cancelSleepRemindersAsync,
       getSleepReminderStatusAsync,
@@ -128,24 +137,74 @@ describe('수면 시작 알림 네이티브 서비스', () => {
       enabled: false,
       notificationsAllowed: true,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toEqual({
       supported: true,
       enabled: true,
       notificationsAllowed: true,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.requestAlarmPyoSleepReminderPermission()).resolves.toEqual({
       supported: true,
       enabled: true,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
     });
     await expect(service.openAlarmPyoSleepReminderSettings()).resolves.toEqual({
       supported: true,
       enabled: true,
       notificationsAllowed: false,
       scheduledCount: 0,
+      storageHealth: 'normal',
+    });
+  });
+
+  it('저장소 상태를 정규화하고 이전 APK의 누락 값은 정상으로 처리해요', async () => {
+    const getSleepReminderStatusAsync = vi
+      .fn()
+      .mockResolvedValueOnce({
+        supported: true,
+        enabled: true,
+        notificationsAllowed: true,
+        scheduledCount: 1,
+        storageHealth: 'recovered',
+      })
+      .mockResolvedValueOnce({
+        supported: true,
+        enabled: false,
+        notificationsAllowed: true,
+        scheduledCount: 0,
+        storageHealth: 'corrupt',
+      })
+      .mockResolvedValueOnce({
+        supported: true,
+        enabled: true,
+        notificationsAllowed: true,
+        scheduledCount: 1,
+      })
+      .mockResolvedValueOnce({
+        supported: true,
+        enabled: true,
+        notificationsAllowed: true,
+        scheduledCount: 1,
+        storageHealth: 'unknown',
+      });
+    const service = loadService({ getSleepReminderStatusAsync });
+
+    await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
+      storageHealth: 'recovered',
+    });
+    await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
+      storageHealth: 'corrupt',
+    });
+    await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
+      storageHealth: 'normal',
+    });
+    await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
+      storageHealth: 'normal',
     });
   });
 });

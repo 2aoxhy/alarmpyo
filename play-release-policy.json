@@ -3,14 +3,17 @@
   "lineage": "alarmpyo",
   "packageName": "com.personal.alarmpyo",
   "initialRelease": {
-    "versionName": "1.0.0",
-    "androidVersionCode": 1,
-    "iosBuildNumber": "1"
+    "versionName": "1.0.1",
+    "androidVersionCode": 2,
+    "iosBuildNumber": "2"
   },
   "releaseState": "blocked",
   "releaseBlockers": [
-    "productionHostingUrl"
+    "privacyPolicyUrl"
   ],
+  "privacyPolicyUrl": null,
+  "appSigningStrategy": "google-play-managed-separate",
+  "appSigningCertificateSha256": "08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad",
   "targetSdk": 36,
   "bundletool": {
     "version": "1.18.3",

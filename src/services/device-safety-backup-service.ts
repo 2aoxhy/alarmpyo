@@ -6,6 +6,8 @@ import type { AppData } from '../models/app-data';
 import {
   exportAppDataToJson,
   previewAppDataImport,
+  serializeAppData,
+  withoutAlarmRuntimeState,
 } from './app-data-service';
 import { getCheckedBackupContentsByteSize } from './backup-file-policy';
 import {
@@ -34,7 +36,9 @@ async function readValidatedBackup(
 ): Promise<DeviceSafetyBackup | null> {
   if (!file.exists) return null;
   try {
-    const preview = previewAppDataImport(await file.text());
+    const raw = await file.text();
+    getCheckedBackupContentsByteSize(raw);
+    const preview = previewAppDataImport(raw);
     return {
       data: preview.data,
       exportedAt: preview.exportedAt,
@@ -62,14 +66,28 @@ export async function writeDeviceSafetyBackup(
   const pending = getBackupFile(TEMP_BACKUP_FILE_NAME);
   directory.create({ idempotent: true, intermediates: true });
 
-  if (pending.exists) pending.delete();
-  pending.create({ overwrite: true, intermediates: true });
   const contents = exportAppDataToJson(data, now, { pretty: false });
   getCheckedBackupContentsByteSize(contents);
+  const durableSnapshot = serializeAppData(withoutAlarmRuntimeState(data));
+  const validatedLatest = await readValidatedBackup(latest, 'latest');
+
+  // 같은 본문을 자동 저장에서 다시 전달해도 latest를 previous로 회전시키지 않아요.
+  // 이렇게 해야 A → B → B 저장 뒤에도 직전 세대 A를 복구용으로 유지할 수 있어요.
+  if (
+    validatedLatest !== null &&
+    serializeAppData(withoutAlarmRuntimeState(validatedLatest.data)) === durableSnapshot
+  ) {
+    if (pending.exists) pending.delete();
+    return true;
+  }
+
+  if (pending.exists) pending.delete();
+  pending.create({ overwrite: true, intermediates: true });
   pending.write(contents);
 
   // 새 파일을 완성한 뒤에만 기존 정상본을 한 단계 뒤로 이동해요.
-  if (latest.exists) {
+  // latest가 손상됐다면 정상 previous를 손상본으로 덮어쓰지 않아요.
+  if (validatedLatest !== null) {
     await latest.copy(previous, { overwrite: true });
   }
   await pending.move(latest, { overwrite: true });

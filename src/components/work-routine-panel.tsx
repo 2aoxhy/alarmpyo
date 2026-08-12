@@ -22,7 +22,7 @@ function formatClock(timestamp: number): string {
 }
 
 function formatStepTime(step: WorkRoutineStep): string {
-  if (step.id === 'depart' || step.id === 'handover') {
+  if (step.id === 'depart') {
     return formatClock(step.at);
   }
   return `${formatClock(step.at)}–${formatClock(step.endAt)}`;
@@ -90,7 +90,7 @@ export function WorkRoutinePanel({
               {plan.title}
             </AppText>
             <AppText color={palette.inkMuted} variant="caption">
-              {formatClock(plan.handoverAt)} 교대에 맞춘 일정이에요.
+              {formatClock(plan.handoverAt)}까지 교대를 마치는 일정이에요.
             </AppText>
           </View>
 

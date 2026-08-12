@@ -2,8 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import { resolveNpmInvocation } from './npm-runtime.mjs';
+import { verifyExactToolchain } from './verify-toolchain.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+verifyExactToolchain();
 if (
   process.env.ALARMPYO_EAS_NO_VCS === '1' ||
   process.env.EAS_NO_VCS === '1'

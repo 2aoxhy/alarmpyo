@@ -64,9 +64,9 @@ async function createProject({
       lineage: 'alarmpyo',
       packageName: 'com.personal.alarmpyo',
       initialRelease: {
-        versionName: '1.0.0',
-        androidVersionCode: 1,
-        iosBuildNumber: '1',
+        versionName: '1.0.1',
+        androidVersionCode: 2,
+        iosBuildNumber: '2',
       },
       releaseState: 'active',
       releaseBlockers: [],

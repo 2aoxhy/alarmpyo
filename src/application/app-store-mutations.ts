@@ -217,11 +217,12 @@ export function applyShiftSettings(
   };
 }
 
-export function applyThemeMode(current: AppData, themeMode: ThemeMode): AppData {
-  if (current.settings.themeMode === themeMode) return current;
+export function applyThemeMode(current: AppData, _themeMode: ThemeMode): AppData {
+  // Store 공개 계약은 이전 호출자를 위해 유지하지만 새 상태와 저장값은 항상 다크예요.
+  if (current.settings.themeMode === 'dark') return current;
   return {
     ...current,
-    settings: { ...current.settings, themeMode },
+    settings: { ...current.settings, themeMode: 'dark' },
   };
 }
 

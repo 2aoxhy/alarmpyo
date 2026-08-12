@@ -4,7 +4,6 @@ import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { resolveNpmInvocation } from './npm-runtime.mjs';
-import { readReleasePolicy } from './release-policy.mjs';
 import { validatePlayAab } from './validate-play-aab.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -34,7 +33,6 @@ function run(command, args, environment = process.env) {
 }
 
 async function main() {
-  await readReleasePolicy(root);
   const aabPath = parseAabPath(process.argv.slice(2));
   if (!aabPath) {
     throw new Error('--aab 또는 ALARMPYO_AAB_PATH로 제출할 AAB 파일을 지정해 주세요.');

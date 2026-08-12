@@ -21,11 +21,13 @@ function artifact(overrides = {}) {
     schemaVersion: 1,
     artifactType: 'android-app-bundle',
     distribution: 'play',
+    releasePurpose: 'play-release',
+    submissionEligible: true,
     signed: true,
     sourceDirty: false,
     packageName: 'com.personal.alarmpyo',
-    versionName: '1.0.0',
-    versionCode: 1,
+    versionName: '1.0.1',
+    versionCode: 2,
     sha256: AAB_SHA256,
     sourceCommit: SOURCE_COMMIT,
     easBuildId: EAS_BUILD_ID,
@@ -38,8 +40,8 @@ function artifact(overrides = {}) {
 function boundFields() {
   return {
     packageName: 'com.personal.alarmpyo',
-    versionName: '1.0.0',
-    versionCode: 1,
+    versionName: '1.0.1',
+    versionCode: 2,
     aabSha256: AAB_SHA256,
     sourceCommit: SOURCE_COMMIT,
     easBuildId: EAS_BUILD_ID,
@@ -116,8 +118,8 @@ function rawEvidence() {
   };
 }
 
-const releasePolicy = {
-  signingCertificateSha256: [SIGNER_SHA256],
+const playPolicy = {
+  appSigningCertificateSha256: SIGNER_SHA256,
 };
 
 describe('Play 최종 출고 증거', () => {
@@ -126,15 +128,62 @@ describe('Play 최종 출고 증거', () => {
       assertPlayReleaseEvidence(
         releaseEvidence(),
         artifact(),
-        releasePolicy,
+        playPolicy,
         rawEvidence(),
         { now: NOW },
       ),
     ).toMatchObject({
       aabSha256: AAB_SHA256,
-      versionCode: 1,
+      versionCode: 2,
       appSigningCertificateSha256: SIGNER_SHA256,
     });
+  });
+
+  it('별도 Play 서명 계보는 불가능한 direct 교차 업데이트를 요구하지 않아요', () => {
+    const evidence = rawEvidence();
+    evidence.physicalDevice.checks.directApkUpgrade = false;
+    evidence.physicalDevice.checks.dataPreserved = false;
+    evidence.physicalDevice.checks.permissionsPreserved = false;
+
+    expect(
+      assertPlayReleaseEvidence(
+        releaseEvidence(),
+        artifact(),
+        { ...playPolicy, directUpgradeCompatible: false },
+        evidence,
+        { now: NOW },
+      ),
+    ).toMatchObject({ directUpgradeCompatible: false });
+  });
+
+  it('서명 확인용 부트스트랩 AAB 출처는 최종 출고 증거로 거부해요', () => {
+    expect(() =>
+      assertPlayReleaseEvidence(
+        releaseEvidence(),
+        artifact({
+          releasePurpose: 'play-signing-bootstrap',
+          submissionEligible: false,
+        }),
+        { ...playPolicy, directUpgradeCompatible: false },
+        rawEvidence(),
+        { now: NOW },
+      ),
+    ).toThrow('부트스트랩 AAB');
+  });
+
+  it('direct와 같은 서명 계보에서는 교차 업데이트 검사를 계속 요구해요', () => {
+    const evidence = rawEvidence();
+    evidence.physicalDevice.checks.directApkUpgrade = false;
+
+    expect(() =>
+      assertPlayReleaseEvidence(
+        releaseEvidence(),
+        artifact(),
+        { ...playPolicy, directUpgradeCompatible: true },
+        evidence,
+        { now: NOW },
+      ),
+    ).toThrow('directApkUpgrade');
   });
 
   it('AlarmPyo 정책과 다른 Play 앱 서명 인증서는 거부해요', () => {
@@ -142,19 +191,19 @@ describe('Play 최종 출고 증거', () => {
       assertPlayReleaseEvidence(
         releaseEvidence({ appSigningCertificateSha256: 'd'.repeat(64) }),
         artifact(),
-        releasePolicy,
+        playPolicy,
         rawEvidence(),
         { now: NOW },
       ),
-    ).toThrow('AlarmPyo 릴리스 정책 인증서');
+    ).toThrow('Play 배포 정책 인증서');
   });
 
   it('실제 유통 또는 Play Console 최고 versionCode보다 크지 않으면 거부해요', () => {
     expect(() =>
       assertPlayReleaseEvidence(
-        releaseEvidence({ highestPreviouslyDistributedVersionCode: 1 }),
+        releaseEvidence({ highestPreviouslyDistributedVersionCode: 2 }),
         artifact(),
-        releasePolicy,
+        playPolicy,
         rawEvidence(),
         { now: NOW },
       ),
@@ -166,7 +215,7 @@ describe('Play 최종 출고 증거', () => {
       assertPlayReleaseEvidence(
         releaseEvidence(),
         artifact({ pageAlignment: 'PAGE_ALIGNMENT_4K' }),
-        releasePolicy,
+        playPolicy,
         rawEvidence(),
         { now: NOW },
       ),
@@ -178,7 +227,7 @@ describe('Play 최종 출고 증거', () => {
       assertPlayReleaseEvidence(
         releaseEvidence(),
         artifact(),
-        releasePolicy,
+        playPolicy,
         evidence,
         { now: NOW },
       ),
@@ -192,7 +241,7 @@ describe('Play 최종 출고 증거', () => {
       assertPlayReleaseEvidence(
         releaseEvidence(),
         artifact(),
-        releasePolicy,
+        playPolicy,
         evidence,
         { now: NOW },
       ),

@@ -31,7 +31,7 @@ export function DatePickerField({
   today,
   value,
 }: DatePickerFieldProps) {
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
@@ -122,7 +122,7 @@ export function DatePickerField({
           }}
           positiveButton={{ label: '선택하기' }}
           presentation="dialog"
-          themeVariant={isDark ? 'dark' : 'light'}
+          themeVariant="dark"
           value={pickerValue}
         />
       ) : null}
@@ -130,7 +130,7 @@ export function DatePickerField({
   );
 }
 
-function createStyles(palette: AppPalette, isDark: boolean) {
+function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     container: { gap: spacing.small },
     primaryRow: {
@@ -151,7 +151,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       borderRadius: radii.medium,
-      backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
+      backgroundColor: palette.surfaceSoft,
     },
     pickerLabel: { flex: 1, minWidth: 0, textAlign: 'center' },
     todayButton: { minWidth: 76, minHeight: 48 },
@@ -160,7 +160,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       borderRadius: radii.medium,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
-      backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
+      backgroundColor: palette.surfaceSoft,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
       color: palette.ink,

@@ -93,6 +93,7 @@ export type AlarmPyoSleepReminderStatus = {
   enabled: boolean;
   notificationsAllowed: boolean;
   scheduledCount: number;
+  storageHealth?: 'normal' | 'recovered' | 'corrupt';
 };
 
 type AlarmPyoAlarmNativeModule = {

@@ -21,7 +21,10 @@ describe('Android 수면 시작 알림 계약', () => {
     expect(contract).toContain('SLEEP_REMINDER_PLAN_HORIZON_DAYS = 14');
     expect(contract).toContain('MAX_STORED_SLEEP_REMINDERS = 64');
     expect(store).toContain('createDeviceProtectedStorageContext()');
-    expect(store).toContain('.putString(KEY_SNAPSHOT, encoded).commit()');
+    expect(store).toContain('CURRENT_PREFERENCES_NAME');
+    expect(store).toContain('PREVIOUS_PREFERENCES_NAME');
+    expect(store).toContain('KEY_CHECKSUM');
+    expect(store).toContain('decodeLegacy');
   });
 
   it('가까운 세 알림만 부정확 절전 예약으로 유지해요', () => {
@@ -118,5 +121,60 @@ describe('Android 수면 시작 알림 계약', () => {
     expect(permissionBlock).toContain('Manifest.permission.POST_NOTIFICATIONS');
     expect(permissionBlock).toContain('AlarmPyoSleepReminderChannels.openSettings(context)');
     expect(permissionBlock).not.toMatch(/exactAlarm|fullScreen|SCHEDULE_EXACT_ALARM/);
+  });
+
+  it('손상된 수면 알림 저장소를 빈 계획으로 확정하지 않고 복구 재시도를 남겨요', () => {
+    const contract = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderContract.kt',
+    );
+    const store = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderStore.kt',
+    );
+    const scheduler = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderScheduler.kt',
+    );
+    const restoreReceiver = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoAlarmRestoreReceiver.kt',
+    );
+    const typescript = source('modules/alarmpyo-alarm/index.ts');
+
+    expect(store).toContain('AlarmPyoSleepReminderStorageHealth.CORRUPT');
+    expect(store).toContain('AlarmPyoSleepReminderStorageHealth.RECOVERED');
+    expect(store).toContain('fun read(context: Context): AlarmPyoSleepReminderSnapshot?');
+    expect(scheduler).toContain('requireStoredSnapshot(context)');
+    expect(restoreReceiver).toContain('sleepRemindersCompleted = sleepRemindersCompleted');
+    expect(contract).toContain('"storageHealth" to storageHealth.wireValue');
+    expect(typescript).toContain(
+      "storageHealth?: 'normal' | 'recovered' | 'corrupt'",
+    );
+  });
+
+  it('JS 전체 계획은 손상 저장소를 재시드하되 알 수 없는 기존 예약을 취소하지 않아요', () => {
+    const store = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderStore.kt',
+    );
+    const scheduler = source(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderScheduler.kt',
+    );
+    const reseedStart = store.indexOf(
+      'fun reseedAfterCorruption(\n    snapshot:',
+    );
+    const reseedEnd = store.indexOf('fun clear():', reseedStart);
+    expect(reseedStart).toBeGreaterThan(-1);
+    expect(reseedEnd).toBeGreaterThan(reseedStart);
+    const reseedStore = store.slice(reseedStart, reseedEnd);
+    const corruptSync = scheduler.slice(
+      scheduler.indexOf('if (previous == null)'),
+      scheduler.indexOf('if (\n      AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot'),
+    );
+
+    expect(reseedStore).toContain('persistence.writeCurrent');
+    expect(reseedStore).not.toContain('persistence.writePrevious');
+    expect(corruptSync).toContain('reseedAfterCorruption');
+    expect(corruptSync).toContain(
+      'requireAuthoritativePlansForCorruptSleepReminderReseed(active.size)',
+    );
+    expect(corruptSync).toContain('return reseeded');
+    expect(corruptSync).not.toContain('cancelPendingIntent');
   });
 });

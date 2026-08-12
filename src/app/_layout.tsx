@@ -179,7 +179,7 @@ function AppBootstrap({
 
 function AppShell() {
   const { showDialog } = useAppDialog();
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const {
     corruptBackupKey,
@@ -285,7 +285,7 @@ function AppShell() {
   if (loadError) {
     return (
       <SafeAreaView style={styles.gate}>
-        <StatusBar animated style={isDark ? 'light' : 'dark'} />
+        <StatusBar animated style="light" />
         <View style={styles.errorCard}>
           <AppText accessibilityRole="header" variant="title">
             {recoveryRequired ? '안전 백업을 찾았어요' : '근무표를 불러오지 못했어요'}
@@ -329,7 +329,7 @@ function AppShell() {
         accessibilityLabel="근무표를 불러오는 중"
         accessibilityRole="progressbar"
         style={styles.gate}>
-        <StatusBar animated style={isDark ? 'light' : 'dark'} />
+        <StatusBar animated style="light" />
         <ActivityIndicator color={palette.mintDark} size="large" />
       </View>
     );
@@ -338,7 +338,7 @@ function AppShell() {
   return (
     <>
       <AlarmPyoWidgetSyncBridge />
-      <StatusBar animated style={isDark ? 'light' : 'dark'} />
+      <StatusBar animated style="light" />
       <Stack
         screenOptions={{
           headerShadowVisible: false,
@@ -363,7 +363,7 @@ function AppShell() {
 const bootstrapStyles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#06111F',
   },
   errorBoundary: {
     flex: 1,

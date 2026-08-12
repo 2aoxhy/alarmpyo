@@ -11,7 +11,9 @@ import {
 } from '../alarm-planner';
 import {
   DEFAULT_WIDGET_DISPLAY_OPTIONS,
+  parseAppDataJson,
   resolveShiftFromAppData,
+  serializeAppData,
 } from '../app-data-service';
 import { createDefaultWorkRoutineProfiles } from '../work-routine-settings';
 
@@ -206,6 +208,44 @@ describe('ALARMPYO 알람 계획 계산', () => {
     expect(plan[1]).toMatchObject({
       alarmAt: new Date(2026, 6, 12, 16, 10).getTime(),
       alarmMinutesBefore: 110,
+    });
+  });
+
+  it('v19 주간 고정 사용자 시간은 저장·재로드 전후 같은 알람 계획을 만들어요', () => {
+    const data = makeData();
+    data.pattern = {
+      name: '주간 근무',
+      anchorDate: '2026-08-10',
+      scheduleStartDate: '2026-08-10',
+      shiftTypeIds: ['day', 'day', 'day', 'day', 'day', 'off', 'off'],
+    };
+    data.shiftTypes = data.shiftTypes.map((shift) =>
+      shift.id === 'day'
+        ? {
+            ...shift,
+            startMinutes: 8 * 60 + 10,
+            endMinutes: 16 * 60 + 40,
+            alarmMinutesBefore: 60,
+          }
+        : shift,
+    );
+    const reloaded = parseAppDataJson(serializeAppData(data)).data;
+    const options = {
+      now: new Date(2026, 7, 10, 0, 0),
+      horizonDays: 1,
+    };
+    const buildPlan = (snapshot: AppData) => buildAlarmPyoAlarmPlan(
+      snapshot,
+      (dateKey) => resolveShiftFromAppData(snapshot, dateKey),
+      options,
+    );
+
+    expect(buildPlan(data)).toEqual(buildPlan(reloaded));
+    expect(buildPlan(reloaded)[0]).toMatchObject({
+      dateKey: '2026-08-10',
+      startMinutes: 8 * 60 + 10,
+      alarmMinutesBefore: 60,
+      alarmAt: new Date(2026, 7, 10, 7, 10).getTime(),
     });
   });
 

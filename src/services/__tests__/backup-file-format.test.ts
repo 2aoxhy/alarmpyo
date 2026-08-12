@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ENCRYPTED_BACKUP_FORMAT_IDENTIFIER,
   hasEncryptedBackupEnvelope,
   LEGACY_ENCRYPTED_BACKUP_FORMAT_IDENTIFIER,
 } from '../backup-file-format';
+import { MAX_ENCRYPTED_BACKUP_FILE_BYTES } from '../backup-file-policy';
 
 describe('백업 파일 형식 판별', () => {
   it('확장자 없이도 암호화 봉투의 형식 식별자를 확인해요', () => {
@@ -43,5 +44,19 @@ describe('백업 파일 형식 판별', () => {
     ).toBe(false);
     expect(hasEncryptedBackupEnvelope('{')).toBe(false);
     expect(hasEncryptedBackupEnvelope('[]')).toBe(false);
+  });
+
+  it('암호화 봉투 판별도 크기 상한을 JSON 파싱 전에 적용해요', () => {
+    const parseSpy = vi.spyOn(JSON, 'parse');
+    try {
+      expect(
+        hasEncryptedBackupEnvelope(
+          ' '.repeat(MAX_ENCRYPTED_BACKUP_FILE_BYTES + 1),
+        ),
+      ).toBe(false);
+      expect(parseSpy).not.toHaveBeenCalled();
+    } finally {
+      parseSpy.mockRestore();
+    }
   });
 });

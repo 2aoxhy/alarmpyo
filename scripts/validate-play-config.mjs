@@ -5,7 +5,9 @@ import { pathToFileURL } from 'node:url';
 
 import {
   DIRECT_UPDATE_PROVIDER,
+  MIN_PLAY_TARGET_SDK,
   REQUEST_INSTALL_PACKAGES,
+  readPlayReleasePolicy,
 } from './play-release-policy.mjs';
 import {
   BUNDLETOOL_SHA256,
@@ -41,26 +43,48 @@ export async function validatePlayConfig() {
       'Play 설정에 직접 APK 배포 주소가 남아 있어요.',
     );
 
-    const [eas, playPolicy, releasePolicy] = await Promise.all([
+    const [eas, releasePolicy, publicPrivacy, inAppPrivacy] = await Promise.all([
       readFile(resolve(root, 'eas.json'), 'utf8').then(JSON.parse),
-      readFile(resolve(root, 'play-release-policy.json'), 'utf8').then(
-        JSON.parse,
-      ),
       readReleasePolicy(root, { allowBlocked: true }),
+      readFile(resolve(root, 'public/privacy-policy.html'), 'utf8'),
+      readFile(resolve(root, 'src/app/privacy.tsx'), 'utf8'),
     ]);
+    const playPolicy = await readPlayReleasePolicy(root, releasePolicy, {
+      allowBlocked: true,
+    });
     ensure(
-      playPolicy.schemaVersion === 2 &&
-        playPolicy.lineage === 'alarmpyo' &&
-        playPolicy.packageName === config.android.package &&
+      playPolicy.packageName === config.android.package &&
         playPolicy.packageName === releasePolicy.packageName &&
-        JSON.stringify(playPolicy.initialRelease) ===
-          JSON.stringify(releasePolicy.initialRelease) &&
-        playPolicy.releaseState === releasePolicy.releaseState &&
-        JSON.stringify(playPolicy.releaseBlockers) ===
-          JSON.stringify(releasePolicy.releaseBlockers) &&
         Number.isInteger(playPolicy.targetSdk) &&
-        playPolicy.targetSdk >= 35,
+        playPolicy.targetSdk >= MIN_PLAY_TARGET_SDK,
       'Play AAB 패키지와 targetSdk 정책이 올바르지 않아요.',
+    );
+    ensure(
+      config.updates?.enabled === true &&
+        /^https:\/\/u\.expo\.dev\/[0-9a-f-]+$/u.test(
+          config.updates?.url ?? '',
+        ),
+      'Play 개인정보 검증의 기준인 EAS Update 구성을 확인하지 못했어요.',
+    );
+    for (const [label, contents] of [
+      ['공개', publicPrivacy],
+      ['앱 내', inAppPrivacy],
+    ]) {
+      ensure(
+        contents.includes('EAS Update') &&
+          contents.includes('무작위 설치 토큰') &&
+          contents.includes('내부 안전 백업') &&
+          contents.includes('진단·치료·치유·예방') &&
+          !contents.includes('별도 업데이트 서버에 접속하지 않아요'),
+        `${label} 개인정보 처리방침이 Play 네트워크·초기화·수면 기능과 일치하지 않아요.`,
+      );
+    }
+    ensure(
+      publicPrivacy.includes('<meta name="color-scheme" content="dark"') &&
+        publicPrivacy.includes('color-scheme: dark') &&
+        !publicPrivacy.includes('prefers-color-scheme') &&
+        !publicPrivacy.includes('light dark'),
+      '공개 개인정보 처리방침이 다크 전용 정책과 달라요.',
     );
     ensure(
       playPolicy.bundletool?.version === BUNDLETOOL_VERSION &&
@@ -72,6 +96,15 @@ export async function validatePlayConfig() {
         eas.build?.production?.android?.buildType === 'app-bundle' &&
         eas.build?.production?.env?.ALARMPYO_DISTRIBUTION === 'play',
       'EAS production 프로필이 Play AAB 전용으로 고정되지 않았어요.',
+    );
+    ensure(
+      eas.build?.['play-signing-bootstrap']?.environment === 'preview' &&
+        eas.build?.['play-signing-bootstrap']?.distribution === 'store' &&
+        eas.build?.['play-signing-bootstrap']?.android?.buildType ===
+          'app-bundle' &&
+        eas.build?.['play-signing-bootstrap']?.env
+          ?.ALARMPYO_DISTRIBUTION === 'play',
+      'EAS Play 서명 부트스트랩 프로필이 preview AAB 전용으로 고정되지 않았어요.',
     );
     ensure(
       eas.submit?.internal?.android?.track === 'internal' &&

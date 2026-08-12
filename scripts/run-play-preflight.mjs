@@ -2,10 +2,14 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import { resolveNpmInvocation } from './npm-runtime.mjs';
+import { readPlayReleasePolicy } from './play-release-policy.mjs';
 import { readReleasePolicy } from './release-policy.mjs';
+import { verifyExactToolchain } from './verify-toolchain.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-await readReleasePolicy(root);
+verifyExactToolchain();
+const directPolicy = await readReleasePolicy(root, { allowBlocked: true });
+await readPlayReleasePolicy(root, directPolicy);
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -23,6 +27,7 @@ function run(command, args) {
 
 const npm = resolveNpmInvocation();
 const runNpm = (args) => run(npm.command, [...npm.prefixArgs, ...args]);
+runNpm(['run', 'release:verify:play-privacy-url']);
 runNpm(['run', 'release:source']);
 runNpm(['run', 'check']);
 runNpm(['run', 'audit:dependencies']);

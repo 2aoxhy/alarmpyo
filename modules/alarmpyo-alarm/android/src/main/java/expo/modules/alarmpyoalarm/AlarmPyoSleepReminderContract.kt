@@ -95,12 +95,14 @@ internal data class AlarmPyoSleepReminderPlan(
 internal data class AlarmPyoSleepReminderStatus(
   val enabled: Boolean,
   val notificationsAllowed: Boolean,
-  val scheduledCount: Int
+  val scheduledCount: Int,
+  val storageHealth: AlarmPyoSleepReminderStorageHealth
 ) {
   fun toMap(): Map<String, Any> = mapOf(
     "supported" to true,
     "enabled" to enabled,
     "notificationsAllowed" to notificationsAllowed,
-    "scheduledCount" to scheduledCount
+    "scheduledCount" to scheduledCount,
+    "storageHealth" to storageHealth.wireValue
   )
 }

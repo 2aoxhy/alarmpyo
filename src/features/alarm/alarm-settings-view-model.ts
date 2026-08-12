@@ -2,8 +2,50 @@ import type { AlarmPyoAlarmPlan } from "../../services/alarm-planner";
 import type { AlarmAutoCheckStatus } from "../../services/alarm-sync-policy";
 import { isAlarmPyoAlarmPlanContentSynchronized } from "../../services/alarm-sync-policy";
 import type { AlarmPyoAlarmStatus } from "../../services/alarmpyo-alarm-service";
+import type { SleepReminderStatus } from "../../services/sleep-reminder-service";
 
 export type AlarmStatusBannerTone = "neutral" | "success" | "warning";
+
+export type SleepReminderStorageNotice = {
+  actionLabel?: string;
+  message: string;
+  title: string;
+  tone: "success" | "danger";
+};
+
+export function resolveSleepReminderStorageNotice({
+  enabled,
+  status,
+}: {
+  enabled: boolean;
+  status: Pick<SleepReminderStatus, "storageHealth"> | null;
+}): SleepReminderStorageNotice | null {
+  if (status?.storageHealth === "recovered") {
+    return {
+      message: "직전 정상 계획으로 복구하고 예약 상태를 다시 확인했어요.",
+      title: "수면 알림 계획을 복구했어요",
+      tone: "success",
+    };
+  }
+  if (status?.storageHealth !== "corrupt") return null;
+
+  if (enabled) {
+    return {
+      actionLabel: "복구 다시 시도하기",
+      message:
+        "기존 예약은 임의로 지우지 않았어요. 현재 일정으로 복구를 다시 시도해 주세요.",
+      title: "수면 알림 계획을 복구하지 못했어요",
+      tone: "danger",
+    };
+  }
+  return {
+    actionLabel: "수면 알림을 켜고 복구하기",
+    message:
+      "기존 예약은 임의로 지우지 않았어요. 수면 시작 알림을 켜면 현재 일정으로 복구를 시도해요.",
+    title: "수면 알림 계획을 복구하지 못했어요",
+    tone: "danger",
+  };
+}
 
 /**
  * 자동 점검 오류는 예약 내용이 실제로 어긋난 동안에만 화면에 남겨요.

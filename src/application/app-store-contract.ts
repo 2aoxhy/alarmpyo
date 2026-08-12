@@ -20,6 +20,7 @@ import type { BulkDayChange } from '@/services/bulk-day-update';
 import type {
   AlarmAutoCheckStatus,
 } from '@/services/alarm-sync-policy';
+import type { ResetAllDataResult } from './app-store-persistence';
 import type {
   WorkSettingsApplyResult,
   WorkSettingsSharePreview,
@@ -127,6 +128,7 @@ export type AppStore = {
   restoreRecoveryBackup: () => Promise<boolean>;
   startFreshAfterLoadError: () => Promise<boolean>;
   resetAllData: () => Promise<boolean>;
+  resetAllDataDetailed: () => Promise<ResetAllDataResult>;
 };
 
 export type AppStoreDataState = Pick<
