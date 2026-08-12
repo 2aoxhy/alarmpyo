@@ -2,17 +2,14 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
-import { MonthlyWorkSummaryCard } from '@/components/monthly-work-summary-card';
 import {
   AppText,
   Card,
   ListRow,
-  MenuDivider,
   MenuGroup,
 } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import type { ShiftType } from '@/models/app-data';
-import type { MonthlyWorkSummary } from '@/services/monthly-work-summary';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -28,8 +25,6 @@ import {
   buildCalendarStatusSummary,
   CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL,
 } from './calendar-day-status';
-import { formatCalendarSummaryPeriod } from './calendar-summary-label';
-
 type HolidayNoticeProps = {
   status: KoreanHolidayDataStatus;
   visibleYear: number;
@@ -132,31 +127,17 @@ export function CalendarLargeTextStatusSummary({
 }
 
 type MenuProps = {
-  exportingCalendar: boolean;
-  includeNotesInExport: boolean;
   isDark: boolean;
   legendExpanded: boolean;
-  onExportCalendar: () => void;
-  onIncludeNotesChange: (include: boolean) => void;
   onToggleLegend: () => void;
-  onToggleSummary: () => void;
-  payPeriodSummary: MonthlyWorkSummary;
   shiftTypes: readonly ShiftType[];
-  summaryExpanded: boolean;
 };
 
 export function CalendarMenuSections({
-  exportingCalendar,
-  includeNotesInExport,
   isDark,
   legendExpanded,
-  onExportCalendar,
-  onIncludeNotesChange,
   onToggleLegend,
-  onToggleSummary,
-  payPeriodSummary,
   shiftTypes,
-  summaryExpanded,
 }: MenuProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -164,19 +145,6 @@ export function CalendarMenuSections({
   return (
     <>
       <MenuGroup title="달력 메뉴">
-        <ListRow
-          expanded={summaryExpanded}
-          icon="time-outline"
-          onPress={onToggleSummary}
-          subtitle={formatCalendarSummaryPeriod(payPeriodSummary)}
-          title="이달 요약"
-          trailing={
-            <AppText variant="label" color={palette.indigoDark}>
-              {summaryExpanded ? '접기' : '보기'}
-            </AppText>
-          }
-        />
-        <MenuDivider />
         <ListRow
           expanded={legendExpanded}
           icon="ellipse-outline"
@@ -190,16 +158,6 @@ export function CalendarMenuSections({
           }
         />
       </MenuGroup>
-
-      {summaryExpanded ? (
-        <MonthlyWorkSummaryCard
-          exportingCalendar={exportingCalendar}
-          includeNotes={includeNotesInExport}
-          onExportCalendar={onExportCalendar}
-          onIncludeNotesChange={onIncludeNotesChange}
-          summary={payPeriodSummary}
-        />
-      ) : null}
 
       {legendExpanded ? (
         <View style={styles.legendSection}>

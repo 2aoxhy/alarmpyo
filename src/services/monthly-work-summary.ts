@@ -130,19 +130,3 @@ export function buildMonthlyWorkSummary(
     resolveDay,
   );
 }
-
-/** 표시 월의 급여 산정 기간인 전월 16일~당월 15일을 요약해요. */
-export function buildPayrollPeriodWorkSummary(
-  year: number,
-  month: number,
-  resolveDay: ResolveEffectiveDay,
-): MonthlyWorkSummary {
-  assertMonth(year, month);
-  return buildWorkSummary(
-    year,
-    month,
-    toDateKey(new Date(year, month - 1, 16, 12)),
-    toDateKey(new Date(year, month, 15, 12)),
-    resolveDay,
-  );
-}

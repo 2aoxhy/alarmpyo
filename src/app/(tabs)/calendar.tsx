@@ -29,10 +29,6 @@ import { usesSimplifiedCalendar } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import {
-  buildWorkCalendarIcs,
-  exportWorkCalendarFile,
-} from '@/services/calendar-export-service';
 import { buildCalendarMonthViewModel } from '@/services/calendar-month-view-model';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import { buildScheduleShareText } from '@/services/schedule-share-service';
@@ -85,10 +81,7 @@ export default function CalendarScreen() {
     year: initial.getFullYear(),
     month: initial.getMonth(),
   });
-  const [exportingCalendar, setExportingCalendar] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
-  const [includeNotesInExport, setIncludeNotesInExport] = useState(false);
-  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [legendExpanded, setLegendExpanded] = useState(false);
   const [selectionArmed, setSelectionArmed] = useState(false);
   const [selectedDateKeys, setSelectedDateKeys] = useState<readonly string[]>([]);
@@ -99,8 +92,6 @@ export default function CalendarScreen() {
   const calendarDragSessionRef = useRef<CalendarDragSession | null>(null);
   const calendarSwipeStartRef = useRef<CalendarSwipeStart | null>(null);
   const longPressedDateKeyRef = useRef<string | null>(null);
-  const exportInFlightRef = useRef(false);
-  const includeNotesInExportRef = useRef(false);
   const selectionAnnouncementRef = useRef<{
     dateKey: string;
     began: boolean;
@@ -123,7 +114,6 @@ export default function CalendarScreen() {
     holidayDataStatus,
     holidays,
     monthlySummary,
-    payPeriodSummary,
     payrollEntries,
     resolveDay: getEffectiveDay,
     selectableDateKeys,
@@ -208,7 +198,6 @@ export default function CalendarScreen() {
   }, []);
 
   const startDateSelection = useCallback(() => {
-    setSummaryExpanded(false);
     setLegendExpanded(false);
     setSelectionArmed(true);
     void Haptics.selectionAsync();
@@ -619,39 +608,6 @@ export default function CalendarScreen() {
     showDialog,
   ]);
 
-  const exportVisibleMonth = async () => {
-    if (exportInFlightRef.current) return;
-    exportInFlightRef.current = true;
-    const includePersonalNotes = includeNotesInExportRef.current;
-    setExportingCalendar(true);
-    try {
-      const contents = buildWorkCalendarIcs({
-        year: visibleMonth.year,
-        month: visibleMonth.month,
-        resolveDay: getEffectiveDay,
-        getNote: (dateKey) => data.notes[dateKey] ?? '',
-        includeNotes: includePersonalNotes,
-      });
-      const fileName = await exportWorkCalendarFile(
-        contents,
-        visibleMonth.year,
-        visibleMonth.month,
-      );
-      showDialog(
-        '달력 파일 준비 완료',
-        `${fileName} 파일의 공유·저장 화면을 닫았어요. 앱이나 위치를 선택한 경우에만 파일이 전달돼요.`,
-      );
-    } catch (error) {
-      showDialog(
-        '달력 파일을 만들지 못했어요',
-        error instanceof Error ? error.message : '잠시 후 다시 시도하세요.',
-      );
-    } finally {
-      setExportingCalendar(false);
-      exportInFlightRef.current = false;
-    }
-  };
-
   return (
     <Screen
       contentStyle={[screenStyles.screen, { paddingHorizontal: calendarLayout.screenInset }]}
@@ -787,26 +743,12 @@ export default function CalendarScreen() {
       />
 
       <CalendarMenuSections
-        exportingCalendar={exportingCalendar}
-        includeNotesInExport={includeNotesInExport}
         isDark={isDark}
         legendExpanded={legendExpanded}
-        onExportCalendar={() => void exportVisibleMonth()}
-        onIncludeNotesChange={(include) => {
-          includeNotesInExportRef.current = include;
-          setIncludeNotesInExport(include);
-        }}
         onToggleLegend={() => {
           setLegendExpanded((expanded) => !expanded);
-          setSummaryExpanded(false);
         }}
-        onToggleSummary={() => {
-          setSummaryExpanded((expanded) => !expanded);
-          setLegendExpanded(false);
-        }}
-        payPeriodSummary={payPeriodSummary}
         shiftTypes={data.shiftTypes}
-        summaryExpanded={summaryExpanded}
       />
 
     </Screen>

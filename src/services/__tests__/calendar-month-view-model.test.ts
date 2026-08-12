@@ -94,7 +94,5 @@ describe('달력 월 화면 계산 모델', () => {
     ).toBe(true);
     expect(model.selectableDateKeySet.has('2026-07-01')).toBe(true);
     expect(model.monthlySummary.workdayCount).toBeGreaterThan(0);
-    expect(model.payPeriodSummary.periodStartDateKey).toBe('2026-06-16');
-    expect(model.payPeriodSummary.periodEndDateKey).toBe('2026-07-15');
   });
 });

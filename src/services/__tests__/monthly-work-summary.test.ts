@@ -4,7 +4,6 @@ import type { DayExceptionType, ShiftType } from '../../models/app-data';
 import type { EffectiveDay } from '../app-data-service';
 import {
   buildMonthlyWorkSummary,
-  buildPayrollPeriodWorkSummary,
   getShiftDurationMinutes,
 } from '../monthly-work-summary';
 
@@ -110,45 +109,5 @@ describe('월별 근무 요약', () => {
 
     expect(summary.workdayCount).toBe(0);
     expect(summary.offdayCount).toBe(17);
-  });
-
-  it('이달 요약은 전월 16일부터 당월 15일까지 계산해요', () => {
-    const visited: string[] = [];
-    const summary = buildPayrollPeriodWorkSummary(
-      2026,
-      7,
-      (dateKey) => {
-        visited.push(dateKey);
-        return effectiveDay(
-          dateKey,
-          dateKey === '2026-07-16' || dateKey === '2026-08-15'
-            ? DAY
-            : OFF,
-        );
-      },
-    );
-
-    expect(summary).toMatchObject({
-      periodStartDateKey: '2026-07-16',
-      periodEndDateKey: '2026-08-15',
-      workdayCount: 2,
-      offdayCount: 29,
-      totalMinutes: 22 * 60,
-    });
-    expect(visited[0]).toBe('2026-07-16');
-    expect(visited.at(-1)).toBe('2026-08-15');
-    expect(visited).toHaveLength(31);
-  });
-
-  it('1월 요약은 이전 해 12월 16일부터 계산해요', () => {
-    const summary = buildPayrollPeriodWorkSummary(
-      2027,
-      0,
-      (dateKey) => effectiveDay(dateKey, OFF),
-    );
-
-    expect(summary.periodStartDateKey).toBe('2026-12-16');
-    expect(summary.periodEndDateKey).toBe('2027-01-15');
-    expect(summary.offdayCount).toBe(31);
   });
 });

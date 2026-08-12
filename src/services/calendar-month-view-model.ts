@@ -6,10 +6,7 @@ import {
   getKoreanHolidaysForMonth,
 } from '../utils/korean-holiday';
 import { resolveEffectiveDayFromAppData } from './app-data-service';
-import {
-  buildMonthlyWorkSummary,
-  buildPayrollPeriodWorkSummary,
-} from './monthly-work-summary';
+import { buildMonthlyWorkSummary } from './monthly-work-summary';
 import {
   getPayrollCalendarEntriesForMonth,
   getPayrollSchedule,
@@ -69,11 +66,6 @@ export function buildCalendarMonthViewModel(input: {
     holidays: getKoreanHolidaysForMonth(year, month),
     holidayDataStatus: getKoreanHolidayDataStatus(year),
     monthlySummary: buildMonthlyWorkSummary(
-      year,
-      month,
-      resolveVisibleOrStoredDay,
-    ),
-    payPeriodSummary: buildPayrollPeriodWorkSummary(
       year,
       month,
       resolveVisibleOrStoredDay,
