@@ -11,23 +11,21 @@ import { readReleasePolicy } from '../release-policy.mjs';
 const root = resolve(import.meta.dirname, '..', '..');
 
 describe('Play 배포 정책', () => {
-  it('확정된 별도 Play signer를 유지하고 공개 개인정보처리방침만 blocker로 남겨요', async () => {
+  it('확정된 별도 Play signer와 공개 개인정보처리방침으로 정책을 활성화해요', async () => {
     const direct = await readReleasePolicy(root, { allowBlocked: true });
 
     await expect(
-      readPlayReleasePolicy(root, direct, { allowBlocked: true }),
+      readPlayReleasePolicy(root, direct),
     ).resolves.toMatchObject({
-      releaseState: 'blocked',
-      releaseBlockers: ['privacyPolicyUrl'],
-      privacyPolicyUrl: null,
+      releaseState: 'active',
+      releaseBlockers: [],
+      privacyPolicyUrl:
+        'https://2aoxhy.github.io/alarmpyo/privacy-policy.html',
       appSigningStrategy: 'google-play-managed-separate',
       appSigningCertificateSha256:
         '08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad',
       directUpgradeCompatible: false,
     });
-    await expect(readPlayReleasePolicy(root, direct)).rejects.toThrow(
-      '공개 개인정보처리방침 URL',
-    );
   });
 
   it('direct Hosting이 막혀 있어도 Play 자체 blocker만 해소하면 활성화해요', () => {

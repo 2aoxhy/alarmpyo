@@ -7,11 +7,9 @@
     "androidVersionCode": 2,
     "iosBuildNumber": "2"
   },
-  "releaseState": "blocked",
-  "releaseBlockers": [
-    "privacyPolicyUrl"
-  ],
-  "privacyPolicyUrl": null,
+  "releaseState": "active",
+  "releaseBlockers": [],
+  "privacyPolicyUrl": "https://2aoxhy.github.io/alarmpyo/privacy-policy.html",
   "appSigningStrategy": "google-play-managed-separate",
   "appSigningCertificateSha256": "08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad",
   "targetSdk": 36,

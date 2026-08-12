@@ -74,8 +74,11 @@ describe('저장소 자동화 계약', () => {
     expect(direct.initialRelease).toEqual(candidate);
     expect(play.initialRelease).toEqual(candidate);
     expect(direct.releaseBlockers).toEqual(['productionHostingUrl']);
-    expect(play.releaseBlockers).toEqual(['privacyPolicyUrl']);
-    expect(play.privacyPolicyUrl).toBeNull();
+    expect(play.releaseState).toBe('active');
+    expect(play.releaseBlockers).toEqual([]);
+    expect(play.privacyPolicyUrl).toBe(
+      'https://2aoxhy.github.io/alarmpyo/privacy-policy.html',
+    );
     expect(play.appSigningCertificateSha256).toBe(
       '08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad',
     );
