@@ -2,9 +2,7 @@
 
 교대 근무 일정과 알람을 간편하게 관리하는 독립 앱입니다. 사용자마다 자신의 휴대폰에만 근무표를 저장하며 로그인이나 외부 서버를 사용하지 않습니다.
 
-`알람표`는 주간·교대 근무자의 근무표, 기상 알람, 수면 준비와 위젯을 한곳에서 관리하는 앱입니다. 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`, 앱 패키지는 `com.personal.alarmpyo`예요.
-
-AlarmPyo는 이전 앱과 별개의 새 계보예요. Expo 프로젝트 `@2aox.hy/alarmpyo`와 direct APK 인증서는 확정됐지만 production Hosting URL은 아직 정해지지 않아 stable 공개 릴리스와 OTA 게시를 의도적으로 차단하고 있어요. Play는 Google 관리 별도 App Signing 계보를 2026-08-12에 확인했으며, direct Hosting과 별개인 공개 개인정보처리방침 URL이 아직 없어 일반 빌드·제출을 차단해요. 준비 상태는 [`docs/release-lineage.md`](docs/release-lineage.md)에서 확인해요.
+`알람표`는 주간·교대 근무자의 근무표, 기상 알람, 수면 준비와 위젯을 한곳에서 관리하는 앱입니다.
 
 ## 근무 방식
 
