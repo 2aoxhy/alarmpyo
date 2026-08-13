@@ -10,10 +10,22 @@ function source(path: string) {
 }
 
 describe('핵심 화면 탐색 계약', () => {
-  it('설정 첫 화면에서 기상 시간을 바로 찾을 수 있어요', () => {
+  it('설정 첫 화면을 핵심 네 항목으로 줄이고 세부 관리는 하위 화면에 모아요', () => {
     const settings = source('src/components/settings-home.tsx');
-    expect(settings).toContain('title="기상 시간"');
-    expect(settings).toContain("router.push('/shift-settings?focus=wake')");
+    const appManagement = source('src/app/app-management.tsx');
+
+    expect(settings.match(/<ListRow/gu)).toHaveLength(4);
+    expect(settings).toContain('title="근무표 설정"');
+    expect(settings).toContain("router.push('/shift-settings')");
+    expect(settings).toContain('title="데이터·앱 정보"');
+    expect(settings).not.toContain('title="기상 시간"');
+    for (const title of [
+      '데이터 관리',
+      'Google Play 업데이트',
+      '개인정보 처리방침',
+    ]) {
+      expect(appManagement).toContain(title);
+    }
   });
 
   it('근무 방식 개요는 시작일과 기준일 근무를 반복해서 보여 주지 않아요', () => {
@@ -54,6 +66,19 @@ describe('핵심 화면 탐색 계약', () => {
     ]) {
       expect(dataSettings).toContain(`title="${title}"`);
     }
+  });
+
+  it('접힌 고급 백업은 처음 펼칠 때만 조회하고 데이터 화면은 액션만 구독해요', () => {
+    const dataSettings = source('src/app/data-settings.tsx');
+
+    expect(dataSettings).toContain('useAppStoreActions()');
+    expect(dataSettings).not.toContain('useAppStore()');
+    expect(dataSettings).toContain('backupLookupStartedRef.current');
+    expect(dataSettings).toContain(
+      'if (nextExpanded && !backupLookupStartedRef.current)',
+    );
+    expect(dataSettings).toContain('onPress={toggleAdvancedBackup}');
+    expect(dataSettings).toContain('refreshBackupIfLoaded();');
   });
 
   it('데이터 초기화는 후속 알람 정리 실패를 완전 성공으로 표시하지 않아요', () => {
@@ -198,12 +223,12 @@ describe('핵심 화면 탐색 계약', () => {
     expect(calendar).not.toContain('원복');
   });
 
-  it('개인정보 문의 이메일을 열지 못하면 주소와 후속 조치를 안내해요', () => {
+  it('개인정보 문의는 개인 주소를 노출하지 않고 공개 연락 경로를 안내해요', () => {
     const privacy = source('src/app/privacy.tsx');
-    expect(privacy).toContain('이메일 앱을 열지 못했어요');
-    expect(privacy).toContain('selectable');
-    expect(privacy).toContain('길게 눌러 복사');
-    expect(privacy).toContain('문의 이메일 · 2aox.hy@gmail.com');
+    expect(privacy).toContain('앱을 설치한 스토어의 개발자 연락처');
+    expect(privacy).toContain('비공개 보안 신고 기능');
+    expect(privacy).not.toContain('mailto:');
+    expect(privacy).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu);
   });
 
   it('수면 안내는 권장이 아닌 참고 일정으로 일관되게 표시해요', () => {

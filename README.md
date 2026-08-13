@@ -3,6 +3,7 @@
 교대 근무 일정과 알람을 간편하게 관리하는 독립 앱입니다. 사용자마다 자신의 휴대폰에만 근무표를 저장하며 로그인이나 외부 서버를 사용하지 않습니다.
 
 `알람표`는 주간·교대 근무자의 근무표, 기상 알람, 수면 준비와 위젯을 한곳에서 관리하는 앱입니다.
+공개 저장소에 남겨도 되는 식별자와 제외해야 하는 개인정보·자격증명 기준은 [`docs/open-source-safety-ko.md`](docs/open-source-safety-ko.md)에서 확인해요.
 
 ## 근무 방식
 
@@ -28,7 +29,7 @@
 
 ## 배포 번호
 
-화면에는 버전 번호 대신 현재 실행 중인 내장 번들이나 무선 업데이트의 생성일을 `최근 업데이트 · 일/월/년` 형식으로 표시합니다. 생성일을 알 수 없는 개발 환경에서는 최신이라고 단정하지 않습니다. 새 APK를 만들 때는 `expo.version`, 패키지 버전, 안드로이드 버전 코드와 아이폰 빌드 번호를 함께 올립니다.
+화면과 Play 릴리스 이름에는 `1.0.x` 기술 버전을 `V00` 형식으로 표시합니다. 예를 들어 `1.0.2(3)`은 `V02`예요. 화면에는 현재 실행 중인 내장 번들이나 무선 업데이트의 생성일도 함께 표시하고, 생성일을 알 수 없는 개발 환경에서는 최신이라고 단정하지 않습니다. 새 APK를 만들 때는 `expo.version`, 패키지 버전, 안드로이드 버전 코드와 아이폰 빌드 번호를 함께 올립니다.
 
 ## 실행
 
@@ -69,7 +70,7 @@ npm run release:check
 
 ## 직접 설치용 APK와 업데이트
 
-direct APK와 Play AAB의 분리 구성, 새 Expo 프로젝트 연결과 두 배포판의 인증서 지문은 준비됐어요. direct 공개 정책의 남은 blocker는 production Hosting URL이며, `release-policy.json`의 `releaseState`가 `blocked`인 동안 빌드 결과를 운영으로 승격하거나 OTA를 게시하지 않아요. Play 정책의 남은 blocker는 공개 개인정보처리방침 URL이며, 이를 `play-release-policy.json`에 확정하기 전까지 일반 빌드·제출하지 않아요. 자세한 절차는 [`docs/google-play-release-runbook-ko.md`](docs/google-play-release-runbook-ko.md)를 따라요.
+direct APK와 Play AAB의 분리 구성, 새 Expo 프로젝트 연결과 두 배포판의 인증서 지문은 준비됐어요. direct 공개 정책의 남은 blocker는 production Hosting URL이며, `release-policy.json`의 `releaseState`가 `blocked`인 동안 빌드 결과를 운영으로 승격하거나 OTA를 게시하지 않아요. Play는 공개 개인정보처리방침과 Google 관리 별도 App Signing 계보를 확인해 독립 정책을 활성화했어요. 자세한 절차는 [`docs/google-play-release-runbook-ko.md`](docs/google-play-release-runbook-ko.md)를 따라요.
 
 production Hosting의 실제 HTTPS 기준 URL을 기록한 뒤에만 direct 공개 차단을 해제해요. 이 direct 차단은 Play를 자동으로 막지 않으며, Play에는 실제 공개·검증한 개인정보처리방침 HTTPS 주소를 별도로 기록해요. Play App Signing도 direct 인증서를 자동으로 가정하지 않고 선택한 전략과 최종 인증서 SHA-256을 별도 정책에 기록해요. same-signer일 때만 direct→Play 교차 업데이트 검사를 요구하고, 별도 signer라면 외부 백업 후 제거·새 설치·복원 경로를 안내해요.
 

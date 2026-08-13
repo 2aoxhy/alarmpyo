@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "packageName": "com.personal.todayshift",
-  "signingCertificateSha256": [
-    "302802f8fc798cf9e6ae845675860a301c98bcb3ee34e2908122b32e3b95fb1b"
-  ],
-  "keepPublicApkVersions": 3
-}

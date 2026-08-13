@@ -96,11 +96,12 @@ export function assertInternalCanaryConfig({
     'app config와 릴리스 정책의 EAS project ID가 일치해야 해요.',
   );
   expect(
-    expo.owner === '2aox.hy' &&
+    (expo.owner === undefined ||
+      (typeof expo.owner === 'string' && expo.owner.trim().length > 0)) &&
       expo.slug === 'alarmpyo' &&
       resolvedExpo.owner === expo.owner &&
       resolvedExpo.slug === expo.slug,
-    'EAS 프로젝트 이름은 @2aox.hy/alarmpyo여야 해요.',
+    'EAS 프로젝트 slug와 선택적 owner는 app.json의 공식 연결과 일치해야 해요.',
   );
   expect(
     !releasePolicy.releaseBlockers.includes('expoProjectId'),

@@ -8,12 +8,9 @@ import {
   MenuGroup,
   Screen,
 } from '@/components/ui-kit';
-import { getCurrentAppUpdateLabel } from '@/constants/app-release';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { formatWakeTimeSummary } from '@/features/shift-settings/shift-settings-model';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { getAppDistribution } from '@/services/app-distribution';
 import { useAppStoreData } from '@/store/app-store';
 import { formatCompactTime } from '@/utils/date';
 import { getWorkPatternKind } from '@/utils/work-pattern';
@@ -22,7 +19,6 @@ export default function SettingsHome() {
   const { data } = useAppStoreData();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const playDistribution = getAppDistribution() === 'play';
   const patternKind = getWorkPatternKind(data.pattern.shiftTypeIds);
   const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
   const nightShift = data.shiftTypes.find((shift) => shift.id === 'night');
@@ -36,10 +32,6 @@ export default function SettingsHome() {
     .filter((shift): shift is NonNullable<typeof shift> => Boolean(shift))
     .map((shift) => `${shift.shortName} ${formatCompactTime(shift.startMinutes)}`)
     .join(' · ');
-  const wakeTimeLabel = formatWakeTimeSummary(
-    data.shiftTypes,
-    patternKind !== 'weekday',
-  );
   const alarmLabel = data.settings.notificationsEnabled
     ? data.settings.scheduledNotificationCount > 0
       ? `${data.settings.scheduledNotificationCount}개 예약`
@@ -56,39 +48,23 @@ export default function SettingsHome() {
         </AppText>
       </View>
 
-      <MenuGroup centered title="근무표">
+      <MenuGroup centered title="근무와 알람">
         <ListRow
           icon="repeat-outline"
-          onPress={() => router.push('/pattern')}
-          subtitle={patternLabel}
-          title="근무 방식"
+          onPress={() => router.push('/shift-settings')}
+          subtitle={`${patternLabel} · ${workTimeLabel}`}
+          title="근무표 설정"
         />
         <MenuDivider />
-        <ListRow
-          icon="time-outline"
-          onPress={() => router.push('/shift-settings?focus=time')}
-          subtitle={workTimeLabel}
-          title="근무 시간"
-        />
-        <MenuDivider />
-        <ListRow
-          icon="alarm-outline"
-          onPress={() => router.push('/shift-settings?focus=wake')}
-          subtitle={wakeTimeLabel}
-          title="기상 시간"
-        />
-      </MenuGroup>
-
-      <MenuGroup centered title="알람">
         <ListRow
           icon="alarm-outline"
           onPress={() => router.push('/alarm-settings')}
           subtitle={`${alarmLabel} · 권한과 예약을 확인해요`}
-          title="근무 알람"
+          title="알람"
         />
       </MenuGroup>
 
-      <MenuGroup centered title="앱 관리">
+      <MenuGroup centered title="앱">
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
@@ -97,39 +73,12 @@ export default function SettingsHome() {
         />
         <MenuDivider />
         <ListRow
-          icon="download-outline"
-          onPress={() => router.push('/data-settings')}
-          subtitle="근무 설정 공유와 백업·복구를 관리해요"
-          title="데이터"
-        />
-        <MenuDivider />
-        <ListRow
-          icon="sync"
-          onPress={() => router.push('/app-update')}
-          subtitle={
-            playDistribution
-              ? 'Google Play에서 최신 버전을 확인해요'
-              : '새 앱 설치 파일을 확인하고 안전하게 설치해요'
-          }
-          title={playDistribution ? 'Google Play 업데이트' : '앱 업데이트'}
-        />
-        <MenuDivider />
-        <ListRow
-          icon="shield-outline"
-          onPress={() => router.push('/privacy' as Href)}
-          subtitle="저장·권한·데이터 처리 기준을 확인해요"
-          title="개인정보 처리방침"
+          icon="book-outline"
+          onPress={() => router.push('/app-management' as Href)}
+          subtitle="백업·업데이트·개인정보를 관리해요"
+          title="데이터·앱 정보"
         />
       </MenuGroup>
-
-      <View style={styles.releaseBlock}>
-        <AppText color={palette.inkSoft} style={styles.releaseText} variant="caption">
-          알람표 · {getCurrentAppUpdateLabel()}
-        </AppText>
-        <AppText color={palette.inkSoft} style={styles.releaseText} variant="caption">
-          개발자 2aox.hy(윤강현)
-        </AppText>
-      </View>
     </Screen>
   );
 }
@@ -143,6 +92,4 @@ const createStyles = (_palette: AppPalette) =>
       paddingBottom: spacing.small,
     },
     headerDescription: { textAlign: 'center' },
-    releaseBlock: { alignItems: 'center', gap: 2, paddingTop: spacing.medium },
-    releaseText: { textAlign: 'center' },
   });

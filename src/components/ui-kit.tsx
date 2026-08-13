@@ -391,11 +391,16 @@ export function IconTile({
   color?: string;
   backgroundColor?: string;
 }) {
-  const { palette } = useAppTheme();
+  const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={[styles.iconTile, { backgroundColor: backgroundColor ?? palette.indigoSoft }]}>
-      <AppIcon accessible={false} color={color ?? palette.indigo} name={icon} size={21} />
+      <AppIcon
+        accessible={false}
+        color={color ?? (isDark ? palette.indigoDark : palette.indigo)}
+        name={icon}
+        size={21}
+      />
     </View>
   );
 }
@@ -423,12 +428,16 @@ export function ListRow({
   expanded?: boolean;
   allowSubtitleWrapping?: boolean;
 }) {
-  const { palette } = useAppTheme();
+  const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
   const foreground = destructive ? palette.danger : palette.ink;
-  const iconForeground = destructive ? palette.danger : palette.indigo;
+  const iconForeground = destructive
+    ? palette.danger
+    : isDark
+      ? palette.indigoDark
+      : palette.indigo;
   return (
     <Pressable
       accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}

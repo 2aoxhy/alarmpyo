@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared AlarmPyo palette -->
-    <color name="alarmpyo_background">#0B0F17</color>
+    <color name="alarmpyo_background">#101214</color>
     <color name="alarmpyo_accent">#58D9BC</color>
     <color name="alarmpyo_day">#087568</color>
-    <color name="alarmpyo_night">#3A306B</color>
+    <color name="alarmpyo_night">#3A414A</color>
     <color name="alarmpyo_off">#3A4352</color>
     <color name="alarmpyo_training">#1F7695</color>
     <color name="alarmpyo_reserve">#607342</color>
-    <color name="alarmpyo_unknown">#44376D</color>
+    <color name="alarmpyo_unknown">#424A54</color>
 
     <!-- Shared content and surface colors -->
     <color name="alarmpyo_text_primary">#FFFFFF</color>
@@ -20,19 +20,19 @@
 
     <!-- Widget gradients and chrome -->
     <color name="alarmpyo_widget_day_gradient_start">#07596A</color>
-    <color name="alarmpyo_widget_night_gradient_start">#10172E</color>
+    <color name="alarmpyo_widget_night_gradient_start">#1D2228</color>
     <color name="alarmpyo_widget_off_gradient_start">#222835</color>
     <color name="alarmpyo_widget_training_gradient_start">#123A58</color>
     <color name="alarmpyo_widget_reserve_gradient_start">#33411F</color>
-    <color name="alarmpyo_widget_unknown_gradient_start">#211C38</color>
+    <color name="alarmpyo_widget_unknown_gradient_start">#242A30</color>
     <color name="alarmpyo_widget_panel_background">#29040A16</color>
     <color name="alarmpyo_widget_panel_border">#14FFFFFF</color>
     <color name="alarmpyo_widget_card_border">#2EFFFFFF</color>
     <color name="alarmpyo_widget_icon_day">#FFF0A8</color>
-    <color name="alarmpyo_widget_icon_night">#E8E7FF</color>
+    <color name="alarmpyo_widget_icon_night">#E2E6EA</color>
     <color name="alarmpyo_widget_icon_off">#EEF0F5</color>
     <color name="alarmpyo_widget_icon_training">#C8EEFF</color>
     <color name="alarmpyo_widget_icon_reserve">#E7F3A8</color>
     <color name="alarmpyo_widget_icon_reserve_detail">#455124</color>
-    <color name="alarmpyo_widget_icon_unknown">#ECE9FF</color>
+    <color name="alarmpyo_widget_icon_unknown">#E4E8EC</color>
 </resources>

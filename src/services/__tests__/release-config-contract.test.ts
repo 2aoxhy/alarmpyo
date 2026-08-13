@@ -218,16 +218,16 @@ describe('stable 배포 설정', () => {
     expect(pkg.overrides.uuid).toBe('11.1.1');
     expect(app.expo.updates).toEqual({
       enabled: true,
-      url: 'https://u.expo.dev/ffdda16b-a290-4fc6-919b-fddd50e0c25f',
+      url: `https://u.expo.dev/${app.expo.extra.eas.projectId}`,
       checkAutomatically: 'ON_LOAD',
       fallbackToCacheTimeout: 0,
     });
     expect(app.expo.extra.apkUpdateManifestUrls).toBeUndefined();
     expect(app.expo.extra.apkUpdateManifestUrl).toBeUndefined();
-    expect(app.expo.owner).toBe('2aox.hy');
-    expect(app.expo.extra.eas).toEqual({
-      projectId: 'ffdda16b-a290-4fc6-919b-fddd50e0c25f',
-    });
+    expect(app.expo.owner).toBeUndefined();
+    expect(app.expo.extra.eas.projectId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+    );
     expect(app.expo.plugins).toContain(
       './plugins/with-async-storage-database-size.js',
     );
@@ -255,10 +255,10 @@ describe('stable 배포 설정', () => {
     expect(app.expo.description).toBe(
       '주간·교대 근무표와 기상 알람을 간편하게 관리해요',
     );
-    expect(pkg.version).toBe('1.0.1');
-    expect(app.expo.version).toBe('1.0.1');
-    expect(app.expo.android.versionCode).toBe(2);
-    expect(app.expo.ios.buildNumber).toBe('2');
+    expect(pkg.version).toBe('1.0.2');
+    expect(app.expo.version).toBe('1.0.2');
+    expect(app.expo.android.versionCode).toBe(3);
+    expect(app.expo.ios.buildNumber).toBe('3');
     // `android`는 Expo prebuild가 만드는 생성물이므로 새 clone과 소스
     // 아카이브에는 없을 수 있어요. 생성물이 있을 때에는 그 결과도 함께
     // 검증하고, 없을 때에는 원본 Expo 설정 계약만 검증해요.
@@ -285,7 +285,7 @@ describe('stable 배포 설정', () => {
       app.expo.plugins.find(
         (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen',
       )?.[1]?.backgroundColor,
-    ).toBe('#06111F');
+    ).toBe('#101214');
   });
 
   it('Android 적응형 아이콘을 안전 영역 안에 두고 단색 마스크를 일치시킵니다', () => {
@@ -302,7 +302,7 @@ describe('stable 배포 설정', () => {
     const safeRadius = (foreground.width * 33) / 108;
     const minimumLogoSize = Math.floor((foreground.width * 48) / 108);
 
-    expect(app.expo.android.adaptiveIcon.backgroundColor).toBe('#06111F');
+    expect(app.expo.android.adaptiveIcon.backgroundColor).toBe('#101214');
     expect(foregroundBounds).toEqual(monochromeBounds);
     expect(foregroundBounds.minX).toBeGreaterThanOrEqual(safeInset);
     expect(foregroundBounds.minY).toBeGreaterThanOrEqual(safeInset);
@@ -378,7 +378,7 @@ describe('stable 배포 설정', () => {
     expect(styles).toContain(
       '<item name="android:windowBackground">@color/alarmpyo_background</item>',
     );
-    expect(colors).toContain('<color name="alarmpyo_background">#0B0F17</color>');
+    expect(colors).toContain('<color name="alarmpyo_background">#101214</color>');
   });
 
   it('APK 승격은 한 번 배포하고 실패 시 로컬 공개 정보를 복구합니다', () => {
@@ -439,8 +439,7 @@ describe('stable 배포 설정', () => {
     expect(policy.releaseState).toBe('blocked');
     expect(policy.releaseBlockers).toEqual(['productionHostingUrl']);
     expect(policy.productionHostingUrl).toBeNull();
-    expect(policy.signingCertificateSha256).toEqual([
-      '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
-    ]);
+    expect(policy.signingCertificateSha256).toHaveLength(1);
+    expect(policy.signingCertificateSha256[0]).toMatch(/^[0-9a-f]{64}$/u);
   });
 });

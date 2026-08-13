@@ -45,13 +45,14 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
   it('진입 목적에 맞게 근무 시간과 기상 시간 제목을 구분해요', () => {
     const shiftSettings = source('src/app/shift-settings.tsx');
 
-    expect(shiftSettings).toContain(
-      "const screenTitle = focus === 'wake' ? '기상 시간' : '근무 시간';",
-    );
+    expect(shiftSettings).toContain("focus === 'wake'");
+    expect(shiftSettings).toContain("? '기상 시간'");
+    expect(shiftSettings).toContain("focus === 'time'");
+    expect(shiftSettings).toContain("? '근무 시간'");
+    expect(shiftSettings).toContain(": '근무표 설정';");
     expect(shiftSettings).toContain(
       '<Stack.Screen options={{ title: screenTitle }} />',
     );
-    expect(shiftSettings).not.toContain("title: '근무표 설정'");
   });
 
   it('앱 삭제 위험과 외부 백업 경로를 첫 설정에서 안내해요', () => {

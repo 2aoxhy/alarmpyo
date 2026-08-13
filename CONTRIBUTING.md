@@ -31,7 +31,7 @@ Expo Go에서는 Kotlin 네이티브 알람과 위젯을 검증할 수 없어요
 - 알람 변경은 앱 종료·재부팅·시간대 변경 복구, 예비 알람 중복 방지와 실제 Android 기기 동작을 함께 확인해 주세요.
 - 생성물인 `android`, `dist`, `.expo`, `.release`, `node_modules`와 모든 `build` 폴더는 소스 변경으로 제출하지 마세요.
 
-표시명은 `알람표`, 영문 브랜드는 `AlarmPyo`, 내부 식별자는 `alarmpyo`, 패키지는 `com.personal.alarmpyo`예요. Expo 프로젝트는 `@2aox.hy/alarmpyo`에 연결됐고 direct APK 인증서는 새 AlarmPyo 계보로 확정됐어요. 남은 direct 공개 배포 blocker는 production Hosting URL이며, Play App Signing signer 전략은 아직 결정하지 않았어요. Google 관리 별도 signer를 선택한 경우의 첫 인증서 확인용 draft AAB도 명시적 1회성 opt-in과 깨끗한 커밋에서만 만들며 자동 제출하지 않아요. 임시 URL이나 예제 인증서를 운영 설정처럼 추가하지 마세요.
+표시명은 `알람표`, 영문 브랜드는 `AlarmPyo`예요. 패키지·Expo 연결·서명 계보 값은 공식 설정 파일만 단일 기준으로 사용해요. 문서·테스트·예제에 계정명, 프로젝트 ID, 인증서 지문이나 개인 연락처를 복사하지 마세요. 임시 URL이나 예제 인증서를 운영 설정처럼 추가하지 마세요.
 
 ## 검사
 

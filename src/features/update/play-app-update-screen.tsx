@@ -74,7 +74,7 @@ export default function PlayAppUpdateScreen() {
         </Card>
 
         <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
-          {getCurrentAppUpdateLabel()} · 개발자 2aox.hy(윤강현)
+          알람표 · {getCurrentAppUpdateLabel()}
         </AppText>
       </Screen>
     </>

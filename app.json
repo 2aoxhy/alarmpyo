@@ -2,7 +2,7 @@
   "expo": {
     "name": "알람표",
     "slug": "alarmpyo",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "주간·교대 근무표와 기상 알람을 간편하게 관리해요",
     "orientation": "portrait",
     "icon": "./assets/images/alarmpyo-icon.png",
@@ -19,13 +19,13 @@
     },
     "ios": {
       "icon": "./assets/images/alarmpyo-icon.png",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": false,
       "bundleIdentifier": "com.personal.alarmpyo"
     },
     "android": {
       "package": "com.personal.alarmpyo",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.DUMP",
@@ -34,7 +34,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#06111F",
+        "backgroundColor": "#101214",
         "foregroundImage": "./assets/images/alarmpyo-adaptive-foreground.png",
         "monochromeImage": "./assets/images/alarmpyo-adaptive-monochrome.png"
       },
@@ -49,7 +49,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#06111F",
+          "backgroundColor": "#101214",
           "image": "./assets/images/splash-transparent.png",
           "imageWidth": 100
         }
@@ -68,7 +68,6 @@
       "eas": {
         "projectId": "ffdda16b-a290-4fc6-919b-fddd50e0c25f"
       }
-    },
-    "owner": "2aox.hy"
+    }
   }
 }

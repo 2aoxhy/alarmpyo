@@ -19,13 +19,15 @@ describe('Play 배포 정책', () => {
     ).resolves.toMatchObject({
       releaseState: 'active',
       releaseBlockers: [],
-      privacyPolicyUrl:
-        'https://2aoxhy.github.io/alarmpyo/privacy-policy.html',
       appSigningStrategy: 'google-play-managed-separate',
-      appSigningCertificateSha256:
-        '08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad',
       directUpgradeCompatible: false,
     });
+    const play = await readPlayReleasePolicy(root, direct);
+    expect(play.privacyPolicyUrl).toMatch(/^https:\/\/[^/?#@]+\/[^?#]+$/u);
+    expect(play.appSigningCertificateSha256).toMatch(/^[0-9a-f]{64}$/u);
+    expect(direct.signingCertificateSha256).not.toContain(
+      play.appSigningCertificateSha256,
+    );
   });
 
   it('direct Hosting이 막혀 있어도 Play 자체 blocker만 해소하면 활성화해요', () => {

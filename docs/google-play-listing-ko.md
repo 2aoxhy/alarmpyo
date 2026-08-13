@@ -12,7 +12,7 @@
 - 계정 생성: 아니요
 - 대상 사용자: 성인 주간·교대 근무자
 - 패키지 이름: `com.personal.alarmpyo`
-- 지원 이메일: `2aox.hy@gmail.com`
+- 지원 이메일: Play Console에 등록한 검증된 앱 지원 연락처(개인 주소를 저장소에 복사하지 않아요)
 - 개인정보 처리방침: 게시 전 — `docs/privacy-policy-github-pages-ko.md`에 따라 실제 GitHub Pages URL을 공개·확인한 뒤 입력해요.
 
 ## 짧은 설명

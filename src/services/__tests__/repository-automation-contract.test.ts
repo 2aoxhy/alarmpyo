@@ -51,7 +51,7 @@ describe('저장소 자동화 계약', () => {
     });
   });
 
-  it('앱과 direct·Play 정책이 같은 1.0.1(2) 후보를 가리켜요', () => {
+  it('앱은 1.0.2(3) 후속 후보이고 direct·Play의 첫 릴리스 계보는 유지해요', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -63,24 +63,27 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.1');
+    expect(pkg.version).toBe('1.0.2');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
+      versionName: '1.0.2',
+      androidVersionCode: 3,
+      iosBuildNumber: '3',
+    });
+    expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
       androidVersionCode: 2,
       iosBuildNumber: '2',
     });
-    expect(direct.initialRelease).toEqual(candidate);
-    expect(play.initialRelease).toEqual(candidate);
+    expect(play.initialRelease).toEqual(direct.initialRelease);
     expect(direct.releaseBlockers).toEqual(['productionHostingUrl']);
     expect(play.releaseState).toBe('active');
     expect(play.releaseBlockers).toEqual([]);
-    expect(play.privacyPolicyUrl).toBe(
-      'https://2aoxhy.github.io/alarmpyo/privacy-policy.html',
-    );
-    expect(play.appSigningCertificateSha256).toBe(
-      '08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad',
+    expect(play.privacyPolicyUrl).toMatch(/^https:\/\/[^/?#@]+\/[^?#]+$/u);
+    expect(play.appSigningCertificateSha256).toMatch(/^[0-9a-f]{64}$/u);
+    expect(direct.signingCertificateSha256).not.toContain(
+      play.appSigningCertificateSha256,
     );
     expect(play.appSigningStrategy).toBe(
       'google-play-managed-separate',

@@ -438,7 +438,7 @@ export default function AppUpdateScreen() {
           </Card>
 
           <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
-            {getCurrentAppUpdateLabel()} · 개발자 2aox.hy(윤강현)
+            알람표 · {getCurrentAppUpdateLabel()}
           </AppText>
         </Screen>
       </>
@@ -518,7 +518,7 @@ export default function AppUpdateScreen() {
         ) : null}
 
         <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
-          {getCurrentAppUpdateLabel()} · 개발자 2aox.hy(윤강현)
+          알람표 · {getCurrentAppUpdateLabel()}
         </AppText>
       </Screen>
     </>

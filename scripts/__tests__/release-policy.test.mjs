@@ -32,12 +32,14 @@ describe('APK 운영 배포 정책', () => {
       },
       releaseState: 'blocked',
       releaseBlockers: ['productionHostingUrl'],
-      expoProjectId: 'ffdda16b-a290-4fc6-919b-fddd50e0c25f',
       productionHostingUrl: null,
-      signingCertificateSha256: [
-        '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
-      ],
     });
+    const actual = await readReleasePolicy(root, { allowBlocked: true });
+    expect(actual.expoProjectId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+    );
+    expect(actual.signingCertificateSha256).toHaveLength(1);
+    expect(actual.signingCertificateSha256[0]).toMatch(/^[0-9a-f]{64}$/u);
   });
 
   it('현재 공개 버전보다 큰 versionCode만 허용해요', () => {

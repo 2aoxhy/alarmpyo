@@ -71,7 +71,12 @@ export default function ShiftSettingsScreen() {
   const [timeSettingsExpanded, setTimeSettingsExpanded] = useState(true);
   const [routineExpanded, setRoutineExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const screenTitle = focus === 'wake' ? '기상 시간' : '근무 시간';
+  const screenTitle =
+    focus === 'wake'
+      ? '기상 시간'
+      : focus === 'time'
+        ? '근무 시간'
+        : '근무표 설정';
 
   const weekdayFixed =
     getWorkPatternKind(data.pattern.shiftTypeIds) === 'weekday';

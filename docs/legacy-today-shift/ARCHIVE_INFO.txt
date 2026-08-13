@@ -1,6 +1,0 @@
-HTSA source archive
-Version: 1.7.0
-Android versionCode: 48
-Created: 2026-08-11 18:05:28 +09:00
-Files: 449
-Excluded: .git, node_modules, build caches, APK/AAB/ZIP, downloads/updates, environment files, signing keys and credentials

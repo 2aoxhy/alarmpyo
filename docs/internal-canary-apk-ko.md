@@ -8,7 +8,7 @@
 
 - 실제 Git 저장소의 커밋된 깨끗한 HEAD가 필요해요. `.git`이 없거나 추적되지 않은 변경이 있으면 시작하지 않아요.
 - Node.js 24.16.0과 npm 11.13.0, JDK 17, Android SDK를 준비해요. Android Gradle 경로 문제를 줄이려면 영문 작업 경로를 권장해요.
-- Expo/EAS에 로그인하거나 승인된 `EXPO_TOKEN`을 사용하고, `@2aox.hy/alarmpyo` 프로젝트를 읽을 권한이 있어야 해요.
+- Expo/EAS에 로그인하거나 승인된 `EXPO_TOKEN`을 사용하고, `app.json`에 연결된 공식 프로젝트를 읽을 권한이 있어야 해요.
 - Expo 프로젝트 설정에서 **Unauthenticated access to internal builds**를 꺼요. EAS internal 배포 URL은 기본적으로 주소를 아는 누구나 열 수 있으므로, 이 설정을 끄지 않았다면 비공개 APK라고 부르거나 링크를 공유하지 않아요.
 - `app.json`, `release-policy.json`의 EAS project ID가 서로 같고, 패키지가 `com.personal.alarmpyo`여야 해요.
 - 첫 빌드에서 Android 자격 증명을 만들거나 선택할 때 이전 앱의 키를 사용하지 않아요. canary에 사용한 새 키를 잃어버리지 않도록 EAS 자격 증명 보관 상태를 확인해요.

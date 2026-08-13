@@ -44,10 +44,11 @@ describe('비공개 내부 canary APK 게이트', () => {
     expect(fixture().releasePolicy).toMatchObject({
       releaseState: 'blocked',
       productionHostingUrl: null,
-      signingCertificateSha256: [
-        '49a23f9cc1ef3055b0f601720d6262863e27726718cf5ce6caf4f0062acabe6a',
-      ],
     });
+    expect(fixture().releasePolicy.signingCertificateSha256).toHaveLength(1);
+    expect(fixture().releasePolicy.signingCertificateSha256[0]).toMatch(
+      /^[0-9a-f]{64}$/u,
+    );
   });
 
   it('Updates를 끄지 않았다면 현재 EAS project ID에 안전하게 연결해야 해요', () => {
@@ -74,7 +75,7 @@ describe('비공개 내부 canary APK 게이트', () => {
     invalid.app.expo.android.package = 'com.example.other';
     invalid.app.expo.extra.eas.projectId =
       '00000000-0000-4000-8000-000000000000';
-    invalid.app.expo.version = '1.0.2';
+    invalid.app.expo.version = '9.9.9';
     expect(() => assertInternalCanaryConfig(invalid)).toThrow(
       /Android 패키지[\s\S]*앱 버전|앱 버전[\s\S]*Android 패키지/u,
     );

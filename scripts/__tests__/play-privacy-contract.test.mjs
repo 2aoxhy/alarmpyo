@@ -19,7 +19,7 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(app.updates).toMatchObject({
       enabled: true,
       checkAutomatically: 'ON_LOAD',
-      url: 'https://u.expo.dev/ffdda16b-a290-4fc6-919b-fddd50e0c25f',
+      url: `https://u.expo.dev/${app.extra.eas.projectId}`,
     });
     for (const contents of [publicPolicy, inAppPolicy]) {
       expect(contents).toContain('EAS Update');

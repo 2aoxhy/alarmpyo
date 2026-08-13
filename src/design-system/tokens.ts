@@ -158,7 +158,7 @@ export function createSemanticColors(
     border: palette.line,
     borderStrong: palette.controlLine,
     focus: isDark ? palette.lilac : palette.indigo,
-    accent: palette.indigo,
+    accent: isDark ? palette.indigoDark : palette.indigo,
     accentStrong: palette.indigoDark,
     accentSoft: palette.indigoSoft,
     onAccent: palette.white,

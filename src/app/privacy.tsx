@@ -1,8 +1,7 @@
 import { Stack } from 'expo-router';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { useAppDialog } from '@/components/app-dialog';
-import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
+import { AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -43,20 +42,8 @@ const POLICY_SECTIONS = [
 ] as const;
 
 export default function PrivacyScreen() {
-  const { showDialog } = useAppDialog();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-
-  const openContactEmail = async () => {
-    try {
-      await Linking.openURL('mailto:2aox.hy@gmail.com');
-    } catch {
-      showDialog(
-        '이메일 앱을 열지 못했어요',
-        '팝업을 닫은 뒤 화면의 문의 이메일을 길게 눌러 복사하거나, 이메일 앱에서 직접 입력해 주세요.',
-      );
-    }
-  };
 
   return (
     <>
@@ -87,20 +74,10 @@ export default function PrivacyScreen() {
             문의와 시행일
           </AppText>
           <AppText color={palette.inkMuted}>
-            개인정보 보호 책임자는 개발자 2aox.hy(윤강현)예요.
+            개인정보 관련 문의는 앱을 설치한 스토어의 개발자 연락처를 이용해
+            주세요. 보안 취약점은 공개 저장소의 비공개 보안 신고 기능으로 알려
+            주세요.
           </AppText>
-          <AppText
-            accessibilityLabel="문의 이메일 2aox.hy@gmail.com. 길게 눌러 복사할 수 있어요."
-            color={palette.inkMuted}
-            selectable>
-            문의 이메일 · 2aox.hy@gmail.com
-          </AppText>
-          <AppButton
-            label="이메일 문의하기"
-            onPress={() => void openContactEmail()}
-            size="compact"
-            variant="secondary"
-          />
           <AppText color={palette.inkSoft} variant="caption">
             시행일 2026년 8월 12일
           </AppText>

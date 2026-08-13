@@ -66,6 +66,8 @@ describe('앱 색상 대비', () => {
 
   it('다크 모드의 주요 동작과 스위치 손잡이가 구분돼요', () => {
     expectContrast(darkPalette, 'white', 'indigo', 4.5);
+    expectContrast(darkPalette, 'indigo', 'surface', 3);
+    expectContrast(darkPalette, 'indigoDark', 'indigoSoft', 4.5);
     expectContrast(darkPalette, 'canvas', 'mint', 4.5);
   });
 

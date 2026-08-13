@@ -105,12 +105,12 @@ export function getShiftSkyPhase(hour: number): ShiftSkyPhase {
 }
 
 const SKY_GRADIENTS: Record<ShiftSkyPhase, readonly [string, string]> = {
-  dawn: ['#263A59', '#765269'],
+  dawn: ['#30373E', '#42403E'],
   sunrise: ['#114E68', '#A9505A'],
   day: ['#07596A', '#087568'],
-  moonrise: ['#16465F', '#554B70'],
-  sunset: ['#24364F', '#7B4059'],
-  night: ['#0A1A31', '#1A3158'],
+  moonrise: ['#29323A', '#3E4146'],
+  sunset: ['#30373E', '#42403E'],
+  night: ['#111820', '#252B31'],
 };
 
 export function getShiftSkyGradient(hour: number) {

@@ -21,6 +21,7 @@ describe('design-system tokens', () => {
     expect(light.onPositive).toBe(lightPalette.white);
     expect(dark.background).toBe(darkPalette.canvas);
     expect(dark.focus).toBe(darkPalette.lilac);
+    expect(dark.accent).toBe(darkPalette.indigoDark);
     expect(dark.onPositive).toBe(darkPalette.canvas);
   });
 

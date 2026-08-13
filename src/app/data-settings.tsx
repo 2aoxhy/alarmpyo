@@ -25,7 +25,7 @@ import type {
   WorkSettingsSharePreview,
 } from '@/services/work-settings-share-service';
 import {
-  useAppStore,
+  useAppStoreActions,
   type PendingRestoreBackupPreview,
 } from '@/store/app-store';
 import { formatCompactTime, formatKoreanDate } from '@/utils/date';
@@ -101,7 +101,7 @@ export default function DataSettingsScreen() {
     resetAllDataDetailed,
     restoreLatestBackup,
     retryPendingRestoreBackup,
-  } = useAppStore();
+  } = useAppStoreActions();
   const [activeOperation, setActiveOperation] = useState<DataOperation | null>(null);
   const busy = activeOperation !== null;
   const receivingSettings =
@@ -117,6 +117,8 @@ export default function DataSettingsScreen() {
   const [encryptedBackupRequest, setEncryptedBackupRequest] =
     useState<EncryptedBackupRequest | null>(null);
   const [advancedBackupExpanded, setAdvancedBackupExpanded] = useState(false);
+  const advancedBackupExpandedRef = useRef(false);
+  const backupLookupStartedRef = useRef(false);
   const [lastBackupExportAttemptAt, setLastBackupExportAttemptAt] =
     useState<string | null>(null);
 
@@ -174,10 +176,24 @@ export default function DataSettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void refreshBackup();
+      if (advancedBackupExpandedRef.current) void refreshBackup();
       void refreshBackupExportAttemptAt();
     }, [refreshBackup, refreshBackupExportAttemptAt]),
   );
+
+  const toggleAdvancedBackup = useCallback(() => {
+    const nextExpanded = !advancedBackupExpanded;
+    advancedBackupExpandedRef.current = nextExpanded;
+    setAdvancedBackupExpanded(nextExpanded);
+    if (nextExpanded && !backupLookupStartedRef.current) {
+      backupLookupStartedRef.current = true;
+      void refreshBackup();
+    }
+  }, [advancedBackupExpanded, refreshBackup]);
+
+  const refreshBackupIfLoaded = useCallback(() => {
+    if (backupLookupStartedRef.current) void refreshBackup();
+  }, [refreshBackup]);
 
   const confirmWorkSettings = (
     preview: WorkSettingsSharePreview,
@@ -210,7 +226,7 @@ export default function DataSettingsScreen() {
                   '근무 설정을 적용했어요',
                   '개인 일정과 메모는 그대로 유지했어요.',
                 );
-                void refreshBackup();
+                refreshBackupIfLoaded();
                 return;
               }
               const message = {
@@ -220,7 +236,7 @@ export default function DataSettingsScreen() {
                 'save-failed': '새 설정을 저장하지 못해 기존 설정을 유지했어요.',
               }[result.reason];
               showDialog('근무 설정을 적용하지 못했어요', message);
-              if (result.reason === 'save-failed') void refreshBackup();
+              if (result.reason === 'save-failed') refreshBackupIfLoaded();
             })
             .catch(() => {
               showDialog(
@@ -364,7 +380,7 @@ export default function DataSettingsScreen() {
                     ? '근무표와 설정을 백업 내용으로 변경했어요.'
                     : '안전 백업을 만들지 못해 현재 데이터를 유지했어요.',
                 );
-                if (success) void refreshBackup();
+                if (success) refreshBackupIfLoaded();
               })
               .finally(finishOperation);
           },
@@ -536,7 +552,7 @@ export default function DataSettingsScreen() {
                       : '안전 백업은 만들었지만 현재 데이터를 지우지 못했어요. 다시 시도해 주세요.',
                   );
                 }
-                if (result.dataReset) void refreshBackup();
+                if (result.dataReset) refreshBackupIfLoaded();
               })
               .catch(() => {
                 showDialog(
@@ -620,7 +636,7 @@ export default function DataSettingsScreen() {
           <ListRow
             expanded={advancedBackupExpanded}
             icon="options-outline"
-            onPress={() => setAdvancedBackupExpanded((expanded) => !expanded)}
+            onPress={toggleAdvancedBackup}
             subtitle="기기 안의 자동 백업과 보호되지 않은 백업을 관리해요."
             title={advancedBackupExpanded ? '고급 관리 접기' : '고급 관리 보기'}
           />

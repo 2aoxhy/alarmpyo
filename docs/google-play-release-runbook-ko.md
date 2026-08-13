@@ -2,7 +2,7 @@
 
 이 문서는 알람표의 Play 내부 테스트부터 production 출고까지 적용하는 차단 게이트예요. 실제 업로드·트랙 배포·production 출시는 사용자가 명시적으로 요청한 경우에만 실행해요. Play 배포본은 직접 APK 설치 화면·JavaScript 코드·네이티브 설치 API·Provider·`REQUEST_INSTALL_PACKAGES`를 빌드 시점에 제외하고, 직접 배포 APK는 기존 업데이트 기능을 유지해요.
 
-현재 AlarmPyo 계보는 Expo 프로젝트 `@2aox.hy/alarmpyo`와 direct APK 인증서에 연결됐어요. direct 공개 정책은 production Hosting URL만 남아 `releaseState: blocked`예요. Play 정책은 이 direct Hosting 상태와 독립적이며, Google 관리 별도 App Signing 인증서를 2026-08-12에 Play Console에서 확인했어요. Play에 남은 blocker는 공개 개인정보처리방침 URL뿐이며, 각 배포 명령은 해당 정책이 활성화되기 전에는 실행하지 않아요.
+현재 AlarmPyo 계보는 `app.json`의 공식 Expo 프로젝트와 direct APK 인증서에 연결됐어요. direct 공개 정책은 production Hosting URL만 남아 `releaseState: blocked`예요. Play 정책은 이 direct Hosting 상태와 독립적이며, Google 관리 별도 App Signing 인증서를 Play Console에서 확인했어요. 각 배포 명령은 해당 정책이 활성화되기 전에는 실행하지 않아요.
 
 ## 0. 출시 전에 정책 결정을 끝내요
 
@@ -30,7 +30,7 @@ AlarmPyo는 `com.personal.alarmpyo`라는 새 package 계보로 시작해요. `1
 3. 업로드 키는 앱 서명 키와 구분해요. Google도 두 키를 다르게 유지하는 것을 권장하며, AAB 업로드 인증서 SHA-256을 사용자에게 전달되는 APK의 앱 서명 인증서로 잘못 기록하지 않아요.
 4. Play Console의 앱 무결성 화면에서 최종 앱 서명 인증서 SHA-256을 확인해 `play-release-policy.json`의 `appSigningCertificateSha256`에 기록하고 해당 blocker를 제거해요. 현재 정책의 단일 값은 Android 12~16 Play 설치본에 사용되는 클래식 앱 서명 인증서를 뜻해요. Console에 Android 17 이상용 양자 내성 서명 인증서가 함께 보이면 그 값을 대신 넣지 말고, Android 17 검증을 도입할 때 정책·증거 형식을 별도로 확장해요. 내부 트랙 설치본에서도 기록한 값과 실제 인증서가 같은지 확인해요.
 
-이 결정은 완료됐어요. 2026-08-12 Play Console의 App Signing 화면과 Digital Asset Links에서 Google 관리 별도 signer의 SHA-256 `08fccbdd720998439752f1748f28c7c6a47430d3ddb6e02b10cdf775b479bcad`를 확인해 Play 정책에 기록했어요. direct 지문과 다르므로 `directUpgradeCompatible: false`이며, direct판 사용자는 외부 백업 후 기존 앱 제거·Play판 설치·복원 절차가 필요해요. 내부 트랙 설치본에서도 인증서를 다시 대조해야 해요.
+이 결정은 완료됐어요. Play Console의 App Signing 화면과 Digital Asset Links에서 Google 관리 별도 signer를 확인해 `play-release-policy.json`의 단일 기준값으로 기록했어요. direct 지문과 다르므로 `directUpgradeCompatible: false`이며, direct판 사용자는 외부 백업 후 기존 앱 제거·Play판 설치·복원 절차가 필요해요. 내부 트랙 설치본에서도 인증서를 다시 대조해야 해요.
 
 Google은 여러 스토어에서 같은 키를 유지하려면 자체 키를 Play에 제공하거나 Play 서명 APK를 외부 배포에 사용하도록 안내해요. [Play App Signing 공식 안내](https://support.google.com/googleplay/android-developer/answer/9842756?hl=ko)
 

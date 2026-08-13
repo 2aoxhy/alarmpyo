@@ -363,7 +363,7 @@ function AppShell() {
 const bootstrapStyles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#06111F',
+    backgroundColor: '#101214',
   },
   errorBoundary: {
     flex: 1,
@@ -371,7 +371,7 @@ const bootstrapStyles = StyleSheet.create({
     justifyContent: 'center',
     gap: 14,
     padding: 28,
-    backgroundColor: '#0B0F17',
+    backgroundColor: '#101214',
   },
   errorTitle: {
     color: '#F7F8FC',
@@ -394,7 +394,7 @@ const bootstrapStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
-    backgroundColor: '#6857D6',
+    backgroundColor: '#616A75',
     paddingHorizontal: 22,
   },
   errorButtonPressed: { transform: [{ scale: 0.985 }] },
