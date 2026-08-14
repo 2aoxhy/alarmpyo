@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AlarmPyoAlarmStatus } from '../alarmpyo-alarm-service';
-import { resolveAlarmAccessSummary } from '../alarm-access-summary';
+import {
+  resolveAlarmAccessSummary,
+  resolveAlarmHealthState,
+} from '../alarm-access-summary';
 
 const readyStatus: AlarmPyoAlarmStatus = {
   supported: true,
@@ -75,7 +78,7 @@ describe('알람 권한 안내', () => {
       action: 'open-full-screen-settings',
       actionLabel: '전체 화면 알람 설정하기',
       canTest: false,
-      title: '전체 화면 알람을 추가로 허용해 주세요',
+      title: '전체 화면 알람을 허용해 주세요',
     });
   });
 
@@ -130,7 +133,7 @@ describe('알람 권한 안내', () => {
     });
   });
 
-  it('전체 화면 권한보다 알람 동기화와 예약 오류를 먼저 안내해요', () => {
+  it('예약을 고치기 전에 전체 화면 권한을 먼저 준비해요', () => {
     expect(
       resolveAlarmAccessSummary({
         alarmStatus: { ...readyStatus, fullScreenAllowed: false },
@@ -140,9 +143,9 @@ describe('알람 권한 안내', () => {
         platformSupported: true,
       }),
     ).toMatchObject({
-      action: 'resync',
+      action: 'open-full-screen-settings',
       canTest: false,
-      title: '알람을 다시 예약해야 해요',
+      title: '전체 화면 알람을 허용해 주세요',
     });
 
     expect(
@@ -155,9 +158,9 @@ describe('알람 권한 안내', () => {
         platformSupported: true,
       }),
     ).toMatchObject({
-      action: 'resync',
+      action: 'open-full-screen-settings',
       canTest: false,
-      title: '알람 예약이 근무표와 맞지 않아요',
+      title: '전체 화면 알람을 허용해 주세요',
     });
   });
 
@@ -402,5 +405,171 @@ describe('알람 권한 안내', () => {
         '다음 알람 3개 중 2개가 예약됐어요. 근무표에 맞춰 다시 예약해 주세요.',
       tone: 'warning',
     });
+  });
+});
+
+describe('통합 알람 상태', () => {
+  it('확인 중·준비됨·확인 필요를 상호 배타적으로 계산해요', () => {
+    expect(resolveAlarmHealthState({
+      alarmStatus: null,
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      platformSupported: true,
+    })).toMatchObject({ status: 'checking', issueCode: null });
+
+    expect(resolveAlarmHealthState({
+      alarmStatus: readyStatus,
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      platformSupported: true,
+    })).toMatchObject({ status: 'ready', issueCode: null });
+
+    expect(resolveAlarmHealthState({
+      alarmStatus: { ...readyStatus, exactAlarmAllowed: false },
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      platformSupported: true,
+    })).toMatchObject({
+      status: 'action-required',
+      issueCode: 'alarm-permissions',
+      action: 'open-settings',
+    });
+  });
+
+  it('저장 뒤 알람 실패는 준비됨과 동시에 표시하지 않고 한 조치만 제공해요', () => {
+    const result = resolveAlarmHealthState({
+      alarmStatus: readyStatus,
+      alarmStatusError: false,
+      alarmSyncFailed: true,
+      notificationsEnabled: true,
+      platformSupported: true,
+    });
+
+    expect(result).toMatchObject({
+      status: 'action-required',
+      issueCode: 'alarm-schedule',
+      action: 'resync',
+      actionLabel: '다시 예약하기',
+    });
+  });
+
+  it('계획 만료 판단은 전달한 기준 시각을 사용해요', () => {
+    expect(resolveAlarmHealthState({
+      alarmStatus: {
+        ...readyStatus,
+        plannedThroughAt: 2_000,
+        planRefreshRecommendedAt: 1_000,
+      },
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      now: 2_001,
+      platformSupported: true,
+    })).toMatchObject({
+      issueCode: 'alarm-plan-expiry',
+      title: '알람 계획이 만료됐어요',
+    });
+  });
+
+  it('저장소→권한→예약→수면→방해 금지→배터리→음량 순서로 한 조치만 골라요', () => {
+    const sleepCorrupt = {
+      supported: true,
+      enabled: true,
+      notificationsAllowed: false,
+      scheduledCount: 0,
+      storageHealth: 'corrupt' as const,
+    };
+    const compoundStatus = {
+      ...readyStatus,
+      storageHealth: 'corrupt' as const,
+      exactAlarmAllowed: false,
+      fullScreenAllowed: false,
+      notificationsAllowed: false,
+      doNotDisturbMaySilenceAlarm: true,
+      batteryOptimizationIgnored: false,
+      alarmVolume: 0,
+    };
+    const input = {
+      actualScheduledCount: 0,
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      platformSupported: true,
+      sleepReminderEnabled: true,
+      sleepReminderStatus: sleepCorrupt,
+      sleepReminderSupported: true,
+      totalPlannedAlarmCount: 3,
+    } as const;
+
+    expect(resolveAlarmHealthState({ ...input, alarmStatus: compoundStatus }).issueCode)
+      .toBe('alarm-storage');
+    expect(resolveAlarmHealthState({
+      ...input,
+      alarmStatus: { ...compoundStatus, storageHealth: 'normal' },
+    }).issueCode).toBe('alarm-permissions');
+    expect(resolveAlarmHealthState({
+      ...input,
+      alarmStatus: {
+        ...compoundStatus,
+        storageHealth: 'normal',
+        exactAlarmAllowed: true,
+        notificationsAllowed: true,
+      },
+    }).issueCode).toBe('alarm-permissions');
+    expect(resolveAlarmHealthState({
+      ...input,
+      alarmStatus: {
+        ...compoundStatus,
+        storageHealth: 'normal',
+        exactAlarmAllowed: true,
+        fullScreenAllowed: true,
+        notificationsAllowed: true,
+      },
+    }).issueCode).toBe('alarm-schedule');
+
+    const synchronizedInput = {
+      ...input,
+      actualScheduledCount: 3,
+      alarmStatus: {
+        ...readyStatus,
+        doNotDisturbMaySilenceAlarm: true,
+        batteryOptimizationIgnored: false,
+        alarmVolume: 0,
+        scheduledCount: 3,
+      },
+    };
+    expect(resolveAlarmHealthState(synchronizedInput).issueCode)
+      .toBe('sleep-reminder-storage');
+    expect(resolveAlarmHealthState({
+      ...synchronizedInput,
+      sleepReminderStatus: {
+        ...sleepCorrupt,
+        notificationsAllowed: true,
+        storageHealth: 'normal',
+      },
+    }).issueCode).toBe('do-not-disturb');
+    expect(resolveAlarmHealthState({
+      ...synchronizedInput,
+      alarmStatus: {
+        ...synchronizedInput.alarmStatus,
+        doNotDisturbMaySilenceAlarm: false,
+      },
+      sleepReminderStatus: {
+        ...sleepCorrupt,
+        notificationsAllowed: true,
+        storageHealth: 'normal',
+      },
+    }).issueCode).toBe('battery-optimization');
+    expect(resolveAlarmHealthState({
+      ...synchronizedInput,
+      alarmStatus: {
+        ...synchronizedInput.alarmStatus,
+        doNotDisturbMaySilenceAlarm: false,
+        batteryOptimizationIgnored: true,
+      },
+      sleepReminderStatus: {
+        ...sleepCorrupt,
+        notificationsAllowed: true,
+        storageHealth: 'normal',
+      },
+    }).issueCode).toBe('alarm-volume');
   });
 });

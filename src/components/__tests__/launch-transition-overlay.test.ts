@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   LAUNCH_TRANSITION_TIMING,
+  resolveLaunchBrandVisibility,
   resolveLaunchFontMode,
-  shouldMountLaunchBrand,
 } from '../launch-transition-overlay';
 
 vi.mock('react-native', () => ({
@@ -21,13 +21,14 @@ vi.mock('react-native', () => ({
     out: vi.fn((value) => value),
   },
   Platform: { OS: 'web' },
+  Image: 'Image',
   StyleSheet: {
     create: <T,>(styles: T) => styles,
   },
 }));
 vi.mock('@/components/ui-kit', () => ({ AppText: () => null }));
 
-describe('텍스트 전용 시작 화면 전환 시간', () => {
+describe('브랜드 시작 화면 전환 시간', () => {
   it('일반 전환은 약 1.6초를 유지하고 마지막 종료는 약 0.3초예요', () => {
     const total =
       LAUNCH_TRANSITION_TIMING.fullMotionDuration +
@@ -46,25 +47,34 @@ describe('텍스트 전용 시작 화면 전환 시간', () => {
 });
 
 describe('시작 화면 글꼴 준비 상태', () => {
-  it('WantedSans를 불러오는 동안 브랜드 문구를 마운트하지 않아요', () => {
+  it('WantedSans를 불러오는 동안에도 네이티브 스플래시 마크를 유지해요', () => {
     const fontMode = resolveLaunchFontMode(false, false);
 
     expect(fontMode).toBe('pending');
-    expect(shouldMountLaunchBrand(fontMode)).toBe(false);
+    expect(resolveLaunchBrandVisibility(fontMode)).toEqual({
+      mark: true,
+      wordmark: false,
+    });
   });
 
   it('WantedSans를 불러온 뒤 브랜드 문구를 새로 마운트해요', () => {
     const fontMode = resolveLaunchFontMode(true, false);
 
     expect(fontMode).toBe('wanted');
-    expect(shouldMountLaunchBrand(fontMode)).toBe(true);
+    expect(resolveLaunchBrandVisibility(fontMode)).toEqual({
+      mark: true,
+      wordmark: true,
+    });
   });
 
   it('글꼴 오류가 발생하면 시스템 글꼴 폴백으로 진행해요', () => {
     const fontMode = resolveLaunchFontMode(false, true);
 
     expect(fontMode).toBe('fallback');
-    expect(shouldMountLaunchBrand(fontMode)).toBe(true);
+    expect(resolveLaunchBrandVisibility(fontMode)).toEqual({
+      mark: true,
+      wordmark: true,
+    });
   });
 
   it('오류 기록이 남아 있어도 WantedSans 로드를 우선해요', () => {

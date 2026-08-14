@@ -127,4 +127,61 @@ describe('오늘 화면 계산 모델', () => {
 
     expect(resolveCount).toBeLessThan(30);
   });
+
+  it('수면 알림 손상이 있으면 예약 수가 맞아도 준비됨과 동시에 표시하지 않아요', () => {
+    const enabledData: AppData = {
+      ...data,
+      settings: {
+        ...data.settings,
+        notificationsEnabled: true,
+        sleepReminderEnabled: true,
+      },
+    };
+    const model = buildTodayViewModel({
+      data: enabledData,
+      now: new Date(2026, 6, 30, 5, 0),
+      resolveShift: () => dayShift,
+      alarmPlanSummary: { plannedAlarmCount: 3 },
+      alarmStatus: {
+        supported: true,
+        enabled: true,
+        triggerState: 'scheduled',
+        storageHealth: 'normal',
+        exactAlarmAllowed: true,
+        fullScreenAllowed: true,
+        notificationsAllowed: true,
+        doNotDisturbActive: false,
+        doNotDisturbMaySilenceAlarm: false,
+        batteryOptimizationIgnored: true,
+        alarmVolume: 4,
+        plannedThroughAt: 0,
+        planRefreshRecommendedAt: 0,
+        planRefreshReminderPending: false,
+        scheduledAlarms: [],
+        scheduledCount: 3,
+        widgetInstalled: false,
+        widgetSnapshotGeneratedAt: 0,
+        recentEvents: [],
+      },
+      alarmStatusError: false,
+      alarmPlatformSupported: true,
+      compactHome: false,
+      sleepReminderStatus: {
+        supported: true,
+        enabled: true,
+        notificationsAllowed: true,
+        scheduledCount: 0,
+        storageHealth: 'corrupt',
+      },
+      sleepReminderSupported: true,
+    });
+
+    expect(model.alarmHealthState).toMatchObject({
+      status: 'action-required',
+      issueCode: 'sleep-reminder-storage',
+      action: 'retry-sleep-reminders',
+    });
+    expect(model.alarmsReady).toBe(false);
+    expect(model.alarmSummaryLabel).toContain('수면 알림 계획을 복구해야 해요');
+  });
 });

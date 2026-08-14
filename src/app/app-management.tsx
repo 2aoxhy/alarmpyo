@@ -1,5 +1,5 @@
 import { router, Stack, type Href } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import {
   AppText,
@@ -10,12 +10,10 @@ import {
 } from '@/components/ui-kit';
 import { getCurrentAppUpdateLabel } from '@/constants/app-release';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { getAppDistribution } from '@/services/app-distribution';
 
 export default function AppManagementScreen() {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const playDistribution = getAppDistribution() === 'play';
 
@@ -23,14 +21,9 @@ export default function AppManagementScreen() {
     <>
       <Stack.Screen options={{ title: '데이터·앱 정보' }} />
       <Screen contentStyle={styles.screen}>
-        <View style={styles.header}>
-          <AppText accessibilityRole="header" variant="title">
-            데이터·앱 정보
-          </AppText>
-          <AppText color={palette.inkMuted} style={styles.centerText}>
-            자주 바꾸지 않는 관리 항목을 모았어요.
-          </AppText>
-        </View>
+        <AppText tone="secondary" style={styles.centerText}>
+          자주 바꾸지 않는 관리 항목을 모았어요.
+        </AppText>
 
         <MenuGroup centered title="관리">
           <ListRow
@@ -59,7 +52,7 @@ export default function AppManagementScreen() {
           />
         </MenuGroup>
 
-        <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
+        <AppText tone="tertiary" style={styles.centerText} variant="caption">
           알람표 · {getCurrentAppUpdateLabel()}
         </AppText>
       </Screen>
@@ -70,6 +63,5 @@ export default function AppManagementScreen() {
 const createStyles = (_palette: AppPalette) =>
   StyleSheet.create({
     screen: { gap: spacing.large },
-    header: { alignItems: 'center', gap: spacing.small },
     centerText: { textAlign: 'center' },
   });

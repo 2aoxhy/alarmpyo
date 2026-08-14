@@ -137,7 +137,7 @@ export function BackupPasswordDialog({
                 <AppText accessibilityRole="header" variant="heading">
                   {createMode ? '암호화 백업 비밀번호' : '암호화 백업 열기'}
                 </AppText>
-                <AppText color={palette.inkMuted}>
+                <AppText tone="secondary">
                   {createMode
                     ? '비밀번호를 잊으면 백업을 복구할 수 없어요. 알람표는 비밀번호를 저장하지 않아요.'
                     : '이 백업을 만들 때 사용한 비밀번호를 입력해 주세요.'}

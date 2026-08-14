@@ -45,7 +45,7 @@ export function WorkPatternOverview({
           <AppText accessibilityRole="header" variant="heading">
             {overview.patternName}
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             {overview.kind === 'weekday'
               ? '월요일부터 금요일까지 주간, 토·일요일은 휴무예요.'
               : '주간 2일, 야간 2일, 휴무 2일 순서로 반복해요.'}
@@ -55,7 +55,7 @@ export function WorkPatternOverview({
 
       <View style={styles.previewHeading}>
         <AppText variant="label">미리 보기</AppText>
-        <AppText color={palette.inkMuted} variant="caption">
+        <AppText tone="secondary" variant="caption">
           {overview.preview.length}일 일정
         </AppText>
       </View>
@@ -66,13 +66,13 @@ export function WorkPatternOverview({
             accessible
             key={item.dateKey}
             style={[styles.previewItem, stacked && styles.previewItemStacked]}>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               {formatKoreanDate(item.dateKey)}
             </AppText>
             {item.shift ? (
               <ShiftChip compact shift={item.shift} />
             ) : (
-              <AppText color={palette.inkSoft} variant="caption">
+              <AppText tone="tertiary" variant="caption">
                 일정 없음
               </AppText>
             )}

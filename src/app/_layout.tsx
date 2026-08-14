@@ -290,9 +290,9 @@ function AppShell() {
           <AppText accessibilityRole="header" variant="title">
             {recoveryRequired ? '안전 백업을 찾았어요' : '근무표를 불러오지 못했어요'}
           </AppText>
-          <AppText color={palette.inkMuted}>{loadError}</AppText>
+          <AppText tone="secondary">{loadError}</AppText>
           {corruptBackupKey ? (
-            <AppText variant="caption" color={palette.inkMuted}>
+            <AppText variant="caption" tone="secondary">
               불러오지 못한 원본은 복구용으로 따로 보관했어요.
             </AppText>
           ) : null}
@@ -374,7 +374,7 @@ const bootstrapStyles = StyleSheet.create({
     backgroundColor: '#101214',
   },
   errorTitle: {
-    color: '#F7F8FC',
+    color: '#FAFAFB',
     fontSize: 24,
     fontWeight: '800',
     lineHeight: 32,
@@ -382,7 +382,7 @@ const bootstrapStyles = StyleSheet.create({
   },
   errorDescription: {
     maxWidth: 420,
-    color: '#C0C5D2',
+    color: '#D9DDE3',
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',

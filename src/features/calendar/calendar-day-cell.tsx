@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
@@ -6,6 +7,7 @@ import {
   getShiftIconKind,
 } from '@/components/animated-shift-icon';
 import { AppText } from '@/components/ui-kit';
+import { StatusBadge } from '@/components/status-badge';
 import type { AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import type { EffectiveDay } from '@/services/app-data-service';
@@ -54,7 +56,7 @@ type Props = {
   weekdayIndex: number;
 };
 
-export function CalendarDayCell({
+export const CalendarDayCell = memo(function CalendarDayCell({
   calendarLayout,
   cell,
   effectiveDay,
@@ -180,10 +182,12 @@ export function CalendarDayCell({
                     : palette.white
                   : isSelected
                     ? palette.white
+                    : !scheduleDate
+                      ? palette.disabledInk
                     : holiday || weekdayIndex === 0
                       ? palette.coral
                       : weekdayIndex === 6
-                        ? palette.violet
+                        ? palette.weekendSaturday
                         : palette.ink
               }
               maxFontSizeMultiplier={2}
@@ -201,47 +205,61 @@ export function CalendarDayCell({
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
               style={styles.simpleStatusRow}>
-              {holiday ? <View style={styles.simpleHolidayMark} /> : null}
-              {payrollEntry ? <View style={styles.simplePaydayMark} /> : null}
+              {holiday ? (
+                <StatusBadge
+                  backgroundColor={palette.coralSoft}
+                  borderColor={palette.coral}
+                  label="휴"
+                  maxFontSizeMultiplier={1.25}
+                  size="calendar"
+                  style={styles.simpleStatusBadge}
+                />
+              ) : null}
+              {payrollEntry ? (
+                <StatusBadge
+                  backgroundColor={palette.amberSoft}
+                  borderColor={palette.amber}
+                  label={payrollEntry.confirmed ? '급' : '급*'}
+                  maxFontSizeMultiplier={1.25}
+                  size="calendar"
+                  style={styles.simpleStatusBadge}
+                />
+              ) : null}
             </View>
             <View style={styles.simpleShiftSlot}>
               {shift || dayExceptionLabel ? (
-                <View
-                  style={[
-                    styles.simpleShiftBadge,
-                    {
-                      backgroundColor:
-                        exceptionAppearance?.softColor ?? shiftAppearance!.softColor,
-                    },
-                  ]}>
-                  {dayExceptionLabel ? (
-                    <AppIcon
-                      accessible={false}
-                      color={exceptionAppearance!.accentColor}
-                      name={exceptionAppearance!.iconName}
-                      size={13}
-                    />
-                  ) : (
-                    <AnimatedShiftIcon
-                      animated={false}
-                      color={shiftAppearance!.accentColor}
-                      kind={getShiftIconKind(shift!.id, shift!.isOff)}
-                      size={13}
-                    />
-                  )}
-                  <AppText
-                    color={exceptionAppearance?.accentColor ?? shiftAppearance!.accentColor}
-                    maxFontSizeMultiplier={1.25}
-                    numberOfLines={1}
-                    style={styles.simpleShiftText}
-                    variant="caption">
-                    {dayException
-                      ? exceptionBadgeDisplay?.label
-                      : shift!.shortName}
-                  </AppText>
-                </View>
+                <StatusBadge
+                  backgroundColor={
+                    exceptionAppearance?.softColor ?? shiftAppearance!.softColor
+                  }
+                  icon={
+                    dayExceptionLabel ? (
+                      <AppIcon
+                        accessible={false}
+                        color={exceptionAppearance!.accentColor}
+                        name={exceptionAppearance!.iconName}
+                        size={13}
+                      />
+                    ) : (
+                      <AnimatedShiftIcon
+                        animated={false}
+                        color={shiftAppearance!.accentColor}
+                        kind={getShiftIconKind(shift!.id, shift!.isOff)}
+                        size={13}
+                      />
+                    )
+                  }
+                  label={
+                    dayException
+                      ? exceptionBadgeDisplay?.label ?? ''
+                      : shift!.shortName
+                  }
+                  maxFontSizeMultiplier={1.25}
+                  size="calendar"
+                  style={styles.simpleShiftBadge}
+                />
               ) : scheduleDate ? (
-                <AppText color={palette.inkSoft} variant="caption">
+                <AppText tone="tertiary" variant="caption">
                   —
                 </AppText>
               ) : null}
@@ -254,36 +272,39 @@ export function CalendarDayCell({
                 styles.calendarStatusSlot,
                 { minHeight: fontScale >= 1.4 ? 28 : 22 },
               ]}>
-          {statusDisplay.primary?.kind === 'holiday' ? (
-            <View style={[styles.holidayBadge, { maxWidth: badgeMaxWidth }]}>
-              <AppText
-                color={palette.coral}
-                maxFontSizeMultiplier={statusTextScale}
-                numberOfLines={1}
-                style={styles.calendarStatusText}
-                variant="caption">
-                {statusDisplay.primary.label}
-              </AppText>
-            </View>
-          ) : statusDisplay.primary?.kind === 'payday' ? (
-            <View style={[styles.paydayBadge, { maxWidth: badgeMaxWidth }]}>
-              <AppText
-                color={palette.amber}
-                maxFontSizeMultiplier={statusTextScale}
-                numberOfLines={1}
-                style={styles.calendarStatusText}
-                variant="caption">
-                {statusDisplay.primary.label}
-              </AppText>
-            </View>
-          ) : null}
-          {statusDisplay.showPaydayDot ? (
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.paydayDot}
-            />
-          ) : null}
+              {statusDisplay.primary?.kind === 'holiday' ? (
+                <StatusBadge
+                  backgroundColor={palette.coralSoft}
+                  borderColor={palette.coral}
+                  label={statusDisplay.primary.label}
+                  maxFontSizeMultiplier={statusTextScale}
+                  maxWidth={badgeMaxWidth}
+                  size="calendar"
+                />
+              ) : statusDisplay.primary?.kind === 'payday' ? (
+                <StatusBadge
+                  backgroundColor={palette.amberSoft}
+                  borderColor={palette.amber}
+                  label={statusDisplay.primary.label}
+                  maxFontSizeMultiplier={statusTextScale}
+                  maxWidth={badgeMaxWidth}
+                  size="calendar"
+                />
+              ) : null}
+              {statusDisplay.paydayMarkerLabel ? (
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={styles.paydayMarker}>
+                  <AppText
+                    color={palette.canvas}
+                    maxFontSizeMultiplier={1.25}
+                    style={styles.paydayMarkerText}
+                    variant="caption">
+                    {statusDisplay.paydayMarkerLabel}
+                  </AppText>
+                </View>
+              ) : null}
             </View>
 
             <View
@@ -291,75 +312,94 @@ export function CalendarDayCell({
                 styles.shiftSlot,
                 { minHeight: fontScale >= 1.4 ? 31 : 24 },
               ]}>
-          {shift || dayExceptionLabel ? (
-            <View
-              style={[
-                styles.shiftBadge,
-                compact && styles.shiftBadgeCompact,
-                dayException && styles.exceptionBadge,
-                { maxWidth: badgeMaxWidth },
-                {
-                  backgroundColor:
-                    exceptionAppearance?.softColor ?? shiftAppearance!.softColor,
-                },
-              ]}>
-              {dayExceptionLabel ? (
-                <>
-                  {exceptionBadgeDisplay?.showIcon ? (
-                    <AppIcon
-                      color={exceptionAppearance!.accentColor}
-                      name={exceptionAppearance!.iconName}
-                      size={13}
-                    />
-                  ) : null}
-                  <AppText
-                    color={exceptionAppearance!.accentColor}
-                    maxFontSizeMultiplier={calendarTextScale}
-                    numberOfLines={1}
-                    style={styles.exceptionBadgeText}
-                    variant="caption">
-                    {exceptionBadgeDisplay?.label}
-                  </AppText>
-                </>
-              ) : shift!.id.startsWith('substitute-') ? (
-                <AppText
-                  color={shiftAppearance!.accentColor}
+              {shift || dayExceptionLabel ? (
+                <StatusBadge
+                  backgroundColor={
+                    exceptionAppearance?.softColor ?? shiftAppearance!.softColor
+                  }
+                  icon={
+                    dayExceptionLabel ? (
+                      exceptionBadgeDisplay?.showIcon ? (
+                        <AppIcon
+                          color={exceptionAppearance!.accentColor}
+                          name={exceptionAppearance!.iconName}
+                          size={13}
+                        />
+                      ) : null
+                    ) : shift!.id.startsWith('substitute-') ? null : (
+                      <AnimatedShiftIcon
+                        animated={false}
+                        color={shiftAppearance!.accentColor}
+                        kind={getShiftIconKind(shift!.id, shift!.isOff)}
+                        size={13}
+                      />
+                    )
+                  }
+                  label={
+                    dayException
+                      ? exceptionBadgeDisplay?.label ?? ''
+                      : shift!.shortName
+                  }
                   maxFontSizeMultiplier={calendarTextScale}
-                  numberOfLines={1}
-                  style={styles.substituteBadgeText}
-                  variant="caption">
-                  {shift!.shortName}
+                  maxWidth={badgeMaxWidth}
+                  size="calendar"
+                  style={[
+                    styles.shiftBadge,
+                    compact && styles.shiftBadgeCompact,
+                    dayException && styles.exceptionBadge,
+                  ]}
+                />
+              ) : scheduleDate ? (
+                <AppText tone="tertiary" variant="caption">
+                  —
                 </AppText>
-              ) : (
-                <>
-                  <AnimatedShiftIcon
-                    animated={false}
-                    color={shiftAppearance!.accentColor}
-                    kind={getShiftIconKind(shift!.id, shift!.isOff)}
-                    size={13}
-                  />
-                  <AppText
-                    color={shiftAppearance!.accentColor}
-                    maxFontSizeMultiplier={calendarTextScale}
-                    numberOfLines={1}
-                    style={styles.shiftBadgeText}
-                    variant="caption">
-                    {shift!.shortName}
-                  </AppText>
-                </>
-              )}
-            </View>
-          ) : scheduleDate ? (
-            <AppText color={palette.inkSoft} variant="caption">
-              —
-            </AppText>
-          ) : null}
+              ) : null}
             </View>
           </>
         )}
         {hasOverride ? <View style={styles.overrideMark} /> : null}
       </Animated.View>
     </Pressable>
+  );
+}, areCalendarDayCellPropsEqual);
+
+function areCalendarDayCellPropsEqual(previous: Props, next: Props): boolean {
+  const selectionUnchanged =
+    previous.selectedDateKeySet === next.selectedDateKeySet ||
+    (previous.selectedDateKeySet.has(previous.cell.dateKey) ===
+      next.selectedDateKeySet.has(next.cell.dateKey) &&
+      resolveCalendarSelectionSegment(
+        previous.row,
+        previous.weekdayIndex,
+        previous.selectedDateKeySet,
+      ) ===
+        resolveCalendarSelectionSegment(
+          next.row,
+          next.weekdayIndex,
+          next.selectedDateKeySet,
+        ));
+
+  return (
+    selectionUnchanged &&
+    previous.calendarLayout === next.calendarLayout &&
+    previous.cell === next.cell &&
+    previous.effectiveDay === next.effectiveDay &&
+    previous.fontScale === next.fontScale &&
+    previous.hasNote === next.hasNote &&
+    previous.hasOverride === next.hasOverride &&
+    previous.holiday === next.holiday &&
+    previous.isDark === next.isDark &&
+    previous.onBeginSelection === next.onBeginSelection &&
+    previous.onPressDate === next.onPressDate &&
+    previous.palette === next.palette &&
+    previous.payrollEntry === next.payrollEntry &&
+    previous.row === next.row &&
+    previous.selectionMode === next.selectionMode &&
+    previous.simplified === next.simplified &&
+    previous.styles === next.styles &&
+    previous.today === next.today &&
+    previous.todayBlink === next.todayBlink &&
+    previous.weekdayIndex === next.weekdayIndex
   );
 }
 
@@ -393,7 +433,7 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       borderBottomWidth: 2,
       borderLeftWidth: 0,
       borderRightWidth: 0,
-      borderColor: palette.indigo,
+      borderColor: palette.controlLine,
       borderRadius: 0,
     },
     selectedCellSingle: {
@@ -412,7 +452,7 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       borderTopRightRadius: 10,
       borderBottomRightRadius: 10,
     },
-    inactiveCell: { opacity: 0.38, backgroundColor: palette.surfaceSoft },
+    inactiveCell: { backgroundColor: palette.surfaceSoft },
     dayHeader: {
       width: '100%',
       flexDirection: 'row',
@@ -460,17 +500,10 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       justifyContent: 'center',
       gap: 5,
     },
-    simpleHolidayMark: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: palette.coral,
-    },
-    simplePaydayMark: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: palette.amber,
+    simpleStatusBadge: {
+      minWidth: 19,
+      minHeight: 20,
+      paddingHorizontal: 2,
     },
     simpleShiftSlot: {
       minHeight: 34,
@@ -481,53 +514,26 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       minWidth: 40,
       minHeight: 32,
       paddingHorizontal: 4,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
       borderRadius: 11,
     },
-    simpleShiftText: {
-      fontFamily: fontFamily.label,
-      fontSize: 12,
-      lineHeight: 16,
-      textAlign: 'center',
-    },
-    holidayBadge: {
-      maxWidth: '100%',
-      flexShrink: 1,
-      minHeight: 17,
-      borderRadius: 7,
-      paddingHorizontal: 3,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: palette.coralSoft,
-    },
-    paydayBadge: {
-      maxWidth: '100%',
-      flexShrink: 1,
-      minHeight: 17,
-      borderRadius: 7,
-      paddingHorizontal: 3,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: palette.amberSoft,
-    },
-    paydayDot: {
+    paydayMarker: {
       position: 'absolute',
       right: 1,
-      top: 1,
-      width: 5,
-      height: 5,
+      top: 0,
+      minWidth: 16,
+      height: 16,
       flexShrink: 0,
-      borderRadius: 3,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
       backgroundColor: palette.amber,
+      paddingHorizontal: 2,
     },
-    calendarStatusText: {
+    paydayMarkerText: {
       fontFamily: fontFamily.label,
-      fontSize: 10.5,
-      lineHeight: 14,
-      letterSpacing: -0.2,
+      fontSize: 9,
+      lineHeight: 12,
+      letterSpacing: -0.4,
       textAlign: 'center',
     },
     shiftSlot: {
@@ -538,35 +544,12 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
     },
     shiftBadge: {
       width: '100%',
-      maxWidth: 50,
       minHeight: 25,
       borderRadius: 9,
       paddingHorizontal: 4,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
     },
     shiftBadgeCompact: { paddingHorizontal: 2 },
     exceptionBadge: { gap: 2, paddingHorizontal: 3 },
-    shiftBadgeText: {
-      fontFamily: fontFamily.label,
-      fontSize: 12.5,
-      lineHeight: 17,
-      textAlign: 'center',
-    },
-    substituteBadgeText: {
-      fontFamily: fontFamily.label,
-      fontSize: 12,
-      lineHeight: 16,
-      textAlign: 'center',
-    },
-    exceptionBadgeText: {
-      fontFamily: fontFamily.label,
-      fontSize: 12,
-      lineHeight: 16,
-      textAlign: 'center',
-    },
     overrideMark: {
       position: 'absolute',
       bottom: 2,

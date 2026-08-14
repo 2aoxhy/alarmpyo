@@ -86,7 +86,7 @@ export function SpecialScheduleSection({
               size={18}
             />
             <AppText
-              color={palette.inkMuted}
+              tone="secondary"
               style={styles.exceptionGuideText}
               variant="caption">
               {dayException === 'leave'

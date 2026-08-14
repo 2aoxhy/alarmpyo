@@ -17,7 +17,7 @@ export function AlarmPermissionChecklist({
 
   if (!status) {
     return (
-      <AppText color={palette.inkMuted} variant="caption">
+      <AppText tone="secondary" variant="caption">
         휴대폰의 알람 권한 상태를 확인하고 있어요.
       </AppText>
     );

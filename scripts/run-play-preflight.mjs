@@ -28,6 +28,13 @@ function run(command, args) {
 const npm = resolveNpmInvocation();
 const runNpm = (args) => run(npm.command, [...npm.prefixArgs, ...args]);
 runNpm(['run', 'release:verify:play-privacy-url']);
+runNpm(['run', 'assets:brand:check']);
+runNpm([
+  'run',
+  'release:verify:play-store-assets',
+  '--',
+  '--allow-missing-screenshots',
+]);
 runNpm(['run', 'release:source']);
 runNpm(['run', 'check']);
 runNpm(['run', 'audit:dependencies']);

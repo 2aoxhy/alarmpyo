@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -14,10 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
 import {
-  getAlarmSyncErrorPresentation,
-  getSaveErrorPresentation,
+  getSaveOutcomePresentation,
   shouldExpandSaveErrorBanner,
 } from '@/components/save-feedback';
+import {
+  executeSaveRetryAction,
+  resolveVisibleSaveOutcome,
+} from '@/application/save-outcome';
+import type { SaveOutcome, SaveRetryAction } from '@/application/app-store-contract';
 import { AppButton, AppText } from '@/components/ui-kit';
 import {
   colorWithAlpha,
@@ -34,27 +38,45 @@ import {
   useAppStoreStatus,
 } from '@/store/app-store';
 
+function getRetryCopy(action: SaveRetryAction) {
+  switch (action) {
+    case 'retry-alarms':
+      return { accessibilityLabel: '알람 다시 예약하기', label: '다시 예약하기' };
+    case 'retry-sleep-reminders':
+      return {
+        accessibilityLabel: '수면 알림 다시 갱신하기',
+        label: '수면 알림 갱신하기',
+      };
+    case 'retry-save':
+      return { accessibilityLabel: '저장 다시 시도하기', label: '다시 시도하기' };
+  }
+}
+
 export function SaveErrorBanner() {
-  const { resyncAlarms, retrySave } = useAppStoreActions();
+  const { resyncAlarms, retrySave, retrySleepReminderSync } = useAppStoreActions();
   const {
     alarmSyncError,
     alarmSyncStatus,
-    saveError,
-    saveStatus,
+    saveOutcome,
   } = useAppStoreStatus();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { fontScale, width } = useWindowDimensions();
-  const saveFailed = saveStatus === 'error';
-  const alarmFailed = !saveFailed && alarmSyncStatus === 'error';
-  const hasError = saveFailed || alarmFailed;
-  const activeMessage = saveFailed ? saveError : alarmSyncError;
-  const activeSource = alarmFailed ? 'alarm' : 'save';
+  const activeOutcome = useMemo(
+    () => resolveVisibleSaveOutcome({
+      alarmSyncError,
+      alarmSyncFailed: alarmSyncStatus === 'error',
+      saveOutcome,
+    }),
+    [alarmSyncError, alarmSyncStatus, saveOutcome],
+  );
+  const hasError = activeOutcome !== null;
   const [retrying, setRetrying] = useState(false);
   const [displayError, setDisplayError] = useState(hasError);
-  const [displayMessage, setDisplayMessage] = useState(activeMessage);
-  const [displaySource, setDisplaySource] = useState<'save' | 'alarm'>(activeSource);
+  const [displayOutcome, setDisplayOutcome] = useState<SaveOutcome | null>(
+    activeOutcome,
+  );
   const [expanded, setExpanded] = useState(() =>
     shouldExpandSaveErrorBanner(width, fontScale),
   );
@@ -71,8 +93,7 @@ export function SaveErrorBanner() {
       if (hasError) {
         displayErrorRef.current = true;
         setDisplayError(true);
-        setDisplayMessage(activeMessage);
-        setDisplaySource(activeSource);
+        setDisplayOutcome(activeOutcome);
         setExpanded(shouldExpandSaveErrorBanner(width, fontScale));
         if (reduceMotion) {
           progress.setValue(1);
@@ -118,8 +139,7 @@ export function SaveErrorBanner() {
       animation?.stop();
     };
   }, [
-    activeMessage,
-    activeSource,
+    activeOutcome,
     fontScale,
     hasError,
     progress,
@@ -128,11 +148,11 @@ export function SaveErrorBanner() {
     width,
   ]);
 
-  if (!displayError) return null;
-  const presentation =
-    displaySource === 'alarm'
-      ? getAlarmSyncErrorPresentation(displayMessage)
-      : getSaveErrorPresentation(displayMessage);
+  if (!displayError || !displayOutcome || displayOutcome.status === 'success') {
+    return null;
+  }
+  const presentation = getSaveOutcomePresentation(displayOutcome);
+  const retryCopy = getRetryCopy(displayOutcome.retryAction);
   const toneColor = presentation.kind === 'partial' ? palette.amber : palette.danger;
   const toneSoft = presentation.kind === 'partial' ? palette.amberSoft : palette.dangerSoft;
 
@@ -140,11 +160,11 @@ export function SaveErrorBanner() {
     if (retrying) return;
     setRetrying(true);
     try {
-      if (displaySource === 'alarm') {
-        await resyncAlarms(true);
-      } else {
-        await retrySave();
-      }
+      await executeSaveRetryAction(displayOutcome.retryAction, {
+        retryAlarms: () => resyncAlarms(true),
+        retrySave,
+        retrySleepReminders: retrySleepReminderSync,
+      });
     } finally {
       setRetrying(false);
     }
@@ -153,7 +173,13 @@ export function SaveErrorBanner() {
   return (
     <Animated.View
       accessibilityElementsHidden={!hasError}
-      accessibilityLiveRegion={hasError ? 'assertive' : 'none'}
+      accessibilityLiveRegion={
+        hasError
+          ? displayOutcome.status === 'failure'
+            ? 'assertive'
+            : 'polite'
+          : 'none'
+      }
       accessibilityRole={hasError ? 'alert' : undefined}
       importantForAccessibility={
         hasError ? 'auto' : 'no-hide-descendants'
@@ -193,7 +219,7 @@ export function SaveErrorBanner() {
                 <View style={[styles.icon, { backgroundColor: toneSoft }]}>
                   <AppIcon color={toneColor} name="alert-circle-outline" size={23} />
                 </View>
-                <AppText variant="label" color={palette.ink} style={styles.title}>
+                <AppText variant="label" tone="primary" style={styles.title}>
                   {presentation.title}
                 </AppText>
               </View>
@@ -213,19 +239,13 @@ export function SaveErrorBanner() {
               {presentation.message}
             </AppText>
             <AppButton
-              accessibilityLabel={
-                displaySource === 'alarm'
-                  ? '알람 다시 예약하기'
-                  : '저장 다시 시도하기'
-              }
+              accessibilityLabel={retryCopy.accessibilityLabel}
               disabled={retrying}
               icon="refresh-outline"
               label={
                 retrying
                   ? '시도 중'
-                  : displaySource === 'alarm'
-                    ? '다시 예약하기'
-                    : '다시 시도하기'
+                  : retryCopy.label
               }
               loading={retrying}
               onPress={() => void retry()}
@@ -248,7 +268,7 @@ export function SaveErrorBanner() {
                 <AppIcon color={toneColor} name="alert-circle-outline" size={21} />
               </View>
               <AppText
-                color={palette.ink}
+                tone="primary"
                 maxFontSizeMultiplier={1.4}
                 numberOfLines={1}
                 style={styles.collapsedTitle}
@@ -258,11 +278,7 @@ export function SaveErrorBanner() {
               <AppIcon accessible={false} color={palette.inkMuted} name="chevron-down" size={17} />
             </Pressable>
             <Pressable
-              accessibilityLabel={
-                displaySource === 'alarm'
-                  ? '알람 다시 예약하기'
-                  : '저장 다시 시도하기'
-              }
+              accessibilityLabel={retryCopy.accessibilityLabel}
               accessibilityRole="button"
               accessibilityState={{ busy: retrying, disabled: retrying }}
               disabled={retrying}

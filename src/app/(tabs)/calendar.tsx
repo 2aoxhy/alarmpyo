@@ -38,6 +38,7 @@ import {
 } from '@/store/app-store';
 import {
   formatKoreanDate,
+  formatMonthTitle,
   moveMonth,
   parseDateKey,
   toDateKey,
@@ -243,6 +244,9 @@ export default function CalendarScreen() {
       const next = moveMonth(visibleMonth.year, visibleMonth.month, amount);
       clearDateSelection();
       setVisibleMonth(next);
+      AccessibilityInfo.announceForAccessibility(
+        `${formatMonthTitle(next.year, next.month)}로 이동했어요.`,
+      );
       return next;
     },
     [clearDateSelection, visibleMonth.month, visibleMonth.year],
@@ -250,10 +254,17 @@ export default function CalendarScreen() {
 
   const goToday = () => {
     const now = new Date();
+    const next = { year: now.getFullYear(), month: now.getMonth() };
+    const monthChanged =
+      visibleMonth.year !== next.year || visibleMonth.month !== next.month;
     clearDateSelection();
-    setVisibleMonth({ year: now.getFullYear(), month: now.getMonth() });
+    setVisibleMonth(next);
     setTodayBlinkRequest((request) => request + 1);
-    AccessibilityInfo.announceForAccessibility('오늘이 있는 달로 이동했어요.');
+    AccessibilityInfo.announceForAccessibility(
+      monthChanged
+        ? `${formatMonthTitle(next.year, next.month)}로 이동하고 오늘 날짜를 강조했어요.`
+        : '오늘 날짜를 강조했어요.',
+    );
   };
 
   const toggleDateSelection = useCallback((dateKey: string) => {

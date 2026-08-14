@@ -371,7 +371,7 @@ export default function PatternEditorScreen() {
                           size={19}
                         />
                       </View>
-                      <AppText color={palette.inkMuted} style={styles.sequenceLabel} variant="caption">
+                      <AppText tone="secondary" style={styles.sequenceLabel} variant="caption">
                         {ROTATION_SHORT_LABELS[index]}
                       </AppText>
                     </View>
@@ -385,7 +385,7 @@ export default function PatternEditorScreen() {
                 <AnimatedShiftIcon animated={false} color={palette.mintDark} kind="day" size={21} />
                 <View style={styles.fixedSummaryCopy}>
                   <AppText variant="label">월~금</AppText>
-                  <AppText color={palette.inkMuted} variant="caption">
+                  <AppText tone="secondary" variant="caption">
                     {daySchedule} 주간
                   </AppText>
                 </View>
@@ -394,7 +394,7 @@ export default function PatternEditorScreen() {
                 <AnimatedShiftIcon animated={false} color={palette.inkMuted} kind="off" size={21} />
                 <View style={styles.fixedSummaryCopy}>
                   <AppText variant="label">토·일</AppText>
-                  <AppText color={palette.inkMuted} variant="caption">
+                  <AppText tone="secondary" variant="caption">
                     고정 휴무
                   </AppText>
                 </View>
@@ -407,7 +407,7 @@ export default function PatternEditorScreen() {
           futureScheduleOverrideCount > 0 ? (
             <View style={styles.cleanupBlock}>
               <View style={styles.divider} />
-              <AppText color={palette.inkMuted} style={styles.centerText} variant="caption">
+              <AppText tone="secondary" style={styles.centerText} variant="caption">
                 향후 직접 변경 일정 {futureScheduleOverrideCount}개가 기본 근무표보다 먼저 적용되고
                 있어요.
               </AppText>
@@ -425,7 +425,7 @@ export default function PatternEditorScreen() {
       <View>
         <SectionHeader centered title="시작일" />
         <Card style={styles.scheduleCard}>
-          <AppText color={palette.inkMuted} style={styles.centerText} variant="caption">
+          <AppText tone="secondary" style={styles.centerText} variant="caption">
             이 날짜부터 새 근무표를 계산하고 이전 일정은 유지해요.
           </AppText>
           <DatePickerField
@@ -445,7 +445,7 @@ export default function PatternEditorScreen() {
             title="순번 맞추기"
           />
           <Card style={styles.scheduleCard}>
-            <AppText color={palette.inkMuted} style={styles.centerText} variant="caption">
+            <AppText tone="secondary" style={styles.centerText} variant="caption">
               실제 근무를 아는 날짜와 그날의 근무를 선택해 주세요.
             </AppText>
             <DatePickerField
@@ -514,7 +514,7 @@ export default function PatternEditorScreen() {
                 style={[styles.previewItem, stackPreview && styles.previewItemStacked]}>
                 <AppText
                   variant="caption"
-                  color={palette.inkMuted}
+                  tone="secondary"
                   style={styles.previewDate}>
                   {item.dateKey ? formatKoreanDate(item.dateKey) : '날짜 확인 필요'}
                 </AppText>
@@ -524,7 +524,7 @@ export default function PatternEditorScreen() {
           ) : (
             <View style={styles.emptyPreview}>
               <AppIcon color={palette.inkSoft} name="options-outline" size={22} />
-              <AppText color={palette.inkMuted} style={styles.centerText} variant="caption">
+              <AppText tone="secondary" style={styles.centerText} variant="caption">
                 순번 기준일과 실제 근무를 확인하면 미리 보기가 표시돼요.
               </AppText>
             </View>

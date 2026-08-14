@@ -51,7 +51,7 @@ export function CalendarHolidayNotice({ status, visibleYear }: HolidayNoticeProp
             ? '공휴일 자동 반영'
             : '공휴일 자료 확인 필요'}
         </AppText>
-        <AppText color={palette.inkMuted} variant="caption">
+        <AppText tone="secondary" variant="caption">
           {status.source === 'calculated'
             ? '반복 법정공휴일과 대체공휴일을 자동 계산해요. 선거일·임시공휴일은 공식 발표 후 반영해요.'
             : `자동 계산은 ${status.supportedStartYear}~${status.supportedEndYear}년을 지원해요. ${visibleYear}년은 공휴일 이름과 공휴일에 따른 급여일 조정을 확정하지 않아요.`}
@@ -86,7 +86,7 @@ export function CalendarLargeTextStatusSummary({
           <AppText accessibilityRole="header" variant="heading">
             공휴일·급여일 안내
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             큰 글자에서는 달력 칸의 자세한 표시를 아래에서 확인해요.
           </AppText>
         </View>
@@ -182,14 +182,21 @@ export function CalendarMenuSections({
             })}
             <View style={[styles.legendItem, styles.overrideLegendItem]}>
               <View style={styles.overrideLegend} />
-              <AppText variant="caption" color={palette.inkMuted}>
+              <AppText variant="caption" tone="secondary">
                 직접 변경한 날
               </AppText>
             </View>
             <View style={[styles.legendItem, styles.paydayLegendItem]}>
-              <View style={styles.paydayLegendDot} />
-              <AppText variant="caption" color={palette.amber}>
-                {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
+              <View style={styles.paydayLegendMarker}>
+                <AppText
+                  color={palette.canvas}
+                  style={styles.paydayLegendMarkerText}
+                  variant="caption">
+                  급
+                </AppText>
+              </View>
+              <AppText variant="caption" color={palette.white}>
+                회사 기준 급여일 · * 예상일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
               </AppText>
             </View>
             {DAY_EXCEPTION_TYPES.map((type) => {
@@ -295,11 +302,18 @@ function createStyles(palette: AppPalette) {
       backgroundColor: palette.mint,
     },
     paydayLegendItem: { backgroundColor: palette.amberSoft },
-    paydayLegendDot: {
-      width: 7,
-      height: 7,
+    paydayLegendMarker: {
+      minWidth: 18,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: radii.pill,
       backgroundColor: palette.amber,
+      paddingHorizontal: 2,
+    },
+    paydayLegendMarkerText: {
+      fontSize: 10,
+      lineHeight: 13,
     },
   });
 }

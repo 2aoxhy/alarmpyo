@@ -21,10 +21,15 @@ import {
   type AlarmPyoAlarmStatus,
 } from '@/services/alarmpyo-alarm-service';
 import {
+  getAlarmPyoSleepReminderStatus,
+  isSleepReminderNativeSupported,
+  type SleepReminderStatus,
+} from '@/services/sleep-reminder-service';
+import {
   buildTodayAlarmPlanSummary,
   buildTodayViewModel,
 } from '@/services/today-view-model';
-import { useAppStoreData } from '@/store/app-store';
+import { useAppStoreData, useAppStoreStatus } from '@/store/app-store';
 import { formatKoreanDate, parseDateKey, toDateKey } from '@/utils/date';
 
 export default function TodayScreen() {
@@ -37,9 +42,15 @@ export default function TodayScreen() {
   const now = useNow(screenActive);
   const today = toDateKey(now);
   const { data, ready, getShiftForDate } = useAppStoreData();
+  const { alarmAutoCheckState, alarmSyncStatus, saveOutcome } = useAppStoreStatus();
   const [alarmStatus, setAlarmStatus] = useState<AlarmPyoAlarmStatus | null>(null);
   const [alarmStatusError, setAlarmStatusError] = useState(false);
+  const [sleepReminderStatus, setSleepReminderStatus] =
+    useState<SleepReminderStatus | null>(null);
+  const [sleepReminderStatusError, setSleepReminderStatusError] = useState(false);
   const alarmStatusRequestRef = useRef(0);
+  const sleepReminderSupported =
+    Platform.OS === 'android' && isSleepReminderNativeSupported();
   const alarmPlanSummary = useMemo(
     () =>
       buildTodayAlarmPlanSummary({
@@ -72,9 +83,27 @@ export default function TodayScreen() {
     }
   }, []);
 
+  const refreshSleepReminderStatus = useCallback(async () => {
+    if (!data.settings.sleepReminderEnabled || !sleepReminderSupported) {
+      setSleepReminderStatus(null);
+      setSleepReminderStatusError(false);
+      return;
+    }
+    try {
+      setSleepReminderStatus(await getAlarmPyoSleepReminderStatus());
+      setSleepReminderStatusError(false);
+    } catch {
+      setSleepReminderStatus(null);
+      setSleepReminderStatusError(true);
+    }
+  }, [data.settings.sleepReminderEnabled, sleepReminderSupported]);
+
   useEffect(() => {
     if (!ready || !screenActive) return;
-    const timeout = setTimeout(() => void refreshAlarmStatus(), 0);
+    const timeout = setTimeout(() => {
+      void refreshAlarmStatus();
+      void refreshSleepReminderStatus();
+    }, 0);
     return () => {
       clearTimeout(timeout);
       // 화면을 벗어난 뒤 도착한 응답이 다음 활성 상태를 덮지 않게 해요.
@@ -84,6 +113,7 @@ export default function TodayScreen() {
     data.settings.lastNotificationSyncAt,
     ready,
     refreshAlarmStatus,
+    refreshSleepReminderStatus,
     screenActive,
   ]);
 
@@ -91,7 +121,7 @@ export default function TodayScreen() {
     return (
       <Screen contentStyle={styles.loading} scroll={false}>
         <ActivityIndicator color={palette.mintDark} size="large" />
-        <AppText color={palette.inkMuted}>근무표를 불러오고 있어요.</AppText>
+        <AppText tone="secondary">근무표를 불러오고 있어요.</AppText>
       </Screen>
     );
   }
@@ -103,7 +133,14 @@ export default function TodayScreen() {
     alarmPlanSummary,
     alarmStatus,
     alarmStatusError,
+    alarmAutoCheckStatus: alarmAutoCheckState.status,
+    alarmSyncFailed: alarmSyncStatus === 'error',
     alarmPlatformSupported: Platform.OS === 'android',
+    sleepReminderStatus,
+    sleepReminderStatusError,
+    sleepReminderSupported,
+    sleepReminderSyncFailed:
+      saveOutcome?.issueCode === 'sleep-reminder-sync-failed',
     compactHome,
   });
 
@@ -140,9 +177,8 @@ export default function TodayScreen() {
               'wake-time',
         )}
         alarmSummaryLabel={viewModel.alarmSummaryLabel}
-        alarmsReady={viewModel.alarmsReady}
+        alarmHealthState={viewModel.alarmHealthState}
         compact={compactHome}
-        hasAlarmIssue={Boolean(viewModel.primarySafetyIssue)}
         largeText={largeText}
         now={now}
         routinePlan={viewModel.workRoutinePlan}

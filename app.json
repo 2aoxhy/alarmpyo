@@ -2,7 +2,7 @@
   "expo": {
     "name": "알람표",
     "slug": "alarmpyo",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "주간·교대 근무표와 기상 알람을 간편하게 관리해요",
     "orientation": "portrait",
     "icon": "./assets/images/alarmpyo-icon.png",
@@ -19,13 +19,13 @@
     },
     "ios": {
       "icon": "./assets/images/alarmpyo-icon.png",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "supportsTablet": false,
       "bundleIdentifier": "com.personal.alarmpyo"
     },
     "android": {
       "package": "com.personal.alarmpyo",
-      "versionCode": 3,
+      "versionCode": 4,
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.DUMP",
@@ -42,7 +42,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/alarmpyo-icon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -51,7 +51,7 @@
         {
           "backgroundColor": "#101214",
           "image": "./assets/images/splash-transparent.png",
-          "imageWidth": 100
+          "imageWidth": 160
         }
       ],
       "expo-sharing",

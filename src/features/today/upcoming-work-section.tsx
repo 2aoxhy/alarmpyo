@@ -99,7 +99,7 @@ export function UpcomingWorkSection({
                     variant="label">
                     {isToday ? '오늘' : `${dateNumber}일`}
                   </AppText>
-                  <AppText color={palette.inkMuted} variant="caption">
+                  <AppText tone="secondary" variant="caption">
                     {shortWeekday(dateKey)}요일
                   </AppText>
                 </View>
@@ -135,7 +135,7 @@ export function UpcomingWorkSection({
                     {exceptionLabel ?? shift.name}
                   </AppText>
                   <AppText
-                    color={palette.inkMuted}
+                    tone="secondary"
                     numberOfLines={largeText ? undefined : 1}
                     variant="caption">
                     {exceptionLabel
@@ -166,7 +166,7 @@ export function UpcomingWorkSection({
           </View>
           <View style={styles.emptyUpcomingCopy}>
             <AppText variant="label">예정된 근무가 없어요.</AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               앞으로 90일 안에 등록된 근무가 없어요.
             </AppText>
           </View>

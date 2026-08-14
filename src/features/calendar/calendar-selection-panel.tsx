@@ -40,7 +40,7 @@ export function CalendarSelectionPanel({
         </View>
         <View style={styles.copy}>
           <AppText variant="heading">{selectedCount}일 선택</AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             {compact
               ? '날짜를 눌러 선택하거나 해제해요.'
               : '다른 날짜를 누르거나 손가락을 끌어 추가하고, 다시 눌러 해제해요.'}
@@ -102,7 +102,7 @@ function createStyles(palette: AppPalette) {
       padding: spacing.large,
       borderWidth: 1,
       borderRadius: 20,
-      borderColor: palette.indigo,
+      borderColor: palette.controlLine,
       backgroundColor: palette.indigoSoft,
     },
     panelCompact: {

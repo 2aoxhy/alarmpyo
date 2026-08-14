@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   Platform,
   StyleSheet,
   View,
@@ -24,8 +25,11 @@ export function resolveLaunchFontMode(
   return 'pending';
 }
 
-export function shouldMountLaunchBrand(fontMode: LaunchFontMode) {
-  return fontMode !== 'pending';
+export function resolveLaunchBrandVisibility(fontMode: LaunchFontMode) {
+  return {
+    mark: true,
+    wordmark: fontMode !== 'pending',
+  } as const;
 }
 
 export const LAUNCH_TRANSITION_TIMING = {
@@ -60,6 +64,7 @@ export function LaunchTransitionOverlay({
   const reduceMotionAtLaunch = useRef(reduceMotion);
   const readyReported = useRef(false);
   const useNativeDriver = Platform.OS !== 'web';
+  const brandVisibility = resolveLaunchBrandVisibility(fontMode);
 
   const handleLayout = useCallback(() => {
     if (readyReported.current) return;
@@ -136,9 +141,19 @@ export function LaunchTransitionOverlay({
           }),
         },
       ]}>
-      {shouldMountLaunchBrand(fontMode) ? (
-        <View key={fontMode} style={styles.brand}>
+      <View style={styles.brand}>
+        {brandVisibility.mark ? (
+          <Image
+            accessible={false}
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            source={require('../../assets/images/splash-transparent.png')}
+            style={styles.brandMark}
+          />
+        ) : null}
+        {brandVisibility.wordmark ? (
           <Animated.View
+            key={fontMode}
             style={[
               styles.brandCopy,
               {
@@ -160,8 +175,8 @@ export function LaunchTransitionOverlay({
               알람표
             </AppText>
           </Animated.View>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
     </Animated.View>
   );
 }
@@ -183,10 +198,17 @@ const styles = StyleSheet.create({
   brand: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    height: 160,
+    width: '100%',
+  },
+  brandMark: {
+    height: 160,
+    width: 160,
   },
   brandCopy: {
     alignItems: 'center',
+    position: 'absolute',
+    top: 176,
   },
   wordmark: {
     fontSize: 60,

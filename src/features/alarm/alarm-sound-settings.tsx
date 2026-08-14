@@ -197,7 +197,7 @@ export function AlarmSoundSettings() {
           <AppText accessibilityRole="header" variant="heading">
             알람음
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             모든 근무 알람과 시험 알람에 공통으로 적용해요.
           </AppText>
         </View>
@@ -206,7 +206,7 @@ export function AlarmSoundSettings() {
       {loading && !status ? (
         <View accessibilityLiveRegion="polite" style={styles.loadingRow}>
           <ActivityIndicator color={palette.indigoDark} size="small" />
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             현재 알람음을 확인하고 있어요.
           </AppText>
         </View>
@@ -227,7 +227,7 @@ export function AlarmSoundSettings() {
       ) : status ? (
         <>
           <View style={styles.currentSound}>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               현재 알람음
             </AppText>
             <AppText numberOfLines={2} variant="label">

@@ -56,7 +56,7 @@ export default function TabsLayout() {
         tabBarActiveBackgroundColor: palette.indigo,
         tabBarActiveTintColor: palette.white,
         tabBarHideOnKeyboard: true,
-        tabBarInactiveTintColor: palette.inkMuted,
+        tabBarInactiveTintColor: palette.inkSoft,
         tabBarIconStyle: styles.tabBarIcon,
         tabBarItemStyle: [styles.tabBarItem, { paddingVertical: tabBarItemPadding }],
         tabBarLabel: ({ children, color }) => (

@@ -230,6 +230,51 @@ describe('app-store-persistence', () => {
     );
   });
 
+  it('구조화된 재시도는 지정된 후속 작업만 실행해요', () => {
+    const retrySaveStart = providerSource.indexOf('const retrySave = useCallback');
+    const retrySleepStart = providerSource.indexOf(
+      'const retrySleepReminderSync = useCallback',
+    );
+    const replacementStart = providerSource.indexOf(
+      'const replaceDataAndPersistDetailedInternal = useCallback',
+    );
+    const alarmRetryStart = providerSource.indexOf(
+      'const resyncAlarms = useCallback',
+    );
+    const enableAlarmsStart = providerSource.indexOf(
+      'const enableAlarms = useCallback',
+    );
+
+    expect([
+      retrySaveStart,
+      retrySleepStart,
+      replacementStart,
+      alarmRetryStart,
+      enableAlarmsStart,
+    ]).not.toContain(-1);
+
+    const retrySaveSource = providerSource.slice(retrySaveStart, retrySleepStart);
+    expect(retrySaveSource).toContain('persistSnapshot(');
+    expect(retrySaveSource).toContain('syncSleepRemindersForSnapshot(');
+    expect(retrySaveSource).not.toContain('syncAlarmsForSnapshot(');
+
+    const retrySleepSource = providerSource.slice(
+      retrySleepStart,
+      replacementStart,
+    );
+    expect(retrySleepSource).toContain(
+      "saveOutcomeRef.current?.issueCode === 'sleep-reminder-sync-failed'",
+    );
+
+    const retryAlarmSource = providerSource.slice(
+      alarmRetryStart,
+      enableAlarmsStart,
+    );
+    expect(retryAlarmSource).toContain(
+      "saveOutcomeRef.current?.issueCode === 'alarm-sync-failed'",
+    );
+  });
+
   it('본문 저장이 끝나기 전에는 수면 네이티브 동기화를 시작하지 않아요', async () => {
     const events: string[] = [];
     let finishPersistence: () => void = () => undefined;
@@ -365,21 +410,21 @@ describe('app-store-persistence', () => {
       shouldClearSleepReminderSaveError({
         failureRevision: 7,
         currentRevision: 7,
-        currentErrorSource: 'sleep-reminder',
+        currentIssueCode: 'sleep-reminder-sync-failed',
       }),
     ).toBe(true);
     expect(
       shouldClearSleepReminderSaveError({
         failureRevision: 7,
         currentRevision: 7,
-        currentErrorSource: 'other',
+        currentIssueCode: 'device-backup-failed',
       }),
     ).toBe(false);
     expect(
       shouldClearSleepReminderSaveError({
         failureRevision: 7,
         currentRevision: 8,
-        currentErrorSource: 'sleep-reminder',
+        currentIssueCode: 'sleep-reminder-sync-failed',
       }),
     ).toBe(false);
   });

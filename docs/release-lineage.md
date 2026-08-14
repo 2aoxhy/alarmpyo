@@ -18,7 +18,7 @@ AlarmPyo의 첫 EAS Android 키스토어는 내부 canary 빌드에서 생성했
 
 direct 공개 기능과 운영 승격을 수행하지 않는 비공개 EAS internal canary APK는 계속 사용할 수 있어요. Play는 활성 정책의 일반 AAB 경로를 사용하며, 제출 불가 draft AAB 부트스트랩 예외는 다시 사용할 수 없어요. 관련 명령은 정책이 인증서 미확정 상태로 돌아가지 않는 한 실패해야 해요. 절차와 사용 범위는 [`internal-canary-apk-ko.md`](internal-canary-apk-ko.md)와 [`google-play-release-runbook-ko.md`](google-play-release-runbook-ko.md)를 따라요.
 
-direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정해요. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였고, 현재 소스의 후속 후보는 `1.0.2(3)`예요. `1.0.0(1)` 내부 canary를 공개 후보로 재사용하지 않아요.
+direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정해요. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였고, 현재 소스의 후속 후보는 `1.0.3(4)`예요. `1.0.0(1)` 내부 canary를 공개 후보로 재사용하지 않아요.
 
 ## 차단 해제 조건
 

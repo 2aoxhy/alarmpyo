@@ -106,7 +106,7 @@ export function DayAlarmSummary({
           </View>
           <View style={styles.optionCopy}>
             <AppText variant="label">{currentSummary}</AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               {notificationsEnabled
                 ? '이 날짜의 알람만 바꿔도 기본 근무표는 그대로 유지돼요.'
                 : '전체 근무 알람이 꺼져 있어요. 설정은 저장해 둘 수 있어요.'}
@@ -127,7 +127,7 @@ export function DayAlarmSummary({
             <AppText accessibilityRole="header" variant="label">
               이날의 기상 시각
             </AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               근무일을 기준으로 전날인지 당일인지 먼저 선택해 주세요.
             </AppText>
 
@@ -164,7 +164,7 @@ export function DayAlarmSummary({
             </View>
 
             <View style={styles.timeField}>
-              <AppText color={palette.inkMuted} variant="caption">
+              <AppText tone="secondary" variant="caption">
                 기상 시각
               </AppText>
               <TextInput

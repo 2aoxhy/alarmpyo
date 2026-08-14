@@ -1,7 +1,7 @@
 {
   "name": "alarmpyo",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
@@ -13,6 +13,7 @@
     "@noble/ciphers": "2.2.0",
     "@noble/hashes": "2.2.0",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "alarmpyo-alarm": "file:modules/alarmpyo-alarm",
     "expo": "~57.0.12",
     "expo-constants": "~57.0.10",
     "expo-crypto": "~57.0.1",
@@ -28,7 +29,6 @@
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.2",
     "expo-updates": "~57.0.13",
-    "alarmpyo-alarm": "file:modules/alarmpyo-alarm",
     "korean-lunar-calendar": "0.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -46,6 +46,7 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
+    "opentype.js": "2.0.0",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   },
@@ -74,6 +75,8 @@
     "audit:tooling": "node scripts/audit-dependencies.mjs --include-dev",
     "audit:tooling:raw": "npm audit --include=dev --audit-level=high",
     "audit:artifacts": "node scripts/audit-public-apks.mjs",
+    "assets:brand:generate": "node scripts/generate-brand-assets.mjs --write",
+    "assets:brand:check": "node scripts/generate-brand-assets.mjs --check",
     "clean:export": "node scripts/prepare-static-export.mjs --apply",
     "export:web": "npm run clean:export && expo export --platform web --output-dir dist",
     "deploy:web": "node scripts/check-deploy-source.mjs && npm run check && npm run audit:dependencies && npm run audit:tooling && node scripts/run-expo-doctor.mjs && npm run export:web && node scripts/deploy-production.mjs",

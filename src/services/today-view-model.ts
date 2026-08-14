@@ -4,11 +4,13 @@ import {
   buildAlarmPyoAlarmPlan,
 } from './alarm-planner';
 import type { AlarmPyoAlarmStatus } from './alarmpyo-alarm-service';
+import type { SleepReminderStatus } from './sleep-reminder-service';
+import type { AlarmAutoCheckStatus } from './alarm-sync-policy';
+import { resolveAlarmHealthState } from './alarm-access-summary';
 import {
   getScheduleStartDate,
   resolveDayExceptionFromAppData,
 } from './app-data-service';
-import { getAlarmPyoSafetyIssues } from './alarmpyo-safety-check';
 import { buildSleepTimingGuidance } from './sleep-timing-planner';
 import { buildWorkRoutinePlan } from './work-routine-planner';
 import {
@@ -109,7 +111,13 @@ export function buildTodayViewModel(input: {
   alarmPlanSummary: TodayAlarmPlanSummary;
   alarmStatus: AlarmPyoAlarmStatus | null;
   alarmStatusError: boolean;
+  alarmAutoCheckStatus?: AlarmAutoCheckStatus;
+  alarmSyncFailed?: boolean;
   alarmPlatformSupported: boolean;
+  sleepReminderStatus?: SleepReminderStatus | null;
+  sleepReminderStatusError?: boolean;
+  sleepReminderSupported?: boolean;
+  sleepReminderSyncFailed?: boolean;
   compactHome: boolean;
 }) {
   const {
@@ -119,7 +127,13 @@ export function buildTodayViewModel(input: {
     alarmPlanSummary,
     alarmStatus,
     alarmStatusError,
+    alarmAutoCheckStatus = 'idle',
+    alarmSyncFailed = false,
     alarmPlatformSupported,
+    sleepReminderStatus = null,
+    sleepReminderStatusError = false,
+    sleepReminderSupported = false,
+    sleepReminderSyncFailed = false,
     compactHome,
   } = input;
   const today = toDateKey(now);
@@ -242,52 +256,43 @@ export function buildTodayViewModel(input: {
               ? '일정 없음'
               : '시작 전';
 
-  const safetyIssues = alarmPlatformSupported
-    ? getAlarmPyoSafetyIssues({
-        notificationsEnabled: data.settings.notificationsEnabled,
-        plannedAlarmCount: alarmPlanSummary.plannedAlarmCount,
-        status: alarmStatus,
-        statusError: alarmStatusError,
-      })
-    : [];
-  const alarmPermissionProblem = Boolean(
-    data.settings.notificationsEnabled &&
-      alarmStatus &&
-      (!alarmStatus.supported ||
-        !alarmStatus.exactAlarmAllowed ||
-        !alarmStatus.fullScreenAllowed ||
-        !alarmStatus.notificationsAllowed),
-  );
-  const alarmsReady =
-    data.settings.notificationsEnabled &&
-    alarmStatus !== null &&
-    !alarmStatusError &&
-    !alarmPermissionProblem;
   const scheduledAlarms = alarmStatus?.scheduledAlarms.slice(0, 3) ?? [];
   const scheduledAlarmCount =
     alarmStatus?.scheduledCount ?? data.settings.scheduledNotificationCount;
+  const alarmHealthState = resolveAlarmHealthState({
+    actualScheduledCount: scheduledAlarmCount,
+    alarmAutoCheckStatus,
+    alarmStatus,
+    alarmStatusError,
+    alarmSyncFailed,
+    notificationsEnabled: data.settings.notificationsEnabled,
+    now: now.getTime(),
+    platformSupported: alarmPlatformSupported,
+    sleepReminderEnabled: data.settings.sleepReminderEnabled,
+    sleepReminderStatus,
+    sleepReminderStatusError,
+    sleepReminderSupported,
+    sleepReminderSyncFailed,
+    totalPlannedAlarmCount: alarmPlanSummary.plannedAlarmCount,
+  });
+  const alarmsReady = alarmHealthState.status === 'ready';
   const alarmStateLabel = !alarmPlatformSupported
     ? '안드로이드 앱에서만 사용할 수 있어요'
     : !data.settings.notificationsEnabled
       ? '근무 알람을 사용하지 않아요'
-      : alarmStatusError
-        ? '알람 상태를 확인하지 못했어요'
-        : alarmPermissionProblem
-          ? '알람 권한을 확인하세요'
-          : alarmStatus === null
-            ? '알람 상태를 확인하고 있어요'
-            : scheduledAlarms.length > 0
-              ? '다음 근무 알람이 준비됐어요'
-              : '예정된 근무 알람이 없어요';
-  const primarySafetyIssue = safetyIssues.find(
-    (issue) => issue.code !== 'widget-snapshot',
-  );
+      : alarmHealthState.status === 'checking'
+        ? '알람 상태를 확인하고 있어요'
+        : alarmHealthState.status === 'ready' && scheduledAlarms.length > 0
+          ? '다음 근무 알람이 준비됐어요'
+          : alarmHealthState.status === 'ready'
+            ? '예정된 근무 알람이 없어요'
+            : alarmHealthState.title;
   const nextScheduledAlarm = scheduledAlarms[0];
-  const alarmSummaryLabel = primarySafetyIssue
-    ? `${primarySafetyIssue.title}. ${primarySafetyIssue.detail}`
-    : nextScheduledAlarm
-      ? `${alarmDateLabel(nextScheduledAlarm.alarmAt)} ${alarmTimeLabel(nextScheduledAlarm.alarmAt)} · ${nextScheduledAlarm.shiftName} · ${formatAlarmCountdown(nextScheduledAlarm.alarmAt, now)}`
-      : alarmStateLabel;
+  const alarmSummaryLabel = alarmsReady && nextScheduledAlarm
+    ? `${alarmDateLabel(nextScheduledAlarm.alarmAt)} ${alarmTimeLabel(nextScheduledAlarm.alarmAt)} · ${nextScheduledAlarm.shiftName} · ${formatAlarmCountdown(nextScheduledAlarm.alarmAt, now)}`
+    : alarmHealthState.status === 'ready'
+      ? alarmStateLabel
+      : `${alarmHealthState.title}. ${alarmHealthState.description}`;
 
   return {
     today,
@@ -305,12 +310,11 @@ export function buildTodayViewModel(input: {
     footerValue,
     statusLabel,
     editorDateKey: current?.dateKey ?? today,
-    safetyIssues,
+    alarmHealthState,
     alarmsReady,
     scheduledAlarms,
     scheduledAlarmCount,
     alarmStateLabel,
-    primarySafetyIssue,
     alarmSummaryLabel,
     sleepTimingGuidance: buildSleepTimingGuidance(data, {
       now,

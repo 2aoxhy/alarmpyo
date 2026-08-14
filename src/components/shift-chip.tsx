@@ -38,7 +38,7 @@ export function ShiftChip({
         kind={getShiftIconKind(shift.id, shift.isOff)}
         size={compact ? 15 : 19}
       />
-      <AppText variant={compact ? 'caption' : 'label'} color={palette.ink}>
+      <AppText variant={compact ? 'caption' : 'label'} tone="primary">
         {compact ? shift.shortName : shift.name}
       </AppText>
     </View>

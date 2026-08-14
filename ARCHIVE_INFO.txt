@@ -3,7 +3,7 @@ Display name: 알람표
 Lineage: alarmpyo
 Internal canary: 1.0.0 (Android 1 / iOS 1)
 Initial public candidate: 1.0.1 (Android 2 / iOS 2)
-Current source candidate: 1.0.2 (Android 3 / iOS 3), displayed as V02
+Current source candidate: 1.0.3 (Android 4 / iOS 4), displayed as V03
 Release status: BLOCKED - production Hosting URL is not configured; Play signing is decided separately
 Expo project: canonical values live in app.json and release-policy.json
 Production Hosting URL: NOT CONFIGURED

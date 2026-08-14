@@ -24,15 +24,29 @@ export function resolveCalendarStatusDisplay(
   const primary = holiday
     ? { kind: 'holiday' as const, label: holiday.calendarLabel }
     : payrollEntry
-      ? { kind: 'payday' as const, label: payrollEntry.calendarLabel }
+      ? {
+          kind: 'payday' as const,
+          label: `${payrollEntry.calendarLabel}${payrollEntry.confirmed ? '' : '*'}`,
+        }
       : null;
 
   return {
     primary:
       compact && primary
-        ? { ...primary, label: compactCalendarLabel(primary.label) }
+        ? {
+            ...primary,
+            label:
+              primary.kind === 'payday'
+                ? primary.label
+                : compactCalendarLabel(primary.label),
+          }
         : primary,
-    showPaydayDot: Boolean(holiday && payrollEntry),
+    paydayMarkerLabel:
+      holiday && payrollEntry
+        ? payrollEntry.confirmed
+          ? '급'
+          : '급*'
+        : null,
   };
 }
 

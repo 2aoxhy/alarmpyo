@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -33,6 +33,8 @@ export type StatusBannerProps = DesignSystemThemeProps & {
   icon?: AppIconName;
   actionLabel?: string;
   onAction?: () => void;
+  /** 처음 표시할 때는 조용히 두고, 같은 배너의 내용이 바뀔 때만 읽어요. */
+  announceChanges?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -44,6 +46,7 @@ export function StatusBanner({
   icon,
   actionLabel,
   onAction,
+  announceChanges = true,
   style,
   theme,
   testID,
@@ -55,10 +58,26 @@ export function StatusBanner({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedIcon = icon ?? resolveToneIcon(tone);
   const actionAvailable = Boolean(actionLabel && onAction);
+  const announcementKey = `${tone}\u0000${title ?? ''}\u0000${message}\u0000${actionLabel ?? ''}`;
+  const previousAnnouncementKeyRef = useRef(announcementKey);
+  const [liveRegion, setLiveRegion] = useState<'none' | 'polite' | 'assertive'>('none');
+
+  useEffect(() => {
+    const changed = previousAnnouncementKeyRef.current !== announcementKey;
+    previousAnnouncementKeyRef.current = announcementKey;
+    if (!announceChanges || !changed) {
+      setLiveRegion('none');
+      return;
+    }
+
+    setLiveRegion(tone === 'danger' ? 'assertive' : 'polite');
+    const timeout = setTimeout(() => setLiveRegion('none'), 1_000);
+    return () => clearTimeout(timeout);
+  }, [announceChanges, announcementKey, tone]);
 
   return (
     <View
-      accessibilityLiveRegion={tone === 'danger' ? 'assertive' : 'polite'}
+      accessibilityLiveRegion={liveRegion}
       style={[
         styles.banner,
         { backgroundColor: toneColors.background },

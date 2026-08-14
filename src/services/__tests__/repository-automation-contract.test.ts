@@ -51,7 +51,7 @@ describe('저장소 자동화 계약', () => {
     });
   });
 
-  it('앱은 1.0.2(3) 후속 후보이고 direct·Play의 첫 릴리스 계보는 유지해요', () => {
+  it('앱은 1.0.3(4) 후속 후보이고 direct·Play의 첫 릴리스 계보는 유지해요', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -63,13 +63,13 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.2');
+    expect(pkg.version).toBe('1.0.3');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.0.2',
-      androidVersionCode: 3,
-      iosBuildNumber: '3',
+      versionName: '1.0.3',
+      androidVersionCode: 4,
+      iosBuildNumber: '4',
     });
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -100,7 +100,7 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(1);
+    ).toBe(3);
   });
 
   it('PR JavaScript 검사와 네이티브 경로 검사를 분리해요', () => {
@@ -110,6 +110,7 @@ describe('저장소 자동화 계약', () => {
     expect(javascript).toMatch(/push:\s+branches:\s+- main/u);
     expect(javascript).toContain('pull_request:');
     expect(javascript).toContain('npm ci');
+    expect(javascript).toContain('npm run assets:brand:check');
     expect(javascript).toContain('npm run check');
     expect(javascript).toContain('npm run audit:dependencies');
     expect(javascript).toContain('npm run audit:tooling');
@@ -119,6 +120,23 @@ describe('저장소 자동화 계약', () => {
     expect(native).toContain('plugins/**');
     expect(native).toContain('npm run test:android-native');
     expect(native).toContain("java-version: '17'");
+  });
+
+  it('브랜드 마스터에서 파생 자산을 만들고 CI와 Play 사전 검사에서 드리프트를 차단해요', () => {
+    const pkg = json('package.json');
+    const javascript = source('.github/workflows/javascript-checks.yml');
+    const playPreflight = source('scripts/run-play-preflight.mjs');
+
+    expect(pkg.scripts['assets:brand:generate']).toBe(
+      'node scripts/generate-brand-assets.mjs --write',
+    );
+    expect(pkg.scripts['assets:brand:check']).toBe(
+      'node scripts/generate-brand-assets.mjs --check',
+    );
+    expect(javascript).toContain('npm run assets:brand:check');
+    expect(playPreflight).toContain("runNpm(['run', 'assets:brand:check'])");
+    expect(playPreflight).toContain("'release:verify:play-store-assets'");
+    expect(playPreflight).toContain("'--allow-missing-screenshots'");
   });
 
   it('주간 보안 감사와 Dependabot 업데이트를 예약해요', () => {

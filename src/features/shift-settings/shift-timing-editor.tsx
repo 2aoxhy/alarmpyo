@@ -116,7 +116,7 @@ export function ShiftTimingEditor({
         <AppText accessibilityRole="header" variant="label">
           기상 시간
         </AppText>
-        <AppText color={palette.inkMuted} variant="caption">
+        <AppText tone="secondary" variant="caption">
           실제 일어날 시각을 선택해요.
         </AppText>
         <View accessibilityRole="radiogroup" style={styles.alarmOptions}>
@@ -221,7 +221,7 @@ export function ShiftTimingEditor({
               ? shift.name
               : `${shift.name} 근무`}
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             근무 시간과 기상 시각을 설정해요.
           </AppText>
         </View>

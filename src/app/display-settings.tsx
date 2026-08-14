@@ -6,7 +6,6 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { ToggleRow } from '@/design-system';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { WidgetDisplayOptions } from '@/models/app-data';
 import { requestPreparedAlarmPyoWidgetPin } from '@/services/widget-pin-service';
@@ -25,7 +24,6 @@ export default function DisplaySettingsScreen() {
   const { showDialog } = useAppDialog();
   const { data } = useAppStoreData();
   const { toggleWidgetDisplayOption } = useAppStoreActions();
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [widgetPinBusy, setWidgetPinBusy] = useState(false);
   const androidWidgetSupported = Platform.OS === 'android';
@@ -56,24 +54,14 @@ export default function DisplaySettingsScreen() {
 
   return (
     <Screen contentStyle={styles.root} safeAreaEdges={['left', 'right']}>
-      <Stack.Screen options={{ title: '화면·위젯' }} />
+      <Stack.Screen options={{ title: '홈 화면 위젯' }} />
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText accessibilityRole="header" variant="heading">화면 테마</AppText>
-          <AppText color={palette.inkMuted} style={styles.centerText}>
-            알람표는 눈부심을 줄인 다크 테마만 사용해요.
-          </AppText>
-        </View>
-      </Card>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <AppText accessibilityRole="header" variant="heading">홈 화면 위젯</AppText>
-          <AppText color={palette.inkMuted}>4×1 위젯에 표시할 정보를 선택해요.</AppText>
+          <AppText tone="secondary">4×1 위젯에 표시할 정보를 선택해요.</AppText>
         </View>
         {!androidWidgetSupported ? (
           <View accessible style={styles.platformNotice}>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               홈 화면 위젯은 안드로이드에서만 지원해요.
             </AppText>
           </View>
@@ -137,7 +125,6 @@ const createStyles = (_palette: AppPalette) =>
     },
     section: { gap: spacing.large },
     sectionHeader: { alignItems: 'center', gap: spacing.tiny },
-    centerText: { textAlign: 'center' },
     widgetOptions: {
       gap: spacing.small,
     },

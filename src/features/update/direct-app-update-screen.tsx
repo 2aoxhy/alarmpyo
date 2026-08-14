@@ -423,7 +423,7 @@ export default function AppUpdateScreen() {
                 <AppText accessibilityRole="header" variant="heading">
                   Google Play에서 업데이트해요
                 </AppText>
-                <AppText color={palette.inkMuted} variant="caption">
+                <AppText tone="secondary" variant="caption">
                   새 버전은 Google Play가 안전하게 설치하고 관리해요.
                 </AppText>
               </View>
@@ -437,7 +437,7 @@ export default function AppUpdateScreen() {
             />
           </Card>
 
-          <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
+          <AppText tone="tertiary" style={styles.centerText} variant="caption">
             알람표 · {getCurrentAppUpdateLabel()}
           </AppText>
         </Screen>
@@ -482,7 +482,7 @@ export default function AppUpdateScreen() {
             </View>
             <View style={styles.copy}>
               <AppText variant="heading">{title}</AppText>
-              <AppText color={palette.inkMuted} variant="caption">
+              <AppText tone="secondary" variant="caption">
                 {subtitle}
               </AppText>
             </View>
@@ -510,14 +510,14 @@ export default function AppUpdateScreen() {
               업데이트 내용
             </AppText>
             {apkUpdate.release.notes.map((note, index) => (
-              <AppText key={`${index}-${note}`} color={palette.inkMuted} variant="caption">
+              <AppText key={`${index}-${note}`} tone="secondary" variant="caption">
                 · {note}
               </AppText>
             ))}
           </Card>
         ) : null}
 
-        <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
+        <AppText tone="tertiary" style={styles.centerText} variant="caption">
           알람표 · {getCurrentAppUpdateLabel()}
         </AppText>
       </Screen>

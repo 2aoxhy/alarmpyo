@@ -229,7 +229,11 @@ describe('Google Play 등록 이미지', () => {
     expect(packageJson.scripts['release:verify:play-store-assets']).toBe(
       'node scripts/validate-play-store-assets.mjs',
     );
+    expect(packageJson.scripts['assets:brand:check']).toBe(
+      'node scripts/generate-brand-assets.mjs --check',
+    );
     expect(listing).toContain('npm run release:verify:play-store-assets');
+    expect(listing).toContain('npm run assets:brand:check');
     expect(listing).toContain(
       'https://support.google.com/googleplay/android-developer/answer/9866151?hl=ko',
     );
@@ -248,5 +252,25 @@ describe('Google Play 등록 이미지', () => {
     expect(appName.length).toBeLessThanOrEqual(30);
     expect(shortDescription.length).toBeLessThanOrEqual(80);
     expect(fullDescription.length).toBeLessThanOrEqual(4000);
+    expect(shortDescription).toBe(
+      '교대 근무표와 근무·수면 준비 알림을 한눈에 확인하세요.',
+    );
+    for (const phrase of [
+      '3조 2교대와 주간 고정 근무표',
+      '근무 기상 알람과 수면 준비 알림',
+      '홈 화면 위젯',
+      '근무표, 메모와 설정은 기기에 저장해요',
+    ]) {
+      expect(fullDescription).toContain(phrase);
+    }
+    for (const excluded of [
+      '의료기기',
+      '진단·치료·치유·예방',
+      '직접 APK',
+      'EAS',
+      'versionCode',
+    ]) {
+      expect(fullDescription).not.toContain(excluded);
+    }
   });
 });

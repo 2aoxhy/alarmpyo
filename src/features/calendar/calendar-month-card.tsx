@@ -1,6 +1,9 @@
-import type { Ref } from 'react';
+import { useState, type Ref } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Animated,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +13,12 @@ import {
 
 import { AppIcon } from '@/components/app-icon';
 import { AppText, Card } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import {
+  colorWithAlpha,
+  radii,
+  spacing,
+  type AppPalette,
+} from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -86,6 +94,25 @@ export function CalendarMonthCard({
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const dayCellStyles = useThemedStyles(createCalendarDayCellStyles);
+  const [horizontalCues, setHorizontalCues] = useState({
+    left: false,
+    right: true,
+  });
+  const updateHorizontalCues = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const maximumOffset = Math.max(contentSize.width - layoutMeasurement.width, 0);
+    const next = {
+      left: contentOffset.x > 2,
+      right: contentOffset.x < maximumOffset - 2,
+    };
+    setHorizontalCues((current) =>
+      current.left === next.left && current.right === next.right
+        ? current
+        : next,
+    );
+  };
   const calendarGrid = (
     <View style={{ width: calendarLayout.gridWidth }}>
       <CalendarWeekdayHeader palette={palette} styles={styles} />
@@ -180,27 +207,76 @@ export function CalendarMonthCard({
           <>
             <View
               accessible
-              accessibilityLabel="날짜 영역을 좌우로 밀어 일주일을 확인해요."
+              accessibilityLabel="날짜 영역을 좌우로 밀어 토요일까지 확인해요."
               style={styles.horizontalScrollHint}>
               <AppIcon
                 accessible={false}
-                color={palette.inkMuted}
+                color={palette.indigoDark}
                 name="swap-horizontal"
                 size={17}
               />
-              <AppText color={palette.inkMuted} variant="caption">
-                날짜 영역을 좌우로 밀어 보세요
+              <AppText tone="secondary" variant="caption">
+                좌우로 밀어 토요일까지 확인하세요
               </AppText>
             </View>
-            <ScrollView
-              accessibilityHint="좌우로 밀어 가려진 날짜를 확인해요."
-              accessibilityLabel="월간 달력 날짜 영역"
-              directionalLockEnabled
-              horizontal
-              nestedScrollEnabled
-              showsHorizontalScrollIndicator>
-              {calendarGrid}
-            </ScrollView>
+            <View style={styles.horizontalScrollFrame}>
+              <ScrollView
+                accessibilityHint="좌우로 밀어 가려진 토요일까지 확인해요."
+                accessibilityLabel="월간 달력 날짜 영역"
+                directionalLockEnabled
+                horizontal
+                nestedScrollEnabled
+                onContentSizeChange={() => {
+                  setHorizontalCues({ left: false, right: true });
+                }}
+                onScroll={updateHorizontalCues}
+                scrollEventThrottle={32}
+                showsHorizontalScrollIndicator>
+                {calendarGrid}
+              </ScrollView>
+              {horizontalCues.left ? (
+                <LinearGradient
+                  colors={[
+                    palette.surface,
+                    colorWithAlpha(palette.surface, 0),
+                  ]}
+                  end={{ x: 1, y: 0 }}
+                  pointerEvents="none"
+                  start={{ x: 0, y: 0 }}
+                  style={[
+                    styles.horizontalEdgeCue,
+                    styles.horizontalEdgeCueLeft,
+                  ]}>
+                  <AppIcon
+                    accessible={false}
+                    color={palette.white}
+                    name="chevron-back"
+                    size={16}
+                  />
+                </LinearGradient>
+              ) : null}
+              {horizontalCues.right ? (
+                <LinearGradient
+                  colors={[
+                    colorWithAlpha(palette.surface, 0),
+                    palette.surface,
+                  ]}
+                  end={{ x: 1, y: 0 }}
+                  pointerEvents="none"
+                  start={{ x: 0, y: 0 }}
+                  style={[
+                    styles.horizontalEdgeCue,
+                    styles.horizontalEdgeCueRight,
+                  ]}>
+                  <AppIcon
+                    accessible={false}
+                    color={palette.white}
+                    name="chevron-forward"
+                    size={16}
+                  />
+                </LinearGradient>
+              ) : null}
+            </View>
           </>
         ) : (
           calendarGrid
@@ -239,7 +315,7 @@ function CalendarMonthHeader({
         hitSlop={8}
         onPress={() => onChangeMonth(-1)}
         style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}>
-        <AppIcon color={palette.violet} name="chevron-back" size={20} />
+        <AppIcon color={palette.indigoDark} name="chevron-back" size={20} />
       </Pressable>
       <View
         accessible
@@ -249,7 +325,6 @@ function CalendarMonthHeader({
             : '화살표로 월을 이동하고 날짜 영역을 좌우로 밀어 일주일을 확인할 수 있어요.'
         }
         accessibilityLabel={`${monthTitle}, ${monthlyWorkdayCount}일 근무 예정`}
-        accessibilityLiveRegion="polite"
         style={styles.monthCopy}>
         <AppText accessibilityRole="header" maxFontSizeMultiplier={2} variant="heading">
           {monthTitle}
@@ -271,7 +346,7 @@ function CalendarMonthHeader({
         hitSlop={8}
         onPress={() => onChangeMonth(1)}
         style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}>
-        <AppIcon color={palette.violet} name="chevron-forward" size={20} />
+        <AppIcon color={palette.indigoDark} name="chevron-forward" size={20} />
       </Pressable>
     </View>
   );
@@ -294,7 +369,7 @@ function CalendarWeekdayHeader({
             index < 6 && styles.weekdayCellDivider,
           ]}>
           <AppText
-            color={index === 0 ? palette.coral : index === 6 ? palette.violet : palette.inkMuted}
+            color={index === 0 ? palette.coral : index === 6 ? palette.weekendSaturday : palette.inkMuted}
             maxFontSizeMultiplier={2}
             style={styles.weekdayText}
             variant="caption">
@@ -349,6 +424,20 @@ function createStyles(palette: AppPalette) {
       borderBottomColor: palette.line,
       backgroundColor: palette.surfaceSoft,
     },
+    horizontalScrollFrame: {
+      position: 'relative',
+    },
+    horizontalEdgeCue: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      zIndex: 2,
+      width: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    horizontalEdgeCueLeft: { left: 0 },
+    horizontalEdgeCueRight: { right: 0 },
     monthSummaryDot: {
       width: 6,
       height: 6,

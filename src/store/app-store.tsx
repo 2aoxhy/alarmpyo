@@ -30,7 +30,6 @@ import {
   getSleepReminderSyncModeForAppState,
   getResetAllDataResult,
   persistLatestCanonicalSnapshotAndSyncSleep,
-  shouldClearSleepReminderSaveError,
   shouldSkipAutomaticSaveForAppliedCanonicalSnapshot,
   shouldSyncAlarmsAfterReplacement,
   shouldSyncSleepRemindersAfterReplacement,
@@ -52,9 +51,15 @@ import type {
   DaySelection,
   InitialSetupInput,
   LatestBackupRestoreResult,
+  SaveIssueCode,
+  SaveOutcome,
   SaveStatus,
   UpdatePatternOptions,
 } from '@/application/app-store-contract';
+import {
+  createSavedOutcome,
+  createSaveIssueOutcome,
+} from '@/application/save-outcome';
 
 import type {
   AppData,
@@ -176,6 +181,8 @@ export type {
   InitialSetupInput,
   LatestBackupRestoreResult,
   PendingRestoreBackupPreview,
+  SaveIssueCode,
+  SaveOutcome,
   SaveStatus,
   UpdatePatternOptions,
 } from '@/application/app-store-contract';
@@ -203,6 +210,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const [loadFailureReason, setLoadFailureReason] =
     useState<AppDataLoadFailureReason | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveOutcome, setSaveOutcome] = useState<SaveOutcome | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccessRevision, setSaveSuccessRevision] = useState(0);
   const [alarmSyncStatus, setAlarmSyncStatus] =
@@ -233,11 +241,34 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const lastSleepReminderSyncSignatureRef = useRef<string | null>(null);
   const failedSleepReminderSyncSignatureRef = useRef<string | null>(null);
   const sleepReminderFailureSaveRevisionRef = useRef<number | null>(null);
-  const saveErrorSourceRef = useRef<'sleep-reminder' | 'other' | null>(null);
+  const saveOutcomeRef = useRef<SaveOutcome | null>(null);
   const lastTimeZoneOffsetRef = useRef(new Date().getTimezoneOffset());
   const backupRequestRef = useRef<Promise<string> | null>(null);
   const missingPrimaryRecoveryRawRef = useRef<string | null>(null);
   const explicitResetMarkerPendingRef = useRef(false);
+
+  const recordSaveOutcome = useCallback((outcome: SaveOutcome | null) => {
+    saveOutcomeRef.current = outcome;
+    if (!mountedRef.current) return;
+    setSaveOutcome(outcome);
+    setSaveError(
+      outcome !== null && outcome.status !== 'success' ? outcome.message : null,
+    );
+  }, []);
+
+  const reportSaveIssue = useCallback((
+    issueCode: SaveIssueCode,
+    message: string,
+  ) => {
+    const outcome = createSaveIssueOutcome(issueCode, message);
+    recordSaveOutcome(outcome);
+    if (mountedRef.current) setSaveStatus('error');
+  }, [recordSaveOutcome]);
+
+  const reportSaveSuccess = useCallback(() => {
+    recordSaveOutcome(createSavedOutcome());
+    if (mountedRef.current) setSaveStatus('saved');
+  }, [recordSaveOutcome]);
 
   const getPersistedDataForPendingRestore = useCallback((): AppData => {
     const persistedSnapshot = appDataWriter.getPersistedValue();
@@ -267,6 +298,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     setLoadFailureReason(null);
     setCorruptBackupKey(null);
     setSaveStatus('idle');
+    setSaveOutcome(null);
     setSaveError(null);
     setAlarmSyncStatus('idle');
     setAlarmSyncError(null);
@@ -279,7 +311,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     lastSleepReminderSyncSignatureRef.current = null;
     failedSleepReminderSyncSignatureRef.current = null;
     sleepReminderFailureSaveRevisionRef.current = null;
-    saveErrorSourceRef.current = null;
+    saveOutcomeRef.current = null;
 
     let result = await loadAppDataFromStorage(
       AsyncStorage,
@@ -385,6 +417,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         ? 'saved'
         : 'idle',
     );
+    if (recoveredFromDeviceBackup || result.source === 'stored') {
+      const outcome = createSavedOutcome();
+      saveOutcomeRef.current = outcome;
+      setSaveOutcome(outcome);
+    }
     if (recoveredFromDeviceBackup) {
       setSaveSuccessRevision((current) => current + 1);
     }
@@ -507,21 +544,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               await cancelAlarmPyoSleepReminders();
             }
             lastSleepReminderSyncSignatureRef.current = signature;
-            const failureRevision = sleepReminderFailureSaveRevisionRef.current;
             failedSleepReminderSyncSignatureRef.current = null;
             sleepReminderFailureSaveRevisionRef.current = null;
-            if (
-              mountedRef.current &&
-              shouldClearSleepReminderSaveError({
-                failureRevision,
-                currentRevision: saveRevisionRef.current,
-                currentErrorSource: saveErrorSourceRef.current,
-              })
-            ) {
-              saveErrorSourceRef.current = null;
-              setSaveStatus('saved');
-              setSaveError(null);
-            }
             return true;
           } catch {
             failedSleepReminderSyncSignatureRef.current = signature;
@@ -542,11 +566,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const reportSleepReminderSaveFailure = useCallback((revision: number) => {
     sleepReminderFailureSaveRevisionRef.current = revision;
     if (mountedRef.current && saveRevisionRef.current === revision) {
-      saveErrorSourceRef.current = 'sleep-reminder';
-      setSaveStatus('error');
-      setSaveError(SLEEP_REMINDER_SYNC_SAVE_ERROR);
+      reportSaveIssue(
+        'sleep-reminder-sync-failed',
+        SLEEP_REMINDER_SYNC_SAVE_ERROR,
+      );
     }
-  }, []);
+  }, [reportSaveIssue]);
 
   const persistSnapshot = useCallback(async (
     snapshot: string,
@@ -580,9 +605,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       }
       if (!pendingRestoreProtected) {
         if (mountedRef.current) {
-          saveErrorSourceRef.current = 'other';
-          setSaveStatus('error');
-          setSaveError(
+          reportSaveIssue(
+            'restore-protection-failed',
             '복원 전 원본 백업을 아직 안전하게 보호하지 못했어요. 저장 공간을 확인한 뒤 다시 저장해 주세요.',
           );
         }
@@ -598,9 +622,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     const revision = saveRevisionRef.current + 1;
     saveRevisionRef.current = revision;
     if (mountedRef.current) {
-      saveErrorSourceRef.current = null;
+      recordSaveOutcome(null);
       setSaveStatus('saving');
-      setSaveError(null);
     }
 
     const outcome = await persistSnapshotWithLastKnownGood(
@@ -614,11 +637,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
     if (!outcome.operationSucceeded || outcome.partialFailure) {
       if (mountedRef.current && saveRevisionRef.current === revision) {
-        saveErrorSourceRef.current = 'other';
-        setSaveStatus('error');
-        setSaveError(
+        reportSaveIssue(
           outcome.primarySaved
-            ? '근무표는 저장했지만 안전 복사본을 만들지 못했어요. 다시 저장해 주세요.'
+            ? 'safety-backup-failed'
+            : 'primary-save-failed',
+          outcome.primarySaved
+            ? '근무표는 저장됐지만 안전 백업을 만들지 못했어요. 다시 시도해 주세요.'
             : '변경 내용을 저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
         );
       }
@@ -656,21 +680,30 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
     const followUpSaved = deviceBackupSaved && resetMarkerCleared;
     if (mountedRef.current && saveRevisionRef.current === revision) {
-      saveErrorSourceRef.current = followUpSaved ? null : 'other';
-      setSaveStatus(followUpSaved ? 'saved' : 'error');
-      setSaveError(
-        followUpSaved
-          ? null
-          : deviceBackupSaved
-            ? '근무표는 저장했지만 초기화 상태를 정리하지 못했어요. 다시 저장해 주세요.'
-            : '근무표는 저장했지만 기기 안전 백업 파일을 갱신하지 못했어요. 저장 공간을 확인한 뒤 다시 저장해 주세요.',
-      );
+      if (followUpSaved) {
+        reportSaveSuccess();
+      } else {
+        reportSaveIssue(
+          deviceBackupSaved
+            ? 'reset-marker-cleanup-failed'
+            : 'device-backup-failed',
+          deviceBackupSaved
+            ? '근무표는 저장됐지만 초기화 상태를 정리하지 못했어요. 다시 시도해 주세요.'
+            : '근무표는 저장됐지만 기기 안전 백업 파일을 갱신하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+        );
+      }
       if (announceSuccess && outcome.announceSuccess && followUpSaved) {
         setSaveSuccessRevision((current) => current + 1);
       }
     }
     return withDeviceBackupResult(outcome, followUpSaved);
-  }, [appDataWriter, storageWriter]);
+  }, [
+    appDataWriter,
+    recordSaveOutcome,
+    reportSaveIssue,
+    reportSaveSuccess,
+    storageWriter,
+  ]);
 
   const flushAutomaticSave = useCallback((generation: number) => {
     if (generation !== automaticSaveGenerationRef.current || !readyRef.current) {
@@ -725,9 +758,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         return sleepReminderSyncSucceeded;
       } catch {
         if (mountedRef.current) {
-          saveErrorSourceRef.current = 'other';
-          setSaveStatus('error');
-          setSaveError('변경 내용의 형식이 올바르지 않아 저장하지 못했어요.');
+          reportSaveIssue(
+            'invalid-data',
+            '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+          );
         }
         return false;
       }
@@ -735,6 +769,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, [
     mutationCoordinator,
     persistSnapshot,
+    reportSaveIssue,
     reportSleepReminderSaveFailure,
     syncSleepRemindersForSnapshot,
   ]);
@@ -801,11 +836,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           snapshot,
           true,
         );
-        const alarmSyncSucceeded = await syncAlarmsForSnapshot(snapshot);
-        if (!alarmSyncSucceeded || !sleepReminderSyncSucceeded) {
-          if (!sleepReminderSyncSucceeded) {
-            reportSleepReminderSaveFailure(persistenceRevision);
-          }
+        if (!sleepReminderSyncSucceeded) {
+          reportSleepReminderSaveFailure(persistenceRevision);
           automaticSaveGenerationRef.current += 1;
           return false;
         }
@@ -814,19 +846,45 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       });
     } catch {
       if (mountedRef.current) {
-        saveErrorSourceRef.current = 'other';
-        setSaveStatus('error');
-        setSaveError('변경 내용의 형식이 올바르지 않아 저장하지 못했어요.');
+        reportSaveIssue(
+          'invalid-data',
+          '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+        );
       }
       return false;
     }
   }, [
     mutationCoordinator,
     persistSnapshot,
+    reportSaveIssue,
     reportSleepReminderSaveFailure,
-    syncAlarmsForSnapshot,
     syncSleepRemindersForSnapshot,
     updateData,
+  ]);
+
+  const retrySleepReminderSync = useCallback(async () => {
+    if (!readyRef.current) return false;
+    return mutationCoordinator.run(async () => {
+      const revision = saveRevisionRef.current;
+      const synced = await syncSleepRemindersForSnapshot(
+        dataRef.current,
+        true,
+      );
+      if (!synced) {
+        reportSleepReminderSaveFailure(revision);
+      } else if (
+        saveOutcomeRef.current?.issueCode === 'sleep-reminder-sync-failed'
+      ) {
+        sleepReminderFailureSaveRevisionRef.current = null;
+        reportSaveSuccess();
+      }
+      return synced;
+    });
+  }, [
+    mutationCoordinator,
+    reportSaveSuccess,
+    reportSleepReminderSaveFailure,
+    syncSleepRemindersForSnapshot,
   ]);
 
   const replaceDataAndPersistDetailedInternal = useCallback(
@@ -846,9 +904,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         snapshot = JSON.stringify(next);
       } catch {
         if (mountedRef.current) {
-          saveErrorSourceRef.current = 'other';
-          setSaveStatus('error');
-          setSaveError('변경 내용의 형식이 올바르지 않아 저장하지 못했어요.');
+          reportSaveIssue(
+            'invalid-data',
+            '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+          );
         }
         return createDataReplacementResult({
           primarySaved: false,
@@ -905,6 +964,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         persisted.lastKnownGoodSaved && persisted.deviceBackupSaved;
       if (!sleepReminderSyncSucceeded && persistenceFollowUpSucceeded) {
         reportSleepReminderSaveFailure(saveRevisionRef.current);
+      } else if (!preApplyFollowUpSucceeded && persistenceFollowUpSucceeded) {
+        reportSaveIssue(
+          'reset-marker-cleanup-failed',
+          '자료는 저장됐지만 초기 설정 임시 상태를 정리하지 못했어요. 다시 시도해 주세요.',
+        );
       }
       const outcome = createDataReplacementResult({
         primarySaved: true,
@@ -929,6 +993,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     },
     [
       persistSnapshot,
+      reportSaveIssue,
       reportSleepReminderSaveFailure,
       syncAlarmsForSnapshot,
       syncSleepRemindersForSnapshot,
@@ -1380,13 +1445,21 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     });
     alarmResumeSyncRef.current = task;
     try {
-      return await task;
+      const succeeded = await task;
+      if (
+        succeeded &&
+        saveOutcomeRef.current?.issueCode === 'alarm-sync-failed'
+      ) {
+        reportSaveSuccess();
+      }
+      return succeeded;
     } finally {
       if (alarmResumeSyncRef.current === task) alarmResumeSyncRef.current = null;
     }
   }, [
     mutationCoordinator,
     reportAlarmSyncFailure,
+    reportSaveSuccess,
     syncAlarmsForSnapshot,
     updateData,
   ]);
@@ -1801,6 +1874,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       loadError,
       loadFailureReason,
       saveStatus,
+      saveOutcome,
       saveError,
       saveSuccessRevision,
       alarmSyncStatus,
@@ -1813,6 +1887,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       alarmAutoCheckState,
       loadError,
       loadFailureReason,
+      saveOutcome,
       saveError,
       saveStatus,
       saveSuccessRevision,
@@ -1825,6 +1900,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     () => ({
       retryLoad,
       retrySave,
+      retrySleepReminderSync,
       saveDay,
       saveDays,
       updatePattern,
@@ -1878,6 +1954,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       retryLoad,
       retryPendingRestoreBackup,
       retrySave,
+      retrySleepReminderSync,
       restoreLatestBackup,
       restoreRecoveryBackup,
       requestAlarmAccess,

@@ -301,7 +301,7 @@ function AppDialogHost({
                   {request.title}
                 </AppText>
                 {request.message ? (
-                  <AppText color={palette.inkMuted} style={styles.message}>
+                  <AppText tone="secondary" style={styles.message}>
                     {request.message}
                   </AppText>
                 ) : null}

@@ -29,6 +29,37 @@ import type {
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export type AlarmSyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
+export type SaveIssueCode =
+  | 'invalid-data'
+  | 'primary-save-failed'
+  | 'restore-protection-failed'
+  | 'safety-backup-failed'
+  | 'device-backup-failed'
+  | 'reset-marker-cleanup-failed'
+  | 'sleep-reminder-sync-failed'
+  | 'alarm-sync-failed';
+
+export type SaveRetryAction =
+  | 'retry-save'
+  | 'retry-sleep-reminders'
+  | 'retry-alarms';
+
+export type SaveIssueOutcome = {
+  status: 'partial' | 'failure';
+  issueCode: SaveIssueCode;
+  message: string;
+  retryAction: SaveRetryAction;
+};
+
+export type SaveOutcome =
+  | {
+      status: 'success';
+      issueCode: null;
+      message: null;
+      retryAction: null;
+    }
+  | SaveIssueOutcome;
+
 export type AlarmAutoCheckState = {
   checkedAt: string | null;
   status: AlarmAutoCheckStatus;
@@ -64,6 +95,8 @@ export type AppStore = {
   loadError: string | null;
   loadFailureReason: AppDataLoadFailureReason | null;
   saveStatus: SaveStatus;
+  saveOutcome: SaveOutcome | null;
+  /** @deprecated 새 UI는 구조화된 saveOutcome을 사용해요. */
   saveError: string | null;
   saveSuccessRevision: number;
   alarmSyncStatus: AlarmSyncStatus;
@@ -72,6 +105,7 @@ export type AppStore = {
   alarmAutoCheckState: AlarmAutoCheckState;
   retryLoad: () => Promise<boolean>;
   retrySave: () => Promise<boolean>;
+  retrySleepReminderSync: () => Promise<boolean>;
   getShiftForDate: (dateKey: string) => ShiftType | null;
   getNoteForDate: (dateKey: string) => string;
   saveDay: (
@@ -141,6 +175,7 @@ export type AppStoreStatusState = Pick<
   | 'loadError'
   | 'loadFailureReason'
   | 'saveStatus'
+  | 'saveOutcome'
   | 'saveError'
   | 'saveSuccessRevision'
   | 'alarmSyncStatus'

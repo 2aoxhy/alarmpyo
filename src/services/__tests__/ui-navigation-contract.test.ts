@@ -17,6 +17,7 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings.match(/<ListRow/gu)).toHaveLength(4);
     expect(settings).toContain('title="근무표 설정"');
     expect(settings).toContain("router.push('/shift-settings')");
+    expect(settings).toContain('title="홈 화면 위젯"');
     expect(settings).toContain('title="데이터·앱 정보"');
     expect(settings).not.toContain('title="기상 시간"');
     for (const title of [
@@ -125,19 +126,26 @@ describe('핵심 화면 탐색 계약', () => {
     const calendar = source('src/app/(tabs)/calendar.tsx');
     const monthCard = source('src/features/calendar/calendar-month-card.tsx');
 
-    expect(monthCard).toContain('날짜 영역을 좌우로 밀어 보세요');
+    expect(monthCard).toContain('좌우로 밀어 토요일까지 확인하세요');
     expect(monthCard).toContain('showsHorizontalScrollIndicator');
-    expect(monthCard).toContain('accessibilityLiveRegion="polite"');
-    expect(calendar).not.toContain('`${formatMonthTitle(next.year, next.month)}로 이동했어요.`');
+    expect(monthCard).not.toContain('accessibilityLiveRegion="polite"');
+    expect(calendar).toContain('`${formatMonthTitle(next.year, next.month)}로 이동했어요.`');
+    expect(calendar).toContain("'오늘 날짜를 강조했어요.'");
   });
 
-  it('화면 설정은 테마 선택 없이 다크 테마만 안내해요', () => {
+  it('홈 화면 위젯 설정은 조작할 수 없는 테마 안내를 반복하지 않아요', () => {
     const settings = source('src/components/settings-home.tsx');
     const displaySettings = source('src/app/display-settings.tsx');
     const themeProvider = source('src/providers/app-theme-provider.tsx');
 
-    expect(settings).toContain('subtitle="다크 화면과 홈 화면 위젯을 설정해요"');
-    expect(displaySettings).toContain('다크 테마만 사용해요');
+    expect(settings).toContain('title="홈 화면 위젯"');
+    expect(settings).toContain('subtitle="표시할 정보와 위젯 추가를 관리해요"');
+    expect(displaySettings).toContain("title: '홈 화면 위젯'");
+    expect(displaySettings).not.toContain(
+      '<AppText accessibilityRole="header" variant="heading">홈 화면 위젯',
+    );
+    expect(displaySettings).not.toContain('화면 테마');
+    expect(displaySettings).not.toContain('다크 테마만 사용해요');
     expect(displaySettings).not.toContain('SegmentedControl');
     expect(displaySettings).not.toContain("value: 'light'");
     expect(themeProvider).toContain("mode: 'dark'");
@@ -145,6 +153,14 @@ describe('핵심 화면 탐색 계약', () => {
     expect(themeProvider).toContain("document.documentElement.style.colorScheme = 'dark'");
     expect(themeProvider).not.toContain('useColorScheme');
     expect(themeProvider).not.toContain('lightPalette');
+  });
+
+  it('설정 하위 화면은 네이티브 제목을 본문에서 반복하지 않아요', () => {
+    const appManagement = source('src/app/app-management.tsx');
+    const privacy = source('src/app/privacy.tsx');
+
+    expect(appManagement.match(/데이터·앱 정보/gu)).toHaveLength(1);
+    expect(privacy.match(/개인정보 처리방침/gu)).toHaveLength(1);
   });
 
   it('긴 화면과 웹 날짜 입력은 스크롤·키보드 포커스 단서를 보여 줘요', () => {
@@ -256,11 +272,25 @@ describe('핵심 화면 탐색 계약', () => {
     const alarmSettings = source('src/app/alarm-settings.tsx');
     const statusBanner = source('src/design-system/status-banner.tsx');
 
-    expect(alarmSettings).toContain('resolveSleepReminderStorageNotice');
-    expect(alarmSettings).toContain('testID="sleep-reminder-storage-health"');
+    expect(alarmSettings).toContain('sleepReminderStatus,');
+    expect(alarmSettings).toContain("accessSummary.action === 'retry-sleep-reminders'");
+    expect(alarmSettings).toContain("accessSummary.action === 'open-sleep-settings'");
     expect(alarmSettings).toContain('retrySleepReminderStorage');
-    expect(statusBanner).toContain("accessibilityLiveRegion={tone === 'danger' ? 'assertive' : 'polite'}");
+    expect(alarmSettings).toContain('announceChanges');
+    expect(statusBanner).toContain('accessibilityLiveRegion={liveRegion}');
+    expect(statusBanner).toContain('previousAnnouncementKeyRef');
     expect(statusBanner).toContain('accessibilityRole="button"');
     expect(statusBanner).toContain('accessibilityLabel={actionLabel}');
+  });
+
+  it('오늘 화면만 활성 상태에서 수면 알림 건강 상태를 확인하고 설정 루트는 조회하지 않아요', () => {
+    const today = source('src/app/(tabs)/index.tsx');
+    const settings = source('src/components/settings-home.tsx');
+
+    expect(today).toContain('getAlarmPyoSleepReminderStatus');
+    expect(today).toContain('data.settings.sleepReminderEnabled');
+    expect(today).toContain('sleepReminderStatusError');
+    expect(settings).not.toContain('getAlarmPyoSleepReminderStatus');
+    expect(settings).not.toContain('getAlarmPyoAlarmStatus');
   });
 });

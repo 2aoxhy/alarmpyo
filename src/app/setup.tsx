@@ -305,7 +305,7 @@ export default function SetupScreen() {
             <AppText accessibilityRole="header" variant="heading" style={styles.centerText}>
               첫 근무일을 설정해요
             </AppText>
-            <AppText variant="body" color={palette.inkMuted} style={styles.centerText}>
+            <AppText variant="body" tone="secondary" style={styles.centerText}>
               날짜와 그날의 실제 근무를 맞추면 이후 일정이 자동으로 이어져요.
             </AppText>
           </View>
@@ -315,7 +315,7 @@ export default function SetupScreen() {
               <AppText accessibilityRole="header" variant="label">
                 첫 근무일
               </AppText>
-              <AppText variant="caption" color={palette.inkMuted}>
+              <AppText variant="caption" tone="secondary">
                 이 날짜 전 일정은 만들지 않아요.
               </AppText>
             </View>
@@ -361,7 +361,7 @@ export default function SetupScreen() {
                       ? `${formatKoreanDate(referenceDate)}의 실제 근무`
                       : '첫 근무일의 실제 근무'}
                   </AppText>
-                  <AppText variant="caption" color={palette.inkMuted}>
+                  <AppText variant="caption" tone="secondary">
                     주주야야휴휴 중 해당하는 순서를 선택해요.
                   </AppText>
                 </View>
@@ -371,7 +371,7 @@ export default function SetupScreen() {
                   position={position}
                   shiftTypes={data.shiftTypes}
                 />
-                <AppText variant="caption" color={palette.inkSoft}>
+                <AppText variant="caption" tone="tertiary">
                   야간은 근무를 시작한 날짜를 기준으로 선택해요.
                 </AppText>
               </View>
@@ -381,7 +381,7 @@ export default function SetupScreen() {
                   <AppText accessibilityRole="header" variant="label">
                     주간 고정 일정
                   </AppText>
-                  <AppText variant="caption" color={palette.inkMuted}>
+                  <AppText variant="caption" tone="secondary">
                     평일 주간 시간은 아래에서 직접 바꿀 수 있어요.
                   </AppText>
                 </View>
@@ -395,7 +395,7 @@ export default function SetupScreen() {
                 <AppText accessibilityRole="header" variant="label">
                   근무 시간
                 </AppText>
-                <AppText variant="caption" color={palette.inkMuted}>
+                <AppText variant="caption" tone="secondary">
                   실제 회사 근무 시간에 맞게 입력해요.
                 </AppText>
               </View>
@@ -435,10 +435,10 @@ export default function SetupScreen() {
             <AppText accessibilityRole="header" variant="label">
               자료는 이 휴대폰에만 저장돼요
             </AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               계정이나 자체 서버로 보내지 않아요. 앱을 삭제하면 근무표·메모·설정도 함께 사라져요.
             </AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               설정을 마친 뒤 설정의 데이터 메뉴에서 백업 파일을 만들어 다른 위치에 보관할 수 있어요.
             </AppText>
           </Card>

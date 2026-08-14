@@ -3,19 +3,20 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { SleepTimingCard } from '@/components/sleep-timing-card';
+import { StatusBadge } from '@/components/status-badge';
 import { AppText, Card, SectionHeader } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { SleepTimingGuidance } from '@/services/sleep-timing-planner';
 import type { WorkRoutinePlan } from '@/services/work-routine-planner';
+import type { AlarmHealthState } from '@/services/alarm-access-summary';
 
 type TodayGuidanceSectionProps = {
   alarmHasDateOverride: boolean;
+  alarmHealthState: AlarmHealthState;
   alarmSummaryLabel: string;
-  alarmsReady: boolean;
   compact: boolean;
-  hasAlarmIssue: boolean;
   largeText: boolean;
   now: Date;
   routinePlan: WorkRoutinePlan | null;
@@ -25,10 +26,9 @@ type TodayGuidanceSectionProps = {
 
 export function TodayGuidanceSection({
   alarmHasDateOverride,
+  alarmHealthState,
   alarmSummaryLabel,
-  alarmsReady,
   compact,
-  hasAlarmIssue,
   largeText,
   now,
   routinePlan,
@@ -37,6 +37,10 @@ export function TodayGuidanceSection({
 }: TodayGuidanceSectionProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const alarmsReady = alarmHealthState.status === 'ready';
+  const hasAlarmIssue =
+    alarmHealthState.status === 'action-required' ||
+    alarmHealthState.status === 'error';
 
   return (
     <View style={styles.section}>
@@ -79,29 +83,26 @@ export function TodayGuidanceSection({
           <View style={styles.alarmCopy}>
             <View style={styles.alarmTitleRow}>
               <AppText variant="label">근무 알람</AppText>
-              {scheduledAlarmCount > 0 ? (
-                <View style={styles.scheduledBadge}>
-                  <AppText
-                    color={alarmsReady ? palette.violet : palette.inkSoft}
-                    variant="caption">
-                    {scheduledAlarmCount}개 예약
-                  </AppText>
-                </View>
+              {alarmsReady && scheduledAlarmCount > 0 ? (
+                <StatusBadge
+                  backgroundColor={palette.violetSoft}
+                  borderColor={palette.violet}
+                  label={`${scheduledAlarmCount}개 예약`}
+                />
               ) : null}
               {alarmHasDateOverride ? (
-                <View style={styles.overrideBadge}>
-                  <AppText color={palette.mintDark} variant="caption">
-                    이날만 설정
-                  </AppText>
-                </View>
+                <StatusBadge
+                  backgroundColor={palette.mintSoft}
+                  borderColor={palette.mint}
+                  label="이날만 설정"
+                />
               ) : null}
             </View>
-            <View
-              accessibilityLiveRegion={hasAlarmIssue ? 'polite' : 'none'}
-              style={styles.alarmSummary}>
+            <View style={styles.alarmSummary}>
               <AppText
-                color={hasAlarmIssue ? palette.danger : palette.inkMuted}
+                color={hasAlarmIssue ? palette.danger : undefined}
                 numberOfLines={largeText ? undefined : 2}
+                tone={hasAlarmIssue ? 'primary' : 'secondary'}
                 variant="caption">
                 {alarmSummaryLabel}
               </AppText>
@@ -177,24 +178,6 @@ const createStyles = (palette: AppPalette) =>
     },
     alarmSummary: {
       minWidth: 0,
-    },
-    scheduledBadge: {
-      minHeight: 26,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.pill,
-      backgroundColor: palette.violetSoft,
-      paddingHorizontal: 9,
-      paddingVertical: 3,
-    },
-    overrideBadge: {
-      minHeight: 26,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.pill,
-      backgroundColor: palette.mintSoft,
-      paddingHorizontal: 9,
-      paddingVertical: 3,
     },
     rowPressed: {
       opacity: 0.72,

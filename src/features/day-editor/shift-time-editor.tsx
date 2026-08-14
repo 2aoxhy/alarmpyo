@@ -63,7 +63,7 @@ export function ShiftTimeEditor({
           <AppText accessibilityRole="header" variant="heading">
             이 날짜의 근무 시간
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             이날만 적용되며 알람도 자동으로 다시 계산돼요.
           </AppText>
         </View>
@@ -81,7 +81,7 @@ export function ShiftTimeEditor({
 
       <View style={[styles.timeRow, compact && styles.timeRowCompact]}>
         <View style={styles.timeField}>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             시작 시간
           </AppText>
           <TextInput
@@ -119,7 +119,7 @@ export function ShiftTimeEditor({
           />
         </View>
         <View style={styles.timeField}>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             종료 시간
           </AppText>
           <TextInput

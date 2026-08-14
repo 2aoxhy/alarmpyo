@@ -133,12 +133,43 @@ export type SemanticColors = {
   onPositive: string;
   info: string;
   infoSoft: string;
+  weekendSaturday: string;
   warning: string;
   warningSoft: string;
   danger: string;
   dangerSoft: string;
   overlay: string;
 };
+
+export type TextTone =
+  | 'primary'
+  | 'secondary'
+  | 'tertiary'
+  | 'disabled'
+  | 'inverse';
+
+/**
+ * Keeps text hierarchy independent from legacy palette names. Explicit colors
+ * remain available for semantic status content, while ordinary copy should use
+ * one of these roles.
+ */
+export function resolveTextTone(
+  palette: AppPalette,
+  tone: TextTone,
+): string {
+  switch (tone) {
+    case 'secondary':
+      return palette.inkMuted;
+    case 'tertiary':
+      return palette.inkSoft;
+    case 'disabled':
+      return palette.disabledInk;
+    case 'inverse':
+      return palette.white;
+    case 'primary':
+      return palette.ink;
+  }
+}
 
 /** AppPalette를 화면의 역할에 맞는 색상 이름으로 바꿔 줘요. */
 export function createSemanticColors(
@@ -158,7 +189,7 @@ export function createSemanticColors(
     border: palette.line,
     borderStrong: palette.controlLine,
     focus: isDark ? palette.lilac : palette.indigo,
-    accent: isDark ? palette.indigoDark : palette.indigo,
+    accent: palette.indigo,
     accentStrong: palette.indigoDark,
     accentSoft: palette.indigoSoft,
     onAccent: palette.white,
@@ -167,6 +198,7 @@ export function createSemanticColors(
     onPositive: isDark ? palette.canvas : palette.white,
     info: palette.blue,
     infoSoft: palette.blueSoft,
+    weekendSaturday: palette.weekendSaturday,
     warning: palette.amber,
     warningSoft: palette.amberSoft,
     danger: palette.danger,

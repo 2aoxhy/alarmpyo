@@ -76,7 +76,7 @@ export function DatePickerField({
       </View>
 
       {valid ? (
-        <AppText color={palette.inkMuted} style={styles.helpText} variant="caption">
+        <AppText tone="secondary" style={styles.helpText} variant="caption">
           {formatKoreanDate(value, true)}
         </AppText>
       ) : (

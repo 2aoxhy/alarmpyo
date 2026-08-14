@@ -259,7 +259,7 @@ export default function DayEditorScreen() {
         <AppText accessibilityRole="header" variant="title">
           날짜를 열 수 없어요
         </AppText>
-        <AppText color={palette.inkMuted} style={styles.invalidDateText}>
+        <AppText tone="secondary" style={styles.invalidDateText}>
           달력에서 날짜를 다시 선택해 주세요.
         </AppText>
       </Screen>
@@ -283,7 +283,7 @@ export default function DayEditorScreen() {
         <AppText accessibilityRole="header" variant="title">
           일정 적용 시작일 이전이에요
         </AppText>
-        <AppText color={palette.inkMuted} style={styles.invalidDateText}>
+        <AppText tone="secondary" style={styles.invalidDateText}>
           {formatKoreanDate(scheduleStartDate, true)}부터 일정이 시작돼요. 이전 날짜에는
           근무와 알람을 만들지 않아요.
         </AppText>

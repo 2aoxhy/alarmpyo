@@ -32,7 +32,7 @@ describe('calendar day status display', () => {
   it('공휴일과 급여일이 겹치면 공휴일을 표시하고 급여일은 점으로 남겨요', () => {
     expect(resolveCalendarStatusDisplay(holiday, payday)).toEqual({
       primary: { kind: 'holiday', label: '제헌절' },
-      showPaydayDot: true,
+      paydayMarkerLabel: '급',
     });
     expect(CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL).toBe('공휴일과 겹친 월급날');
   });
@@ -40,14 +40,27 @@ describe('calendar day status display', () => {
   it('급여일만 있으면 급여 문구를 표시해요', () => {
     expect(resolveCalendarStatusDisplay(null, payday)).toEqual({
       primary: { kind: 'payday', label: '급여' },
-      showPaydayDot: false,
+      paydayMarkerLabel: null,
     });
   });
 
   it('좁은 칸의 공휴일은 두 글자로 줄이고 급여일 정보는 점으로 유지해요', () => {
     expect(resolveCalendarStatusDisplay(holiday, payday, true)).toEqual({
       primary: { kind: 'holiday', label: '제헌' },
-      showPaydayDot: true,
+      paydayMarkerLabel: '급',
+    });
+  });
+
+  it('예상 급여일은 별표를 붙여 확정 급여일과 구분해요', () => {
+    const estimated = { ...payday, confirmed: false };
+
+    expect(resolveCalendarStatusDisplay(null, estimated, true)).toEqual({
+      primary: { kind: 'payday', label: '급여*' },
+      paydayMarkerLabel: null,
+    });
+    expect(resolveCalendarStatusDisplay(holiday, estimated, true)).toEqual({
+      primary: { kind: 'holiday', label: '제헌' },
+      paydayMarkerLabel: '급*',
     });
   });
 

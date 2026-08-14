@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
 const POLICY_SECTIONS = [
@@ -42,21 +41,15 @@ const POLICY_SECTIONS = [
 ] as const;
 
 export default function PrivacyScreen() {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
     <>
       <Stack.Screen options={{ title: '개인정보 처리방침' }} />
       <Screen contentStyle={styles.screen}>
-        <View style={styles.header}>
-          <AppText accessibilityRole="header" variant="title">
-            개인정보 처리방침
-          </AppText>
-          <AppText color={palette.inkMuted} style={styles.centerText}>
-            알람표가 데이터를 저장하고 사용하는 기준을 안내해요.
-          </AppText>
-        </View>
+        <AppText tone="secondary" style={styles.centerText}>
+          알람표가 데이터를 저장하고 사용하는 기준을 안내해요.
+        </AppText>
 
         <Card style={styles.policyCard}>
           {POLICY_SECTIONS.map((section) => (
@@ -64,7 +57,7 @@ export default function PrivacyScreen() {
               <AppText accessibilityRole="header" variant="heading">
                 {section.title}
               </AppText>
-              <AppText color={palette.inkMuted}>{section.body}</AppText>
+              <AppText tone="secondary">{section.body}</AppText>
             </View>
           ))}
         </Card>
@@ -73,12 +66,12 @@ export default function PrivacyScreen() {
           <AppText accessibilityRole="header" variant="label">
             문의와 시행일
           </AppText>
-          <AppText color={palette.inkMuted}>
+          <AppText tone="secondary">
             개인정보 관련 문의는 앱을 설치한 스토어의 개발자 연락처를 이용해
             주세요. 보안 취약점은 공개 저장소의 비공개 보안 신고 기능으로 알려
             주세요.
           </AppText>
-          <AppText color={palette.inkSoft} variant="caption">
+          <AppText tone="tertiary" variant="caption">
             시행일 2026년 8월 12일
           </AppText>
         </Card>
@@ -90,7 +83,6 @@ export default function PrivacyScreen() {
 const createStyles = (_palette: AppPalette) =>
   StyleSheet.create({
     screen: { gap: spacing.large },
-    header: { alignItems: 'center', gap: spacing.small },
     centerText: { textAlign: 'center' },
     policyCard: { gap: spacing.large },
     section: { gap: spacing.small },

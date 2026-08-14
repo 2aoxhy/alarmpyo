@@ -26,7 +26,6 @@ import {
 } from '@/features/shift-settings/shift-settings-model';
 import { ShiftTimingEditor } from '@/features/shift-settings/shift-timing-editor';
 import { WorkPatternOverview } from '@/features/shift-settings/work-pattern-overview';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
   ShiftType,
@@ -46,7 +45,6 @@ import { getWorkPatternKind } from '@/utils/work-pattern';
 export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { showDialog } = useAppDialog();
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { createBackup, data, updateShiftTypes } = useAppStore();
   const navigation = useNavigation();
@@ -364,7 +362,7 @@ export default function ShiftSettingsScreen() {
           />
         }>
         <View style={styles.intro}>
-          <AppText color={palette.inkMuted} style={styles.centerText} variant="body">
+          <AppText tone="secondary" style={styles.centerText} variant="body">
             회사 근무 방식과 시간을 한곳에서 확인해요.
           </AppText>
         </View>

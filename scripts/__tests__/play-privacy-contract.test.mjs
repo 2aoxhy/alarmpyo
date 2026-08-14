@@ -11,6 +11,7 @@ const publicPolicy = source('public/privacy-policy.html');
 const inAppPolicy = source('src/app/privacy.tsx');
 const listing = source('docs/google-play-listing-ko.md');
 const dataSafety = source('docs/google-play-data-safety-ko.md');
+const playPolicy = JSON.parse(source('play-release-policy.json'));
 
 describe('Google Play 개인정보·건강 선언 계약', () => {
   it('EAS Update 실제 구성과 공개·앱 내 방침이 일치해요', () => {
@@ -71,10 +72,13 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
   });
 
   it('Sleep Management 범위와 비의료 안내를 정확히 제한해요', () => {
-    for (const contents of [publicPolicy, inAppPolicy, listing]) {
+    for (const contents of [publicPolicy, inAppPolicy]) {
       expect(contents).toContain('진단·치료·치유·예방');
       expect(contents).toContain('의료 전문가와 상담');
     }
+    expect(listing).toContain('수면 준비 알림');
+    expect(listing).not.toContain('진단·치료·치유·예방');
+    expect(listing).not.toContain('의료 전문가와 상담');
     expect(dataSafety).toContain('`Sleep Management`');
     expect(dataSafety).toContain('Health Connect·센서·의료 데이터 권한');
     expect(dataSafety).toContain('의료·연구·다른 건강 기능은 선택하지 않아요');
@@ -90,5 +94,14 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(publicPolicy).not.toContain('light dark');
     expect(publicPolicy).toContain('시행일 2026년 8월 12일');
     expect(inAppPolicy).toContain('시행일 2026년 8월 12일');
+  });
+
+  it('스토어 초안은 활성 방침 상태를 반영하되 소유자 URL을 복제하지 않아요', () => {
+    expect(playPolicy).toMatchObject({ releaseState: 'active', releaseBlockers: [] });
+    expect(playPolicy.privacyPolicyUrl).toMatch(/^https:\/\//u);
+    expect(listing).toContain('play-release-policy.json');
+    expect(listing).toContain('활성 HTTPS 페이지');
+    expect(listing).not.toContain('게시 전');
+    expect(listing).not.toContain(playPolicy.privacyPolicyUrl);
   });
 });

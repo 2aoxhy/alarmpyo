@@ -9,7 +9,6 @@ import {
   Screen,
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreData } from '@/store/app-store';
 import { formatCompactTime } from '@/utils/date';
@@ -17,7 +16,6 @@ import { getWorkPatternKind } from '@/utils/work-pattern';
 
 export default function SettingsHome() {
   const { data } = useAppStoreData();
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const patternKind = getWorkPatternKind(data.pattern.shiftTypeIds);
   const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
@@ -43,7 +41,7 @@ export default function SettingsHome() {
         <AppText accessibilityRole="header" variant="title">
           설정
         </AppText>
-        <AppText color={palette.inkMuted} style={styles.headerDescription}>
+        <AppText tone="secondary" style={styles.headerDescription}>
           필요한 설정을 한 번에 찾을 수 있어요.
         </AppText>
       </View>
@@ -68,8 +66,8 @@ export default function SettingsHome() {
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
-          subtitle="다크 화면과 홈 화면 위젯을 설정해요"
-          title="화면·위젯"
+          subtitle="표시할 정보와 위젯 추가를 관리해요"
+          title="홈 화면 위젯"
         />
         <MenuDivider />
         <ListRow

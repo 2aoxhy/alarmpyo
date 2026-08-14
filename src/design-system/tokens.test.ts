@@ -7,6 +7,7 @@ import {
   interaction,
   isDarkPalette,
   motion,
+  resolveTextTone,
   resolveMotionDuration,
   size,
 } from './tokens';
@@ -21,8 +22,18 @@ describe('design-system tokens', () => {
     expect(light.onPositive).toBe(lightPalette.white);
     expect(dark.background).toBe(darkPalette.canvas);
     expect(dark.focus).toBe(darkPalette.lilac);
-    expect(dark.accent).toBe(darkPalette.indigoDark);
+    expect(dark.accent).toBe(darkPalette.indigo);
+    expect(dark.onAccent).toBe(darkPalette.white);
     expect(dark.onPositive).toBe(darkPalette.canvas);
+    expect(dark.weekendSaturday).toBe(darkPalette.weekendSaturday);
+  });
+
+  it('본문 계층을 색상 이름이 아닌 읽기 역할로 해석해요', () => {
+    expect(resolveTextTone(darkPalette, 'primary')).toBe(darkPalette.ink);
+    expect(resolveTextTone(darkPalette, 'secondary')).toBe(darkPalette.inkMuted);
+    expect(resolveTextTone(darkPalette, 'tertiary')).toBe(darkPalette.inkSoft);
+    expect(resolveTextTone(darkPalette, 'disabled')).toBe(darkPalette.disabledInk);
+    expect(resolveTextTone(darkPalette, 'inverse')).toBe(darkPalette.white);
   });
 
   it('밝기 기준으로 라이트와 다크 팔레트를 구분해요', () => {

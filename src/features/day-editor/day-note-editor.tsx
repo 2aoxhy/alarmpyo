@@ -34,7 +34,7 @@ export function DayNoteEditor({ note, onChange }: DayNoteEditorProps) {
         textAlignVertical="top"
         value={note}
       />
-      <AppText color={palette.inkSoft} style={styles.counter} variant="caption">
+      <AppText tone="tertiary" style={styles.counter} variant="caption">
         {note.length}/200자
       </AppText>
     </MenuGroup>

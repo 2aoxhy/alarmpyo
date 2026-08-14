@@ -33,8 +33,10 @@ import {
 import {
   interaction,
   radius,
+  resolveTextTone,
   size as controlSize,
   space,
+  type TextTone,
   typeScale,
 } from '@/design-system/tokens';
 import { shouldReflowControl } from '@/design-system/responsive';
@@ -52,6 +54,7 @@ type AppTextVariant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'capt
 
 type AppTextProps = PropsWithChildren<{
   variant?: AppTextVariant;
+  tone?: TextTone;
   color?: string;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
@@ -63,6 +66,7 @@ type AppTextProps = PropsWithChildren<{
 export const AppText = forwardRef<Text, AppTextProps>(function AppText({
   children,
   variant = 'body',
+  tone = 'primary',
   color,
   style,
   numberOfLines,
@@ -81,7 +85,12 @@ export const AppText = forwardRef<Text, AppTextProps>(function AppText({
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       numberOfLines={numberOfLines}
       selectable={selectable}
-      style={[styles.textBase, textVariants[variant], { color: color ?? palette.ink }, style]}>
+      style={[
+        styles.textBase,
+        textVariants[variant],
+        { color: color ?? resolveTextTone(palette, tone) },
+        style,
+      ]}>
       {children}
     </Text>
   );
@@ -463,7 +472,7 @@ export function ListRow({
         {subtitle ? (
           <AppText
             variant="caption"
-            color={palette.inkMuted}
+            tone="secondary"
             numberOfLines={
               allowSubtitleWrapping || fontScale >= 1.3 ? undefined : 2
             }
@@ -509,6 +518,7 @@ export function MenuGroup({
       <AppText
         accessibilityRole="header"
         style={[styles.menuGroupTitle, centered && styles.menuGroupTitleCentered]}
+        tone="secondary"
         variant="label">
         {title}
       </AppText>
@@ -632,7 +642,7 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   },
   buttonSecondary: {
     borderWidth: 1.5,
-    borderColor: palette.indigo,
+    borderColor: palette.controlLine,
     backgroundColor: palette.indigoSoft,
   },
   buttonGhost: { backgroundColor: palette.transparent },
@@ -720,7 +730,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   },
   menuGroupTitle: {
     paddingHorizontal: space.xs,
-    color: palette.inkMuted,
     fontSize: 14,
     lineHeight: 20,
   },

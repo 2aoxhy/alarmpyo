@@ -119,7 +119,7 @@ export function WorkModeStep({
         <AppText accessibilityRole="header" variant="heading" style={styles.centerText}>
           근무 방식을 선택해요
         </AppText>
-        <AppText variant="body" color={palette.inkMuted} style={styles.centerText}>
+        <AppText variant="body" tone="secondary" style={styles.centerText}>
           회사에서 사용하는 반복 근무표를 선택해요.
         </AppText>
       </View>
@@ -174,7 +174,6 @@ function ModeOption({
   selected: boolean;
   style?: object;
 }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -198,7 +197,7 @@ function ModeOption({
         </AppText>
         <AppText
           variant="caption"
-          color={palette.inkMuted}
+          tone="secondary"
           style={!horizontal && styles.centerText}>
           {description}
         </AppText>
@@ -261,7 +260,7 @@ export function RotationPositionPicker({
                 color={selected ? appearance?.accentColor ?? palette.mintDark : palette.ink}>
                 {option.shortName}
               </AppText>
-              <AppText variant="caption" color={palette.inkMuted}>
+              <AppText variant="caption" tone="secondary">
                 {option.detail}
               </AppText>
             </View>
@@ -401,7 +400,7 @@ function TimeInputRow({
           ]}
           value={start}
         />
-        <AppText color={palette.inkSoft}>~</AppText>
+        <AppText tone="tertiary">~</AppText>
         <TextInput
           accessibilityLabel={`${label} 종료 시간`}
           autoCorrect={false}
@@ -469,7 +468,6 @@ function ScheduleRow({
   kind: 'day' | 'off';
   title: string;
 }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.scheduleRow}>
@@ -478,7 +476,7 @@ function ScheduleRow({
       </View>
       <View style={styles.scheduleCopy}>
         <AppText variant="label">{title}</AppText>
-        <AppText variant="caption" color={palette.inkMuted}>
+        <AppText variant="caption" tone="secondary">
           {description}
         </AppText>
       </View>
@@ -505,7 +503,7 @@ export function SetupPreview({
         <AppText accessibilityRole="header" variant="label">
           미리 보기
         </AppText>
-        <AppText variant="caption" color={palette.inkMuted}>
+        <AppText variant="caption" tone="secondary">
           첫 근무일부터 이어지는 일정이에요.
         </AppText>
       </View>
@@ -515,7 +513,7 @@ export function SetupPreview({
           const appearance = shift ? getShiftAppearance(shift, palette, isDark) : null;
           return (
             <View key={item.dateKey} style={styles.previewItem}>
-              <AppText variant="caption" color={palette.inkMuted} style={styles.centerText}>
+              <AppText variant="caption" tone="secondary" style={styles.centerText}>
                 {item.dateKey === today
                   ? '오늘'
                   : formatKoreanDate(item.dateKey).replace('요일', '')}

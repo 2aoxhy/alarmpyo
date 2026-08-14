@@ -22,10 +22,12 @@ export {
   motion,
   radius,
   resolveMotionDuration,
+  resolveTextTone,
   size,
   space,
   typeScale,
   type SemanticColors,
+  type TextTone,
 } from './tokens';
 export {
   type DesignSystemThemeOverride,

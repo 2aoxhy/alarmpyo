@@ -146,7 +146,7 @@ const createStyles = (_palette: AppPalette) =>
       right: 0,
       bottom: 0,
       left: 0,
-      backgroundColor: 'rgba(5, 11, 24, 0.32)',
+      backgroundColor: 'rgba(0, 0, 0, 0.28)',
     },
     heroStatus: {
       position: 'relative',
@@ -166,7 +166,7 @@ const createStyles = (_palette: AppPalette) =>
       height: 8,
       flexShrink: 0,
       borderRadius: 4,
-      backgroundColor: '#78E6D1',
+      backgroundColor: '#FFFFFF',
     },
     heroCopy: {
       position: 'relative',
@@ -182,7 +182,7 @@ const createStyles = (_palette: AppPalette) =>
       position: 'relative',
       zIndex: 1,
       borderRadius: radii.medium,
-      backgroundColor: 'rgba(4, 12, 29, 0.36)',
+      backgroundColor: 'rgba(0, 0, 0, 0.38)',
       paddingHorizontal: spacing.medium,
       paddingVertical: 9,
     },

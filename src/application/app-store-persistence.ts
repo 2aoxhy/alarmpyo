@@ -95,16 +95,16 @@ export async function persistLatestCanonicalSnapshotAndSyncSleep<
 export function shouldClearSleepReminderSaveError({
   failureRevision,
   currentRevision,
-  currentErrorSource,
+  currentIssueCode,
 }: {
   failureRevision: number | null;
   currentRevision: number;
-  currentErrorSource: 'sleep-reminder' | 'other' | null;
+  currentIssueCode: string | null;
 }): boolean {
   return (
     failureRevision !== null &&
     failureRevision === currentRevision &&
-    currentErrorSource === 'sleep-reminder'
+    currentIssueCode === 'sleep-reminder-sync-failed'
   );
 }
 

@@ -37,7 +37,6 @@ import { SleepReminderToggle } from "@/features/alarm/sleep-reminder-toggle";
 import {
   resolveAlarmScheduleEmptyCopy,
   resolveAlarmStatusBannerTone,
-  resolveSleepReminderStorageNotice,
   resolveVisibleAlarmAutoCheckStatus,
 } from "@/features/alarm/alarm-settings-view-model";
 import { formatWakeTimeSummary } from "@/features/shift-settings/shift-settings-model";
@@ -49,7 +48,7 @@ import {
   buildAlarmPyoAlarmPlan,
   resolveAlarmPyoAlarmShift,
 } from "@/services/alarm-planner";
-import { resolveAlarmAccessSummary } from "@/services/alarm-access-summary";
+import { resolveAlarmHealthState } from "@/services/alarm-access-summary";
 import {
   getAlarmPyoAlarmStatus,
   openAlarmPyoAlarmPermissionSettings,
@@ -217,6 +216,7 @@ export default function AlarmSettingsScreen() {
     enableAlarms,
     getShiftForDate,
     resyncAlarms,
+    saveOutcome,
     sendTestAlarm,
     setSleepReminderEnabled,
   } = useAppStore();
@@ -229,16 +229,13 @@ export default function AlarmSettingsScreen() {
   const [sleepReminderBusy, setSleepReminderBusy] = useState(false);
   const [sleepReminderStatus, setSleepReminderStatus] =
     useState<SleepReminderStatus | null>(null);
+  const [sleepReminderStatusError, setSleepReminderStatusError] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const alarmPlatformSupported = Platform.OS === "android";
   const sleepReminderSupported =
     alarmPlatformSupported && isSleepReminderNativeSupported();
-  const sleepReminderStorageNotice = resolveSleepReminderStorageNotice({
-    enabled: data.settings.sleepReminderEnabled,
-    status: sleepReminderStatus,
-  });
   const alarmSyncVersion = data.settings.lastNotificationSyncAt;
 
   const refreshAlarmState = useCallback(async () => {
@@ -259,10 +256,16 @@ export default function AlarmSettingsScreen() {
   const refreshSleepReminderState = useCallback(async () => {
     if (!sleepReminderSupported) {
       setSleepReminderStatus(null);
+      setSleepReminderStatusError(false);
       return;
     }
-    const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
-    if (status !== null) setSleepReminderStatus(status);
+    try {
+      setSleepReminderStatus(await getAlarmPyoSleepReminderStatus());
+      setSleepReminderStatusError(false);
+    } catch {
+      setSleepReminderStatus(null);
+      setSleepReminderStatusError(true);
+    }
   }, [sleepReminderSupported]);
 
   useFocusEffect(
@@ -303,13 +306,19 @@ export default function AlarmSettingsScreen() {
     plannedAlarms,
     status: alarmAutoCheckState.status,
   });
-  const accessSummary = resolveAlarmAccessSummary({
+  const accessSummary = resolveAlarmHealthState({
     actualScheduledCount: scheduledCount,
     alarmAutoCheckStatus: visibleAlarmAutoCheckStatus,
     alarmStatus,
     alarmStatusError,
     alarmSyncFailed: alarmSyncStatus === 'error',
     notificationsEnabled: data.settings.notificationsEnabled,
+    sleepReminderEnabled: data.settings.sleepReminderEnabled,
+    sleepReminderStatus,
+    sleepReminderStatusError,
+    sleepReminderSupported,
+    sleepReminderSyncFailed:
+      saveOutcome?.issueCode === 'sleep-reminder-sync-failed',
     totalPlannedAlarmCount,
     platformSupported: alarmPlatformSupported,
   });
@@ -434,7 +443,19 @@ export default function AlarmSettingsScreen() {
   };
 
   const runAccessAction = () => {
-    if (alarmBusy || accessSummary.action === "none") return;
+    if (
+      alarmBusy ||
+      sleepReminderBusy ||
+      accessSummary.action === "none"
+    ) return;
+    if (accessSummary.action === 'retry-sleep-reminders') {
+      void retrySleepReminderStorage();
+      return;
+    }
+    if (accessSummary.action === 'open-sleep-settings') {
+      void openSleepReminderSettings();
+      return;
+    }
     setAlarmBusy(true);
 
     if (accessSummary.action === "open-settings") {
@@ -630,6 +651,7 @@ export default function AlarmSettingsScreen() {
             value={data.settings.notificationsEnabled}
           />
           <StatusBanner
+            announceChanges
             icon={accessIcon}
             message={accessDescription}
             testID="alarm-access-status"
@@ -641,12 +663,13 @@ export default function AlarmSettingsScreen() {
               accessibilityHint="휴대폰의 알람 상태를 준비해요."
               icon={
                 accessSummary.action === "resync" ||
-                accessSummary.action === "retry"
+                accessSummary.action === "retry" ||
+                accessSummary.action === 'retry-sleep-reminders'
                   ? "refresh-outline"
                   : "settings-outline"
               }
               label={accessSummary.actionLabel}
-              loading={alarmBusy}
+              loading={alarmBusy || sleepReminderBusy}
               onPress={runAccessAction}
               style={styles.fullWidthButton}
               variant="secondary"
@@ -685,7 +708,7 @@ export default function AlarmSettingsScreen() {
                 ))
               ) : (
                 <AppText
-                  color={palette.inkMuted}
+                  tone="secondary"
                   style={styles.disclosureEmptyCopy}
                   variant="caption"
                 >
@@ -703,32 +726,6 @@ export default function AlarmSettingsScreen() {
               onValueChange={(enabled) => void toggleSleepReminder(enabled)}
               value={data.settings.sleepReminderEnabled}
             />
-            {sleepReminderStorageNotice ? (
-              <StatusBanner
-                actionLabel={sleepReminderStorageNotice.actionLabel}
-                message={sleepReminderStorageNotice.message}
-                onAction={
-                  sleepReminderStorageNotice.actionLabel
-                    ? () => void retrySleepReminderStorage()
-                    : undefined
-                }
-                testID="sleep-reminder-storage-health"
-                title={sleepReminderStorageNotice.title}
-                tone={sleepReminderStorageNotice.tone}
-              />
-            ) : null}
-            {data.settings.sleepReminderEnabled &&
-            sleepReminderStatus?.supported &&
-            !sleepReminderStatus.notificationsAllowed ? (
-              <AppButton
-                icon="settings-outline"
-                label="수면 알림 권한 설정하기"
-                loading={sleepReminderBusy}
-                onPress={() => void openSleepReminderSettings()}
-                style={styles.fullWidthButton}
-                variant="secondary"
-              />
-            ) : null}
           </View>
         ) : null}
 
@@ -776,7 +773,7 @@ export default function AlarmSettingsScreen() {
                   </View>
                   <View style={styles.flexCopy}>
                     <AppText variant="heading">알람 작동 확인</AppText>
-                    <AppText color={palette.inkMuted} variant="caption">
+                    <AppText tone="secondary" variant="caption">
                       {accessSummary.canTest
                         ? "5초 뒤 전체 화면과 소리를 확인해요."
                         : "위 안내에 따라 알람 권한을 먼저 준비해 주세요."}
@@ -803,7 +800,7 @@ export default function AlarmSettingsScreen() {
                   <MenuDivider inset={false} />
                   <View style={styles.detailBlock}>
                     <AppText variant="label">알람 계획 유효 기간</AppText>
-                    <AppText color={palette.inkMuted} variant="caption">
+                    <AppText tone="secondary" variant="caption">
                       {formatAlarmPlanCoverage(alarmStatus?.plannedThroughAt ?? 0)}
                     </AppText>
                   </View>
@@ -820,7 +817,7 @@ export default function AlarmSettingsScreen() {
                       ))
                     ) : (
                       <AppText
-                        color={palette.inkMuted}
+                        tone="secondary"
                         style={styles.detailEmptyCopy}
                         variant="caption"
                       >
@@ -958,7 +955,7 @@ function AlarmRow({
         <AppText variant="label">
           {alarm.shiftName}
         </AppText>
-        <AppText color={palette.inkMuted} variant="caption">
+        <AppText tone="secondary" variant="caption">
           {new Date(alarm.alarmAt).toLocaleString("ko-KR", {
             month: "long",
             day: "numeric",
@@ -1007,11 +1004,11 @@ function AlarmHistoryRow({
           <AppText color={color} variant="label">
             {alarmHistoryLabel(event)}
           </AppText>
-          <AppText color={palette.inkMuted} variant="caption">
+          <AppText tone="secondary" variant="caption">
             {formatAlarmHistoryTime(event.occurredAt)}
           </AppText>
         </View>
-        <AppText color={palette.inkMuted} variant="caption">
+        <AppText tone="secondary" variant="caption">
           {alarmHistoryDetail(event)}
         </AppText>
       </View>

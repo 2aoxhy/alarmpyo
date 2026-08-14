@@ -39,7 +39,7 @@ function paethPredictor(left: number, up: number, upperLeft: number): number {
   return upDistance <= upperLeftDistance ? up : upperLeft;
 }
 
-function decodeRgbaPng(relativePath: string): DecodedRgbaPng {
+function decodeRgbaPng(relativePath: string, expectedSize = 1024): DecodedRgbaPng {
   const bytes = new Uint8Array(readFileSync(resolve(process.cwd(), relativePath)));
   expect(Array.from(bytes.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -74,9 +74,9 @@ function decodeRgbaPng(relativePath: string): DecodedRgbaPng {
   expect({ bitDepth, colorType, height, interlaceMethod, width }).toMatchObject({
     bitDepth: 8,
     colorType: 6,
-    height: 1024,
+    height: expectedSize,
     interlaceMethod: 0,
-    width: 1024,
+    width: expectedSize,
   });
 
   const compressedLength = compressedChunks.reduce(
@@ -250,15 +250,16 @@ describe('stable 배포 설정', () => {
       process.cwd(),
       'assets/images/alarmpyo-adaptive-monochrome.png',
     );
+    const faviconPath = resolve(process.cwd(), 'assets/images/favicon.png');
 
     expect(app.expo.name).toBe('알람표');
     expect(app.expo.description).toBe(
       '주간·교대 근무표와 기상 알람을 간편하게 관리해요',
     );
-    expect(pkg.version).toBe('1.0.2');
-    expect(app.expo.version).toBe('1.0.2');
-    expect(app.expo.android.versionCode).toBe(3);
-    expect(app.expo.ios.buildNumber).toBe('3');
+    expect(pkg.version).toBe('1.0.3');
+    expect(app.expo.version).toBe('1.0.3');
+    expect(app.expo.android.versionCode).toBe(4);
+    expect(app.expo.ios.buildNumber).toBe('4');
     // `android`는 Expo prebuild가 만드는 생성물이므로 새 clone과 소스
     // 아카이브에는 없을 수 있어요. 생성물이 있을 때에는 그 결과도 함께
     // 검증하고, 없을 때에는 원본 Expo 설정 계약만 검증해요.
@@ -272,9 +273,15 @@ describe('stable 배포 설정', () => {
       foregroundImage: './assets/images/alarmpyo-adaptive-foreground.png',
       monochromeImage: './assets/images/alarmpyo-adaptive-monochrome.png',
     });
+    expect(app.expo.web.favicon).toBe('./assets/images/favicon.png');
     expect(existsSync(appIconPath)).toBe(true);
     expect(existsSync(adaptiveForegroundPath)).toBe(true);
     expect(existsSync(adaptiveMonochromePath)).toBe(true);
+    expect(existsSync(faviconPath)).toBe(true);
+    expect(decodeRgbaPng('assets/images/favicon.png', 48)).toMatchObject({
+      height: 48,
+      width: 48,
+    });
 
     expect(app.expo.android.package).toBe('com.personal.alarmpyo');
     expect(app.expo.ios.bundleIdentifier).toBe('com.personal.alarmpyo');
@@ -284,8 +291,12 @@ describe('stable 배포 설정', () => {
     expect(
       app.expo.plugins.find(
         (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen',
-      )?.[1]?.backgroundColor,
-    ).toBe('#101214');
+      )?.[1],
+    ).toMatchObject({
+      backgroundColor: '#101214',
+      image: './assets/images/splash-transparent.png',
+      imageWidth: 160,
+    });
   });
 
   it('Android 적응형 아이콘을 안전 영역 안에 두고 단색 마스크를 일치시킵니다', () => {

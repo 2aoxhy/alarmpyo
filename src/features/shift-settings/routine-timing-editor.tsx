@@ -38,7 +38,6 @@ export function RoutineTimingEditor({
   profile: WorkRoutineTiming;
   startMinutes: number | null;
 }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const defaultProfile = createDefaultWorkRoutineProfiles()[kind];
   const valid =
@@ -105,7 +104,7 @@ export function RoutineTimingEditor({
                 style={[styles.row, compact && styles.rowCompact]}>
                 <View style={styles.rowCopy}>
                   <AppText variant="label">{row.label}</AppText>
-                  <AppText color={palette.inkMuted} variant="caption">
+                  <AppText tone="secondary" variant="caption">
                     {formatMilestoneTime(current)} · 근무 {formatDuration(current)} 전
                   </AppText>
                 </View>

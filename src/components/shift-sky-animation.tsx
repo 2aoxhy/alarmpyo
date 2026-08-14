@@ -105,12 +105,12 @@ export function getShiftSkyPhase(hour: number): ShiftSkyPhase {
 }
 
 const SKY_GRADIENTS: Record<ShiftSkyPhase, readonly [string, string]> = {
-  dawn: ['#30373E', '#42403E'],
-  sunrise: ['#114E68', '#A9505A'],
-  day: ['#07596A', '#087568'],
-  moonrise: ['#29323A', '#3E4146'],
-  sunset: ['#30373E', '#42403E'],
-  night: ['#111820', '#252B31'],
+  dawn: ['#1C1C1C', '#2C2C2C'],
+  sunrise: ['#222222', '#383838'],
+  day: ['#282828', '#404040'],
+  moonrise: ['#202020', '#343434'],
+  sunset: ['#222222', '#363636'],
+  night: ['#121212', '#262626'],
 };
 
 export function getShiftSkyGradient(hour: number) {
@@ -285,7 +285,7 @@ export function ShiftSkyAnimation({ active = true, now, hour, style }: ShiftSkyA
 export function SunArtwork() {
   return (
     <Svg height="100%" viewBox="0 0 96 96" width="100%">
-      <G stroke="#FFE898" strokeLinecap="round" strokeWidth="2.4">
+      <G stroke="#F2F2F2" strokeLinecap="round" strokeWidth="2.4">
         <Line x1="48" x2="48" y1="5" y2="17" />
         <Line x1="48" x2="48" y1="79" y2="91" />
         <Line x1="5" x2="17" y1="48" y2="48" />
@@ -295,9 +295,9 @@ export function SunArtwork() {
         <Line x1="78.4" x2="70" y1="17.6" y2="26" />
         <Line x1="26" x2="17.6" y1="70" y2="78.4" />
       </G>
-      <Circle cx="48" cy="48" fill="#FFE37A" fillOpacity="0.18" r="27" />
-      <Circle cx="48" cy="48" fill="#FFE37A" fillOpacity="0.32" r="21" />
-      <Circle cx="48" cy="48" fill="#FFF0A8" r="15" />
+      <Circle cx="48" cy="48" fill="#FFFFFF" fillOpacity="0.12" r="27" />
+      <Circle cx="48" cy="48" fill="#FFFFFF" fillOpacity="0.24" r="21" />
+      <Circle cx="48" cy="48" fill="#F7F7F7" r="15" />
     </Svg>
   );
 }
@@ -305,13 +305,13 @@ export function SunArtwork() {
 export function MoonArtwork() {
   return (
     <Svg height="100%" viewBox="0 0 96 96" width="100%">
-      <Circle cx="47" cy="48" fill="#DDEBFF" fillOpacity="0.08" r="36" />
+      <Circle cx="47" cy="48" fill="#FFFFFF" fillOpacity="0.08" r="36" />
       <Path
         d="M55 11c-7.2 4.7-11.7 12.8-11.7 21.6 0 14.8 12 26.8 26.8 26.8 4.2 0 8.2-1 11.7-2.7A35.5 35.5 0 1 1 55 11Z"
-        fill="#E9F2FF"
+        fill="#F2F2F2"
       />
-      <Circle cx="52" cy="24" fill="#BBD1ED" fillOpacity="0.55" r="3.2" />
-      <Circle cx="35" cy="57" fill="#BBD1ED" fillOpacity="0.42" r="2.4" />
+      <Circle cx="52" cy="24" fill="#C2C2C2" fillOpacity="0.55" r="3.2" />
+      <Circle cx="35" cy="57" fill="#C2C2C2" fillOpacity="0.42" r="2.4" />
     </Svg>
   );
 }
@@ -319,7 +319,7 @@ export function MoonArtwork() {
 function StarsArtwork() {
   return (
     <Svg height="100%" viewBox="0 0 360 180" width="100%">
-      <G fill="#EAF4FF">
+      <G fill="#F5F5F5">
         <Circle cx="34" cy="28" r="1.4" />
         <Circle cx="78" cy="62" r="1" />
         <Circle cx="116" cy="22" r="1.7" />
@@ -344,7 +344,7 @@ function CloudArtwork() {
       />
       <Path
         d="M124 59h77c6 0 11-4 11-10 0-5-4-9-9-10-2-9-10-15-20-15-8 0-15 5-18 12a13 13 0 0 0-18 12c0 5 3 9 7 11Z"
-        fill="#DCEBFA"
+        fill="#DDDDDD"
         fillOpacity="0.72"
       />
     </Svg>
@@ -356,7 +356,7 @@ function HorizonArtwork() {
     <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 78" width="100%">
       <Path
         d="M0 54c48-20 90-3 133-11 48-9 88-25 137-13 34 8 61 10 90-1v49H0V54Z"
-        fill="#74D5C4"
+        fill="#D3D3D3"
         fillOpacity="0.08"
       />
       <Path

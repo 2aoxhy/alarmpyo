@@ -59,7 +59,7 @@ export default function PlayAppUpdateScreen() {
               <AppText accessibilityRole="header" variant="heading">
                 Google Play에서 업데이트해요
               </AppText>
-              <AppText color={palette.inkMuted} variant="caption">
+              <AppText tone="secondary" variant="caption">
                 새 버전은 Google Play가 안전하게 설치하고 관리해요.
               </AppText>
             </View>
@@ -73,7 +73,7 @@ export default function PlayAppUpdateScreen() {
           />
         </Card>
 
-        <AppText color={palette.inkSoft} style={styles.centerText} variant="caption">
+        <AppText tone="tertiary" style={styles.centerText} variant="caption">
           알람표 · {getCurrentAppUpdateLabel()}
         </AppText>
       </Screen>

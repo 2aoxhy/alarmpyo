@@ -71,6 +71,32 @@ describe('앱 색상 대비', () => {
     expectContrast(darkPalette, 'canvas', 'mint', 4.5);
   });
 
+  it('다크그레이 화면의 본문 계층과 요일 의미색이 충분히 선명해요', () => {
+    expect(darkPalette.ink).toBe('#FAFAFB');
+    expect(darkPalette.inkMuted).toBe('#D9DDE3');
+    expect(darkPalette.inkSoft).toBe('#B5BDC8');
+    expect(darkPalette.disabledInk).toBe('#8C949F');
+    expect(darkPalette.weekendSaturday).toBe('#9AC7FF');
+    expectContrast(darkPalette, 'blue', 'surface', 4.5);
+    expectContrast(darkPalette, 'coral', 'surface', 4.5);
+    expectContrast(darkPalette, 'weekendSaturday', 'surface', 4.5);
+    expectContrast(darkPalette, 'controlLine', 'indigoSoft', 3);
+  });
+
+  it('상태 배지는 의미색 배경 위에 밝은 글자를 사용해요', () => {
+    for (const background of [
+      'mintSoft',
+      'violetSoft',
+      'surfaceSoft',
+      'amberSoft',
+      'coralSoft',
+      'blueSoft',
+      'oliveSoft',
+    ] as const) {
+      expectContrast(darkPalette, 'white', background, 4.5);
+    }
+  });
+
   it.each([
     ['라이트', lightPalette],
     ['다크', darkPalette],

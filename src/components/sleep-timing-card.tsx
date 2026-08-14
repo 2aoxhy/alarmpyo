@@ -151,14 +151,16 @@ function TimingWindow({
       <View style={styles.windowHeading}>
         <AppText
           variant="label"
-          color={primary ? palette.blue : palette.inkMuted}
+          color={primary ? palette.blue : undefined}
+          tone="secondary"
           style={styles.windowTitle}>
           {window.title}
         </AppText>
         <View style={[styles.durationBadge, primary && styles.primaryDurationBadge]}>
           <AppText
             variant="caption"
-            color={primary ? palette.blue : palette.inkMuted}
+            color={primary ? palette.blue : undefined}
+            tone="secondary"
             style={styles.durationText}>
             목표 {duration}
           </AppText>
@@ -166,14 +168,13 @@ function TimingWindow({
       </View>
       <AppText
         variant={primary ? 'heading' : 'label'}
-        color={palette.ink}
         style={styles.timeRange}>
         {isNap ? '보충 수면' : '취침 목표'} {formatShortDateTime(window.startAt, now)}
       </AppText>
-      <AppText variant="caption" color={palette.inkMuted} style={styles.shiftContext}>
+      <AppText variant="caption" tone="secondary" style={styles.shiftContext}>
         {isNap ? '눕기 준비' : '참고 취침'} {formatBedtimeRange(window, now)} · 기상 {formatShortDateTime(window.endAt, now)}
       </AppText>
-      <AppText variant="caption" color={palette.inkMuted} style={styles.windowGuidance}>
+      <AppText variant="caption" tone="secondary" style={styles.windowGuidance}>
         {window.guidance}
       </AppText>
     </View>
@@ -211,7 +212,7 @@ function TransitionPanel({
             <AppText variant="label" color={palette.amber}>
               지금은 야간 전환 시간이에요
             </AppText>
-            <AppText variant="caption" color={palette.inkMuted}>
+            <AppText variant="caption" tone="secondary">
               {formatShortTimeRange(transition.startAt, transition.endAt, now)}
             </AppText>
           </View>
@@ -222,7 +223,7 @@ function TransitionPanel({
           </AppText>
         </View>
       </View>
-      <AppText variant="caption" color={palette.ink}>
+      <AppText variant="caption" tone="primary">
         {transition.guidance} {formatShortDateTime(transition.endAt, now)}부터 보충 수면을 준비하세요.
       </AppText>
     </View>
@@ -267,7 +268,7 @@ export function SleepTimingCard({
           <AppText accessibilityRole="header" variant="label">
             수면 참고 일정
           </AppText>
-          <AppText variant="caption" color={palette.inkMuted}>
+          <AppText variant="caption" tone="secondary">
             {guidance.transitionMode
               ? '근무 전환에 맞춘 취침·기상·보충 수면 일정 참고예요.'
               : guidance.transition
@@ -286,7 +287,7 @@ export function SleepTimingCard({
         <AppText variant="label" color={palette.blue}>
           {collapsedAction}
         </AppText>
-        <AppText variant="caption" color={palette.inkMuted}>
+        <AppText variant="caption" tone="secondary">
           {collapsedTiming}
         </AppText>
       </View>
@@ -298,7 +299,7 @@ export function SleepTimingCard({
           name="alert-circle-outline"
           size={17}
         />
-        <AppText color={palette.inkMuted} style={styles.referenceNoticeCopy} variant="caption">
+        <AppText tone="secondary" style={styles.referenceNoticeCopy} variant="caption">
           생활 리듬을 위한 참고 정보예요. 건강 상태를 판단하는 의료 안내가 아니에요.
         </AppText>
       </View>
@@ -306,7 +307,7 @@ export function SleepTimingCard({
       {guidance.primary.usesFallbackAlarmLead ? (
         <View accessible accessibilityLiveRegion="polite" style={styles.fallbackNotice}>
           <AppIcon accessible={false} color={palette.amber} name="alert-circle-outline" size={18} />
-          <AppText variant="caption" color={palette.ink} style={styles.fallbackNoticeCopy}>
+          <AppText variant="caption" tone="primary" style={styles.fallbackNoticeCopy}>
             기상 기준을 확인할 수 없어 저장한 출근 루틴과 근무 시작 {formatDuration(ROUTINE_ALARM_LEAD_MINUTES)} 전을 기준으로 계산했어요.
           </AppText>
         </View>
@@ -355,7 +356,7 @@ export function SleepTimingCard({
           <View style={[styles.guidanceNote, compact && styles.guidanceNoteCompact]}>
             <AppIcon accessible={false} color={palette.blue} name="checkmark-circle" size={20} />
             <View style={styles.guidanceNoteCopy}>
-              <AppText variant="caption" color={palette.inkMuted}>
+              <AppText variant="caption" tone="secondary">
                 {getReferenceNote(guidance.primary)} 개인 상태에 맞게 조정하세요.
               </AppText>
             </View>

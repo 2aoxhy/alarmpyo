@@ -89,7 +89,7 @@ export function WorkRoutinePanel({
             <AppText accessibilityRole="header" variant="label">
               {plan.title}
             </AppText>
-            <AppText color={palette.inkMuted} variant="caption">
+            <AppText tone="secondary" variant="caption">
               {formatClock(plan.handoverAt)}까지 교대를 마치는 일정이에요.
             </AppText>
           </View>
