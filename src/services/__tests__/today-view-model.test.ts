@@ -36,7 +36,7 @@ const offShift: ShiftType = {
 };
 
 const data: AppData = {
-  version: 19,
+  version: 20,
   shiftTypes: [dayShift, offShift],
   pattern: {
     name: '시험 근무표',

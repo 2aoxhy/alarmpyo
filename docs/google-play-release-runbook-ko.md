@@ -11,7 +11,7 @@
 - 패키지 이름이 `com.personal.alarmpyo`인지 확인하고 다른 앱으로 새로 만들지 않아요.
 - `docs/google-play-listing-ko.md`의 이름·짧은 설명·전체 설명을 Console 초안으로 저장해요.
 - `assets/play-store` 아이콘·대표 그래픽을 확인하고, 최종 Play 설치본의 휴대전화 스크린샷은 아직 임시 자산으로 만들지 않아요.
-- `public/privacy-policy.html`의 본문과 GitHub Pages 수동 게시 워크플로는 준비됐지만, 실제 Pages 주소를 공개·확인하기 전에는 Console이나 `play-release-policy.json`에 임시 URL을 입력하지 않아요. 개인정보처리방침 Pages와 direct APK용 production Hosting은 별개예요.
+- `play-release-policy.json`에 기록한 공개 GitHub Pages 주소가 로컬 `public/privacy-policy.html`과 같은 내용인지 출시마다 해시까지 다시 확인해요. 개인정보처리방침 Pages와 direct APK용 production Hosting은 별개예요.
 - 광고 없음, 계정 없음, 제한 없이 접근 가능한 앱이라는 답변을 초안으로 저장하되 최종 Play 산출물에서 다시 확인해요.
 
 다음 항목은 코드를 빌드하기 전에 Play Console과 계정 상태에서 확인해 기록해요.
@@ -43,7 +43,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-현재 V04 Play 후보는 `versionCode: 5`예요. V03(4)이 Play Alpha·테스터 업데이트 계보에 사용됐으므로 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 보수적으로 `4`예요. 후보를 업로드하기 전에 두 확인 결과를 `.release/play/release-evidence.json`에 기록하고, 추정값을 넣지 않아요. 확인 결과가 예제보다 높으면 실제 값으로 바꾸고, 둘 중 하나라도 `5` 이상이면 실제 최고값보다 큰 versionCode로 다시 정해 문서·설정·증거를 함께 갱신해요.
+현재 V05 Play 후보는 `versionCode: 6`이에요. V04(5)가 Play Alpha·테스터 업데이트 계보에 사용됐으므로 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 보수적으로 `5`예요. 후보를 업로드하기 전에 두 확인 결과를 `.release/play/release-evidence.json`에 기록하고, 추정값을 넣지 않아요. 확인 결과가 예제보다 높으면 실제 값으로 바꾸고, 둘 중 하나라도 `6` 이상이면 실제 최고값보다 큰 versionCode로 다시 정해 문서·설정·증거를 함께 갱신해요.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인해요
 
@@ -144,7 +144,8 @@ Samsung 실기기에서는 다음을 확인해요.
 
 - 설치 출처가 `com.android.vending`이고 앱 서명 SHA-256이 `play-release-policy.json`에 별도로 확정한 Play App Signing 인증서와 같아요.
 - 첫 출시는 새 설치·초기 설정을 확인하고, 후속 출시는 기존 AlarmPyo 위에 설치해 근무표·메모·설정·권한이 유지되는지 확인해요.
-- 앱 종료, 재부팅, 날짜·시간·시간대 변경 뒤 정확한 알람과 예약 복구가 동작해요.
+- 앱 종료, 재부팅, 날짜·시간·시간대 변경 뒤 근무 알람과 30분·60분 타이머 예약 복구가 동작해요.
+- 근무·시험·타이머 알람이 소리와 진동으로 한 번만 울리고 끄기·5분 재알림이 정확히 동작해요.
 - 알림 거부 상태, 전체 화면 알람, 포그라운드 알람음, 위젯을 확인해요.
 
 16KB 기기 또는 AVD에서는 App Bundle Explorer split APK의 서명·ZIP·ELF 정렬, 설치·실행, 일정 흐름, 앱 종료·재부팅 알람과 위젯을 확인해요.

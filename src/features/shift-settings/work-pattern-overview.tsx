@@ -9,6 +9,7 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { AppData } from '@/models/app-data';
 import { formatKoreanDate } from '@/utils/date';
+import { getWorkPatternPreset, getWorkPatternPresetId } from '@/utils/work-pattern';
 
 import { buildWorkScheduleOverview } from './shift-settings-model';
 
@@ -29,6 +30,11 @@ export function WorkPatternOverview({
     () => buildWorkScheduleOverview(data, today),
     [data, today],
   );
+  const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
+  const patternDescription =
+    presetId === 'custom'
+      ? `${data.pattern.shiftTypeIds.length}일 회사 순서로 반복해요.`
+      : getWorkPatternPreset(presetId).description;
 
   return (
     <Card style={styles.card}>
@@ -37,7 +43,7 @@ export function WorkPatternOverview({
           <AppIcon
             accessible={false}
             color={palette.indigoDark}
-            name={overview.kind === 'weekday' ? 'shift-day' : 'repeat'}
+            name={presetId === 'weekday' ? 'shift-day' : 'repeat'}
             size={24}
           />
         </View>
@@ -46,9 +52,7 @@ export function WorkPatternOverview({
             {overview.patternName}
           </AppText>
           <AppText tone="secondary" variant="caption">
-            {overview.kind === 'weekday'
-              ? '월요일부터 금요일까지 주간, 토·일요일은 휴무예요.'
-              : '주간 2일, 야간 2일, 휴무 2일 순서로 반복해요.'}
+            {patternDescription}
           </AppText>
         </View>
       </View>

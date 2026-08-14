@@ -6,21 +6,24 @@ import { AppIcon } from '@/components/app-icon';
 import {
   colorWithAlpha,
   shadow,
-  spacing,
   type AppPalette,
 } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { resolveFloatingTabBarLayout } from '@/utils/floating-tab-bar';
+import {
+  resolveFloatingTabBarHorizontalLayout,
+  resolveFloatingTabBarLayout,
+} from '@/utils/floating-tab-bar';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { fontScale, width: windowWidth } = useWindowDimensions();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const leftInset = Math.max(insets.left, spacing.medium);
-  const rightInset = Math.max(insets.right, spacing.medium);
+  const horizontalLayout = resolveFloatingTabBarHorizontalLayout(windowWidth, 4);
+  const leftInset = Math.max(insets.left, horizontalLayout.outerMargin);
+  const rightInset = Math.max(insets.right, horizontalLayout.outerMargin);
   const availableWidth = Math.max(windowWidth - leftInset - rightInset, 0);
   const tabBarWidth = Math.min(availableWidth, 560);
   const tabBarLeft = leftInset + (availableWidth - tabBarWidth) / 2;
@@ -58,7 +61,13 @@ export default function TabsLayout() {
         tabBarHideOnKeyboard: true,
         tabBarInactiveTintColor: palette.inkSoft,
         tabBarIconStyle: styles.tabBarIcon,
-        tabBarItemStyle: [styles.tabBarItem, { paddingVertical: tabBarItemPadding }],
+        tabBarItemStyle: [
+          styles.tabBarItem,
+          {
+            marginHorizontal: horizontalLayout.itemMargin,
+            paddingVertical: tabBarItemPadding,
+          },
+        ],
         tabBarLabel: ({ children, color }) => (
           <Text
             maxFontSizeMultiplier={2}
@@ -74,6 +83,7 @@ export default function TabsLayout() {
             bottom: tabBarLayout.bottom,
             height: tabBarLayout.height,
             left: tabBarLeft,
+            paddingHorizontal: horizontalLayout.horizontalPadding,
             width: tabBarWidth,
           },
         ],
@@ -93,6 +103,15 @@ export default function TabsLayout() {
           title: '달력',
           tabBarIcon: ({ color, focused }) => (
             <AppIcon color={color} name={focused ? 'calendar' : 'calendar-outline'} size={22} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="timer"
+        options={{
+          title: '타이머',
+          tabBarIcon: ({ color, focused }) => (
+            <AppIcon color={color} name={focused ? 'timer' : 'timer-outline'} size={22} />
           ),
         }}
       />

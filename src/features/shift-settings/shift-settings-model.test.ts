@@ -71,6 +71,14 @@ describe('shift settings model', () => {
     expect(formatDraftWakeTimeSummary(createShiftDrafts(data.shiftTypes))).toBe(
       '주간 04:55 · 야간 15:55',
     );
+    expect(
+      formatDraftWakeTimeSummary(
+        createShiftDrafts(data.shiftTypes),
+        false,
+        true,
+        false,
+      ),
+    ).toBe('오후 13:10');
     expect(formatAlarmOption(90)).toBe('90분 전');
     expect(formatAlarmOption(120)).toBe('2시간 전');
   });

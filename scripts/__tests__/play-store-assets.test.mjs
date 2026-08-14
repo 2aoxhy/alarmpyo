@@ -253,11 +253,12 @@ describe('Google Play 등록 이미지', () => {
     expect(shortDescription.length).toBeLessThanOrEqual(80);
     expect(fullDescription.length).toBeLessThanOrEqual(4000);
     expect(shortDescription).toBe(
-      '교대 근무표와 근무·수면 준비 알림을 한눈에 확인하세요.',
+      '교대 근무표와 근무·타이머 알람을 한눈에 관리하세요.',
     );
     for (const phrase of [
-      '3조 2교대와 주간 고정 근무표',
-      '근무 기상 알람과 수면 준비 알림',
+      '대표 교대 근무와 직접 편집하는 반복 순서·근무시간',
+      '근무 기상 알람과 30분·60분 소리·진동 타이머',
+      '수면 준비 알림',
       '홈 화면 위젯',
       '근무표, 메모와 설정은 기기에 저장해요',
     ]) {

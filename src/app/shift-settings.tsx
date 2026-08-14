@@ -47,6 +47,9 @@ export default function ShiftSettingsScreen() {
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
   const { createBackup, data, updateShiftTypes } = useAppStore();
+  const activeWorkShiftIds = (['day', 'evening', 'night'] as const).filter(
+    (id) => data.pattern.shiftTypeIds.includes(id),
+  );
   const navigation = useNavigation();
   const { fontScale, width } = useWindowDimensions();
   const allowNavigation = useRef(false);
@@ -65,7 +68,9 @@ export default function ShiftSettingsScreen() {
     ),
   );
   const [substituteMode, setSubstituteMode] = useState<'day' | 'night'>('day');
-  const [editorSection, setEditorSection] = useState<EditorSection>('day');
+  const [editorSection, setEditorSection] = useState<EditorSection>(
+    activeWorkShiftIds[0] ?? 'day',
+  );
   const [timeSettingsExpanded, setTimeSettingsExpanded] = useState(true);
   const [routineExpanded, setRoutineExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,19 +84,14 @@ export default function ShiftSettingsScreen() {
   const weekdayFixed =
     getWorkPatternKind(data.pattern.shiftTypeIds) === 'weekday';
   const compactEditor = width < 380 || fontScale >= 1.25;
+  const shiftLabels = { day: '주간', evening: '오후', night: '야간' } as const;
   const editorSections: readonly {
     label: string;
     value: EditorSection;
-  }[] = weekdayFixed
-    ? [
-        { label: '주간', value: 'day' },
-        { label: '대체', value: 'substitute' },
-      ]
-    : [
-        { label: '주간', value: 'day' },
-        { label: '야간', value: 'night' },
-        { label: '대체', value: 'substitute' },
-      ];
+  }[] = [
+    ...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value })),
+    { label: '대체', value: 'substitute' as const },
+  ];
   const selectedShift = data.shiftTypes.find(
     (shift) => shift.id === editorSection,
   );
@@ -107,13 +107,15 @@ export default function ShiftSettingsScreen() {
     const duration = calculateShiftDuration(startMinutes, endMinutes);
     return duration !== null && duration.endsNextDay !== shift.endsNextDay;
   });
-  const invalidRoutineIssue = (['day', 'night'] as const)
+  const invalidRoutineIssue = activeWorkShiftIds
     .map((kind) => {
       const profile = workRoutineProfiles[kind];
       const relevantDraftIds =
         kind === 'night'
           ? ['night', SUBSTITUTE_NIGHT_ID]
-          : ['day', SUBSTITUTE_DAY_ID];
+          : kind === 'evening'
+            ? ['evening']
+            : ['day', SUBSTITUTE_DAY_ID];
       const relevantDrafts = drafts.filter((draft) =>
         relevantDraftIds.includes(draft.id),
       );
@@ -375,11 +377,13 @@ export default function ShiftSettingsScreen() {
             onPress={() => setTimeSettingsExpanded((expanded) => !expanded)}
             subtitle={
               focus === 'wake'
-                ? `${formatDraftWakeTimeSummary(
+                  ? `${formatDraftWakeTimeSummary(
                     drafts,
-                    !weekdayFixed,
+                    activeWorkShiftIds.includes('night'),
+                    activeWorkShiftIds.includes('evening'),
+                    activeWorkShiftIds.includes('day'),
                   )}`
-                : formatShiftTimeSummary(data.shiftTypes)
+                : formatShiftTimeSummary(data.shiftTypes, activeWorkShiftIds)
             }
             title={focus === 'wake' ? '기상 시간 선택' : '시간 설정'}
           />
@@ -418,7 +422,9 @@ export default function ShiftSettingsScreen() {
                     onChange={(patch) => updateDraft(selectedShift.id, patch)}
                     shift={selectedShift}
                   />
-                  {editorSection === 'day' || editorSection === 'night' ? (
+                  {editorSection === 'day' ||
+                  editorSection === 'evening' ||
+                  editorSection === 'night' ? (
                     <RoutineTimingEditor
                       alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
                       compact={compactEditor}

@@ -139,6 +139,7 @@ describe('app-store-mutations', () => {
         departMinutesBefore:
           current.settings.workRoutineProfiles.day.departMinutesBefore + 5,
       },
+      evening: { ...current.settings.workRoutineProfiles.evening },
       night: { ...current.settings.workRoutineProfiles.night },
     };
     const result = applyShiftSettings(

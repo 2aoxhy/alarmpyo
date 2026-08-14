@@ -195,10 +195,10 @@ export function AlarmSoundSettings() {
         </View>
         <View style={styles.copy}>
           <AppText accessibilityRole="header" variant="heading">
-            알람음
+            알람음·진동
           </AppText>
           <AppText tone="secondary" variant="caption">
-            모든 근무 알람과 시험 알람에 공통으로 적용해요.
+            모든 근무·타이머·시험 알람에 알람음과 진동을 함께 적용해요.
           </AppText>
         </View>
       </View>

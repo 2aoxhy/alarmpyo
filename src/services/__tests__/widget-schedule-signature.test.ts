@@ -61,6 +61,11 @@ describe('위젯 일정 서명', () => {
             arriveMinutesBefore: 45,
             handoverMinutesBefore: 15,
           },
+          evening: {
+            departMinutesBefore: 90,
+            arriveMinutesBefore: 40,
+            handoverMinutesBefore: 10,
+          },
           night: {
             departMinutesBefore: 90,
             arriveMinutesBefore: 40,

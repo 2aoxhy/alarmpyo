@@ -51,7 +51,7 @@ describe('저장소 자동화 계약', () => {
     });
   });
 
-  it('앱은 1.0.4(5) 후속 후보이고 direct·Play의 첫 릴리스 계보는 유지해요', () => {
+  it('앱은 1.0.5(6) 후속 후보이고 direct·Play의 첫 릴리스 계보는 유지해요', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -63,13 +63,13 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.4');
+    expect(pkg.version).toBe('1.0.5');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.0.4',
-      androidVersionCode: 5,
-      iosBuildNumber: '5',
+      versionName: '1.0.5',
+      androidVersionCode: 6,
+      iosBuildNumber: '6',
     });
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -100,11 +100,11 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(4);
+    ).toBe(5);
     expect(
       json('docs/play-release-evidence.example.json')
         .highestExistingPlayVersionCode,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it('PR JavaScript 검사와 네이티브 경로 검사를 분리해요', () => {

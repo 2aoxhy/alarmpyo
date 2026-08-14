@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DAY_SHIFT_END_MINUTES,
   DAY_SHIFT_START_MINUTES,
+  EVENING_SHIFT_END_MINUTES,
+  EVENING_SHIFT_START_MINUTES,
   NIGHT_SHIFT_END_MINUTES,
   NIGHT_SHIFT_START_MINUTES,
 } from '../../constants/shift-schedule';
@@ -18,6 +20,7 @@ describe('app-data-defaults', () => {
     const shifts = createDefaultShiftTypes();
     expect(shifts.map((shift) => shift.id)).toEqual([
       'day',
+      'evening',
       'night',
       'substitute-day',
       'substitute-night',
@@ -32,6 +35,11 @@ describe('app-data-defaults', () => {
       startMinutes: NIGHT_SHIFT_START_MINUTES,
       endMinutes: NIGHT_SHIFT_END_MINUTES,
       endsNextDay: true,
+    });
+    expect(createDefaultWorkShift('evening')).toMatchObject({
+      startMinutes: EVENING_SHIFT_START_MINUTES,
+      endMinutes: EVENING_SHIFT_END_MINUTES,
+      endsNextDay: false,
     });
   });
 

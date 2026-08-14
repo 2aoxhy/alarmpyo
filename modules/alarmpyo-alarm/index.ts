@@ -96,6 +96,19 @@ export type AlarmPyoSleepReminderStatus = {
   storageHealth?: 'normal' | 'recovered' | 'corrupt';
 };
 
+export type AlarmPyoQuickTimerStatus = {
+  supported: boolean;
+  state: 'idle' | 'scheduled' | 'ringing' | 'expired' | 'action-required' | 'error';
+  active: boolean;
+  durationMinutes: 30 | 60 | null;
+  startedAt: number;
+  fireAt: number;
+  remainingMillis: number;
+  isRepeat: boolean;
+  storageHealth: 'normal' | 'recovered' | 'corrupt';
+  requiredAction: 'none' | 'exact-alarm' | 'notifications' | 'full-screen';
+};
+
 type AlarmPyoAlarmNativeModule = {
   syncAlarmsAsync(plans: AlarmPyoAlarmPlan[]): Promise<AlarmPyoAlarmStatus>;
   syncAlarmsWithMetadataAsync?(
@@ -110,6 +123,9 @@ type AlarmPyoAlarmNativeModule = {
   openBatterySettingsAsync(): Promise<boolean>;
   scheduleTestAlarmAsync(seconds?: number): Promise<AlarmPyoAlarmStatus>;
   cancelAllAsync(): Promise<AlarmPyoAlarmStatus>;
+  getQuickTimerStatusAsync?(): Promise<AlarmPyoQuickTimerStatus>;
+  scheduleQuickTimerAsync?(durationMinutes: 30 | 60): Promise<AlarmPyoQuickTimerStatus>;
+  cancelQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   syncSleepRemindersAsync?(
     plans: AlarmPyoSleepReminderPlan[],
   ): Promise<AlarmPyoSleepReminderStatus>;

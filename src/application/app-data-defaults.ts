@@ -2,6 +2,8 @@ import { palette } from '../constants/app-theme';
 import {
   DAY_SHIFT_END_MINUTES,
   DAY_SHIFT_START_MINUTES,
+  EVENING_SHIFT_END_MINUTES,
+  EVENING_SHIFT_START_MINUTES,
   NIGHT_SHIFT_END_MINUTES,
   NIGHT_SHIFT_START_MINUTES,
 } from '../constants/shift-schedule';
@@ -12,6 +14,7 @@ import {
 
 export type DefaultWorkShiftId =
   | 'day'
+  | 'evening'
   | 'night'
   | 'substitute-day'
   | 'substitute-night';
@@ -25,6 +28,19 @@ const DEFAULT_SHIFT_TYPES: readonly ShiftType[] = [
     softColor: palette.mintSoft,
     startMinutes: DAY_SHIFT_START_MINUTES,
     endMinutes: DAY_SHIFT_END_MINUTES,
+    endsNextDay: false,
+    isOff: false,
+    alarmEnabled: true,
+    alarmMinutesBefore: DEFAULT_ALARM_MINUTES_BEFORE,
+  },
+  {
+    id: 'evening',
+    name: '오후',
+    shortName: '오',
+    color: palette.indigoDark,
+    softColor: palette.indigoSoft,
+    startMinutes: EVENING_SHIFT_START_MINUTES,
+    endMinutes: EVENING_SHIFT_END_MINUTES,
     endsNextDay: false,
     isOff: false,
     alarmEnabled: true,

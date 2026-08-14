@@ -21,7 +21,10 @@ describe('시스템 알람음 설정 화면 계약', () => {
       'import { AlarmSoundSettings } from "@/features/alarm/alarm-sound-settings";',
     );
     expect(alarmSettings).toContain('<AlarmSoundSettings />');
-    expect(component).toContain('모든 근무 알람과 시험 알람에 공통으로 적용해요.');
+    expect(component).toContain('알람음·진동');
+    expect(component).toContain(
+      '모든 근무·타이머·시험 알람에 알람음과 진동을 함께 적용해요.',
+    );
     expect(component).toContain('현재 알람음');
   });
 

@@ -52,6 +52,10 @@ import {
 } from '../app-storage-service';
 import { MAX_APP_DATA_BYTES } from '../backup-file-policy';
 import { LEGACY_APP_DATA_BACKUP_FORMAT } from '../../infrastructure/app-data/import-envelope';
+import {
+  createWorkPatternFromReference,
+  WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
+} from '../../utils/work-pattern';
 
 describe('v19 날짜별 알람', () => {
   it('실제 v18 자료는 날짜별 알람 없이 v19로 마이그레이션해요', () => {
@@ -64,7 +68,7 @@ describe('v19 날짜별 알람', () => {
 
     expect(parsed.migratedFromVersion).toBe(18);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.alarmOverrides).toEqual({});
   });
 
@@ -217,7 +221,7 @@ describe('v13 활동 자료 제거 이전', () => {
 
     expect(parsed.migratedFromVersion).toBe(13);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.overrides).toEqual({ '2026-07-12': 'night' });
     expect(parsed.data.notes).toEqual({ '2026-07-12': '보존할 메모' });
     expect(parsed.data).not.toHaveProperty('activityPlans');
@@ -258,7 +262,7 @@ describe('v13 활동 자료 제거 이전', () => {
 
     expect(parsed.migratedFromVersion).toBe(13);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.pattern.anchorDate).toBe('2026-07-10');
     expect(parsed.data.dayExceptions).toEqual({ '2026-07-12': 'training' });
     expect(parsed.data).not.toHaveProperty('activityPlans');
@@ -666,7 +670,7 @@ describe('중간 데이터 버전 회귀', () => {
       expect(parsed.migratedFromVersion).toBe(version);
       expect(parsed.requiresPersistence).toBe(true);
       expect(parsed.data).toMatchObject({
-        version: 19,
+        version: 20,
         overrides: { '2026-07-12': 'night' },
         timeOverrides: {
           '2026-07-12': {
@@ -709,7 +713,7 @@ describe('중간 데이터 버전 회귀', () => {
 
     expect(parsed.migratedFromVersion).toBe(17);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.settings.sleepReminderEnabled).toBe(false);
   });
 
@@ -722,7 +726,7 @@ describe('중간 데이터 버전 회귀', () => {
       expect(source).not.toHaveProperty('alarmOverrides');
       expect(parsed.migratedFromVersion).toBe(18);
       expect(parsed.requiresPersistence).toBe(true);
-      expect(parsed.data.version).toBe(19);
+      expect(parsed.data.version).toBe(20);
       expect(parsed.data.settings.sleepReminderEnabled).toBe(
         sleepReminderEnabled,
       );
@@ -765,7 +769,7 @@ describe('v12 기본 알람 선행시간 이전', () => {
 
     expect(parsed.migratedFromVersion).toBe(12);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(
       DEFAULT_ALARM_SHIFT_IDS.map(
         (id) => shift(parsed.data, id).alarmMinutesBefore,
@@ -820,9 +824,14 @@ describe('근무표 데이터 검증과 백업', () => {
 
     expect(parsed.migratedFromVersion).toBe(14);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.settings.workRoutineProfiles).toEqual({
       day: {
+        departMinutesBefore: 60,
+        arriveMinutesBefore: 45,
+        handoverMinutesBefore: 15,
+      },
+      evening: {
         departMinutesBefore: 60,
         arriveMinutesBefore: 45,
         handoverMinutesBefore: 15,
@@ -896,6 +905,11 @@ describe('근무표 데이터 검증과 백업', () => {
         arriveMinutesBefore: 55,
         handoverMinutesBefore: 20,
       },
+      evening: {
+        departMinutesBefore: 85,
+        arriveMinutesBefore: 50,
+        handoverMinutesBefore: 15,
+      },
       night: {
         departMinutesBefore: 75,
         arriveMinutesBefore: 50,
@@ -967,11 +981,11 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(createV6Data());
 
     expect(parsed.migratedFromVersion).toBe(6);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.dayExceptions).toEqual({});
   });
 
-  it('v5에서 허용한 분리 대체근무 포함 102개 근무를 손실 없이 이전합니다', () => {
+  it('v5에서 허용한 102개 근무를 보존하고 canonical 오후 근무를 추가해요', () => {
     const data = createV5Data();
     const template = data.shiftTypes.find((item) => item.id === 'day');
     expect(template).toBeDefined();
@@ -989,7 +1003,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData({ ...data, shiftTypes });
 
     expect(parsed.migratedFromVersion).toBe(5);
-    expect(parsed.data.shiftTypes).toHaveLength(102);
+    expect(parsed.data.shiftTypes).toHaveLength(103);
   });
 
   it('다른 시점의 백업을 적용할 때 현재 휴대폰과 무관한 예약 상태를 비워요', () => {
@@ -1014,7 +1028,7 @@ describe('근무표 데이터 검증과 백업', () => {
   it('새 근무표를 v19 다크 테마·실제 근무시간·110분 전 알람·고정 패턴으로 생성합니다', () => {
     const data = createDefaultAppData('2026-07-11');
 
-    expect(data.version).toBe(19);
+    expect(data.version).toBe(20);
     expect(data.timeOverrides).toEqual({});
     expect(data.dayExceptions).toEqual({});
     expect(data.settings.setupCompleted).toBe(false);
@@ -1120,7 +1134,7 @@ describe('근무표 데이터 검증과 백업', () => {
 
     expect(parsed.migratedFromVersion).toBe(7);
     expect(parsed.requiresPersistence).toBe(true);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(shift(parsed.data, 'day').endMinutes).toBe(17 * 60 + 45);
     expect(shift(parsed.data, 'night').endMinutes).toBe(6 * 60 + 45);
     expect(parsed.data.dayExceptions).toEqual({
@@ -1292,7 +1306,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(createV1Data());
 
     expect(parsed.migratedFromVersion).toBe(1);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.timeOverrides).toEqual({});
     expect(parsed.data.overrides['2026-07-12']).toBe('night');
     expect(parsed.data.notes['2026-07-12']).toBe('개인 메모');
@@ -1319,7 +1333,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(createV2Data());
 
     expect(parsed.migratedFromVersion).toBe(2);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.timeOverrides).toEqual({});
     expect(parsed.data.overrides).toEqual({ '2026-07-13': 'day' });
     expect(parsed.data.notes).toEqual({ '2026-07-13': 'v2 메모' });
@@ -1377,7 +1391,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(source);
 
     expect(parsed.migratedFromVersion).toBe(3);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.overrides).toEqual({ '2026-07-14': 'substitute-day' });
     expect(parsed.data.notes).toEqual({ '2026-07-14': 'v3 메모' });
     expect(parsed.data.settings.notificationsEnabled).toBe(true);
@@ -1514,7 +1528,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(createV5Data());
 
     expect(parsed.migratedFromVersion).toBe(5);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.timeOverrides).toEqual({});
     expect(parsed.data.overrides).toEqual({ '2026-07-16': 'night' });
     expect(parsed.data.notes).toEqual({ '2026-07-16': 'v5 메모' });
@@ -1540,6 +1554,17 @@ describe('근무표 데이터 검증과 백업', () => {
           ...data.pattern,
           shiftTypeIds: ['day', 'night', 'off'],
         },
+      }),
+    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+  });
+
+  it('새 프리셋과 우연히 같은 구버전 순서도 v20 이전에는 허용하지 않아요', () => {
+    const data = createV5Data();
+
+    expect(() =>
+      validateAndMigrateAppData({
+        ...data,
+        pattern: { ...data.pattern, shiftTypeIds: ['day', 'night'] },
       }),
     ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
   });
@@ -1573,7 +1598,7 @@ describe('근무표 데이터 검증과 백업', () => {
     });
 
     expect(parsed.migratedFromVersion).toBe(5);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(parsed.data.pattern).toEqual({
       name: '주간 고정',
       anchorDate: '2026-07-11',
@@ -1618,6 +1643,266 @@ describe('근무표 데이터 검증과 백업', () => {
     });
     expect(snapshot).toBe(JSON.stringify(canonical));
     expect(reloaded).toEqual(canonical);
+  });
+
+  it('v19 자료의 패턴과 기존 시간을 보존하고 오후 근무만 비활성 상태로 추가해요', () => {
+    const current = createDefaultAppData('2026-07-11');
+    const existingShiftTypes = current.shiftTypes
+      .filter((item) => item.id !== 'evening')
+      .map((item, index) =>
+        item.isOff
+          ? item
+          : {
+              ...item,
+              startMinutes: item.startMinutes! + index * 5,
+              endMinutes: item.endMinutes! + index * 5,
+            },
+      );
+    const { evening: _evening, ...legacyProfiles } =
+      current.settings.workRoutineProfiles;
+    const legacyV19 = {
+      ...current,
+      version: 19,
+      shiftTypes: existingShiftTypes,
+      pattern: {
+        ...current.pattern,
+        name: '주간 근무',
+        shiftTypeIds: ['day', 'day', 'day', 'day', 'day', 'off', 'off'],
+      },
+      settings: {
+        ...current.settings,
+        workRoutineProfiles: legacyProfiles,
+      },
+    };
+
+    const parsed = validateAndMigrateAppData(legacyV19);
+
+    expect(parsed.migratedFromVersion).toBe(19);
+    expect(parsed.requiresPersistence).toBe(true);
+    expect(parsed.data.version).toBe(20);
+    expect(parsed.data.pattern).toEqual({
+      ...legacyV19.pattern,
+      name: '주간 고정',
+    });
+    for (const existing of existingShiftTypes) {
+      expect(shift(parsed.data, existing.id)).toMatchObject({
+        startMinutes: existing.startMinutes,
+        endMinutes: existing.endMinutes,
+        endsNextDay: existing.endsNextDay,
+        alarmMinutesBefore: existing.alarmMinutesBefore,
+      });
+    }
+    expect(parsed.data.pattern.shiftTypeIds).not.toContain('evening');
+    expect(shift(parsed.data, 'evening')).toMatchObject({
+      startMinutes: 15 * 60,
+      endMinutes: 23 * 60,
+      endsNextDay: false,
+    });
+    expect(parsed.data.settings.workRoutineProfiles.evening).toEqual(
+      legacyProfiles.day,
+    );
+  });
+
+  it('v19의 휴무 evening ID 충돌을 결정적으로 옮기고 재로드해요', () => {
+    const current = createDefaultAppData('2026-07-11');
+    const { evening: _eveningRoutine, ...legacyProfiles } =
+      current.settings.workRoutineProfiles;
+    const occupiedCompatibilityId = {
+      ...shift(current, 'day'),
+      id: 'legacy-evening',
+      name: '기존 사용자 근무',
+      shortName: '기존',
+    };
+    const legacyEveningOff = {
+      ...shift(current, 'off'),
+      id: 'evening',
+      name: '기존 오후 휴무',
+      shortName: '오휴',
+    };
+    const legacyV19 = {
+      ...current,
+      version: 19,
+      shiftTypes: [
+        ...current.shiftTypes.filter((item) => item.id !== 'evening'),
+        occupiedCompatibilityId,
+        legacyEveningOff,
+      ],
+      settings: {
+        ...current.settings,
+        workRoutineProfiles: legacyProfiles,
+      },
+    };
+
+    const migrated = validateAndMigrateAppData(legacyV19).data;
+    const reloaded = parseAppDataJson(serializeAppData(migrated)).data;
+
+    expect(shift(migrated, 'legacy-evening')).toMatchObject({
+      name: '기존 사용자 근무',
+      isOff: false,
+    });
+    expect(shift(migrated, 'legacy-evening-2')).toMatchObject({
+      name: '기존 오후 휴무',
+      shortName: '오휴',
+      isOff: true,
+      startMinutes: null,
+      endMinutes: null,
+      alarmEnabled: false,
+    });
+    expect(shift(migrated, 'evening')).toMatchObject({
+      startMinutes: 15 * 60,
+      endMinutes: 23 * 60,
+      endsNextDay: false,
+      isOff: false,
+    });
+    expect(reloaded).toEqual(migrated);
+  });
+
+  it('v19 evening의 반복·날짜·시간 참조와 알람 값을 같은 ID로 보존해요', () => {
+    const current = createDefaultAppData('2026-07-11');
+    const { evening: _eveningRoutine, ...legacyProfiles } =
+      current.settings.workRoutineProfiles;
+    const occupiedCompatibilityId = {
+      ...shift(current, 'day'),
+      id: 'legacy-evening',
+      name: '이미 있던 호환 ID',
+      shortName: '호환',
+    };
+    const legacyEveningShift = {
+      ...shift(current, 'day'),
+      id: 'evening',
+      name: '기존 석간 근무',
+      shortName: '석',
+      startMinutes: 12 * 60 + 10,
+      endMinutes: 20 * 60 + 40,
+      endsNextDay: false,
+      alarmEnabled: true,
+      alarmMinutesBefore: 95,
+    };
+    const legacyV19 = {
+      ...current,
+      version: 19,
+      shiftTypes: [
+        ...current.shiftTypes.filter((item) => item.id !== 'evening'),
+        occupiedCompatibilityId,
+        legacyEveningShift,
+      ],
+      pattern: {
+        name: '기존 사용자 순환',
+        anchorDate: '2026-07-11',
+        scheduleStartDate: '2026-07-11',
+        shiftTypeIds: ['evening', 'off'],
+      },
+      overrides: { '2026-07-13': 'evening' },
+      timeOverrides: {
+        '2026-07-13': {
+          shiftTypeId: 'evening',
+          startMinutes: 13 * 60,
+          endMinutes: 21 * 60 + 5,
+          endsNextDay: false,
+        },
+      },
+      alarmOverrides: { '2026-07-13': { mode: 'disabled' } },
+      settings: {
+        ...current.settings,
+        workRoutineProfiles: legacyProfiles,
+      },
+    };
+
+    const migrated = validateAndMigrateAppData(legacyV19).data;
+    const reloaded = parseAppDataJson(serializeAppData(migrated)).data;
+
+    expect(shift(migrated, 'legacy-evening-2')).toMatchObject({
+      name: '기존 석간 근무',
+      shortName: '석',
+      startMinutes: 12 * 60 + 10,
+      endMinutes: 20 * 60 + 40,
+      alarmEnabled: true,
+      alarmMinutesBefore: 95,
+    });
+    expect(migrated.pattern).toMatchObject({
+      name: '기존 사용자 순환',
+      shiftTypeIds: ['legacy-evening-2', 'off'],
+    });
+    expect(migrated.overrides).toEqual({
+      '2026-07-13': 'legacy-evening-2',
+    });
+    expect(migrated.timeOverrides).toEqual({
+      '2026-07-13': {
+        shiftTypeId: 'legacy-evening-2',
+        startMinutes: 13 * 60,
+        endMinutes: 21 * 60 + 5,
+        endsNextDay: false,
+      },
+    });
+    expect(migrated.alarmOverrides).toEqual({
+      '2026-07-13': { mode: 'disabled' },
+    });
+    expect(resolveShiftFromAppData(migrated, '2026-07-11')).toMatchObject({
+      id: 'legacy-evening-2',
+      startMinutes: 12 * 60 + 10,
+      endMinutes: 20 * 60 + 40,
+    });
+    expect(resolveShiftFromAppData(migrated, '2026-07-13')).toMatchObject({
+      id: 'legacy-evening-2',
+      startMinutes: 13 * 60,
+      endMinutes: 21 * 60 + 5,
+    });
+    expect(reloaded).toEqual(migrated);
+  });
+
+  it('v20은 1~42일 사용자 순서를 허용하고 휴무뿐인 순서는 거절해요', () => {
+    const data = createDefaultAppData('2026-07-11');
+    const custom = validateAndMigrateAppData({
+      ...data,
+      pattern: {
+        ...data.pattern,
+        name: '우리 회사 순서',
+        shiftTypeIds: ['day', 'evening', 'night', 'off', 'off'],
+      },
+    });
+
+    expect(custom.data.pattern).toMatchObject({
+      name: '우리 회사 순서',
+      shiftTypeIds: ['day', 'evening', 'night', 'off', 'off'],
+    });
+    expect(() =>
+      validateAndMigrateAppData({
+        ...data,
+        pattern: { ...data.pattern, name: '휴무뿐', shiftTypeIds: ['off'] },
+      }),
+    ).toThrow('기타 근무 순서는 1~42일');
+    expect(() =>
+      validateAndMigrateAppData({
+        ...data,
+        pattern: {
+          ...data.pattern,
+          name: '너무 긴 순서',
+          shiftTypeIds: Array.from({ length: 43 }, () => 'day'),
+        },
+      }),
+    ).toThrow('기타 근무 순서는 1~42일');
+  });
+
+  it('exact weekday 사용자 순서는 저장과 재로드 뒤에도 적용일 요일을 사용해요', () => {
+    const data = createDefaultAppData('2026-07-11');
+    data.pattern = createWorkPatternFromReference({
+      presetId: 'custom',
+      name: '사용자 주간 순서',
+      shiftTypeIds: WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
+      referenceDate: '2026-07-15',
+      scheduleStartDate: '2026-07-18',
+      position: 2,
+    });
+
+    const reloaded = parseAppDataJson(serializeAppData(data)).data;
+
+    expect(reloaded.pattern).toMatchObject({
+      name: '주간 고정',
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-18',
+    });
+    expect(resolveShiftFromAppData(reloaded, '2026-07-18')?.id).toBe('off');
+    expect(resolveShiftFromAppData(reloaded, '2026-07-20')?.id).toBe('day');
   });
 
   it('v3과 v4 데이터에서는 주간 고정 근무 방식을 허용하지 않습니다', () => {
@@ -1795,7 +2080,7 @@ describe('근무표 데이터 검증과 백업', () => {
     const parsed = validateAndMigrateAppData(edited);
 
     expect(parsed.migratedFromVersion).toBe(5);
-    expect(parsed.data.version).toBe(19);
+    expect(parsed.data.version).toBe(20);
     expect(shift(parsed.data, 'substitute-night')).toMatchObject({
       startMinutes: 1_140,
       endMinutes: 480,
@@ -1845,6 +2130,8 @@ describe('근무표 데이터 검증과 백업', () => {
     expect(() =>
       validateAndMigrateAppData({
         ...data,
+        version: 9,
+        shiftTypes: data.shiftTypes.filter((item) => item.id !== 'evening'),
         pattern: { ...data.pattern, shiftTypeIds: ['day', 'night', 'off'] },
       }),
     ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
@@ -1898,7 +2185,7 @@ describe('근무표 데이터 검증과 백업', () => {
       patternName: '3조 2교대 (주주야야휴휴)',
       anchorDate: '2026-07-11',
       scheduleStartDate: '2026-07-11',
-      shiftTypeCount: 5,
+      shiftTypeCount: 6,
       changedDateCount: 2,
       noteCount: 1,
     });
@@ -1918,9 +2205,9 @@ describe('근무표 데이터 검증과 백업', () => {
 
     expect(preview.source).toBe('data');
     expect(preview.migratedFromVersion).toBe(2);
-    expect(preview.data.version).toBe(19);
+    expect(preview.data.version).toBe(20);
     expect(preview.data.timeOverrides).toEqual({});
-    expect(preview.summary.shiftTypeCount).toBe(5);
+    expect(preview.summary.shiftTypeCount).toBe(7);
   });
 
   it('v4 백업 봉투의 일정·메모·설정과 생성 시각을 보존해 가져옵니다', () => {
@@ -2284,7 +2571,7 @@ describe('근무표 기기 저장', () => {
 
     expect(result.ok && result.source).toBe('migrated');
     expect(result.ok && result.persistedSnapshot).toBeNull();
-    expect(result.ok && result.data.version).toBe(19);
+    expect(result.ok && result.data.version).toBe(20);
     expect(result.ok && result.data.timeOverrides).toEqual({});
     expect(result.ok && result.data.settings.setupCompleted).toBe(false);
   });
@@ -2297,7 +2584,7 @@ describe('근무표 기기 저장', () => {
 
     expect(result.ok && result.source).toBe('migrated');
     expect(result.ok && result.persistedSnapshot).toBeNull();
-    expect(result.ok && result.data.version).toBe(19);
+    expect(result.ok && result.data.version).toBe(20);
     expect(result.ok && result.data.timeOverrides).toEqual({});
     expect(result.ok && result.data.settings.setupCompleted).toBe(true);
     expect(
@@ -2316,7 +2603,7 @@ describe('근무표 기기 저장', () => {
 
     expect(result.ok && result.source).toBe('migrated');
     expect(result.ok && result.persistedSnapshot).toBeNull();
-    expect(result.ok && result.data.version).toBe(19);
+    expect(result.ok && result.data.version).toBe(20);
     expect(result.ok && result.data.timeOverrides).toEqual({});
     expect(result.ok && shift(result.data, 'day').alarmMinutesBefore).toBe(
       DEFAULT_ALARM_MINUTES_BEFORE,
@@ -2334,7 +2621,7 @@ describe('근무표 기기 저장', () => {
 
     expect(result.ok && result.source).toBe('migrated');
     expect(result.ok && result.persistedSnapshot).toBeNull();
-    expect(result.ok && result.data.version).toBe(19);
+    expect(result.ok && result.data.version).toBe(20);
     expect(result.ok && result.data.timeOverrides).toEqual({});
     expect(result.ok && result.data.overrides['2026-07-15']).toBe('substitute-day');
     expect(result.ok && result.data.notes['2026-07-15']).toBe('v4 메모');

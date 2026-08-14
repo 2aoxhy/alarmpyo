@@ -5,7 +5,7 @@ import { buildCalendarMonthViewModel } from '../calendar-month-view-model';
 import { createDefaultWorkRoutineProfiles } from '../work-routine-settings';
 
 const data: AppData = {
-  version: 19,
+  version: 20,
   shiftTypes: [
     {
       id: 'day',

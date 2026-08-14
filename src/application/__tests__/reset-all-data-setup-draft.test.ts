@@ -3,48 +3,54 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error Vitest raw import is used to verify provider sequencing.
 import providerSource from '../../store/app-store.tsx?raw';
 
-import { clearSetupDraftBeforeApplyingReset } from '../app-store-persistence';
-
-describe('전체 데이터 초기화의 설정 초안 정리', () => {
-  it('설정 초안을 지우면 완료해요', async () => {
-    const events: string[] = [];
-
-    await expect(
-      clearSetupDraftBeforeApplyingReset(async () => {
-        events.push('draft:clear');
-      }),
-    ).resolves.toBeUndefined();
-    expect(events).toEqual(['draft:clear']);
-  });
-
-  it('설정 초안 삭제 실패를 후속 처리 실패로 전달해요', async () => {
-    await expect(
-      clearSetupDraftBeforeApplyingReset(async () => {
-        throw new Error('remove failed');
-      }),
-    ).rejects.toThrow('초기 설정 임시 저장을 지우지 못했어요');
-  });
-
-  it('본문 저장 뒤, 초기화 상태를 적용하기 전에 설정 초안을 정리해요', () => {
+describe('전체 데이터 초기화의 후속 정리', () => {
+  it('정리 저널을 본문보다 먼저 쓰고 본문 저장 뒤 상태 적용 전에 완료해요', () => {
     const replacementStart = providerSource.indexOf(
       'const replaceDataAndPersistDetailedInternal',
     );
     const resetStart = providerSource.indexOf('const resetAllDataDetailed');
     const replacementSource = providerSource.slice(replacementStart, resetStart);
+    const prepareJournal = replacementSource.indexOf(
+      'await beforePrimarySave(snapshot);',
+    );
+    const persist = replacementSource.indexOf(
+      'const persisted = await persistSnapshot',
+    );
     const primarySaved = replacementSource.indexOf('if (!persisted.primarySaved)');
-    const clearDraft = replacementSource.indexOf(
-      'await afterPrimarySaveBeforeApply();',
+    const resumeJournal = replacementSource.indexOf(
+      'await afterPrimarySaveBeforeApply(snapshot);',
     );
     const applyData = replacementSource.indexOf('const dataApplied = updateData');
 
-    expect(primarySaved).toBeGreaterThanOrEqual(0);
-    expect(clearDraft).toBeGreaterThan(primarySaved);
-    expect(applyData).toBeGreaterThan(clearDraft);
+    expect(prepareJournal).toBeGreaterThanOrEqual(0);
+    expect(persist).toBeGreaterThan(prepareJournal);
+    expect(primarySaved).toBeGreaterThan(persist);
+    expect(resumeJournal).toBeGreaterThan(primarySaved);
+    expect(applyData).toBeGreaterThan(resumeJournal);
     expect(replacementSource).toContain(
       'preApplyFollowUpSucceeded &&\n          persistenceFollowUpSucceeded',
     );
     expect(providerSource.slice(resetStart)).toContain(
-      'clearSetupDraftBeforeApplyingReset(clearSetupDraft)',
+      'prepareResetCleanupJournal(snapshot)',
     );
+    expect(providerSource.slice(resetStart)).toContain(
+      'resumeResetCleanupJournal({',
+    );
+    expect(providerSource.slice(resetStart)).toContain(
+      'clearResetCleanupJournal().catch',
+    );
+  });
+
+  it('앱 시작 때 초기화 정리 저널을 재개한 뒤 ready를 열어요', () => {
+    const loadStart = providerSource.indexOf('const loadData = useCallback');
+    const updateStart = providerSource.indexOf('const updateData = useCallback');
+    const loadSource = providerSource.slice(loadStart, updateStart);
+    const resume = loadSource.indexOf('await resumeResetCleanupJournal({');
+    const ready = loadSource.indexOf('readyRef.current = true;');
+
+    expect(resume).toBeGreaterThanOrEqual(0);
+    expect(ready).toBeGreaterThan(resume);
+    expect(loadSource).toContain("result.source === 'reset'");
+    expect(loadSource).toContain("'reset-marker-cleanup-failed'");
   });
 });

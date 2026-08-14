@@ -4,7 +4,7 @@ import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import { AppIcon, type AppIconName } from '@/components/app-icon';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
-export type ShiftIconKind = 'day' | 'night' | 'substitute' | 'off';
+export type ShiftIconKind = 'day' | 'evening' | 'night' | 'substitute' | 'off';
 
 type AnimatedShiftIconProps = {
   kind: ShiftIconKind;
@@ -18,6 +18,7 @@ type AnimatedShiftIconProps = {
 export function getShiftIconKind(shiftId: string, isOff = false): ShiftIconKind {
   if (isOff || shiftId === 'off') return 'off';
   if (shiftId === 'day') return 'day';
+  if (shiftId === 'evening') return 'evening';
   if (shiftId === 'night') return 'night';
   return 'substitute';
 }
@@ -28,6 +29,8 @@ export function getShiftIconName(kind: ShiftIconKind): AppIconName {
       return 'shift-day';
     case 'night':
       return 'shift-night';
+    case 'evening':
+      return 'time-outline';
     case 'substitute':
       return 'shift-substitute';
     case 'off':
@@ -104,6 +107,7 @@ function MotionShiftIcon({
   const animatedStyle = useMemo(() => {
     switch (kind) {
       case 'day':
+      case 'evening':
         return {
           transform: [
             {

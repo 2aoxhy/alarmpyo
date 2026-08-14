@@ -571,18 +571,25 @@ internal object AlarmPyoAlarmScheduler {
   @Synchronized
   fun cancelAll(context: Context) {
     val appContext = context.applicationContext
+    val timerIsRinging =
+      AlarmPyoAlarmStore.activeSource(appContext) == AlarmPyoAlarmSource.TIMER
     val knownWorkIds = buildSet {
       addAll(AlarmPyoAlarmStore.readScheduledIds(appContext))
       AlarmPyoAlarmStore.readPlans(appContext).mapTo(this, AlarmPyoAlarmPlan::id)
     }
     val knownRepeats = AlarmPyoAlarmStore.readSingleRepeats(appContext)
-    AlarmPyoAlarmStore.clearForExplicitCancellation(appContext)
+    AlarmPyoAlarmStore.clearForExplicitCancellation(
+      appContext,
+      preserveActive = timerIsRinging
+    )
     cancelWorkAlarmIds(appContext, knownWorkIds)
     cancelTestAlarm(appContext)
     knownRepeats.forEach { cancelSingleRepeatPendingIntent(appContext, it) }
     AlarmPyoPlanRefreshReminder.clear(appContext)
-    appContext.stopService(Intent(appContext, AlarmPyoAlarmService::class.java))
-    AlarmPyoAlarmActivity.finishActiveAlarm()
+    if (!timerIsRinging) {
+      appContext.stopService(Intent(appContext, AlarmPyoAlarmService::class.java))
+      AlarmPyoAlarmActivity.finishActiveAlarm()
+    }
     coldStartReconciler.markReconciled()
     rearmSafetyCheck(appContext)
     AlarmPyoAlarmStore.markHealthy(appContext)
@@ -915,6 +922,9 @@ internal object AlarmPyoAlarmScheduler {
       action = ACTION_FIRE_ALARM
       data = alarmUri(plan.id, isTest, plan.repeatStage)
       putExtra(EXTRA_IS_TEST, isTest)
+      putAlarmPyoSource(
+        if (isTest) AlarmPyoAlarmSource.TEST else AlarmPyoAlarmSource.WORK
+      )
       plan.addToIntent(this)
     }
     return PendingIntent.getBroadcast(

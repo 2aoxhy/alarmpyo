@@ -15,7 +15,7 @@ export const MAX_ROUTINE_ALARM_LEAD_MINUTES = 6 * 60;
 
 const MINUTE_IN_MS = 60_000;
 
-export type WorkRoutineKind = 'day' | 'night';
+export type WorkRoutineKind = 'day' | 'evening' | 'night';
 
 export type WorkRoutineStepId =
   | 'wake-and-shower'
@@ -270,7 +270,12 @@ export function buildWorkRoutinePlan(
 
   return {
     kind,
-    title: kind === 'night' ? '야간 출근 루틴' : '주간 출근 루틴',
+    title:
+      kind === 'night'
+        ? '야간 출근 루틴'
+        : kind === 'evening'
+          ? '오후 출근 루틴'
+          : '주간 출근 루틴',
     wakeAt,
     departAt,
     arriveAt,

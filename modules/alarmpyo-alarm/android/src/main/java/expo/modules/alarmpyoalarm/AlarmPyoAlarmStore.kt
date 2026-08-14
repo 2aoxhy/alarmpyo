@@ -342,6 +342,7 @@ internal object AlarmPyoAlarmStore {
   private const val KEY_SINGLE_REPEATS = "single-repeats-v1"
   private const val KEY_ACTIVE_PLAN_ID = "active-plan-id"
   private const val KEY_ACTIVE_UNTIL = "active-until"
+  private const val KEY_ACTIVE_SOURCE = "active-source"
   private const val KEY_RECENT_EVENTS = "recent-events-v1"
   private const val KEY_DEVICE_STORAGE_READY = "device-storage-ready-v1"
   private const val KEY_SCHEMA_VERSION = "schema-version"
@@ -676,10 +677,16 @@ internal object AlarmPyoAlarmStore {
     )
   }
 
-  fun markActive(context: Context, planId: String, activeUntil: Long) {
+  fun markActive(
+    context: Context,
+    planId: String,
+    activeUntil: Long,
+    source: AlarmPyoAlarmSource = AlarmPyoAlarmSource.WORK
+  ) {
     legacyPreferences(context).edit()
       .putString(KEY_ACTIVE_PLAN_ID, planId)
       .putLong(KEY_ACTIVE_UNTIL, activeUntil)
+      .putString(KEY_ACTIVE_SOURCE, source.wireValue)
       .apply()
   }
 
@@ -693,10 +700,36 @@ internal object AlarmPyoAlarmStore {
     return active
   }
 
-  fun clearActive(context: Context) {
+  fun activeSource(context: Context): AlarmPyoAlarmSource? {
+    val values = legacyPreferences(context)
+    val planId = values.getString(KEY_ACTIVE_PLAN_ID, null) ?: return null
+    if (!isActive(context, planId)) return null
+    val wireValue = values.getString(KEY_ACTIVE_SOURCE, null)
+    return AlarmPyoAlarmSource.entries.firstOrNull { it.wireValue == wireValue }
+      ?: AlarmPyoAlarmSource.WORK
+  }
+
+  fun isActiveSource(
+    context: Context,
+    planId: String,
+    source: AlarmPyoAlarmSource
+  ): Boolean = isActive(context, planId) && activeSource(context) == source
+
+  fun clearActive(
+    context: Context,
+    expectedPlanId: String? = null,
+    expectedSource: AlarmPyoAlarmSource? = null
+  ) {
+    val values = legacyPreferences(context)
+    if (
+      expectedPlanId != null &&
+      values.getString(KEY_ACTIVE_PLAN_ID, null) != expectedPlanId
+    ) return
+    if (expectedSource != null && activeSource(context) != expectedSource) return
     legacyPreferences(context).edit()
       .remove(KEY_ACTIVE_PLAN_ID)
       .remove(KEY_ACTIVE_UNTIL)
+      .remove(KEY_ACTIVE_SOURCE)
       .commit()
   }
 
@@ -729,7 +762,7 @@ internal object AlarmPyoAlarmStore {
       .take(MAX_RECENT_EVENTS)
   }.getOrElse { emptyList() }
 
-  fun clearForExplicitCancellation(context: Context) {
+  fun clearForExplicitCancellation(context: Context, preserveActive: Boolean = false) {
     if (storageHealth(context) == AlarmPyoAlarmStorageHealth.CORRUPT) {
       reseedAfterCorruption(context, emptyList())
     } else {
@@ -737,12 +770,15 @@ internal object AlarmPyoAlarmStore {
         it.copy(plans = emptyList(), scheduledIds = emptySet(), singleRepeats = emptyList())
       }
     }
-    requireCommitted(
-      legacyPreferences(context).edit()
-        .remove(KEY_TEST_ALARM_AT)
+    val editor = legacyPreferences(context).edit().remove(KEY_TEST_ALARM_AT)
+    if (!preserveActive) {
+      editor
         .remove(KEY_ACTIVE_PLAN_ID)
         .remove(KEY_ACTIVE_UNTIL)
-        .commit(),
+        .remove(KEY_ACTIVE_SOURCE)
+    }
+    requireCommitted(
+      editor.commit(),
       "알람 데이터"
     )
   }

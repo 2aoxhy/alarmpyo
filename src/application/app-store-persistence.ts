@@ -153,16 +153,6 @@ export function getResetAllDataResult(
   return { status: 'success', dataReset: true };
 }
 
-export async function clearSetupDraftBeforeApplyingReset(
-  clearDraft: () => Promise<void>,
-): Promise<void> {
-  try {
-    await clearDraft();
-  } catch {
-    throw new Error('초기 설정 임시 저장을 지우지 못했어요.');
-  }
-}
-
 export function shouldSyncAlarmsAfterReplacement({
   current,
   next,

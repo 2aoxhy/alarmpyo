@@ -3,51 +3,160 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInitialSetupPayload,
   buildSetupPreview,
+  getSuggestedWorkTimesForPreset,
   normalizeSetupScreenStep,
+  shouldApplySetupPresetSuggestion,
   validateSetupInput,
 } from '../setup-flow';
 
 const rotationInput = {
-  patternKind: 'rotation' as const,
+  presetId: 'three-team-two-shift' as const,
+  sequence: ['day', 'day', 'night', 'night', 'off', 'off'] as const,
   position: 0,
   referenceDate: '2026-07-13',
   dayStart: '07:00',
-  dayEnd: '17:45',
-  nightStart: '18:00',
-  nightEnd: '06:45',
+  dayEnd: '19:00',
+  eveningStart: '15:00',
+  eveningEnd: '23:00',
+  nightStart: '19:00',
+  nightEnd: '07:00',
 };
 
-describe('첫 설정 흐름', () => {
-  it('기존 3단계 초안을 새 두 번째 단계에서 이어서 열어요', () => {
+describe('initial setup flow', () => {
+  it('keeps all three v3 setup screens', () => {
     expect(normalizeSetupScreenStep(1)).toBe(1);
     expect(normalizeSetupScreenStep(2)).toBe(2);
-    expect(normalizeSetupScreenStep(3)).toBe(2);
+    expect(normalizeSetupScreenStep(3)).toBe(3);
   });
 
-  it('3조 2교대는 실제 근무 순서와 주간·야간 시간이 모두 있어야 완료해요', () => {
+  it('provides non-overlapping representative hours for the first preset selection', () => {
+    expect(getSuggestedWorkTimesForPreset('weekday')).toEqual({
+      day: { start: '07:00', end: '16:00' },
+    });
+    expect(getSuggestedWorkTimesForPreset('four-team-two-shift')).toEqual({
+      day: { start: '07:00', end: '19:00' },
+      night: { start: '19:00', end: '07:00' },
+    });
+    expect(getSuggestedWorkTimesForPreset('three-team-three-shift')).toEqual({
+      day: { start: '07:00', end: '15:00' },
+      evening: { start: '15:00', end: '23:00' },
+      night: { start: '23:00', end: '07:00' },
+    });
+    expect(getSuggestedWorkTimesForPreset('custom')).toBeNull();
+  });
+
+  it('updates suggestions across preset changes until a field is edited, then preserves input', () => {
+    expect(
+      shouldApplySetupPresetSuggestion({ resumedDraft: false, workTimesEdited: false }),
+    ).toBe(true);
+    expect(
+      shouldApplySetupPresetSuggestion({ resumedDraft: false, workTimesEdited: true }),
+    ).toBe(false);
+    expect(
+      shouldApplySetupPresetSuggestion({ resumedDraft: true, workTimesEdited: false }),
+    ).toBe(false);
+
+    const twoShift = getSuggestedWorkTimesForPreset('two-team-two-shift')!;
+    const threeShift = getSuggestedWorkTimesForPreset('three-team-three-shift')!;
+    expect(twoShift.day?.end).toBe('19:00');
+    expect(threeShift).toEqual({
+      day: { start: '07:00', end: '15:00' },
+      evening: { start: '15:00', end: '23:00' },
+      night: { start: '23:00', end: '07:00' },
+    });
+  });
+
+  it('requires a selected position and every active shift time', () => {
     expect(validateSetupInput({ ...rotationInput, position: null }).canComplete).toBe(false);
     expect(validateSetupInput(rotationInput).canComplete).toBe(true);
-    expect(validateSetupInput({ ...rotationInput, nightEnd: '25:10' }).canComplete).toBe(false);
+
+    const threeShiftInput = {
+      ...rotationInput,
+      presetId: 'three-team-three-shift' as const,
+      sequence: ['day', 'evening', 'night'] as const,
+      dayEnd: '15:00',
+      nightStart: '23:00',
+    };
+    expect(validateSetupInput(threeShiftInput).canComplete).toBe(true);
+    expect(validateSetupInput({ ...threeShiftInput, eveningEnd: '' }).canComplete).toBe(false);
   });
 
-  it('주간 고정은 요일에서 순서를 계산하고 야간 시간을 요구하지 않아요', () => {
+  it('derives weekday position and does not require inactive evening or night times', () => {
     const validation = validateSetupInput({
       ...rotationInput,
-      patternKind: 'weekday',
+      presetId: 'weekday',
+      sequence: ['day', 'day', 'day', 'day', 'day', 'off', 'off'],
       position: null,
+      eveningStart: '',
+      eveningEnd: '',
       nightStart: '',
       nightEnd: '',
     });
 
     expect(validation.activePosition).toBe(0);
+    expect(validation.activeShiftIds).toEqual(['day']);
     expect(validation.canComplete).toBe(true);
   });
 
-  it('선택한 실제 근무부터 다음 반복 일정을 미리 보여줘요', () => {
+  it('converts an exact weekday custom sequence and ignores its anchor position', () => {
+    const sequence = ['day', 'day', 'day', 'day', 'day', 'off', 'off'] as const;
+    const input = {
+      ...rotationInput,
+      presetId: 'custom' as const,
+      sequence,
+      position: 2,
+      referenceDate: '2026-07-18',
+      eveningStart: '',
+      eveningEnd: '',
+      nightStart: '',
+      nightEnd: '',
+    };
+    const validation = validateSetupInput(input);
+
+    expect(validation).toMatchObject({
+      effectivePresetId: 'weekday',
+      normalizedToWeekday: true,
+      activePosition: 5,
+      canComplete: true,
+    });
+    expect(
+      buildSetupPreview({
+        activePosition: 2,
+        presetId: 'custom',
+        sequence,
+        referenceDate: '2026-07-18',
+      }).slice(0, 3).map((item) => item.shiftTypeId),
+    ).toEqual(['off', 'off', 'day']);
+
+    const payload = buildInitialSetupPayload({
+      activePosition: validation.activePosition!,
+      alarmsWanted: false,
+      dayDuration: validation.dayDuration,
+      dayEndMinutes: validation.dayEndMinutes,
+      dayStartMinutes: validation.dayStartMinutes,
+      eveningDuration: null,
+      eveningEndMinutes: null,
+      eveningStartMinutes: null,
+      nightDuration: null,
+      nightEndMinutes: null,
+      nightStartMinutes: null,
+      presetId: 'custom',
+      sequence,
+      referenceDate: input.referenceDate,
+    });
+    expect(payload.pattern).toMatchObject({
+      name: '주간 고정',
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-18',
+    });
+  });
+
+  it('previews one complete cycle starting from the actual selected position', () => {
     const preview = buildSetupPreview({
       activePosition: 2,
-      patternKind: 'rotation',
-      referenceDate: '2026-07-13',
+      presetId: rotationInput.presetId,
+      sequence: rotationInput.sequence,
+      referenceDate: rotationInput.referenceDate,
     });
 
     expect(preview.map((item) => item.shortName)).toEqual([
@@ -61,16 +170,16 @@ describe('첫 설정 흐름', () => {
     expect(preview.at(-1)?.dateKey).toBe('2026-07-18');
   });
 
-  it('3조 2교대 완료 값에 기존 패턴과 근무 시간 계약을 그대로 담아요', () => {
-    const validation = validateSetupInput(rotationInput);
-    if (
-      validation.activePosition === null ||
-      validation.dayStartMinutes === null ||
-      validation.dayEndMinutes === null ||
-      !validation.dayDuration
-    ) {
-      throw new Error('테스트 입력이 올바르지 않아요.');
-    }
+  it('builds a three-shift payload with the dormant evening shift activated', () => {
+    const input = {
+      ...rotationInput,
+      presetId: 'four-team-three-shift' as const,
+      sequence: ['day', 'evening', 'night', 'off'] as const,
+      dayEnd: '15:00',
+      nightStart: '23:00',
+    };
+    const validation = validateSetupInput(input);
+    if (validation.activePosition === null) throw new Error('invalid test position');
 
     const payload = buildInitialSetupPayload({
       activePosition: validation.activePosition,
@@ -78,71 +187,37 @@ describe('첫 설정 흐름', () => {
       dayDuration: validation.dayDuration,
       dayEndMinutes: validation.dayEndMinutes,
       dayStartMinutes: validation.dayStartMinutes,
+      eveningDuration: validation.eveningDuration,
+      eveningEndMinutes: validation.eveningEndMinutes,
+      eveningStartMinutes: validation.eveningStartMinutes,
       nightDuration: validation.nightDuration,
       nightEndMinutes: validation.nightEndMinutes,
       nightStartMinutes: validation.nightStartMinutes,
-      patternKind: 'rotation',
-      referenceDate: rotationInput.referenceDate,
+      presetId: input.presetId,
+      sequence: input.sequence,
+      referenceDate: input.referenceDate,
     });
 
-    expect(payload).toEqual({
-      pattern: {
-        name: '3조 2교대 (주주야야휴휴)',
-        anchorDate: '2026-07-13',
-        scheduleStartDate: '2026-07-13',
-        shiftTypeIds: ['day', 'day', 'night', 'night', 'off', 'off'],
-      },
-      notificationsEnabled: true,
-      shiftTypePatches: {
-        day: { startMinutes: 420, endMinutes: 1065, endsNextDay: false },
-        night: { startMinutes: 1080, endMinutes: 405, endsNextDay: true },
-      },
+    expect(payload.pattern).toEqual({
+      name: '4조 3교대 (주오야휴)',
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-13',
+      shiftTypeIds: ['day', 'evening', 'night', 'off'],
+    });
+    expect(payload.shiftTypePatches).toEqual({
+      day: { startMinutes: 420, endMinutes: 900, endsNextDay: false },
+      evening: { startMinutes: 900, endMinutes: 1380, endsNextDay: false },
+      night: { startMinutes: 1380, endMinutes: 420, endsNextDay: true },
     });
   });
 
-  it('주간 고정 완료 값에는 사용자가 입력한 주간 시간을 저장해요', () => {
-    const weekdayInput = {
+  it('keeps the legacy rotation call contract while callers migrate', () => {
+    const validation = validateSetupInput({
       ...rotationInput,
-      patternKind: 'weekday',
-      position: null,
-      dayStart: '08:10',
-      dayEnd: '16:40',
-    } as const;
-    const validation = validateSetupInput(weekdayInput);
-    if (
-      validation.activePosition === null ||
-      validation.dayStartMinutes === null ||
-      validation.dayEndMinutes === null ||
-      !validation.dayDuration
-    ) {
-      throw new Error('테스트 입력이 올바르지 않아요.');
-    }
-
-    const payload = buildInitialSetupPayload({
-      activePosition: validation.activePosition,
-      alarmsWanted: false,
-      dayDuration: validation.dayDuration,
-      dayEndMinutes: validation.dayEndMinutes,
-      dayStartMinutes: validation.dayStartMinutes,
-      nightDuration: validation.nightDuration,
-      nightEndMinutes: validation.nightEndMinutes,
-      nightStartMinutes: validation.nightStartMinutes,
-      patternKind: 'weekday',
-      referenceDate: weekdayInput.referenceDate,
+      presetId: undefined,
+      sequence: undefined,
+      patternKind: 'rotation',
     });
-
-    expect(payload.notificationsEnabled).toBe(false);
-    expect(payload.shiftTypePatches).toEqual({
-      day: { startMinutes: 490, endMinutes: 1000, endsNextDay: false },
-    });
-    expect(payload.pattern.shiftTypeIds).toEqual([
-      'day',
-      'day',
-      'day',
-      'day',
-      'day',
-      'off',
-      'off',
-    ]);
+    expect(validation.canComplete).toBe(true);
   });
 });

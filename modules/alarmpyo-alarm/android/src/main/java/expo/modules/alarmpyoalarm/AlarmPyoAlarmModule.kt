@@ -87,6 +87,26 @@ class AlarmPyoAlarmModule : Module() {
       status(emptyList())
     }
 
+    AsyncFunction("getQuickTimerStatusAsync") {
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
+    AsyncFunction("scheduleQuickTimerAsync") { durationMinutes: Int ->
+      AlarmPyoAlarmChannels.ensure(context)
+      require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
+        "빠른 타이머는 30분 또는 60분만 설정할 수 있어요."
+      }
+      if (AlarmPyoAlarmPermissions.canDeliver(context)) {
+        AlarmPyoQuickTimerScheduler.schedule(context, durationMinutes)
+      }
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
+    AsyncFunction("cancelQuickTimerAsync") {
+      AlarmPyoQuickTimerScheduler.cancel(context)
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
     AsyncFunction("syncSleepRemindersAsync") { records: List<AlarmPyoSleepReminderPlanRecord> ->
       AlarmPyoSleepReminderChannels.ensure(context)
       val plans = validateSleepReminderRecords(records)

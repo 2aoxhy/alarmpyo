@@ -4,43 +4,73 @@ import { addDays, isValidDateKey } from '../../utils/date';
 import {
   calculateShiftDuration,
   parseTimeInput,
+  type ShiftDuration,
 } from '../../utils/shift-time';
 import {
   createWorkPatternFromReference,
+  getEffectiveWorkPatternPresetId,
   getWeekdayPatternPosition,
-  ROTATION_PATTERN_SHIFT_TYPE_IDS,
-  WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
+  getWorkPatternPreset,
+  type BaseWorkShiftId,
   type WorkPatternKind,
+  type WorkPatternPresetId,
 } from '../../utils/work-pattern';
 
-export type SetupScreenStep = 1 | 2;
+export type SetupScreenStep = 1 | 2 | 3;
 
-export const ROTATION_SETUP_OPTIONS = [
-  { detail: '첫째 날', label: '주간 첫째 날', shortName: '주1', shiftTypeId: 'day' },
-  { detail: '둘째 날', label: '주간 둘째 날', shortName: '주2', shiftTypeId: 'day' },
-  { detail: '첫째 날', label: '야간 첫째 날', shortName: '야1', shiftTypeId: 'night' },
-  { detail: '둘째 날', label: '야간 둘째 날', shortName: '야2', shiftTypeId: 'night' },
-  { detail: '첫째 날', label: '휴무 첫째 날', shortName: '휴1', shiftTypeId: 'off' },
-  { detail: '둘째 날', label: '휴무 둘째 날', shortName: '휴2', shiftTypeId: 'off' },
-] as const;
+export type SetupSequenceOption = {
+  detail: string;
+  label: string;
+  shortName: string;
+  shiftTypeId: BaseWorkShiftId;
+};
+
+const SHIFT_LABELS: Record<BaseWorkShiftId, string> = {
+  day: '주간',
+  evening: '오후',
+  night: '야간',
+  off: '휴무',
+};
+
+export const ROTATION_SETUP_OPTIONS = createSetupSequenceOptions(
+  getWorkPatternPreset('three-team-two-shift').shiftTypeIds,
+);
 
 export type SetupValidationInput = {
-  patternKind: WorkPatternKind | null;
+  presetId?: WorkPatternPresetId | null;
+  sequence?: readonly BaseWorkShiftId[];
+  /** v2 호출 호환용. */
+  patternKind?: WorkPatternKind | null;
   position: number | null;
   referenceDate: string;
   dayStart: string;
   dayEnd: string;
+  eveningStart?: string;
+  eveningEnd?: string;
   nightStart: string;
   nightEnd: string;
+};
+
+export type SetupShiftValidation = {
+  duration: ShiftDuration | null;
+  endMinutes: number | null;
+  startMinutes: number | null;
 };
 
 export type SetupValidation = {
   activePosition: number | null;
   canComplete: boolean;
-  dayDuration: ReturnType<typeof calculateShiftDuration>;
+  effectivePresetId: WorkPatternPresetId | null;
+  normalizedToWeekday: boolean;
+  activeShiftIds: Exclude<BaseWorkShiftId, 'off'>[];
+  shifts: Record<Exclude<BaseWorkShiftId, 'off'>, SetupShiftValidation>;
+  dayDuration: ShiftDuration | null;
   dayEndMinutes: number | null;
   dayStartMinutes: number | null;
-  nightDuration: ReturnType<typeof calculateShiftDuration>;
+  eveningDuration: ShiftDuration | null;
+  eveningEndMinutes: number | null;
+  eveningStartMinutes: number | null;
+  nightDuration: ShiftDuration | null;
   nightEndMinutes: number | null;
   nightStartMinutes: number | null;
   referenceDateValid: boolean;
@@ -58,49 +88,157 @@ export type InitialSetupPayload = {
   shiftTypePatches: Record<string, Partial<ShiftType>>;
 };
 
-/** 기존 3단계 초안도 새 2단계 화면에서 이어서 입력할 수 있게 해요. */
+export type SetupSuggestedWorkTimes = Partial<
+  Record<Exclude<BaseWorkShiftId, 'off'>, { start: string; end: string }>
+>;
+
+/**
+ * 회사별 시간이 크게 다르므로 프리셋의 첫 선택 때만 보여줄 대표 예시예요.
+ * 호출 화면은 복원한 초안이나 사용자가 편집한 값을 이 제안으로 덮어쓰면 안 됩니다.
+ */
+export function getSuggestedWorkTimesForPreset(
+  presetId: WorkPatternPresetId,
+): SetupSuggestedWorkTimes | null {
+  if (presetId === 'weekday') {
+    return { day: { start: '07:00', end: '16:00' } };
+  }
+  if (
+    presetId === 'two-team-two-shift' ||
+    presetId === 'three-team-two-shift' ||
+    presetId === 'four-team-two-shift'
+  ) {
+    return {
+      day: { start: '07:00', end: '19:00' },
+      night: { start: '19:00', end: '07:00' },
+    };
+  }
+  if (presetId === 'three-team-three-shift' || presetId === 'four-team-three-shift') {
+    return {
+      day: { start: '07:00', end: '15:00' },
+      evening: { start: '15:00', end: '23:00' },
+      night: { start: '23:00', end: '07:00' },
+    };
+  }
+  return null;
+}
+
+export function shouldApplySetupPresetSuggestion({
+  resumedDraft,
+  workTimesEdited,
+}: {
+  resumedDraft: boolean;
+  workTimesEdited: boolean;
+}): boolean {
+  return !resumedDraft && !workTimesEdited;
+}
+
+export function createSetupSequenceOptions(
+  sequence: readonly BaseWorkShiftId[],
+): SetupSequenceOption[] {
+  const totals = new Map<BaseWorkShiftId, number>();
+  const seen = new Map<BaseWorkShiftId, number>();
+  for (const id of sequence) totals.set(id, (totals.get(id) ?? 0) + 1);
+  return sequence.map((shiftTypeId) => {
+    const occurrence = (seen.get(shiftTypeId) ?? 0) + 1;
+    seen.set(shiftTypeId, occurrence);
+    const numbered = (totals.get(shiftTypeId) ?? 0) > 1;
+    return {
+      shiftTypeId,
+      detail: numbered ? `${occurrence}일차` : '근무일',
+      label: numbered
+        ? `${SHIFT_LABELS[shiftTypeId]} ${occurrence}일차`
+        : SHIFT_LABELS[shiftTypeId],
+      shortName: numbered
+        ? `${SHIFT_LABELS[shiftTypeId].slice(0, 1)}${occurrence}`
+        : SHIFT_LABELS[shiftTypeId].slice(0, 1),
+    };
+  });
+}
+
+function resolvePresetAndSequence(input: Pick<SetupValidationInput, 'patternKind' | 'presetId' | 'sequence'>) {
+  const presetId =
+    input.presetId ??
+    (input.patternKind === 'weekday'
+      ? 'weekday'
+      : input.patternKind === 'rotation'
+        ? 'three-team-two-shift'
+        : null);
+  const sequence =
+    input.sequence ??
+    (presetId ? getWorkPatternPreset(presetId).shiftTypeIds : []);
+  return {
+    presetId,
+    effectivePresetId: getEffectiveWorkPatternPresetId(presetId, sequence),
+    sequence,
+  };
+}
+
+/** 이전 2단계 초안과 새 3단계 초안을 모두 안전한 현재 단계에 맞춰요. */
 export function normalizeSetupScreenStep(step: SetupStep): SetupScreenStep {
-  return step === 1 ? 1 : 2;
+  return step;
+}
+
+function validateShiftTime(start: string, end: string): SetupShiftValidation {
+  const startMinutes = parseTimeInput(start);
+  const endMinutes = parseTimeInput(end);
+  return {
+    startMinutes,
+    endMinutes,
+    duration:
+      startMinutes === null || endMinutes === null
+        ? null
+        : calculateShiftDuration(startMinutes, endMinutes),
+  };
 }
 
 export function validateSetupInput(input: SetupValidationInput): SetupValidation {
-  const dayStartMinutes = parseTimeInput(input.dayStart);
-  const dayEndMinutes = parseTimeInput(input.dayEnd);
-  const nightStartMinutes = parseTimeInput(input.nightStart);
-  const nightEndMinutes = parseTimeInput(input.nightEnd);
-  const dayDuration =
-    dayStartMinutes === null || dayEndMinutes === null
-      ? null
-      : calculateShiftDuration(dayStartMinutes, dayEndMinutes);
-  const nightDuration =
-    nightStartMinutes === null || nightEndMinutes === null
-      ? null
-      : calculateShiftDuration(nightStartMinutes, nightEndMinutes);
+  const { effectivePresetId, presetId, sequence } = resolvePresetAndSequence(input);
+  const day = validateShiftTime(input.dayStart, input.dayEnd);
+  const evening = validateShiftTime(input.eveningStart ?? '', input.eveningEnd ?? '');
+  const night = validateShiftTime(input.nightStart, input.nightEnd);
+  const shifts = { day, evening, night };
   const referenceDateValid = isValidDateKey(input.referenceDate);
+  const activeShiftIds = [...new Set(sequence)]
+    .filter(
+      (id): id is Exclude<BaseWorkShiftId, 'off'> =>
+        id === 'day' || id === 'evening' || id === 'night',
+    );
   const activePosition =
-    input.patternKind === null
+    effectivePresetId === null
       ? null
-      : input.patternKind === 'weekday'
+      : effectivePresetId === 'weekday'
         ? referenceDateValid
           ? getWeekdayPatternPosition(input.referenceDate)
           : null
         : input.position;
   const canComplete =
-    input.patternKind !== null &&
+    effectivePresetId !== null &&
+    sequence.length >= 1 &&
+    sequence.length <= 42 &&
+    activeShiftIds.length > 0 &&
     activePosition !== null &&
+    activePosition >= 0 &&
+    activePosition < sequence.length &&
     referenceDateValid &&
-    dayDuration !== null &&
-    (input.patternKind === 'weekday' || nightDuration !== null);
+    activeShiftIds.every((id) => shifts[id].duration !== null);
 
   return {
     activePosition,
+    activeShiftIds,
     canComplete,
-    dayDuration,
-    dayEndMinutes,
-    dayStartMinutes,
-    nightDuration,
-    nightEndMinutes,
-    nightStartMinutes,
+    effectivePresetId,
+    normalizedToWeekday:
+      presetId !== null && presetId !== 'weekday' && effectivePresetId === 'weekday',
+    shifts,
+    dayDuration: day.duration,
+    dayEndMinutes: day.endMinutes,
+    dayStartMinutes: day.startMinutes,
+    eveningDuration: evening.duration,
+    eveningEndMinutes: evening.endMinutes,
+    eveningStartMinutes: evening.startMinutes,
+    nightDuration: night.duration,
+    nightEndMinutes: night.endMinutes,
+    nightStartMinutes: night.startMinutes,
     referenceDateValid,
   };
 }
@@ -108,89 +246,122 @@ export function validateSetupInput(input: SetupValidationInput): SetupValidation
 export function buildSetupPreview({
   activePosition,
   patternKind,
+  presetId: suppliedPresetId,
+  sequence: suppliedSequence,
   referenceDate,
 }: {
   activePosition: number | null;
-  patternKind: WorkPatternKind | null;
+  patternKind?: WorkPatternKind | null;
+  presetId?: WorkPatternPresetId | null;
+  sequence?: readonly BaseWorkShiftId[];
   referenceDate: string;
 }): SetupPreviewItem[] {
-  if (
-    patternKind === null ||
-    activePosition === null ||
-    !isValidDateKey(referenceDate)
-  ) {
+  const { effectivePresetId, sequence } = resolvePresetAndSequence({
+    patternKind,
+    presetId: suppliedPresetId,
+    sequence: suppliedSequence,
+  });
+  if (effectivePresetId === null || !isValidDateKey(referenceDate)) {
     return [];
   }
 
-  const sequence =
-    patternKind === 'weekday'
-      ? WEEKDAY_PATTERN_SHIFT_TYPE_IDS
-      : ROTATION_PATTERN_SHIFT_TYPE_IDS;
+  const previewPosition =
+    effectivePresetId === 'weekday'
+      ? getWeekdayPatternPosition(referenceDate)
+      : activePosition;
+  if (
+    previewPosition === null ||
+    previewPosition < 0 ||
+    previewPosition >= sequence.length
+  ) return [];
 
+  const options = createSetupSequenceOptions(sequence);
   return Array.from({ length: sequence.length }, (_, offset) => {
-    const sequenceIndex = (activePosition + offset) % sequence.length;
-    const shiftTypeId = sequence[sequenceIndex];
+    const sequenceIndex = (previewPosition + offset) % sequence.length;
     return {
       dateKey: addDays(referenceDate, offset),
-      shiftTypeId,
-      shortName:
-        patternKind === 'weekday'
-          ? shiftTypeId === 'day'
-            ? '주간'
-            : '휴무'
-          : (ROTATION_SETUP_OPTIONS[sequenceIndex]?.shortName ?? shiftTypeId),
+      shiftTypeId: sequence[sequenceIndex],
+      shortName: options[sequenceIndex]?.shortName ?? sequence[sequenceIndex],
     };
   });
 }
 
-export function buildInitialSetupPayload({
-  activePosition,
-  alarmsWanted,
-  dayDuration,
-  dayEndMinutes,
-  dayStartMinutes,
-  nightDuration,
-  nightEndMinutes,
-  nightStartMinutes,
-  patternKind,
-  referenceDate,
-}: {
+type BuildInitialSetupPayloadInput = {
   activePosition: number;
   alarmsWanted: boolean;
-  dayDuration: NonNullable<ReturnType<typeof calculateShiftDuration>>;
-  dayEndMinutes: number;
-  dayStartMinutes: number;
-  nightDuration: ReturnType<typeof calculateShiftDuration>;
+  presetId?: WorkPatternPresetId;
+  sequence?: readonly BaseWorkShiftId[];
+  patternKind?: WorkPatternKind;
+  referenceDate: string;
+  dayDuration: ShiftDuration | null;
+  dayEndMinutes: number | null;
+  dayStartMinutes: number | null;
+  eveningDuration?: ShiftDuration | null;
+  eveningEndMinutes?: number | null;
+  eveningStartMinutes?: number | null;
+  nightDuration: ShiftDuration | null;
   nightEndMinutes: number | null;
   nightStartMinutes: number | null;
-  patternKind: WorkPatternKind;
-  referenceDate: string;
-}): InitialSetupPayload {
+};
+
+export function buildInitialSetupPayload(
+  input: BuildInitialSetupPayloadInput,
+): InitialSetupPayload {
+  const presetId =
+    input.presetId ??
+    (input.patternKind === 'weekday' ? 'weekday' : 'three-team-two-shift');
+  const sequence = input.sequence ?? getWorkPatternPreset(presetId).shiftTypeIds;
+  const effectivePresetId = getEffectiveWorkPatternPresetId(presetId, sequence)!;
+  const activeShiftIds = new Set(sequence);
+  const shiftTypePatches: Record<string, Partial<ShiftType>> = {
+    ...(activeShiftIds.has('day') &&
+    input.dayDuration &&
+    input.dayStartMinutes !== null &&
+    input.dayEndMinutes !== null
+      ? {
+          day: {
+            startMinutes: input.dayStartMinutes,
+            endMinutes: input.dayEndMinutes,
+            endsNextDay: input.dayDuration.endsNextDay,
+          },
+        }
+      : {}),
+    ...(activeShiftIds.has('evening') &&
+    input.eveningDuration &&
+    input.eveningStartMinutes !== null &&
+    input.eveningStartMinutes !== undefined &&
+    input.eveningEndMinutes !== null &&
+    input.eveningEndMinutes !== undefined
+      ? {
+          evening: {
+            startMinutes: input.eveningStartMinutes,
+            endMinutes: input.eveningEndMinutes,
+            endsNextDay: input.eveningDuration.endsNextDay,
+          },
+        }
+      : {}),
+    ...(activeShiftIds.has('night') &&
+    input.nightDuration &&
+    input.nightStartMinutes !== null &&
+    input.nightEndMinutes !== null
+      ? {
+          night: {
+            startMinutes: input.nightStartMinutes,
+            endMinutes: input.nightEndMinutes,
+            endsNextDay: input.nightDuration.endsNextDay,
+          },
+        }
+      : {}),
+  };
+
   return {
     pattern: createWorkPatternFromReference({
-      kind: patternKind,
-      position: activePosition,
-      referenceDate,
+      presetId: effectivePresetId,
+      position: input.activePosition,
+      referenceDate: input.referenceDate,
+      shiftTypeIds: sequence,
     }),
-    notificationsEnabled: alarmsWanted,
-    shiftTypePatches: {
-      day: {
-        startMinutes: dayStartMinutes,
-        endMinutes: dayEndMinutes,
-        endsNextDay: dayDuration.endsNextDay,
-      },
-      ...(patternKind === 'rotation' &&
-      nightDuration &&
-      nightStartMinutes !== null &&
-      nightEndMinutes !== null
-        ? {
-            night: {
-              startMinutes: nightStartMinutes,
-              endMinutes: nightEndMinutes,
-              endsNextDay: nightDuration.endsNextDay,
-            },
-          }
-        : {}),
-    },
+    notificationsEnabled: input.alarmsWanted,
+    shiftTypePatches,
   };
 }

@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DAY_SHIFT_START_MINUTES } from '../../constants/shift-schedule';
-import { createDefaultAppData } from '../app-data-service';
+import {
+  createDefaultAppData,
+  parseAppDataJson,
+  resolveShiftFromAppData,
+  serializeAppData,
+} from '../app-data-service';
 import {
   applyWorkSettingsPreview,
   applyWorkSettingsTransaction,
+  doesWorkSettingsPreviewApplyEvening,
   exportWorkSettingsToJson,
   LEGACY_WORK_SETTINGS_SHARE_FORMAT,
   MAX_WORK_SETTINGS_SHARE_BYTES,
@@ -21,6 +27,16 @@ function exportedDocument(): Record<string, unknown> {
 
 function workSettingsOf(document: Record<string, unknown>): Record<string, unknown> {
   return document.workSettings as Record<string, unknown>;
+}
+
+function legacyDocument(formatVersion: 1 | 2 | 3 | 4 | 5 | 6): Record<string, unknown> {
+  const document = exportedDocument();
+  document.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
+  document.formatVersion = formatVersion;
+  const workSettings = workSettingsOf(document);
+  workSettings.shiftTypes = (workSettings.shiftTypes as Record<string, unknown>[])
+    .filter((shift) => shift.id !== 'evening');
+  return document;
 }
 
 describe('근무 설정 공유 파일', () => {
@@ -61,7 +77,7 @@ describe('근무 설정 공유 파일', () => {
     }
   });
 
-  it('근무 방식과 다섯 가지 근무 설정을 미리 봅니다', () => {
+  it('근무 방식과 오후를 포함한 여섯 가지 근무 설정을 미리 봅니다', () => {
     const preview = previewWorkSettingsImport(JSON.stringify(exportedDocument()));
 
     expect(preview.summary.patternName).toBe('3조 2교대 (주주야야휴휴)');
@@ -72,11 +88,63 @@ describe('근무 설정 공유 파일', () => {
     expect(preview.summary.night.endsNextDay).toBe(true);
     expect(preview.document.workSettings.shiftTypes.map((shift) => shift.id)).toEqual([
       'day',
+      'evening',
       'night',
       'substitute-day',
       'substitute-night',
       'off',
     ]);
+  });
+
+  it('v7 파일은 1~42일 사용자 순서와 사용자가 붙인 이름을 보존합니다', () => {
+    const source = createDefaultAppData('2026-07-13');
+    source.pattern = {
+      ...source.pattern,
+      name: '우리 회사 5일 순서',
+      shiftTypeIds: ['day', 'evening', 'night', 'off', 'off'],
+    };
+
+    const preview = previewWorkSettingsImport(exportWorkSettingsToJson(source));
+
+    expect(preview.sourceFormatVersion).toBe(7);
+    expect(preview.summary.patternName).toBe('우리 회사 5일 순서');
+    expect(preview.document.workSettings.pattern.shiftTypeIds).toEqual([
+      'day',
+      'evening',
+      'night',
+      'off',
+      'off',
+    ]);
+  });
+
+  it('exact weekday 사용자 순서는 공유·적용·재로드에서도 요일 기준으로 정규화해요', () => {
+    const source = createDefaultAppData('2026-07-13');
+    source.pattern = {
+      name: '사용자 주간 순서',
+      anchorDate: '2026-07-15',
+      scheduleStartDate: '2026-07-18',
+      shiftTypeIds: ['day', 'day', 'day', 'day', 'day', 'off', 'off'],
+    };
+
+    const raw = exportWorkSettingsToJson(source);
+    const exported = JSON.parse(raw) as {
+      workSettings: { pattern: Record<string, unknown> };
+    };
+    const preview = previewWorkSettingsImport(raw);
+    const applied = applyWorkSettingsPreview(
+      createDefaultAppData('2026-07-01'),
+      preview,
+    );
+    const reloaded = parseAppDataJson(serializeAppData(applied)).data;
+
+    expect(exported.workSettings.pattern).toMatchObject({
+      name: '주간 고정',
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-18',
+    });
+    expect(preview.summary.patternKind).toBe('weekday');
+    expect(resolveShiftFromAppData(reloaded, '2026-07-18')?.id).toBe('off');
+    expect(resolveShiftFromAppData(reloaded, '2026-07-20')?.id).toBe('day');
   });
 
   it('UTF-8 BOM이 붙은 파일도 읽습니다', () => {
@@ -88,9 +156,7 @@ describe('근무 설정 공유 파일', () => {
   });
 
   it('v1 파일은 기준 날짜를 첫 근무일로 보완합니다', () => {
-    const legacy = exportedDocument();
-    legacy.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
-    legacy.formatVersion = 1;
+    const legacy = legacyDocument(1);
     const pattern = workSettingsOf(legacy).pattern as Record<string, unknown>;
     delete pattern.scheduleStartDate;
 
@@ -102,19 +168,13 @@ describe('근무 설정 공유 파일', () => {
   });
 
   it('v3~v5의 제거된 활동 자료가 손상돼도 핵심 설정을 복원합니다', () => {
-    const v3 = exportedDocument();
-    v3.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
-    v3.formatVersion = 3;
+    const v3 = legacyDocument(3);
     workSettingsOf(v3).workBreakPlans = '손상된 이전 휴게표';
 
-    const v4 = exportedDocument();
-    v4.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
-    v4.formatVersion = 4;
+    const v4 = legacyDocument(4);
     workSettingsOf(v4).activityPlans = { day: '손상', night: null };
 
-    const v5 = exportedDocument();
-    v5.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
-    v5.formatVersion = 5;
+    const v5 = legacyDocument(5);
     workSettingsOf(v5).activityPlans = 123;
     workSettingsOf(v5).datedActivityPlans = ['손상'];
 
@@ -128,14 +188,79 @@ describe('근무 설정 공유 파일', () => {
     }
   });
 
-  it('과거 앱의 v6 파일도 가져오기 입력으로 받아 새 형식으로 정규화합니다', () => {
-    const legacy = exportedDocument();
-    legacy.format = LEGACY_WORK_SETTINGS_SHARE_FORMAT;
+  it('V04가 현재 계보 ID로 내보낸 v6도 새 형식으로 정규화합니다', () => {
+    const legacy = legacyDocument(6);
+    legacy.format = WORK_SETTINGS_SHARE_FORMAT;
 
     const preview = previewWorkSettingsImport(JSON.stringify(legacy));
 
-    expect(preview.sourceFormatVersion).toBe(WORK_SETTINGS_SHARE_FORMAT_VERSION);
+    expect(preview.sourceFormatVersion).toBe(6);
     expect(preview.document.format).toBe(WORK_SETTINGS_SHARE_FORMAT);
+    expect(preview.summary.evening).toMatchObject({
+      id: 'evening',
+      startMinutes: 15 * 60,
+      endMinutes: 23 * 60,
+    });
+    expect(doesWorkSettingsPreviewApplyEvening(preview)).toBe(false);
+  });
+
+  it('현재 계보 ID의 실제 v6 파일은 합성 오후 기본값을 현재 설정에 덮어쓰지 않아요', () => {
+    const document = legacyDocument(6);
+    document.format = WORK_SETTINGS_SHARE_FORMAT;
+    const sharedDay = (workSettingsOf(document).shiftTypes as Record<string, unknown>[])
+      .find((shift) => shift.id === 'day')!;
+    sharedDay.startMinutes = 8 * 60;
+    sharedDay.endMinutes = 18 * 60;
+
+    const current = createDefaultAppData('2026-07-01');
+    const currentEvening = current.shiftTypes.find((shift) => shift.id === 'evening')!;
+    Object.assign(currentEvening, {
+      startMinutes: 14 * 60 + 10,
+      endMinutes: 22 * 60 + 20,
+      endsNextDay: false,
+      alarmEnabled: true,
+      alarmMinutesBefore: 95,
+    });
+
+    const preview = previewWorkSettingsImport(JSON.stringify(document));
+    const applied = applyWorkSettingsPreview(current, preview);
+
+    expect(preview.sourceFormatVersion).toBe(6);
+    expect(applied.shiftTypes.find((shift) => shift.id === 'evening')).toBe(
+      currentEvening,
+    );
+    expect(applied.shiftTypes.find((shift) => shift.id === 'day')).toMatchObject({
+      startMinutes: 8 * 60,
+      endMinutes: 18 * 60,
+    });
+  });
+
+  it('v7 파일이 명시한 오후 설정은 현재 오후 설정에 정상 적용해요', () => {
+    const source = createDefaultAppData('2026-08-01');
+    const sourceEvening = source.shiftTypes.find((shift) => shift.id === 'evening')!;
+    Object.assign(sourceEvening, {
+      startMinutes: 13 * 60 + 30,
+      endMinutes: 21 * 60 + 45,
+      endsNextDay: false,
+      alarmEnabled: true,
+      alarmMinutesBefore: 100,
+    });
+    const current = createDefaultAppData('2026-07-01');
+    const currentEvening = current.shiftTypes.find((shift) => shift.id === 'evening')!;
+    currentEvening.startMinutes = 16 * 60;
+    currentEvening.endMinutes = 23 * 60 + 30;
+
+    const preview = previewWorkSettingsImport(exportWorkSettingsToJson(source));
+    const applied = applyWorkSettingsPreview(current, preview);
+
+    expect(doesWorkSettingsPreviewApplyEvening(preview)).toBe(true);
+    expect(applied.shiftTypes.find((shift) => shift.id === 'evening')).toMatchObject({
+      startMinutes: 13 * 60 + 30,
+      endMinutes: 21 * 60 + 45,
+      endsNextDay: false,
+      alarmEnabled: true,
+      alarmMinutesBefore: 100,
+    });
   });
 
   it('새 계보 형식에 과거 버전을 섞은 파일은 거부합니다', () => {
@@ -145,6 +270,17 @@ describe('근무 설정 공유 파일', () => {
     expect(() =>
       previewWorkSettingsImport(JSON.stringify(mixedLineage)),
     ).toThrow('지원하지 않는 근무 설정 파일 버전');
+  });
+
+  it('v6 이하 파일에는 당시 지원한 3조 2교대와 주간 고정만 허용해요', () => {
+    const legacy = legacyDocument(6);
+    const pattern = workSettingsOf(legacy).pattern as Record<string, unknown>;
+    pattern.name = '2조 2교대 (주야)';
+    pattern.shiftTypeIds = ['day', 'night'];
+
+    expect(() => previewWorkSettingsImport(JSON.stringify(legacy))).toThrow(
+      '지원하는 근무 방식이 아니에요',
+    );
   });
 
   it('적용할 때 개인 일정과 휴대폰 설정을 유지합니다', () => {
@@ -174,7 +310,11 @@ describe('근무 설정 공유 파일', () => {
       previewWorkSettingsImport(exportWorkSettingsToJson(source)),
     );
 
-    expect(applied.pattern).toEqual(source.pattern);
+    expect(applied.pattern).toEqual({
+      ...source.pattern,
+      // 주간 고정은 적용일이 속한 주의 월요일로 canonicalize해요.
+      anchorDate: '2026-07-27',
+    });
     expect(applied.shiftTypes.find((shift) => shift.id === 'day')).toMatchObject({
       startMinutes: 6 * 60,
       endMinutes: 17 * 60,
@@ -223,7 +363,7 @@ describe('근무 설정 공유 파일', () => {
   it('지원하지 않는 반복 순서와 잘못된 시간을 거부합니다', () => {
     const wrongPattern = exportedDocument();
     const pattern = workSettingsOf(wrongPattern).pattern as Record<string, unknown>;
-    pattern.shiftTypeIds = ['day', 'night'];
+    pattern.shiftTypeIds = ['off'];
     expect(() => previewWorkSettingsImport(JSON.stringify(wrongPattern))).toThrow(
       '지원하는 근무 방식이 아니에요',
     );

@@ -2,8 +2,8 @@
   "expo": {
     "name": "알람표",
     "slug": "alarmpyo",
-    "version": "1.0.4",
-    "description": "주간·교대 근무표와 기상 알람을 간편하게 관리해요",
+    "version": "1.0.5",
+    "description": "교대 근무표와 근무·타이머 알람을 간편하게 관리해요",
     "orientation": "portrait",
     "icon": "./assets/images/alarmpyo-icon.png",
     "scheme": "alarmpyo",
@@ -19,13 +19,13 @@
     },
     "ios": {
       "icon": "./assets/images/alarmpyo-icon.png",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": false,
       "bundleIdentifier": "com.personal.alarmpyo"
     },
     "android": {
       "package": "com.personal.alarmpyo",
-      "versionCode": 5,
+      "versionCode": 6,
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.DUMP",

@@ -52,6 +52,11 @@
             android:exported="false" />
 
         <receiver
+            android:name="expo.modules.alarmpyoalarm.AlarmPyoQuickTimerReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
             android:name="expo.modules.alarmpyoalarm.AlarmPyoSleepReminderReceiver"
             android:directBootAware="true"
             android:exported="false" />

@@ -28,6 +28,18 @@ internal val ALARMPYO_ALARM_RESTORE_ACTIONS = setOf(
 internal fun shouldRestorePersistedAlarms(action: String?): Boolean =
   action in ALARMPYO_ALARM_RESTORE_ACTIONS && action != Intent.ACTION_DATE_CHANGED
 
+internal fun shouldRestoreQuickTimer(action: String?): Boolean = action in setOf(
+  Intent.ACTION_BOOT_COMPLETED,
+  Intent.ACTION_LOCKED_BOOT_COMPLETED,
+  Intent.ACTION_MY_PACKAGE_REPLACED,
+  // A timer counts down with elapsedRealtime during the current boot. Rebase
+  // its wall target immediately after TIME_SET so a later reboot can safely
+  // fall back to the updated epoch time. TIMEZONE_CHANGED does not change
+  // System.currentTimeMillis and therefore needs no timer reschedule.
+  Intent.ACTION_TIME_CHANGED,
+  "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
+)
+
 class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     val action = intent.action
@@ -54,7 +66,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
     }
   }
 
-  private companion object {
+  internal companion object {
     const val TAG = "AlarmPyoAlarmRestore"
     const val RETRY_REQUEST_CODE = 0x485452
     const val REMOVED_ACTIVITY_CHANNEL_ID = "alarmpyo-activity-handover-v1"
@@ -62,6 +74,41 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
     val WATCHDOG_DELAY_MILLIS: Long = TimeUnit.MINUTES.toMillis(2)
     val EXECUTOR = Executors.newSingleThreadExecutor { task ->
       Thread(task, "alarmpyo-alarm-restore").apply { isDaemon = false }
+    }
+
+    @Synchronized
+    fun markQuickTimerReconciliationPending(context: Context) {
+      val appContext = context.applicationContext
+      val now = System.currentTimeMillis()
+      val next = AlarmPyoQuickTimerRestoreJournalPolicy.markPending(
+        AlarmPyoAlarmRestoreStateStore.read(appContext),
+        now
+      )
+      AlarmPyoAlarmRestoreStateStore.write(appContext, next)
+      val wakeupAt = listOf(next.retryAt, next.watchdogAt)
+        .filter { it > now }
+        .minOrNull()
+      if (wakeupAt != null) scheduleRestoreWakeup(appContext, wakeupAt)
+    }
+
+    @Synchronized
+    fun markQuickTimerReconciliationCompleted(context: Context) {
+      val appContext = context.applicationContext
+      val previous = AlarmPyoAlarmRestoreStateStore.read(appContext)
+      val next = AlarmPyoQuickTimerRestoreJournalPolicy.markCompleted(
+        previous,
+        System.currentTimeMillis()
+      ) ?: return
+      if (next == previous) return
+      AlarmPyoAlarmRestoreStateStore.write(appContext, next)
+      val wakeupAt = listOf(next.retryAt, next.watchdogAt)
+        .filter { it > System.currentTimeMillis() }
+        .minOrNull()
+      if (wakeupAt != null) {
+        scheduleRestoreWakeup(appContext, wakeupAt)
+      } else if (!next.hasPendingWork) {
+        cancelRestoreWakeup(appContext)
+      }
     }
 
     @Synchronized
@@ -87,6 +134,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
           workAlarmPending = shouldRestorePersistedAlarms(action),
           sleepReminderPending = shouldRestoreSleepReminders(action),
           widgetPending = action != Intent.ACTION_LOCKED_BOOT_COMPLETED,
+          quickTimerPending = shouldRestoreQuickTimer(action),
           watchdogAt = watchdogAt,
           journalId = journalId
         )
@@ -134,13 +182,22 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
         true
       }
 
+      val quickTimerCompleted = if (state.quickTimerPending) {
+        runCatching { AlarmPyoQuickTimerScheduler.restore(context) }
+          .onFailure { error -> Log.e(TAG, "빠른 타이머를 복원하지 못했어요.", error) }
+          .getOrDefault(false)
+      } else {
+        true
+      }
+
       val next = AlarmPyoAlarmRestoreStateStore.afterAttempt(
         state,
         result = workResult,
         nowMillis = System.currentTimeMillis(),
         retryAllowed = AlarmPyoAlarmPermissions.canSchedule(context),
         sleepRemindersCompleted = sleepRemindersCompleted,
-        widgetCompleted = widgetCompleted
+        widgetCompleted = widgetCompleted,
+        quickTimerCompleted = quickTimerCompleted
       )
 
       commitTransactionResult(context, state.journalId, next)

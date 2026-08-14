@@ -31,4 +31,17 @@ describe('외부 백업 내보내기 안내', () => {
     expect(recordAttemptCalls).toHaveLength(2);
     expect(dataSettingsSource).not.toContain('recordExternalBackupPrepared');
   });
+
+  it('근무 설정 확인에서 오후 ID와 구형 파일 보존 동작을 명확히 안내해요', () => {
+    expect(dataSettingsSource).toContain("evening: '오'");
+    expect(dataSettingsSource).toContain(
+      "doesWorkSettingsPreviewApplyEvening(preview)",
+    );
+    expect(dataSettingsSource).toContain(
+      "formatSharedShiftLine('오후', summary.evening)",
+    );
+    expect(dataSettingsSource).toContain(
+      '현재 휴대전화 설정 유지 (구형 파일에는 오후 설정이 없어요)',
+    );
+  });
 });

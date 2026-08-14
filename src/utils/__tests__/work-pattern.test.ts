@@ -4,28 +4,72 @@ import { createDefaultAppData, resolveShiftFromAppData } from '../../services/ap
 
 import {
   createWorkPatternFromReference,
+  getPatternPositionForDate,
+  getEffectiveWorkPatternPresetId,
   getPositionAfterReferenceDateChange,
   getRotationPatternPositionForDate,
   getWeekdayPatternPosition,
   getWorkPatternKind,
   getWorkPatternName,
+  getWorkPatternPresetId,
+  isValidCustomPatternSequence,
   ROTATION_PATTERN_NAME,
   ROTATION_PATTERN_SHIFT_TYPE_IDS,
   WEEKDAY_PATTERN_NAME,
   WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
+  WORK_PATTERN_PRESETS,
 } from '../work-pattern';
 
 describe('근무 방식 판별', () => {
-  it('지원하는 두 근무 순서를 정확히 판별합니다', () => {
-    expect(getWorkPatternKind([...ROTATION_PATTERN_SHIFT_TYPE_IDS])).toBe('rotation');
-    expect(getWorkPatternKind([...WEEKDAY_PATTERN_SHIFT_TYPE_IDS])).toBe('weekday');
+  it('대표 프리셋을 고정된 순서와 이름으로 제공합니다', () => {
+    expect(WORK_PATTERN_PRESETS.map((preset) => preset.id)).toEqual([
+      'weekday',
+      'two-team-two-shift',
+      'three-team-two-shift',
+      'three-team-three-shift',
+      'four-team-two-shift',
+      'four-team-three-shift',
+      'custom',
+    ]);
+    expect(WORK_PATTERN_PRESETS.find((preset) => preset.id === 'three-team-three-shift')?.shiftTypeIds)
+      .toEqual(['day', 'evening', 'night']);
+    expect(WORK_PATTERN_PRESETS.find((preset) => preset.id === 'four-team-three-shift')?.shiftTypeIds)
+      .toEqual(['day', 'evening', 'night', 'off']);
   });
 
-  it('길이나 순서가 다른 근무 순서를 허용하지 않습니다', () => {
-    expect(getWorkPatternKind(ROTATION_PATTERN_SHIFT_TYPE_IDS.slice(0, -1))).toBeNull();
+  it('기존 분기 계약에서 주간 고정과 모든 대표 반복 교대를 판별합니다', () => {
+    expect(getWorkPatternKind([...ROTATION_PATTERN_SHIFT_TYPE_IDS])).toBe('rotation');
+    expect(getWorkPatternKind([...WEEKDAY_PATTERN_SHIFT_TYPE_IDS])).toBe('weekday');
+    expect(getWorkPatternKind(['day', 'night'])).toBe('rotation');
+    expect(getWorkPatternKind(['day', 'evening', 'night'])).toBe('rotation');
+    expect(getWorkPatternKind(['day', 'night', 'off', 'off'])).toBe('rotation');
+  });
+
+  it('대표 프리셋과 다른 유효한 순서는 기타로 판별합니다', () => {
+    expect(getWorkPatternPresetId(ROTATION_PATTERN_SHIFT_TYPE_IDS.slice(0, -1))).toBe('custom');
     expect(getWorkPatternKind([...ROTATION_PATTERN_SHIFT_TYPE_IDS, 'off'])).toBeNull();
     expect(getWorkPatternKind(['day', 'night', 'day', 'night', 'off', 'off'])).toBeNull();
     expect(getWorkPatternKind(['day', 'day', 'day', 'day', 'off', 'day', 'off'])).toBeNull();
+  });
+
+  it('기타 순서는 1~42일, 고정 역할, 근무일 하나 이상의 계약을 지킵니다', () => {
+    expect(isValidCustomPatternSequence(['day'])).toBe(true);
+    expect(isValidCustomPatternSequence(Array.from({ length: 42 }, () => 'night'))).toBe(true);
+    expect(isValidCustomPatternSequence(['day', 'evening', 'night', 'off'])).toBe(true);
+    expect(isValidCustomPatternSequence(['off'])).toBe(false);
+    expect(isValidCustomPatternSequence(Array.from({ length: 43 }, () => 'day'))).toBe(false);
+    expect(isValidCustomPatternSequence(['day', 'substitute-day'])).toBe(false);
+  });
+
+  it('주간 고정과 같은 사용자 순서는 저장 mode가 없으므로 주간 고정으로 전환해요', () => {
+    expect(
+      getEffectiveWorkPatternPresetId('custom', WEEKDAY_PATTERN_SHIFT_TYPE_IDS),
+    ).toBe('weekday');
+    expect(
+      getEffectiveWorkPatternPresetId('four-team-two-shift', WEEKDAY_PATTERN_SHIFT_TYPE_IDS),
+    ).toBe('weekday');
+    expect(getEffectiveWorkPatternPresetId('weekday', ['day', 'off'])).toBe('custom');
+    expect(getEffectiveWorkPatternPresetId(null, WEEKDAY_PATTERN_SHIFT_TYPE_IDS)).toBeNull();
   });
 
   it('화면에 사용하는 근무 방식 이름을 반환합니다', () => {
@@ -49,6 +93,25 @@ describe('주간 고정 요일 위치', () => {
 });
 
 describe('기준 날짜로 근무표 시작점 계산', () => {
+  it('프리셋마다 다른 반복 길이로 기준일의 실제 순번을 옮겨요', () => {
+    expect(
+      getPatternPositionForDate({
+        date: '2026-07-16',
+        referenceDate: '2026-07-14',
+        referencePosition: 2,
+        sequenceLength: 4,
+      }),
+    ).toBe(0);
+    expect(
+      getPatternPositionForDate({
+        date: '2026-07-13',
+        referenceDate: '2026-07-14',
+        referencePosition: 0,
+        sequenceLength: 3,
+      }),
+    ).toBe(2);
+  });
+
   it('일정 적용 시작일의 순번을 기준일과의 날짜 차이로 계산해요', () => {
     expect(
       getRotationPatternPositionForDate({
@@ -114,6 +177,53 @@ describe('기준 날짜로 근무표 시작점 계산', () => {
       name: WEEKDAY_PATTERN_NAME,
       anchorDate: '2026-07-06',
       scheduleStartDate: '2026-07-11',
+      shiftTypeIds: [...WEEKDAY_PATTERN_SHIFT_TYPE_IDS],
+    });
+  });
+
+  it('3교대와 사용자 순서를 선택한 실제 위치에서 생성합니다', () => {
+    expect(
+      createWorkPatternFromReference({
+        presetId: 'three-team-three-shift',
+        referenceDate: '2026-07-14',
+        position: 1,
+      }),
+    ).toEqual({
+      name: '3조 3교대 (주오야)',
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-14',
+      shiftTypeIds: ['day', 'evening', 'night'],
+    });
+
+    expect(
+      createWorkPatternFromReference({
+        presetId: 'custom',
+        name: '우리 회사 순서',
+        shiftTypeIds: ['day', 'off', 'evening', 'night', 'off'],
+        referenceDate: '2026-07-14',
+        position: 3,
+      }),
+    ).toMatchObject({
+      name: '우리 회사 순서',
+      anchorDate: '2026-07-11',
+      shiftTypeIds: ['day', 'off', 'evening', 'night', 'off'],
+    });
+  });
+
+  it('주간 고정과 같은 사용자 순서는 적용일의 요일로 anchor를 계산해요', () => {
+    expect(
+      createWorkPatternFromReference({
+        presetId: 'custom',
+        name: '사용자 주간 순서',
+        shiftTypeIds: WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
+        referenceDate: '2026-07-15',
+        scheduleStartDate: '2026-07-18',
+        position: 2,
+      }),
+    ).toEqual({
+      name: WEEKDAY_PATTERN_NAME,
+      anchorDate: '2026-07-13',
+      scheduleStartDate: '2026-07-18',
       shiftTypeIds: [...WEEKDAY_PATTERN_SHIFT_TYPE_IDS],
     });
   });

@@ -1,6 +1,9 @@
 /** 교대를 마친 뒤 실제 근무가 시작되는 기본 시각이에요. */
 export const DAY_SHIFT_START_MINUTES = 6 * 60 + 45;
 export const DAY_SHIFT_END_MINUTES = 17 * 60 + 45;
+/** 3교대 대표 시간이며 첫 설정에서 회사 시간으로 바꿀 수 있어요. */
+export const EVENING_SHIFT_START_MINUTES = 15 * 60;
+export const EVENING_SHIFT_END_MINUTES = 23 * 60;
 export const NIGHT_SHIFT_START_MINUTES = 17 * 60 + 45;
 export const NIGHT_SHIFT_END_MINUTES = 6 * 60 + 45;
 

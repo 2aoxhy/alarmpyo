@@ -70,7 +70,6 @@ import { formatAlarmCountdown } from "@/utils/date";
 import { getDayExceptionAppearance } from "@/utils/day-exception-appearance";
 import { usesDayAlarmForException } from "@/utils/day-exception";
 import { getShiftAppearance } from "@/utils/shift-appearance";
-import { getWorkPatternKind } from "@/utils/work-pattern";
 
 const ALARM_HISTORY_WARNING_TYPES = new Set<AlarmPyoAlarmEventType>([
   "playback_failed",
@@ -289,10 +288,12 @@ export default function AlarmSettingsScreen() {
   );
   const totalPlannedAlarmCount = plannedAlarms.length;
   const alarmLeadSummary = useMemo(() => {
-    const weekdayFixed = getWorkPatternKind(data.pattern.shiftTypeIds) === "weekday";
+    const activeShiftIds = new Set(data.pattern.shiftTypeIds);
     return `${formatWakeTimeSummary(
       data.shiftTypes,
-      !weekdayFixed,
+      activeShiftIds.has("night"),
+      activeShiftIds.has("evening"),
+      activeShiftIds.has("day"),
     )} · 교육·예비군은 주간 설정`;
   }, [data.pattern.shiftTypeIds, data.shiftTypes]);
   const scheduledAlarms = alarmStatus?.scheduledAlarms ?? [];
@@ -750,8 +751,8 @@ export default function AlarmSettingsScreen() {
             style={styles.detailsDisclosure}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
-                ? `알람음, 시험 알람, 권한과 최근 기록 ${recentAlarmEvents.length}개를 관리해요.`
-                : "알람음, 시험 알람과 권한 상태를 관리해요."
+                ? `알람음·진동, 시험 알람, 권한과 최근 기록 ${recentAlarmEvents.length}개를 관리해요.`
+                : "알람음·진동, 시험 알람과 권한 상태를 관리해요."
             }
             testID="alarm-management-disclosure"
             title="알람 관리"

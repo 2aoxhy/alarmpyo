@@ -43,6 +43,8 @@ export type AppIconName =
   | 'shift-substitute'
   | 'sync'
   | 'swap-horizontal'
+  | 'timer'
+  | 'timer-outline'
   | 'time-outline'
   | 'today'
   | 'today-outline'
@@ -317,6 +319,20 @@ function renderIcon(name: AppIconName, color: ColorValue): ReactNode {
         <>
           <Path d="M4 8h14M14.5 4.5 18 8l-3.5 3.5" />
           <Path d="M20 16H6M9.5 12.5 6 16l3.5 3.5" />
+        </>
+      );
+    case 'timer':
+    case 'timer-outline':
+      return (
+        <>
+          <Circle
+            cx="12"
+            cy="13"
+            fill={name === 'timer' ? color : 'none'}
+            fillOpacity={name === 'timer' ? 0.12 : 1}
+            r="8"
+          />
+          <Path d="M9 3h6M12 3v2M18.2 6.8l1.5-1.5M12 9v4l3 2" />
         </>
       );
     case 'time-outline':

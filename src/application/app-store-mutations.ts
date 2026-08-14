@@ -177,7 +177,7 @@ export function applyShiftSettings(
   const nextProfiles = workRoutineProfiles ?? currentProfiles;
   const compatible = shiftTypes
     .filter((shift) =>
-      ['day', 'night', 'substitute-day', 'substitute-night'].includes(shift.id),
+      ['day', 'evening', 'night', 'substitute-day', 'substitute-night'].includes(shift.id),
     )
     .every((shift) => canBuildWorkRoutinePlan(shift, nextProfiles));
   if (!compatible) return { data: current, compatible: false };
@@ -190,6 +190,12 @@ export function applyShiftSettings(
           workRoutineProfiles.day.arriveMinutesBefore ||
         currentProfiles.day.handoverMinutesBefore !==
           workRoutineProfiles.day.handoverMinutesBefore ||
+        currentProfiles.evening.departMinutesBefore !==
+          workRoutineProfiles.evening.departMinutesBefore ||
+        currentProfiles.evening.arriveMinutesBefore !==
+          workRoutineProfiles.evening.arriveMinutesBefore ||
+        currentProfiles.evening.handoverMinutesBefore !==
+          workRoutineProfiles.evening.handoverMinutesBefore ||
         currentProfiles.night.departMinutesBefore !==
           workRoutineProfiles.night.departMinutesBefore ||
         currentProfiles.night.arriveMinutesBefore !==
@@ -209,6 +215,7 @@ export function applyShiftSettings(
             ...current.settings,
             workRoutineProfiles: {
               day: { ...workRoutineProfiles!.day },
+              evening: { ...workRoutineProfiles!.evening },
               night: { ...workRoutineProfiles!.night },
             },
           }

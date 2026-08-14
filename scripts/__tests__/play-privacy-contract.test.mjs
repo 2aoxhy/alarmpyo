@@ -41,7 +41,7 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
       expect(contents).toContain('GitHub Pages');
       expect(contents).toContain('보안과 무결성');
       expect(contents).toContain('IP 주소');
-      expect(contents).toContain('근무표·메모·알람 설정');
+      expect(contents).toContain('근무표·메모·알람·타이머 설정');
     }
     expect(publicPolicy).toContain(
       'https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages',
@@ -92,8 +92,8 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(publicPolicy).toContain('color-scheme: dark');
     expect(publicPolicy).not.toContain('prefers-color-scheme');
     expect(publicPolicy).not.toContain('light dark');
-    expect(publicPolicy).toContain('시행일 2026년 8월 12일');
-    expect(inAppPolicy).toContain('시행일 2026년 8월 12일');
+    expect(publicPolicy).toContain('시행일 2026년 8월 15일');
+    expect(inAppPolicy).toContain('시행일 2026년 8월 15일');
   });
 
   it('스토어 초안은 활성 방침 상태를 반영하되 소유자 URL을 복제하지 않아요', () => {

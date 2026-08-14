@@ -18,6 +18,9 @@ export function getShiftAppearance(
   if (shift.id === 'day') {
     return { accentColor: palette.mintDark, softColor: palette.mintSoft };
   }
+  if (shift.id === 'evening') {
+    return { accentColor: palette.indigoDark, softColor: palette.indigoSoft };
+  }
   if (shift.id === 'night') {
     return { accentColor: palette.violet, softColor: palette.violetSoft };
   }

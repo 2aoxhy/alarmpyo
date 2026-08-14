@@ -58,8 +58,20 @@ export function WorkRoutinePanel({
         <View style={styles.summaryIcon}>
           <AppIcon
             accessible={false}
-            color={plan.kind === 'night' ? palette.violet : palette.mintDark}
-            name={plan.kind === 'night' ? 'shift-night' : 'shift-day'}
+            color={
+              plan.kind === 'night'
+                ? palette.violet
+                : plan.kind === 'evening'
+                  ? palette.indigoDark
+                  : palette.mintDark
+            }
+            name={
+              plan.kind === 'night'
+                ? 'shift-night'
+                : plan.kind === 'evening'
+                  ? 'time-outline'
+                  : 'shift-day'
+            }
             size={20}
           />
         </View>

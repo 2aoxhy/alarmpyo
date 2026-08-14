@@ -6,6 +6,9 @@ export const REQUIRED_PLAY_PHYSICAL_CHECKS = Object.freeze([
   'permissionsPreserved',
   'alarmWhileClosed',
   'alarmAfterReboot',
+  'timerWhileClosed',
+  'timerAfterReboot',
+  'timerSoundAndVibration',
   'timeAndTimezoneRecovery',
   'notificationDeniedState',
   'exactAlarm',
@@ -23,6 +26,8 @@ export const REQUIRED_PLAY_16KB_CHECKS = Object.freeze([
   'coreScheduleFlow',
   'alarmWhileClosed',
   'alarmAfterReboot',
+  'timerWhileClosed',
+  'timerAfterReboot',
   'fullScreenAlarm',
   'widgetAvailable',
 ]);

@@ -20,9 +20,10 @@ import {
   pickWorkSettingsFile,
   shareWorkSettingsFile,
 } from '@/services/work-settings-share-file-service';
-import type {
-  SharedShiftSettings,
-  WorkSettingsSharePreview,
+import {
+  doesWorkSettingsPreviewApplyEvening,
+  type SharedShiftSettings,
+  type WorkSettingsSharePreview,
 } from '@/services/work-settings-share-service';
 import {
   useAppStoreActions,
@@ -61,7 +62,12 @@ function formatBackupCreatedAt(exportedAt: string | null): string {
 }
 
 function formatSharedPatternSequence(shiftTypeIds: readonly string[]): string {
-  const labels: Record<string, string> = { day: '주', night: '야', off: '휴' };
+  const labels: Record<string, string> = {
+    day: '주',
+    evening: '오',
+    night: '야',
+    off: '휴',
+  };
   return shiftTypeIds.map((id) => labels[id] ?? id).join(' → ');
 }
 
@@ -200,6 +206,9 @@ export default function DataSettingsScreen() {
     fileName: string,
   ) => {
     const { summary } = preview;
+    const eveningLine = doesWorkSettingsPreviewApplyEvening(preview)
+      ? formatSharedShiftLine('오후', summary.evening)
+      : '오후 · 현재 휴대전화 설정 유지 (구형 파일에는 오후 설정이 없어요)';
     const lines = [
       `파일 · ${safePickedFileName(fileName)}`,
       `근무 방식 · ${summary.patternName}`,
@@ -207,6 +216,7 @@ export default function DataSettingsScreen() {
       `일정 적용 시작일 · ${formatKoreanDate(summary.scheduleStartDate, true)}`,
       '',
       formatSharedShiftLine('주간', summary.day),
+      eveningLine,
       formatSharedShiftLine('야간', summary.night),
       formatSharedShiftLine('주간 대체', summary.substituteDay),
       formatSharedShiftLine('야간 대체', summary.substituteNight),
@@ -524,7 +534,7 @@ export default function DataSettingsScreen() {
   const reset = () => {
     showDialog(
       '모든 데이터를 초기화할까요?',
-      '직접 변경한 날짜와 메모, 근무 시간 등 앱 데이터를 지우고 처음 설정 화면으로 돌아가요. 휴대폰 밖에 저장한 백업 파일은 지우지 않으며, 초기화 전에 자동으로 안전 백업해요.',
+      '직접 변경한 날짜와 메모, 근무 시간 등 앱 데이터를 지우고 실행 중인 타이머를 취소한 뒤 처음 설정 화면으로 돌아가요. 휴대폰 밖에 저장한 백업 파일은 지우지 않으며, 초기화 전에 자동으로 안전 백업해요.',
       [
         { text: '뒤로 가기', style: 'cancel' },
         {
@@ -542,7 +552,7 @@ export default function DataSettingsScreen() {
                 } else if (result.status === 'partial') {
                   showDialog(
                     '초기화 후 확인이 필요해요',
-                    '앱 데이터는 초기화했지만 수면 알림을 포함한 알람 예약이나 안전 백업 후속 처리는 끝나지 않았어요. 처음 설정을 마친 뒤 알람 화면에서 상태를 확인해 주세요.',
+                    '앱 데이터는 초기화했지만 타이머·수면 알림을 포함한 알람 예약이나 안전 백업 후속 처리는 끝나지 않았어요. 처음 설정을 마친 뒤 타이머와 알람 화면에서 상태를 확인해 주세요.',
                   );
                 } else {
                   showDialog(

@@ -16,6 +16,9 @@ export type NativeAlarmPyoModule = {
   openDoNotDisturbSettingsAsync?(): Promise<unknown>;
   openBatterySettingsAsync?(): Promise<unknown>;
   cancelAllAsync(): Promise<unknown>;
+  getQuickTimerStatusAsync?(): Promise<unknown>;
+  scheduleQuickTimerAsync?(durationMinutes: 30 | 60): Promise<unknown>;
+  cancelQuickTimerAsync?(): Promise<unknown>;
   syncWidgetAsync?(snapshotJson: string): Promise<unknown>;
   isWidgetInstalledAsync?(): Promise<unknown>;
   requestWidgetPinAsync?(): Promise<unknown>;

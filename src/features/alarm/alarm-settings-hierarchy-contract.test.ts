@@ -63,6 +63,15 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain('hasDateOverride ? " · 이날만 설정" : ""');
   });
 
+  it('3교대는 실제 사용하는 오후 기상 시각까지 요약해요', () => {
+    expect(alarmSettings).toContain(
+      'const activeShiftIds = new Set(data.pattern.shiftTypeIds);',
+    );
+    expect(alarmSettings).toContain('activeShiftIds.has("evening")');
+    expect(alarmSettings).toContain('activeShiftIds.has("night")');
+    expect(alarmSettings).toContain('activeShiftIds.has("day")');
+  });
+
   it('Android 강제 종료 상태의 알람 한계를 미리 안내해요', () => {
     expect(alarmSettings).toContain(
       '강제 종료 상태에서는 알람을 보장할 수 없어요',

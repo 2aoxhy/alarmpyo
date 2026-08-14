@@ -32,6 +32,7 @@ class AlarmPyoAlarmActivity : Activity() {
   private lateinit var actionHintText: TextView
   private lateinit var snoozeButton: Button
   private var plan: AlarmPyoAlarmPlan? = null
+  private var source: AlarmPyoAlarmSource = AlarmPyoAlarmSource.WORK
   private var isFinishingAlarm = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +48,10 @@ class AlarmPyoAlarmActivity : Activity() {
     isFinishingAlarm = false
     updateFromIntent(intent)
     val planId = plan?.id
-    if (planId == null || !AlarmPyoAlarmStore.isActive(applicationContext, planId)) {
+    if (
+      planId == null ||
+      !AlarmPyoAlarmStore.isActiveSource(applicationContext, planId, source)
+    ) {
       finishAndRemoveTask()
     }
   }
@@ -55,7 +59,10 @@ class AlarmPyoAlarmActivity : Activity() {
   override fun onStart() {
     super.onStart()
     val planId = plan?.id
-    if (planId == null || !AlarmPyoAlarmStore.isActive(applicationContext, planId)) {
+    if (
+      planId == null ||
+      !AlarmPyoAlarmStore.isActiveSource(applicationContext, planId, source)
+    ) {
       finishAndRemoveTask()
       return
     }
@@ -363,6 +370,7 @@ class AlarmPyoAlarmActivity : Activity() {
   private fun updateFromIntent(intent: Intent) {
     val newPlan = AlarmPyoAlarmPlan.fromIntent(intent) ?: return
     plan = newPlan
+    source = AlarmPyoAlarmSource.fromIntent(intent, newPlan)
     // 전달 안전 재시도 시각이 아니라 사용자가 처음 설정한 알람 시각을 표시해요.
     val displayAlarmAt = newPlan.originalAlarmAt.takeIf { it > 0L }
       ?: newPlan.alarmAt.takeIf { it > 0L }
@@ -381,6 +389,8 @@ class AlarmPyoAlarmActivity : Activity() {
     }
     val shiftAccent = alarmpyoColor(shiftAccentResource)
     shiftBadgeText.text = when {
+      source == AlarmPyoAlarmSource.TIMER ->
+        AlarmPyoQuickTimerPresentation.badge(newPlan.isSingleRepeat())
       newPlan.isSingleRepeat() && newPlan.shiftTypeId == "test" -> "시험 재알람"
       newPlan.isSingleRepeat() -> "5분 재알람"
       newPlan.shiftTypeId == "test" -> "시험 알람"
@@ -398,6 +408,7 @@ class AlarmPyoAlarmActivity : Activity() {
     )
     shiftBadgeText.background = roundedShape(shiftAccent, dp(99).toFloat())
     shiftText.text = when {
+      source == AlarmPyoAlarmSource.TIMER -> AlarmPyoQuickTimerPresentation.message(newPlan)
       newPlan.isSingleRepeat() && newPlan.shiftTypeId == "test" -> "시험 알람이 한 번 더 울립니다."
       newPlan.isSingleRepeat() && newPlan.shiftName.isNotBlank() ->
         "${newPlan.shiftName} 알람이 한 번 더 울립니다."
@@ -422,6 +433,7 @@ class AlarmPyoAlarmActivity : Activity() {
     isFinishingAlarm = true
     val serviceIntent = Intent(this, AlarmPyoAlarmService::class.java).apply {
       this.action = action
+      putAlarmPyoSource(source)
       currentPlan.addToIntent(this)
     }
     startService(serviceIntent)

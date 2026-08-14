@@ -55,6 +55,9 @@ class AlarmPyoAlarmReceiver : BroadcastReceiver() {
     val serviceIntent = Intent(context, AlarmPyoAlarmService::class.java).apply {
       action = ACTION_START_RINGING
       putExtra(EXTRA_IS_TEST, isTest)
+      putAlarmPyoSource(
+        if (isTest) AlarmPyoAlarmSource.TEST else AlarmPyoAlarmSource.WORK
+      )
       putExtra(EXTRA_RETRY_ARMED, watchdogArmed)
       putExtra(EXTRA_AUTOMATIC_REPEAT_ELIGIBLE, automaticRepeatEligible)
       deliveryPlan.addToIntent(this)

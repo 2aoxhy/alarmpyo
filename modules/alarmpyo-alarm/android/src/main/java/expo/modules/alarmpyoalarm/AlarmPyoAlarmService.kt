@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -38,6 +39,7 @@ class AlarmPyoAlarmService : Service() {
   private var audioFocusHeld = false
   private var ringingPlanId: String? = null
   private var ringingPlan: AlarmPyoAlarmPlan? = null
+  private var ringingSource: AlarmPyoAlarmSource? = null
   private var deliveryCommitted = false
   private var deliveryCommitAttempt = 0
   private var deliveryRetryScheduled = false
@@ -51,49 +53,44 @@ class AlarmPyoAlarmService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     val plan = intent?.let(AlarmPyoAlarmPlan::fromIntent)
-    val isTest = intent?.getBooleanExtra(EXTRA_IS_TEST, false) == true ||
-      plan?.shiftTypeId == "test"
+    val source = intent?.let { AlarmPyoAlarmSource.fromIntent(it, plan) }
+      ?: AlarmPyoAlarmSource.WORK
     val hasArmedRetry = intent?.getBooleanExtra(EXTRA_RETRY_ARMED, false) == true
     val automaticRepeatEligible =
       intent?.getBooleanExtra(EXTRA_AUTOMATIC_REPEAT_ELIGIBLE, false) == true
     when (intent?.action) {
       ACTION_DISMISS_ALARM -> {
-        if (matchesActiveAlarm(plan)) {
+        if (matchesActiveAlarm(plan, source)) {
           plan?.let {
-            val completed = confirmDelivery(it, isTest).completed
-            AlarmPyoAlarmScheduler.cancelSingleRepeat(applicationContext, it.rootPlanId)
-            if (completed) recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, isTest)
+            val completed = confirmDelivery(it, source).completed
+            cancelSingleRepeat(it, source)
+            if (completed) recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, source)
           }
           stopAlarm()
         } else if (ringingPlanId == null) stopSelf(startId)
       }
       ACTION_SNOOZE_ALARM -> {
-        if (matchesActiveAlarm(plan)) {
+        if (matchesActiveAlarm(plan, source)) {
           plan?.let {
-            val completed = confirmDelivery(it, isTest).completed
+            val completed = confirmDelivery(it, source).completed
             if (completed) {
               if (it.isSingleRepeat()) {
                 // 두 번째 알람은 마지막 단계입니다. 오래된 알림 액션이 호출돼도
                 // 세 번째 알람을 만들지 않고 끄기와 동일하게 처리합니다.
-                AlarmPyoAlarmScheduler.cancelSingleRepeat(applicationContext, it.rootPlanId)
-                recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, isTest)
+                cancelSingleRepeat(it, source)
+                recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, source)
               } else {
-                val repeat = AlarmPyoAlarmScheduler.scheduleManualSingleRepeat(
-                  applicationContext,
-                  it,
-                  isTest,
-                  5
-                )
+                val repeat = scheduleManualSingleRepeat(it, source, 5)
                 if (repeat != null) {
                   recordEvent(
                     AlarmPyoAlarmEventType.SNOOZED,
                     it,
-                    isTest,
+                    source,
                     nextAlarmAt = repeat.alarmAt
                   )
                 } else {
-                  AlarmPyoAlarmScheduler.cancelSingleRepeat(applicationContext, it.rootPlanId)
-                  recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, isTest)
+                  cancelSingleRepeat(it, source)
+                  recordEvent(AlarmPyoAlarmEventType.DISMISSED, it, source)
                 }
               }
             }
@@ -106,10 +103,10 @@ class AlarmPyoAlarmService : Service() {
       ACTION_START_RINGING -> {
         if (plan != null) {
           runCatching {
-            startRinging(plan, isTest, hasArmedRetry, automaticRepeatEligible)
+            startRinging(plan, source, hasArmedRetry, automaticRepeatEligible)
           }.onFailure { error ->
             Log.e(TAG, "AlarmPyo 알람 재생을 시작하지 못했습니다.", error)
-            retryAndStop(plan, isTest)
+            retryAndStop(plan, source)
           }
         } else {
           stopSelf(startId)
@@ -129,13 +126,25 @@ class AlarmPyoAlarmService : Service() {
 
   private fun startRinging(
     plan: AlarmPyoAlarmPlan,
-    isTest: Boolean,
+    source: AlarmPyoAlarmSource,
     hasArmedRetry: Boolean,
     automaticRepeatEligible: Boolean
   ) {
     val activePlan = ringingPlan
-    if (activePlan?.hasSameDeliveryGeneration(plan) == true) return
-    if (activePlan?.id == plan.id && (mediaPlayer != null || toneGenerator != null)) {
+    val activeSource = ringingSource ?: AlarmPyoAlarmSource.WORK
+    if (
+      activePlan?.hasSameDeliveryGeneration(plan) == true &&
+      activeSource == source
+    ) return
+    if (activePlan != null && source.priority < activeSource.priority) {
+      Log.w(TAG, "더 중요한 알람이 울리는 중이라 현재 알람은 안전 재시도를 기다립니다.")
+      return
+    }
+    if (
+      activePlan?.id == plan.id &&
+      activeSource == source &&
+      (mediaPlayer != null || toneGenerator != null)
+    ) {
       // 소리는 이미 정상 재생 중이지만 저장 완료만 실패해 안전 재시도가 도착한
       // 경우, 새 세대를 다시 재생하지 않고 현재 가청 상태로 완료를 확정합니다.
       ringingPlan = plan
@@ -145,11 +154,11 @@ class AlarmPyoAlarmService : Service() {
       retryAlreadyArmed = hasArmedRetry
       val completion = confirmDelivery(
         plan,
-        isTest,
+        source,
         allowAutomaticRepeat = playbackConfirmedRecorded && automaticRepeatEligible
       )
       if (completion.completed && playbackConfirmedRecorded) {
-        handleConfirmedPlayback(plan, isTest, completion)
+        handleConfirmedPlayback(plan, source, completion)
       }
       return
     }
@@ -167,15 +176,17 @@ class AlarmPyoAlarmService : Service() {
     AlarmPyoAlarmStore.markActive(
       applicationContext,
       plan.id,
-      System.currentTimeMillis() + ringDurationMillis
+      System.currentTimeMillis() + ringDurationMillis,
+      source
     )
 
     // 활성 상태는 메모리에 즉시 반영한 뒤 디스크 작업이나 미디어 준비보다 먼저
     // 포그라운드 알림을 게시해 Android 12+의 시작 제한을 안정적으로 만족합니다.
-    promoteToForeground(plan)
+    promoteToForeground(plan, source)
 
     ringingPlanId = plan.id
     ringingPlan = plan
+    ringingSource = source
     deliveryCommitted = false
     deliveryCommitAttempt = 0
     deliveryRetryScheduled = false
@@ -196,18 +207,18 @@ class AlarmPyoAlarmService : Service() {
       onStarted = {
         val completion = confirmDelivery(
           plan,
-          isTest,
+          source,
           allowAutomaticRepeat = automaticRepeatEligible
         )
         if (!completion.completed) {
           stopAlarm()
           return@startAlarmSound
         }
-        handleConfirmedPlayback(plan, isTest, completion)
+        handleConfirmedPlayback(plan, source, completion)
       },
       onFailed = {
         Log.e(TAG, "기본음과 대체음 재생에 모두 실패해 알람을 다시 예약합니다.")
-        retryAndStop(plan, isTest)
+        retryAndStop(plan, source)
       }
     )
 
@@ -215,14 +226,14 @@ class AlarmPyoAlarmService : Service() {
     handler.postDelayed({
       if (!deliveryCommitted) {
         Log.e(TAG, "제한 시간 안에 알람 소리 시작을 확인하지 못했습니다.")
-        retryAndStop(plan, isTest)
+        retryAndStop(plan, source)
       }
     }, SOUND_START_TIMEOUT_MILLIS)
   }
 
   private fun confirmDelivery(
     plan: AlarmPyoAlarmPlan,
-    isTest: Boolean,
+    source: AlarmPyoAlarmSource,
     allowAutomaticRepeat: Boolean = false
   ): AlarmPyoAlarmDeliveryCompletionResult {
     if (deliveryCommitted) return AlarmPyoAlarmDeliveryCompletionResult(completed = true)
@@ -234,12 +245,22 @@ class AlarmPyoAlarmService : Service() {
     repeat(MAX_DELIVERY_COMMIT_ATTEMPTS) {
       deliveryCommitAttempt += 1
       val result = runCatching {
-        AlarmPyoAlarmScheduler.completeConfirmedDelivery(
-          applicationContext,
-          plan,
-          isTest,
-          automaticRepeatEligible = allowAutomaticRepeat
-        )
+        when (source) {
+          AlarmPyoAlarmSource.TIMER ->
+            AlarmPyoQuickTimerScheduler.completeConfirmedDelivery(
+              applicationContext,
+              plan,
+              automaticRepeatEligible = allowAutomaticRepeat
+            )
+          AlarmPyoAlarmSource.TEST,
+          AlarmPyoAlarmSource.WORK ->
+            AlarmPyoAlarmScheduler.completeConfirmedDelivery(
+              applicationContext,
+              plan,
+              source == AlarmPyoAlarmSource.TEST,
+              automaticRepeatEligible = allowAutomaticRepeat
+            )
+        }
       }.getOrElse { error ->
         Log.e(TAG, "알람 완료 상태 저장에 실패했습니다.", error)
         AlarmPyoAlarmDeliveryCompletionResult(completed = false)
@@ -255,14 +276,14 @@ class AlarmPyoAlarmService : Service() {
 
   private fun handleConfirmedPlayback(
     plan: AlarmPyoAlarmPlan,
-    isTest: Boolean,
+    source: AlarmPyoAlarmSource,
     completion: AlarmPyoAlarmDeliveryCompletionResult
   ) {
     if (!playbackConfirmedRecorded) {
       playbackConfirmedRecorded = true
-      recordEvent(AlarmPyoAlarmEventType.PLAYBACK_CONFIRMED, plan, isTest)
+      recordEvent(AlarmPyoAlarmEventType.PLAYBACK_CONFIRMED, plan, source)
       if (plan.isSingleRepeat()) {
-        recordEvent(AlarmPyoAlarmEventType.AUTO_REPEAT_STARTED, plan, isTest)
+        recordEvent(AlarmPyoAlarmEventType.AUTO_REPEAT_STARTED, plan, source)
       }
     }
     completion.automaticRepeat?.let { repeat ->
@@ -270,12 +291,46 @@ class AlarmPyoAlarmService : Service() {
         recordEvent(
           AlarmPyoAlarmEventType.AUTO_REPEAT_SCHEDULED,
           plan,
-          isTest,
+          source,
           nextAlarmAt = repeat.plan.alarmAt
         )
       }
       scheduleRingStop(repeat.plan.alarmAt)
     }
+  }
+
+  private fun cancelSingleRepeat(
+    plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource
+  ) {
+    when (source) {
+      AlarmPyoAlarmSource.TIMER ->
+        AlarmPyoQuickTimerScheduler.cancelSingleRepeat(applicationContext, plan.rootPlanId)
+      AlarmPyoAlarmSource.TEST,
+      AlarmPyoAlarmSource.WORK ->
+        AlarmPyoAlarmScheduler.cancelSingleRepeat(applicationContext, plan.rootPlanId)
+    }
+  }
+
+  private fun scheduleManualSingleRepeat(
+    plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource,
+    minutes: Int
+  ): AlarmPyoAlarmPlan? = when (source) {
+    AlarmPyoAlarmSource.TIMER ->
+      AlarmPyoQuickTimerScheduler.scheduleManualSingleRepeat(
+        applicationContext,
+        plan,
+        minutes
+      )
+    AlarmPyoAlarmSource.TEST,
+    AlarmPyoAlarmSource.WORK ->
+      AlarmPyoAlarmScheduler.scheduleManualSingleRepeat(
+        applicationContext,
+        plan,
+        source == AlarmPyoAlarmSource.TEST,
+        minutes
+      )
   }
 
   private fun scheduleRingStop(repeatAt: Long? = null) {
@@ -285,7 +340,12 @@ class AlarmPyoAlarmService : Service() {
         automaticRepeatArmed = false
       ))
     ringingPlanId?.let {
-      AlarmPyoAlarmStore.markActive(applicationContext, it, deadline)
+      AlarmPyoAlarmStore.markActive(
+        applicationContext,
+        it,
+        deadline,
+        ringingSource ?: AlarmPyoAlarmSource.WORK
+      )
     }
     handler.postDelayed(
       stopRingingRunnable,
@@ -293,13 +353,23 @@ class AlarmPyoAlarmService : Service() {
     )
   }
 
-  private fun retryAndStop(plan: AlarmPyoAlarmPlan, isTest: Boolean) {
+  private fun retryAndStop(plan: AlarmPyoAlarmPlan, source: AlarmPyoAlarmSource) {
     if (deliveryCommitted || deliveryRetryScheduled) return
     deliveryRetryScheduled = true
-    recordEvent(AlarmPyoAlarmEventType.PLAYBACK_FAILED, plan, isTest)
+    recordEvent(AlarmPyoAlarmEventType.PLAYBACK_FAILED, plan, source)
     val retryResult = if (!retryAlreadyArmed) {
       runCatching {
-        AlarmPyoAlarmScheduler.retryDelivery(applicationContext, plan, isTest)
+        when (source) {
+          AlarmPyoAlarmSource.TIMER ->
+            AlarmPyoQuickTimerScheduler.retryDelivery(applicationContext, plan)
+          AlarmPyoAlarmSource.TEST,
+          AlarmPyoAlarmSource.WORK ->
+            AlarmPyoAlarmScheduler.retryDelivery(
+              applicationContext,
+              plan,
+              source == AlarmPyoAlarmSource.TEST
+            )
+        }
       }.onFailure { error ->
         Log.e(TAG, "AlarmPyo 알람 재시도를 예약하지 못했습니다.", error)
       }.getOrNull()
@@ -313,7 +383,7 @@ class AlarmPyoAlarmService : Service() {
         AlarmPyoAlarmEventType.RETRY_EXHAUSTED
       },
       plan,
-      isTest,
+      source,
       nextAlarmAt = if (retryResult?.scheduled == true) retryResult.plan.alarmAt else 0L
     )
     stopAlarm()
@@ -322,17 +392,26 @@ class AlarmPyoAlarmService : Service() {
   private fun recordEvent(
     type: String,
     plan: AlarmPyoAlarmPlan,
-    isTest: Boolean,
+    source: AlarmPyoAlarmSource,
     nextAlarmAt: Long = 0L
   ) {
+    if (source == AlarmPyoAlarmSource.TIMER) return
     AlarmPyoAlarmStore.appendRecentEvent(
       applicationContext,
-      AlarmPyoAlarmHistoryEvent.create(type, plan, isTest, nextAlarmAt)
+      AlarmPyoAlarmHistoryEvent.create(
+        type,
+        plan,
+        source == AlarmPyoAlarmSource.TEST,
+        nextAlarmAt
+      )
     )
   }
 
-  private fun promoteToForeground(plan: AlarmPyoAlarmPlan) {
-    val notification = buildAlarmNotification(plan)
+  private fun promoteToForeground(
+    plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource
+  ) {
+    val notification = buildAlarmNotification(plan, source)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       startForeground(
         ALARM_NOTIFICATION_ID,
@@ -344,10 +423,19 @@ class AlarmPyoAlarmService : Service() {
     }
   }
 
-  private fun matchesActiveAlarm(plan: AlarmPyoAlarmPlan?): Boolean =
+  private fun matchesActiveAlarm(
+    plan: AlarmPyoAlarmPlan?,
+    source: AlarmPyoAlarmSource
+  ): Boolean =
     plan != null && (
-      ringingPlan?.hasSameDeliveryGeneration(plan) == true ||
-        (ringingPlan == null && AlarmPyoAlarmStore.isActive(applicationContext, plan.id))
+      (
+        ringingPlan?.hasSameDeliveryGeneration(plan) == true &&
+          ringingSource == source
+        ) ||
+        (
+          ringingPlan == null &&
+            AlarmPyoAlarmStore.isActiveSource(applicationContext, plan.id, source)
+          )
       )
 
   private fun stopAlarm() {
@@ -362,6 +450,8 @@ class AlarmPyoAlarmService : Service() {
   }
 
   private fun cleanUpRinging(clearActiveState: Boolean = true) {
+    val clearedPlanId = ringingPlanId
+    val clearedSource = ringingSource
     handler.removeCallbacksAndMessages(null)
     soundGeneration += 1
     val player = mediaPlayer
@@ -379,17 +469,23 @@ class AlarmPyoAlarmService : Service() {
     wakeLock = null
     ringingPlanId = null
     ringingPlan = null
+    ringingSource = null
     deliveryCommitted = false
     deliveryCommitAttempt = 0
     deliveryRetryScheduled = false
     retryAlreadyArmed = false
     playbackConfirmedRecorded = false
     ringStartedAt = 0L
-    if (clearActiveState) AlarmPyoAlarmStore.clearActive(applicationContext)
+    if (clearActiveState && clearedPlanId != null) {
+      AlarmPyoAlarmStore.clearActive(applicationContext, clearedPlanId, clearedSource)
+    }
   }
 
   @Suppress("DEPRECATION")
-  private fun buildAlarmNotification(plan: AlarmPyoAlarmPlan): Notification {
+  private fun buildAlarmNotification(
+    plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource
+  ): Notification {
     val fullScreenIntent = Intent(this, AlarmPyoAlarmActivity::class.java).apply {
       action = ACTION_START_RINGING
       data = android.net.Uri.Builder()
@@ -398,6 +494,7 @@ class AlarmPyoAlarmService : Service() {
         .appendPath(plan.id)
         .build()
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      putAlarmPyoSource(source)
       plan.addToIntent(this)
     }
     val fullScreenPendingIntent = PendingIntent.getActivity(
@@ -407,14 +504,25 @@ class AlarmPyoAlarmService : Service() {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val dismissPendingIntent = serviceActionPendingIntent(plan, ACTION_DISMISS_ALARM, 0x444953)
+    val dismissPendingIntent = serviceActionPendingIntent(
+      plan,
+      source,
+      ACTION_DISMISS_ALARM,
+      0x444953
+    )
     val title = when {
+      source == AlarmPyoAlarmSource.TIMER ->
+        AlarmPyoQuickTimerPresentation.notificationTitle(plan.isSingleRepeat())
       plan.isSingleRepeat() && plan.shiftTypeId == "test" -> "AlarmPyo 시험 재알람"
       plan.isSingleRepeat() -> "AlarmPyo 5분 재알람"
       plan.shiftTypeId == "test" -> "AlarmPyo 시험 알람"
       else -> "AlarmPyo 근무 알람"
     }
-    val content = plan.shiftName.ifBlank { "근무 준비 시간입니다." }
+    val content = if (source == AlarmPyoAlarmSource.TIMER) {
+      AlarmPyoQuickTimerPresentation.notificationContent(plan)
+    } else {
+      plan.shiftName.ifBlank { "근무 준비 시간입니다." }
+    }
 
     val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       Notification.Builder(this, ALARM_CHANNEL_ID)
@@ -440,6 +548,7 @@ class AlarmPyoAlarmService : Service() {
     if (!plan.isSingleRepeat()) {
       val snoozePendingIntent = serviceActionPendingIntent(
         plan,
+        source,
         ACTION_SNOOZE_ALARM,
         0x534E5A
       )
@@ -468,12 +577,14 @@ class AlarmPyoAlarmService : Service() {
 
   private fun serviceActionPendingIntent(
     plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource,
     action: String,
     requestCodeSalt: Int
   ): PendingIntent {
     val intent = Intent(this, AlarmPyoAlarmService::class.java).apply {
       this.action = action
       putExtra(EXTRA_IS_TEST, plan.shiftTypeId == "test")
+      putAlarmPyoSource(source)
       plan.addToIntent(this)
     }
     return PendingIntent.getService(
@@ -659,7 +770,16 @@ class AlarmPyoAlarmService : Service() {
     val vibrator = vibrator()
     if (!vibrator.hasVibrator()) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+      val effect = VibrationEffect.createWaveform(pattern, 0)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        vibrator.vibrate(
+          effect,
+          VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM)
+        )
+      } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(effect, audioAttributes)
+      }
     } else {
       @Suppress("DEPRECATION")
       vibrator.vibrate(pattern, 0)

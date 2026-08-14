@@ -53,6 +53,7 @@ export type WorkRoutineTiming = {
 
 export type WorkRoutineProfiles = {
   day: WorkRoutineTiming;
+  evening: WorkRoutineTiming;
   night: WorkRoutineTiming;
 };
 
@@ -74,7 +75,7 @@ export type AppSettings = {
 };
 
 export type AppData = {
-  version: 19;
+  version: 20;
   shiftTypes: ShiftType[];
   pattern: RotationPattern;
   overrides: Record<string, string | null>;

@@ -12,22 +12,23 @@ import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreData } from '@/store/app-store';
 import { formatCompactTime } from '@/utils/date';
-import { getWorkPatternKind } from '@/utils/work-pattern';
+import {
+  getWorkPatternDisplayName,
+  getWorkPatternPreset,
+  getWorkPatternPresetId,
+} from '@/utils/work-pattern';
 
 export default function SettingsHome() {
   const { data } = useAppStoreData();
   const styles = useThemedStyles(createStyles);
-  const patternKind = getWorkPatternKind(data.pattern.shiftTypeIds);
-  const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
-  const nightShift = data.shiftTypes.find((shift) => shift.id === 'night');
+  const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
   const patternLabel =
-    patternKind === 'weekday'
-      ? '주간 고정'
-      : patternKind === 'rotation'
-        ? '3조 2교대'
-        : data.pattern.name;
-  const workTimeLabel = [dayShift, patternKind === 'weekday' ? null : nightShift]
-    .filter((shift): shift is NonNullable<typeof shift> => Boolean(shift))
+    presetId === 'custom'
+      ? getWorkPatternDisplayName(data.pattern.shiftTypeIds, data.pattern.name)
+      : getWorkPatternPreset(presetId).shortName;
+  const activeIds = new Set(data.pattern.shiftTypeIds);
+  const workTimeLabel = data.shiftTypes
+    .filter((shift) => !shift.isOff && activeIds.has(shift.id))
     .map((shift) => `${shift.shortName} ${formatCompactTime(shift.startMinutes)}`)
     .join(' · ');
   const alarmLabel = data.settings.notificationsEnabled
@@ -57,7 +58,7 @@ export default function SettingsHome() {
         <ListRow
           icon="alarm-outline"
           onPress={() => router.push('/alarm-settings')}
-          subtitle={`${alarmLabel} · 권한과 예약을 확인해요`}
+          subtitle={`${alarmLabel} · 알람음·진동과 권한을 확인해요`}
           title="알람"
         />
       </MenuGroup>

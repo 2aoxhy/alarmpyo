@@ -59,7 +59,11 @@ import { stripOptionalUtf8Bom } from '../utils/json';
 import {
   getWeekdayPatternPosition,
   getWorkPatternKind,
+  getWorkPatternDisplayName,
   getWorkPatternName,
+  getWorkPatternPresetId,
+  isBaseWorkShiftId,
+  isValidCustomPatternSequence,
   ROTATION_PATTERN_SHIFT_TYPE_IDS,
 } from '../utils/work-pattern';
 import {
@@ -72,12 +76,14 @@ import {
   getCheckedBackupContentsByteSize,
 } from './backup-file-policy';
 
-export const APP_DATA_VERSION = 19 as const;
+export const APP_DATA_VERSION = 20 as const;
 export { APP_DATA_BACKUP_FORMAT, APP_DATA_BACKUP_FORMAT_VERSION };
 
 const MAX_LEGACY_SHIFT_TYPES = 100;
 // v1~v4 자료가 허용하던 100개 근무에 두 대체근무를 손실 없이 더할 수 있어야 합니다.
-const MAX_SHIFT_TYPES = MAX_LEGACY_SHIFT_TYPES + 2;
+const MAX_PRE_V20_SHIFT_TYPES = MAX_LEGACY_SHIFT_TYPES + 2;
+// v20은 유효한 이전 자료의 모든 근무에 canonical 오후 근무 하나를 더할 수 있어야 합니다.
+const MAX_SHIFT_TYPES = MAX_PRE_V20_SHIFT_TYPES + 1;
 const MAX_PATTERN_LENGTH = 3_660;
 const MAX_DATED_ITEMS = 20_000;
 const V12_DEFAULT_ALARM_MINUTES_BEFORE = 120;
@@ -105,7 +111,8 @@ type PreviousAppDataVersion =
   | 15
   | 16
   | 17
-  | 18;
+  | 18
+  | 19;
 type AppDataVersion = PreviousAppDataVersion | typeof APP_DATA_VERSION;
 
 export const DEFAULT_WIDGET_DISPLAY_OPTIONS: Readonly<WidgetDisplayOptions> = {
@@ -243,6 +250,95 @@ function migrateShiftTypes(
     substituteNight,
     ...migrated.slice(insertAt),
   ];
+}
+
+/**
+ * v20은 3교대의 오후 근무를 기본 종류로 추가합니다. 기존 근무표와 시간은
+ * 건드리지 않고, 사용자가 3교대를 선택하기 전까지 패턴에 넣지 않아요.
+ */
+type V20EveningShiftMigration = {
+  shiftTypes: ShiftType[];
+  renamedLegacyEveningId: string | null;
+};
+
+const LEGACY_EVENING_SHIFT_ID = 'legacy-evening';
+
+function isLegacyEveningCompatibilityId(id: string): boolean {
+  return /^legacy-evening(?:-\d+)?$/.test(id);
+}
+
+function getAvailableLegacyEveningShiftId(shiftTypes: readonly ShiftType[]): string {
+  const ids = new Set(shiftTypes.map((shift) => shift.id));
+  if (!ids.has(LEGACY_EVENING_SHIFT_ID)) return LEGACY_EVENING_SHIFT_ID;
+
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${LEGACY_EVENING_SHIFT_ID}-${suffix}`;
+    if (!ids.has(candidate)) return candidate;
+  }
+}
+
+function migrateV20EveningShift(
+  shiftTypes: ShiftType[],
+  sourceVersion: AppDataVersion,
+): V20EveningShiftMigration {
+  if (sourceVersion >= 20) {
+    return { shiftTypes, renamedLegacyEveningId: null };
+  }
+  if (shiftTypes.length >= MAX_SHIFT_TYPES) {
+    throw new AppDataValidationError('오후 근무를 추가할 공간이 부족해요.');
+  }
+
+  // v19까지 `evening`은 예약 ID가 아니었으므로 사용자가 만든 근무가 이 ID를
+  // 사용할 수 있었어요. 성격이나 시간과 무관하게 먼저 이름을 바꿔 기존 의미를
+  // 보존하고, 새 canonical 오후 근무는 별도 항목으로 추가합니다.
+  const hasLegacyEvening = shiftTypes.some((shift) => shift.id === 'evening');
+  const renamedLegacyEveningId = hasLegacyEvening
+    ? getAvailableLegacyEveningShiftId(shiftTypes)
+    : null;
+  const migratedShiftTypes = renamedLegacyEveningId
+    ? shiftTypes.map((shift) =>
+        shift.id === 'evening' ? { ...shift, id: renamedLegacyEveningId } : shift,
+      )
+    : shiftTypes;
+  const evening = createDefaultWorkShift('evening');
+  const nightIndex = migratedShiftTypes.findIndex((shift) => shift.id === 'night');
+  const insertAt = nightIndex < 0 ? migratedShiftTypes.length : nightIndex;
+  return {
+    shiftTypes: [
+      ...migratedShiftTypes.slice(0, insertAt),
+      evening,
+      ...migratedShiftTypes.slice(insertAt),
+    ],
+    renamedLegacyEveningId,
+  };
+}
+
+function rewriteLegacyEveningReference(
+  shiftTypeId: string,
+  renamedLegacyEveningId: string | null,
+): string {
+  return shiftTypeId === 'evening' && renamedLegacyEveningId
+    ? renamedLegacyEveningId
+    : shiftTypeId;
+}
+
+/**
+ * 예약 ID 충돌을 겪은 기존 반복 순서는 새 편집기의 base-ID 계약과 별도로
+ * 읽기 호환합니다. 기존 `evening`이 휴무였더라도 일정 의미를 바꾸지 않아요.
+ */
+function isValidLegacyEveningCompatibilityPattern(
+  shiftTypeIds: readonly string[],
+): boolean {
+  return (
+    shiftTypeIds.length >= 1 &&
+    shiftTypeIds.length <= 42 &&
+    shiftTypeIds.some(isLegacyEveningCompatibilityId) &&
+    shiftTypeIds.every(
+      (shiftTypeId) =>
+        isBaseWorkShiftId(shiftTypeId) ||
+        isLegacyEveningCompatibilityId(shiftTypeId),
+    )
+  );
 }
 
 function migrateLegacyDefaultShiftTimes(
@@ -987,8 +1083,13 @@ function parseWorkRoutineProfiles(
 ): WorkRoutineProfiles {
   if (sourceVersion < 15) return createDefaultWorkRoutineProfiles();
   const item = record(value, '출근 루틴');
+  const day = parseWorkRoutineTiming(item.day, '주간 출근 루틴');
   return {
-    day: parseWorkRoutineTiming(item.day, '주간 출근 루틴'),
+    day,
+    evening:
+      sourceVersion < 20
+        ? { ...day }
+        : parseWorkRoutineTiming(item.evening, '오후 출근 루틴'),
     night: parseWorkRoutineTiming(item.night, '야간 출근 루틴'),
   };
 }
@@ -1074,6 +1175,7 @@ export function validateAndMigrateAppData(
     source.version !== 16 &&
     source.version !== 17 &&
     source.version !== 18 &&
+    source.version !== 19 &&
     source.version !== APP_DATA_VERSION
   ) {
     throw new AppDataValidationError('지원하지 않는 근무표 데이터 버전이에요.');
@@ -1093,15 +1195,25 @@ export function validateAndMigrateAppData(
     source.shiftTypes,
     legacyV1,
     substituteSchema,
-    requiresShiftTypeMigration ? MAX_LEGACY_SHIFT_TYPES : MAX_SHIFT_TYPES,
+    requiresShiftTypeMigration
+      ? MAX_LEGACY_SHIFT_TYPES
+      : sourceVersion < 20
+        ? MAX_PRE_V20_SHIFT_TYPES
+        : MAX_SHIFT_TYPES,
     options.repairOversizedAlarmMinutes === true,
     repairState,
   );
+  if (
+    sourceVersion >= 20 &&
+    !parsedShiftTypes.some((shift) => shift.id === 'evening' && !shift.isOff)
+  ) {
+    throw new AppDataValidationError('오후 기본 근무 종류가 필요해요.');
+  }
   const sourceShiftIds = new Set(parsedShiftTypes.map((shift) => shift.id));
   const parsedPatternResult = parsePattern(source.pattern, sourceShiftIds);
   const parsedPattern = parsedPatternResult.pattern;
   const parsedOverrides = parseOverrides(source.overrides, sourceShiftIds, legacyV1);
-  const timeOverrides =
+  const parsedTimeOverrides =
     sourceVersion < 6 ? {} : parseTimeOverrides(source.timeOverrides, sourceShiftIds);
   const dayExceptions =
     sourceVersion < 7
@@ -1109,43 +1221,93 @@ export function validateAndMigrateAppData(
       : parseDayExceptions(source.dayExceptions, repairState);
   const alarmOverrides =
     sourceVersion < 19 ? {} : parseAlarmOverrides(source.alarmOverrides);
-  const shiftTypes = migrateV12DefaultAlarmMinutes(
-    migrateLegacyDefaultShiftTimes(
-      requiresShiftTypeMigration
-        ? migrateShiftTypes(parsedShiftTypes, sourceVersion as 1 | 2 | 3 | 4)
-        : parsedShiftTypes,
+  const eveningMigration = migrateV20EveningShift(
+    migrateV12DefaultAlarmMinutes(
+      migrateLegacyDefaultShiftTimes(
+        requiresShiftTypeMigration
+          ? migrateShiftTypes(parsedShiftTypes, sourceVersion as 1 | 2 | 3 | 4)
+          : parsedShiftTypes,
+        sourceVersion,
+      ),
       sourceVersion,
     ),
     sourceVersion,
   );
-  const parsedPatternKind = getWorkPatternKind(parsedPattern.shiftTypeIds);
-  if (sourceVersion >= 3 && sourceVersion < 5 && parsedPatternKind !== 'rotation') {
-    throw new AppDataValidationError('이전 데이터 버전은 3조 2교대 근무 방식만 지원해요.');
-  }
-  if (sourceVersion >= 5 && parsedPatternKind === null) {
-    throw new AppDataValidationError('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
-  }
+  const { shiftTypes, renamedLegacyEveningId } = eveningMigration;
   const normalizedShiftTypeIds =
     sourceVersion <= 2
       ? [...ROTATION_PATTERN_SHIFT_TYPE_IDS]
-      : parsedPattern.shiftTypeIds;
-  const patternKind = getWorkPatternKind(normalizedShiftTypeIds) ?? 'rotation';
+      : parsedPattern.shiftTypeIds.map((shiftTypeId) =>
+          rewriteLegacyEveningReference(shiftTypeId, renamedLegacyEveningId),
+        );
+  const presetId = getWorkPatternPresetId(normalizedShiftTypeIds);
+  const migratedLegacyEveningPattern =
+    renamedLegacyEveningId !== null &&
+    parsedPattern.shiftTypeIds.includes('evening') &&
+    isValidLegacyEveningCompatibilityPattern(normalizedShiftTypeIds);
+  if (
+    sourceVersion >= 3 &&
+    sourceVersion < 5 &&
+    presetId !== 'three-team-two-shift' &&
+    !migratedLegacyEveningPattern
+  ) {
+    throw new AppDataValidationError('이전 데이터 버전은 3조 2교대 근무 방식만 지원해요.');
+  }
+  if (
+    sourceVersion >= 5 &&
+    sourceVersion < 20 &&
+    presetId !== 'three-team-two-shift' &&
+    presetId !== 'weekday' &&
+    !migratedLegacyEveningPattern
+  ) {
+    throw new AppDataValidationError('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+  }
+  if (
+    sourceVersion >= 20 &&
+    (presetId === 'custom'
+      ? !isValidCustomPatternSequence(normalizedShiftTypeIds) &&
+        !isValidLegacyEveningCompatibilityPattern(normalizedShiftTypeIds)
+      : !normalizedShiftTypeIds.every(isBaseWorkShiftId))
+  ) {
+    throw new AppDataValidationError('기타 근무 순서는 1~42일이며 주간·오후·야간·휴무만 사용할 수 있어요.');
+  }
+  const patternKind = presetId === 'weekday' ? 'weekday' : 'rotation';
   const pattern: RotationPattern = {
     ...parsedPattern,
-    name: getWorkPatternName(patternKind),
+    name: getWorkPatternDisplayName(normalizedShiftTypeIds, parsedPattern.name),
     shiftTypeIds: normalizedShiftTypeIds,
   };
   const substituteOverrideTargetId = legacySubstituteTargetId(parsedShiftTypes);
-  const overrides = requiresShiftTypeMigration
-    ? Object.fromEntries(
-        Object.entries(parsedOverrides).map(([key, shiftId]) => [
-          key,
-          shiftId === 'substitute' ? substituteOverrideTargetId : shiftId,
-        ]),
-      )
-    : parsedOverrides;
+  const overrides = Object.fromEntries(
+    Object.entries(parsedOverrides).map(([key, shiftId]) => {
+      if (shiftId === null) return [key, null];
+      const migratedSubstituteId =
+        requiresShiftTypeMigration && shiftId === 'substitute'
+          ? substituteOverrideTargetId
+          : shiftId;
+      return [
+        key,
+        rewriteLegacyEveningReference(
+          migratedSubstituteId,
+          renamedLegacyEveningId,
+        ),
+      ];
+    }),
+  );
+  const timeOverrides = Object.fromEntries(
+    Object.entries(parsedTimeOverrides).map(([key, timeOverride]) => [
+      key,
+      {
+        ...timeOverride,
+        shiftTypeId: rewriteLegacyEveningReference(
+          timeOverride.shiftTypeId,
+          renamedLegacyEveningId,
+        ),
+      },
+    ]),
+  );
   const normalizedShiftTypes =
-    patternKind === 'weekday' && sourceVersion !== APP_DATA_VERSION
+    patternKind === 'weekday' && sourceVersion < 19
       ? shiftTypes.map((shift) =>
           shift.id === 'day'
             ? {

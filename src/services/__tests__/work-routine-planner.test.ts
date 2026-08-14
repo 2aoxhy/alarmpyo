@@ -32,6 +32,12 @@ const NIGHT: ShiftType = {
   endsNextDay: true,
 };
 
+const EVENING_PROFILE = {
+  departMinutesBefore: 75,
+  arriveMinutesBefore: 50,
+  handoverMinutesBefore: 10,
+};
+
 function at(dateKey: string, hours: number, minutes = 0): number {
   return dateAtMinutes(dateKey, hours * 60 + minutes).getTime();
 }
@@ -80,6 +86,30 @@ describe('buildWorkRoutinePlan', () => {
     expect(plan?.steps.at(-2)).toMatchObject({
       id: 'handover',
       endAt: at('2026-07-16', 17, 30),
+    });
+  });
+
+  it('오후 근무는 별도 오후 프로필과 제목으로 출근 루틴을 계산해요', () => {
+    const profiles = {
+      day: { departMinutesBefore: 60, arriveMinutesBefore: 45, handoverMinutesBefore: 15 },
+      evening: { departMinutesBefore: 80, arriveMinutesBefore: 50, handoverMinutesBefore: 20 },
+      night: { departMinutesBefore: 60, arriveMinutesBefore: 45, handoverMinutesBefore: 15 },
+    };
+    const plan = buildWorkRoutinePlan(
+      '2026-07-16',
+      createDefaultWorkShift('evening'),
+      new Date(2026, 6, 16, 13, 50),
+      profiles,
+    );
+
+    expect(plan).toMatchObject({
+      kind: 'evening',
+      title: '오후 출근 루틴',
+      wakeAt: at('2026-07-16', 13, 10),
+      departAt: at('2026-07-16', 13, 40),
+      arriveAt: at('2026-07-16', 14, 10),
+      handoverAt: at('2026-07-16', 14, 40),
+      workStartAt: at('2026-07-16', 15),
     });
   });
 
@@ -260,6 +290,7 @@ describe('buildWorkRoutinePlan', () => {
         arriveMinutesBefore: 60,
         handoverMinutesBefore: 20,
       },
+      evening: EVENING_PROFILE,
       night: {
         departMinutesBefore: 75,
         arriveMinutesBefore: 50,
@@ -300,6 +331,7 @@ describe('buildWorkRoutinePlan', () => {
         arriveMinutesBefore: 60,
         handoverMinutesBefore: 20,
       },
+      evening: EVENING_PROFILE,
       night: {
         departMinutesBefore: 75,
         arriveMinutesBefore: 50,
@@ -335,6 +367,7 @@ describe('buildWorkRoutinePlan', () => {
         arriveMinutesBefore: 55,
         handoverMinutesBefore: 20,
       },
+      evening: EVENING_PROFILE,
       night: {
         departMinutesBefore: 75,
         arriveMinutesBefore: 50,
@@ -364,6 +397,7 @@ describe('buildWorkRoutinePlan', () => {
         arriveMinutesBefore: 60,
         handoverMinutesBefore: 15,
       },
+      evening: EVENING_PROFILE,
       night: {
         departMinutesBefore: 60,
         arriveMinutesBefore: 45,
@@ -376,6 +410,7 @@ describe('buildWorkRoutinePlan', () => {
         arriveMinutesBefore: 60,
         handoverMinutesBefore: 15,
       },
+      evening: EVENING_PROFILE,
       night: {
         departMinutesBefore: 60,
         arriveMinutesBefore: 45,

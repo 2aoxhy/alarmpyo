@@ -5,11 +5,15 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
-import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
 import { DatePickerField } from '@/components/date-picker-field';
-import { AppButton, AppText, Card, Screen, SectionHeader } from '@/components/ui-kit';
 import { ShiftChip } from '@/components/shift-chip';
+import { AppButton, AppText, Card, Screen, SectionHeader } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { StatusBanner } from '@/design-system';
+import {
+  PatternSequenceEditor,
+  RotationPositionPicker,
+} from '@/features/setup/setup-components';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { getScheduleStartDate } from '@/services/app-data-service';
@@ -21,100 +25,98 @@ import {
   isValidDateKey,
   toDateKey,
 } from '@/utils/date';
-import { getShiftAppearance } from '@/utils/shift-appearance';
-import { formatTimeInput } from '@/utils/shift-time';
 import {
   createWorkPatternFromReference,
+  getEffectiveWorkPatternPresetId,
+  getPatternPositionForDate,
   getPositionAfterReferenceDateChange,
-  getRotationPatternPositionForDate,
   getWeekdayPatternPosition,
-  getWorkPatternKind,
-  ROTATION_PATTERN_NAME,
-  ROTATION_PATTERN_SHIFT_TYPE_IDS,
-  WEEKDAY_PATTERN_NAME,
-  WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
-  type WorkPatternKind,
+  getWorkPatternPreset,
+  getWorkPatternPresetId,
+  isBaseWorkShiftId,
+  isValidCustomPatternSequence,
+  WORK_PATTERN_PRESETS,
+  type BaseWorkShiftId,
+  type WorkPatternPresetId,
 } from '@/utils/work-pattern';
-
-const ROTATION_POSITION_LABELS = [
-  '주간 첫째 날',
-  '주간 둘째 날',
-  '야간 첫째 날',
-  '야간 둘째 날',
-  '휴무 첫째 날',
-  '휴무 둘째 날',
-] as const;
-const ROTATION_SHORT_LABELS = ['주간 1', '주간 2', '야간 1', '야간 2', '휴무 1', '휴무 2'] as const;
 
 function positiveModulo(value: number, divisor: number) {
   return ((value % divisor) + divisor) % divisor;
 }
 
+function sameSequence(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
 export default function PatternEditorScreen() {
   const { showDialog } = useAppDialog();
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const stackPreview = width < 360 || fontScale >= 1.3;
+  const compactPositions = width < 390 || fontScale >= 1.25;
   const { createBackup, data, updatePattern } = useAppStore();
   const navigation = useNavigation();
   const allowNavigation = useRef(false);
   const [today] = useState(() => toDateKey(new Date()));
-  const initialPatternKind = getWorkPatternKind(data.pattern.shiftTypeIds) ?? 'rotation';
+  const initialPresetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
+  const initialSequence = data.pattern.shiftTypeIds.filter(isBaseWorkShiftId);
   const initialScheduleStartDate = getScheduleStartDate(data);
   const initialReferenceDate =
     initialScheduleStartDate > today ? initialScheduleStartDate : today;
   const initialPosition =
-    initialPatternKind === 'rotation' && isValidDateKey(data.pattern.anchorDate)
+    initialPresetId !== 'weekday' &&
+    initialSequence.length > 0 &&
+    isValidDateKey(data.pattern.anchorDate)
       ? positiveModulo(
           differenceInCalendarDays(initialReferenceDate, data.pattern.anchorDate),
-          ROTATION_PATTERN_SHIFT_TYPE_IDS.length,
+          initialSequence.length,
         )
       : null;
-  const [patternKind, setPatternKind] = useState<WorkPatternKind>(initialPatternKind);
+  const [presetId, setPresetId] = useState<WorkPatternPresetId>(initialPresetId);
+  const [sequence, setSequence] = useState<BaseWorkShiftId[]>(initialSequence);
   const [scheduleStartDate, setScheduleStartDate] = useState(initialScheduleStartDate);
   const [referenceDate, setReferenceDate] = useState(initialReferenceDate);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(initialPosition);
   const [saving, setSaving] = useState(false);
   const scheduleStartDateValid = isValidDateKey(scheduleStartDate);
   const referenceDateValid = isValidDateKey(referenceDate);
-  const activeSequence =
-    patternKind === 'weekday'
-      ? WEEKDAY_PATTERN_SHIFT_TYPE_IDS
-      : ROTATION_PATTERN_SHIFT_TYPE_IDS;
-  const previewDate = scheduleStartDate;
-  const previewPosition =
-    patternKind === 'weekday'
-      ? scheduleStartDateValid
-        ? getWeekdayPatternPosition(scheduleStartDate)
-        : null
-      : scheduleStartDateValid && referenceDateValid && selectedPosition !== null
-        ? getRotationPatternPositionForDate({
-            date: scheduleStartDate,
-            referenceDate,
-            referencePosition: selectedPosition,
-          })
-        : null;
+  const sequenceValid = isValidCustomPatternSequence(sequence);
+  const effectivePresetId = getEffectiveWorkPatternPresetId(presetId, sequence)!;
+  const normalizedToWeekday =
+    presetId !== 'weekday' && effectivePresetId === 'weekday';
+  const patternIdentityChanged = !sameSequence(sequence, initialSequence);
   const hasUnsavedChanges =
-    patternKind !== initialPatternKind ||
+    presetId !== initialPresetId ||
+    patternIdentityChanged ||
     scheduleStartDate !== initialScheduleStartDate ||
-    (patternKind === 'rotation' &&
+    (effectivePresetId !== 'weekday' &&
       (referenceDate !== initialReferenceDate || selectedPosition !== initialPosition));
   const futureScheduleOverrideCount = useMemo(
     () =>
-      new Set([
-        ...Object.keys(data.overrides),
-        ...Object.keys(data.timeOverrides),
-      ].filter((dateKey) => dateKey >= today)).size,
+      new Set(
+        [...Object.keys(data.overrides), ...Object.keys(data.timeOverrides)].filter(
+          (dateKey) => dateKey >= today,
+        ),
+      ).size,
     [data.overrides, data.timeOverrides, today],
   );
-  const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
-  const daySchedule =
-    dayShift &&
-    dayShift.startMinutes !== null &&
-    dayShift.endMinutes !== null
-      ? `${formatTimeInput(dayShift.startMinutes)}~${formatTimeInput(dayShift.endMinutes)}`
-      : '시간 설정 필요';
+  const previewPosition =
+    effectivePresetId === 'weekday'
+      ? scheduleStartDateValid
+        ? getWeekdayPatternPosition(scheduleStartDate)
+        : null
+      : scheduleStartDateValid &&
+          referenceDateValid &&
+          selectedPosition !== null &&
+          sequenceValid
+        ? getPatternPositionForDate({
+            date: scheduleStartDate,
+            referenceDate,
+            referencePosition: selectedPosition,
+            sequenceLength: sequence.length,
+          })
+        : null;
 
   useEffect(
     () =>
@@ -144,22 +146,26 @@ export default function PatternEditorScreen() {
     [hasUnsavedChanges, navigation, saving, showDialog],
   );
 
-  const preview = useMemo(
-    () => {
-      if (!isValidDateKey(previewDate) || previewPosition === null) return [];
-      return Array.from({ length: activeSequence.length }, (_, index) => ({
-        dateKey: addDays(previewDate, index),
-        shift: data.shiftTypes.find(
-          (shift) => shift.id === activeSequence[(previewPosition + index) % activeSequence.length],
-        ),
-      }));
-    },
-    [activeSequence, data.shiftTypes, previewDate, previewPosition],
-  );
+  const preview = useMemo(() => {
+    if (!scheduleStartDateValid || previewPosition === null) return [];
+    return Array.from({ length: sequence.length }, (_, index) => ({
+      dateKey: addDays(scheduleStartDate, index),
+      shift: data.shiftTypes.find(
+        (shift) => shift.id === sequence[(previewPosition + index) % sequence.length],
+      ),
+    }));
+  }, [data.shiftTypes, previewPosition, scheduleStartDate, scheduleStartDateValid, sequence]);
 
-  const selectPosition = (index: number) => {
-    setSelectedPosition(index);
+  const selectPreset = (nextPresetId: WorkPatternPresetId) => {
+    setPresetId(nextPresetId);
+    setSequence([...getWorkPatternPreset(nextPresetId).shiftTypeIds]);
+    setSelectedPosition(null);
     void Haptics.selectionAsync();
+  };
+
+  const changeSequence = (next: BaseWorkShiftId[]) => {
+    setSequence(next);
+    setSelectedPosition(null);
   };
 
   const changeReferenceDate = (nextDate: string) => {
@@ -173,8 +179,8 @@ export default function PatternEditorScreen() {
     setReferenceDate(nextDate);
   };
 
-  const selectPatternKind = (kind: WorkPatternKind) => {
-    setPatternKind(kind);
+  const selectPosition = (index: number) => {
+    setSelectedPosition(index);
     void Haptics.selectionAsync();
   };
 
@@ -184,9 +190,10 @@ export default function PatternEditorScreen() {
   };
 
   const persistPattern = async (clearFutureScheduleOverrides = false) => {
-    const anchorSourceDate = patternKind === 'weekday' ? scheduleStartDate : referenceDate;
+    const anchorSourceDate =
+      effectivePresetId === 'weekday' ? scheduleStartDate : referenceDate;
     const anchorPosition =
-      patternKind === 'weekday'
+      effectivePresetId === 'weekday'
         ? getWeekdayPatternPosition(scheduleStartDate)
         : (selectedPosition ?? 0);
     setSaving(true);
@@ -194,10 +201,11 @@ export default function PatternEditorScreen() {
       await createBackup();
       const saved = await updatePattern(
         createWorkPatternFromReference({
-          kind: patternKind,
+          presetId: effectivePresetId,
           position: anchorPosition,
           referenceDate: anchorSourceDate,
           scheduleStartDate,
+          shiftTypeIds: sequence,
         }),
         {},
         clearFutureScheduleOverrides
@@ -205,10 +213,7 @@ export default function PatternEditorScreen() {
           : undefined,
       );
       if (!saved) {
-        showDialog(
-          '근무 방식을 저장하지 못했어요',
-          '잠시 후 다시 시도해 주세요.',
-        );
+        showDialog('근무 방식을 저장하지 못했어요', '잠시 후 다시 시도해 주세요.');
         return;
       }
       allowNavigation.current = true;
@@ -240,26 +245,24 @@ export default function PatternEditorScreen() {
   };
 
   const save = () => {
-    if (!scheduleStartDateValid) {
+    if (!scheduleStartDateValid || !sequenceValid) {
       showDialog(
-        '날짜를 확인해 주세요',
-        '일정 적용 시작일을 연도-월-일 형식으로 정확히 입력해 주세요.',
+        '근무 정보를 확인해 주세요',
+        '일정 적용 시작일과 1~42일의 회사 근무 순서를 확인해 주세요.',
       );
       return;
     }
-    if (patternKind === 'rotation' && !isValidDateKey(referenceDate)) {
+    if (
+      effectivePresetId !== 'weekday' &&
+      (!referenceDateValid || selectedPosition === null)
+    ) {
       showDialog(
-        '날짜를 확인해 주세요',
-        '순번 기준일을 연도-월-일 형식으로 정확히 입력해 주세요.',
+        '근무 순번을 확인해 주세요',
+        '순번 기준일과 그날의 실제 근무를 선택해 주세요.',
       );
       return;
     }
-    if (patternKind === 'rotation' && selectedPosition === null) {
-      showDialog('근무 순번을 선택해 주세요', '순번 기준일의 실제 근무를 선택해 주세요.');
-      return;
-    }
-
-    if (patternKind !== initialPatternKind && futureScheduleOverrideCount > 0) {
+    if (patternIdentityChanged && futureScheduleOverrideCount > 0) {
       showDialog(
         '근무 방식을 변경할까요?',
         `직접 변경한 향후 일정 ${futureScheduleOverrideCount}개를 정리한 뒤 새 근무 방식을 적용해요. 메모와 연차·교육·예비군 일정은 유지해요.`,
@@ -270,8 +273,7 @@ export default function PatternEditorScreen() {
       );
       return;
     }
-
-    void persistPattern(patternKind !== initialPatternKind);
+    void persistPattern(patternIdentityChanged);
   };
 
   return (
@@ -280,16 +282,14 @@ export default function PatternEditorScreen() {
       safeAreaEdges={['left', 'right']}
       footer={
         <AppButton
-          disabled={
-            saving ||
-            !hasUnsavedChanges
-          }
+          disabled={saving || !hasUnsavedChanges}
           icon="checkmark"
           label={
             saving
               ? '저장 중'
               : !scheduleStartDateValid ||
-                  (patternKind === 'rotation' &&
+                  !sequenceValid ||
+                  (effectivePresetId !== 'weekday' &&
                     (!referenceDateValid || selectedPosition === null))
                 ? '입력 확인하기'
                 : '저장하기'
@@ -300,116 +300,60 @@ export default function PatternEditorScreen() {
       }>
       <View>
         <SectionHeader centered title="근무 방식" />
-        <Card style={styles.modeCard}>
+        <Card style={styles.card}>
           <View accessibilityRole="radiogroup" style={styles.patternOptions}>
-            <Pressable
-              aria-checked={patternKind === 'rotation'}
-              accessibilityLabel={ROTATION_PATTERN_NAME}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: patternKind === 'rotation' }}
-              onPress={() => selectPatternKind('rotation')}
-              style={({ pressed }) => [
-                styles.patternOption,
-                patternKind === 'rotation' && styles.patternOptionSelected,
-                pressed && styles.pressed,
-              ]}>
-              <View style={styles.patternOptionIcon}>
-                <AppIcon color={palette.violet} name="repeat" size={20} />
-              </View>
-              <AppText numberOfLines={2} variant="label" style={styles.patternOptionTitle}>
-                3조 2교대
-              </AppText>
-            </Pressable>
-            <Pressable
-              aria-checked={patternKind === 'weekday'}
-              accessibilityLabel={WEEKDAY_PATTERN_NAME}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: patternKind === 'weekday' }}
-              onPress={() => selectPatternKind('weekday')}
-              style={({ pressed }) => [
-                styles.patternOption,
-                patternKind === 'weekday' && styles.patternOptionSelected,
-                pressed && styles.pressed,
-              ]}>
-              <View style={[styles.patternOptionIcon, styles.weekdayPatternIcon]}>
-                <AnimatedShiftIcon animated={false} color={palette.mintDark} kind="day" size={21} />
-              </View>
-              <AppText numberOfLines={2} variant="label" style={styles.patternOptionTitle}>
-                주간 고정
-              </AppText>
-            </Pressable>
+            {WORK_PATTERN_PRESETS.map((preset) => {
+              const selected = preset.id === presetId;
+              return (
+                <Pressable
+                  accessibilityLabel={preset.name}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  key={preset.id}
+                  onPress={() => selectPreset(preset.id)}
+                  style={({ pressed }) => [
+                    styles.patternOption,
+                    selected && styles.patternOptionSelected,
+                    pressed && styles.pressed,
+                  ]}>
+                  <AppIcon
+                    color={selected ? palette.indigoDark : palette.inkMuted}
+                    name={preset.id === 'weekday' ? 'shift-day' : 'repeat'}
+                    size={20}
+                  />
+                  <View style={styles.patternCopy}>
+                    <AppText variant="label">{preset.shortName}</AppText>
+                    <AppText variant="caption" tone="secondary">{preset.description}</AppText>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
-
-          <View style={styles.divider} />
-
-          {patternKind === 'rotation' ? (
-            <View style={styles.patternSummary}>
-              <AppText variant="label" style={styles.centerText}>
-                {ROTATION_PATTERN_NAME}
-              </AppText>
-              <View style={styles.sequenceFlow}>
-                {ROTATION_PATTERN_SHIFT_TYPE_IDS.map((id, index) => {
-                  const shift = data.shiftTypes.find((item) => item.id === id);
-                  if (!shift) return null;
-                  const appearance = getShiftAppearance(shift, palette, isDark);
-                  return (
-                    <View key={`${id}-${index}`} style={styles.sequenceItem}>
-                      <View
-                        accessibilityLabel={ROTATION_POSITION_LABELS[index]}
-                        accessible
-                        style={[
-                          styles.sequenceCircle,
-                          {
-                            backgroundColor: appearance.softColor,
-                            borderColor: appearance.accentColor,
-                          },
-                        ]}>
-                        <AnimatedShiftIcon
-                          animated={false}
-                          color={appearance.accentColor}
-                          kind={getShiftIconKind(shift.id, shift.isOff)}
-                          size={19}
-                        />
-                      </View>
-                      <AppText tone="secondary" style={styles.sequenceLabel} variant="caption">
-                        {ROTATION_SHORT_LABELS[index]}
-                      </AppText>
-                    </View>
-                  );
-                })}
+          {presetId !== 'weekday' ? (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.sectionCopy}>
+                <AppText variant="label">회사 근무 순서</AppText>
+                <AppText variant="caption" tone="secondary">
+                  대표 예시가 다르면 날짜를 눌러 실제 순서로 바꿔요.
+                </AppText>
               </View>
-            </View>
-          ) : (
-            <View style={styles.fixedSummary}>
-              <View style={[styles.fixedSummaryItem, styles.fixedSummaryItemDivider]}>
-                <AnimatedShiftIcon animated={false} color={palette.mintDark} kind="day" size={21} />
-                <View style={styles.fixedSummaryCopy}>
-                  <AppText variant="label">월~금</AppText>
-                  <AppText tone="secondary" variant="caption">
-                    {daySchedule} 주간
-                  </AppText>
-                </View>
-              </View>
-              <View style={styles.fixedSummaryItem}>
-                <AnimatedShiftIcon animated={false} color={palette.inkMuted} kind="off" size={21} />
-                <View style={styles.fixedSummaryCopy}>
-                  <AppText variant="label">토·일</AppText>
-                  <AppText tone="secondary" variant="caption">
-                    고정 휴무
-                  </AppText>
-                </View>
-              </View>
-            </View>
-          )}
+              <PatternSequenceEditor sequence={sequence} onChange={changeSequence} />
+              {normalizedToWeekday ? (
+                <StatusBanner
+                  icon="calendar-outline"
+                  message="이 순서는 주간 고정과 같아 월~금 근무·토·일 휴무로 요일에 맞춰 저장해요."
+                  tone="info"
+                />
+              ) : null}
+            </>
+          ) : null}
 
-          {patternKind === initialPatternKind &&
-          !hasUnsavedChanges &&
-          futureScheduleOverrideCount > 0 ? (
-            <View style={styles.cleanupBlock}>
+          {!hasUnsavedChanges && futureScheduleOverrideCount > 0 ? (
+            <>
               <View style={styles.divider} />
               <AppText tone="secondary" style={styles.centerText} variant="caption">
-                향후 직접 변경 일정 {futureScheduleOverrideCount}개가 기본 근무표보다 먼저 적용되고
-                있어요.
+                향후 직접 변경 일정 {futureScheduleOverrideCount}개가 기본 근무표보다 먼저 적용되고 있어요.
               </AppText>
               <AppButton
                 disabled={saving}
@@ -417,14 +361,14 @@ export default function PatternEditorScreen() {
                 onPress={confirmClearFutureScheduleOverrides}
                 variant="secondary"
               />
-            </View>
+            </>
           ) : null}
         </Card>
       </View>
 
       <View>
         <SectionHeader centered title="시작일" />
-        <Card style={styles.scheduleCard}>
+        <Card style={styles.card}>
           <AppText tone="secondary" style={styles.centerText} variant="caption">
             이 날짜부터 새 근무표를 계산하고 이전 일정은 유지해요.
           </AppText>
@@ -438,13 +382,10 @@ export default function PatternEditorScreen() {
         </Card>
       </View>
 
-      {patternKind === 'rotation' ? (
+      {effectivePresetId !== 'weekday' ? (
         <View>
-          <SectionHeader
-            centered
-            title="순번 맞추기"
-          />
-          <Card style={styles.scheduleCard}>
+          <SectionHeader centered title="순번 맞추기" />
+          <Card style={styles.card}>
             <AppText tone="secondary" style={styles.centerText} variant="caption">
               실제 근무를 아는 날짜와 그날의 근무를 선택해 주세요.
             </AppText>
@@ -455,51 +396,13 @@ export default function PatternEditorScreen() {
               today={today}
               value={referenceDate}
             />
-            {!referenceDateValid ? (
-              <AppText color={palette.danger} style={styles.centerText} variant="caption">
-                날짜를 연도-월-일 형식으로 입력해 주세요.
-              </AppText>
-            ) : selectedPosition === null ? (
-              <AppText color={palette.amber} style={styles.centerText} variant="caption">
-                순번 기준일의 실제 근무를 다시 선택해 주세요.
-              </AppText>
-            ) : null}
-            <View style={styles.divider} />
-            <View accessibilityRole="radiogroup" style={styles.positionGrid}>
-              {ROTATION_PATTERN_SHIFT_TYPE_IDS.map((id, index) => {
-                const shift = data.shiftTypes.find((item) => item.id === id);
-                if (!shift) return null;
-                const selected = selectedPosition === index;
-                const appearance = getShiftAppearance(shift, palette, isDark);
-                return (
-                  <Pressable
-                    aria-checked={selected}
-                    key={`${id}-position-${index}`}
-                    accessibilityLabel={ROTATION_POSITION_LABELS[index]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    onPress={() => selectPosition(index)}
-                    style={({ pressed }) => [
-                      styles.positionOption,
-                      selected && {
-                        borderColor: appearance.accentColor,
-                        backgroundColor: appearance.softColor,
-                      },
-                      pressed && styles.pressed,
-                    ]}>
-                    <AnimatedShiftIcon
-                      animated={false}
-                      color={appearance.accentColor}
-                      kind={getShiftIconKind(shift.id, shift.isOff)}
-                      size={18}
-                    />
-                    <AppText numberOfLines={1} style={styles.positionLabel} variant="label">
-                      {ROTATION_SHORT_LABELS[index]}
-                    </AppText>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <RotationPositionPicker
+              compact={compactPositions}
+              onSelect={selectPosition}
+              position={selectedPosition}
+              sequence={sequence}
+              shiftTypes={data.shiftTypes}
+            />
           </Card>
         </View>
       ) : null}
@@ -512,11 +415,8 @@ export default function PatternEditorScreen() {
               <View
                 key={`${item.dateKey}-${index}`}
                 style={[styles.previewItem, stackPreview && styles.previewItemStacked]}>
-                <AppText
-                  variant="caption"
-                  tone="secondary"
-                  style={styles.previewDate}>
-                  {item.dateKey ? formatKoreanDate(item.dateKey) : '날짜 확인 필요'}
+                <AppText variant="caption" tone="secondary" style={styles.previewDate}>
+                  {formatKoreanDate(item.dateKey)}
                 </AppText>
                 {item.shift ? <ShiftChip compact shift={item.shift} /> : null}
               </View>
@@ -539,118 +439,63 @@ function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     screen: { gap: spacing.large, paddingTop: spacing.small },
     centerText: { textAlign: 'center' },
-    modeCard: { gap: spacing.medium, padding: spacing.medium },
+    card: { gap: spacing.medium, padding: spacing.medium },
+    sectionCopy: { gap: spacing.tiny },
     patternOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     patternOption: {
-      flex: 1,
-      flexBasis: 132,
-      minWidth: 126,
-      minHeight: 58,
-      alignItems: 'center',
+      minWidth: 138,
+      minHeight: 72,
+      flexBasis: '45%',
+      flexGrow: 1,
       flexDirection: 'row',
+      alignItems: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
+      borderRadius: radii.medium,
       backgroundColor: palette.surfaceSoft,
-      paddingHorizontal: spacing.medium,
-      paddingVertical: spacing.small,
+      padding: spacing.small,
     },
     patternOptionSelected: {
       borderColor: palette.indigo,
       backgroundColor: palette.indigoSoft,
     },
-    patternOptionIcon: {
-      width: 34,
-      height: 34,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 12,
-      backgroundColor: palette.violetSoft,
-    },
-    weekdayPatternIcon: { backgroundColor: palette.mintSoft },
-    patternOptionTitle: { flex: 1, minWidth: 0, textAlign: 'center' },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.controlLine },
-    cleanupBlock: { gap: spacing.small },
-    patternSummary: { gap: spacing.medium },
-    sequenceFlow: { flexDirection: 'row', justifyContent: 'center' },
-    sequenceItem: { flex: 1, minWidth: 42, alignItems: 'center', gap: 4 },
-    sequenceCircle: {
-      width: 34,
-      height: 34,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sequenceLabel: { fontSize: 11, textAlign: 'center' },
-    fixedSummary: {
-      flexDirection: 'row',
-      overflow: 'hidden',
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-    },
-    fixedSummaryItem: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: 82,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.tiny,
-      padding: spacing.small,
-    },
-    fixedSummaryItemDivider: {
-      borderRightWidth: StyleSheet.hairlineWidth,
-      borderRightColor: palette.line,
-    },
-    fixedSummaryCopy: { alignItems: 'center', gap: 2 },
-    scheduleCard: { gap: spacing.medium },
-    positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
-    positionOption: {
-      flexBasis: 88,
-      minWidth: 82,
-      flexGrow: 1,
-      minHeight: 54,
-      paddingHorizontal: spacing.small,
-      borderRadius: radii.medium,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      backgroundColor: palette.surfaceSoft,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.tiny,
-    },
-    positionLabel: { textAlign: 'center' },
+    patternCopy: { minWidth: 0, flex: 1, gap: 2 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.line },
+    pressed: { opacity: 0.72 },
     previewCard: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: spacing.small,
-      padding: spacing.small,
+      padding: spacing.medium,
     },
-    previewCardStacked: { flexDirection: 'column' },
+    previewCardStacked: { flexDirection: 'column', flexWrap: 'nowrap' },
     previewItem: {
-      flexBasis: '48%',
-      flexGrow: 0,
-      minHeight: 64,
-      padding: spacing.small,
+      minWidth: 136,
+      minHeight: 58,
+      flexBasis: '30%',
+      flexGrow: 1,
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.tiny,
+      justifyContent: 'space-between',
+      gap: spacing.small,
+      borderWidth: 1,
+      borderColor: palette.line,
       borderRadius: radii.medium,
       backgroundColor: palette.surfaceSoft,
+      padding: spacing.small,
     },
-    previewItemStacked: { width: '100%', flexBasis: 'auto' },
-    emptyPreview: {
+    previewItemStacked: {
       width: '100%',
-      minHeight: 96,
+      flexBasis: 'auto',
+      flexDirection: 'row',
+    },
+    previewDate: { textAlign: 'center' },
+    emptyPreview: {
+      minHeight: 80,
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.small,
-      padding: spacing.large,
     },
-    previewDate: { width: '100%', textAlign: 'center' },
-    pressed: { opacity: 0.65 },
   });
 }

@@ -17,12 +17,14 @@ export const DEFAULT_WORK_ROUTINE_TIMING: Readonly<WorkRoutineTiming> = {
 
 export const DEFAULT_WORK_ROUTINE_PROFILES: Readonly<WorkRoutineProfiles> = {
   day: DEFAULT_WORK_ROUTINE_TIMING,
+  evening: DEFAULT_WORK_ROUTINE_TIMING,
   night: DEFAULT_WORK_ROUTINE_TIMING,
 };
 
 export function createDefaultWorkRoutineProfiles(): WorkRoutineProfiles {
   return {
     day: { ...DEFAULT_WORK_ROUTINE_TIMING },
+    evening: { ...DEFAULT_WORK_ROUTINE_TIMING },
     night: { ...DEFAULT_WORK_ROUTINE_TIMING },
   };
 }
@@ -52,6 +54,7 @@ export function resolveWorkRoutineKind(
   shift: Pick<ShiftType, 'id' | 'endsNextDay'>,
 ): keyof WorkRoutineProfiles {
   if (shift.id === 'day' || shift.id === 'substitute-day') return 'day';
+  if (shift.id === 'evening') return 'evening';
   if (shift.id === 'night' || shift.id === 'substitute-night') return 'night';
   return shift.endsNextDay ? 'night' : 'day';
 }

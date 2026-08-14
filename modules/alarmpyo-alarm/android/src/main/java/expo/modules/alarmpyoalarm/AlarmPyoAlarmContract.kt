@@ -25,12 +25,39 @@ internal const val EXTRA_REPEAT_STAGE = "alarmpyo_repeat_stage"
 internal const val EXTRA_IS_TEST = "alarmpyo_is_test"
 internal const val EXTRA_RETRY_ARMED = "alarmpyo_retry_armed"
 internal const val EXTRA_AUTOMATIC_REPEAT_ELIGIBLE = "alarmpyo_automatic_repeat_eligible"
+internal const val EXTRA_ALARM_SOURCE = "alarmpyo_alarm_source"
 
 internal const val ALARM_CHANNEL_ID = "alarmpyo-alarm-runtime-v1"
 internal const val LEGACY_ALARM_CHANNEL_ID = "shift-alarms-v2"
 internal const val ALARM_NOTIFICATION_ID = 0x485453
 internal const val MAX_SCHEDULED_ALARMS = 3
 internal const val MAX_ALARM_MINUTES_BEFORE = 24 * 60 - 1
+
+internal enum class AlarmPyoAlarmSource(
+  val wireValue: String,
+  val priority: Int
+) {
+  TEST("test", 1),
+  TIMER("timer", 2),
+  WORK("work", 3);
+
+  companion object {
+    fun fromIntent(intent: Intent, plan: AlarmPyoAlarmPlan? = null): AlarmPyoAlarmSource {
+      return entries.firstOrNull {
+        it.wireValue == intent.getStringExtra(EXTRA_ALARM_SOURCE)
+      } ?: if (
+        intent.getBooleanExtra(EXTRA_IS_TEST, false) || plan?.shiftTypeId == "test"
+      ) {
+        TEST
+      } else {
+        WORK
+      }
+    }
+  }
+}
+
+internal fun Intent.putAlarmPyoSource(source: AlarmPyoAlarmSource): Intent =
+  putExtra(EXTRA_ALARM_SOURCE, source.wireValue)
 
 @OptimizedRecord
 data class AlarmPyoAlarmPlanRecord(

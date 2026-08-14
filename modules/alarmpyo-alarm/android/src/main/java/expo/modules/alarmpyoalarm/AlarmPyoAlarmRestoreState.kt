@@ -16,12 +16,13 @@ internal data class AlarmPyoAlarmRestoreState(
   val lastAttemptCompleted: Boolean = false,
   val sleepReminderPending: Boolean = false,
   val widgetPending: Boolean = false,
+  val quickTimerPending: Boolean = false,
   val watchdogAt: Long = 0L,
   val workAttempted: Boolean = false,
   val journalId: Long = 0L
 ) {
   val hasPendingWork: Boolean
-    get() = workAlarmPending || sleepReminderPending || widgetPending
+    get() = workAlarmPending || sleepReminderPending || widgetPending || quickTimerPending
 }
 
 internal data class AlarmPyoAlarmRestoreResult(
@@ -44,6 +45,51 @@ internal data class AlarmPyoAlarmRestoreResult(
   )
 }
 
+internal object AlarmPyoQuickTimerRestoreJournalPolicy {
+  fun markPending(
+    previous: AlarmPyoAlarmRestoreState?,
+    nowMillis: Long
+  ): AlarmPyoAlarmRestoreState {
+    if (previous?.quickTimerPending == true) return previous
+    val base = previous ?: AlarmPyoAlarmRestoreState(
+      workAlarmPending = false,
+      recalculateLocalTimes = false,
+      attemptCount = 0,
+      lastAttemptAt = 0L,
+      completedAt = 0L,
+      retryAt = 0L,
+      expectedCount = 0,
+      scheduledCount = 0
+    )
+    val timerRetryAt = nowMillis + AlarmPyoAlarmRestoreStateStore.retryDelayForAttempt(
+      base.attemptCount + 1
+    )
+    val existingWakeup = listOf(base.retryAt, base.watchdogAt)
+      .filter { it > nowMillis }
+      .minOrNull()
+    return base.copy(
+      quickTimerPending = true,
+      retryAt = minOf(existingWakeup ?: timerRetryAt, timerRetryAt),
+      journalId = maxOf(nowMillis, base.journalId + 1L)
+    )
+  }
+
+  fun markCompleted(
+    previous: AlarmPyoAlarmRestoreState?,
+    nowMillis: Long
+  ): AlarmPyoAlarmRestoreState? {
+    if (previous?.quickTimerPending != true) return previous
+    val hasOtherPending = previous.workAlarmPending ||
+      previous.sleepReminderPending || previous.widgetPending
+    return previous.copy(
+      quickTimerPending = false,
+      retryAt = if (hasOtherPending) previous.retryAt else 0L,
+      watchdogAt = if (hasOtherPending) previous.watchdogAt else 0L,
+      journalId = maxOf(nowMillis, previous.journalId + 1L)
+    )
+  }
+}
+
 internal object AlarmPyoAlarmRestoreStateStore {
   private const val PREFERENCES_NAME = "alarmpyo-alarm-restore-v1"
   private const val KEY_WORK_PENDING = "work-pending"
@@ -57,6 +103,7 @@ internal object AlarmPyoAlarmRestoreStateStore {
   private const val KEY_LAST_ATTEMPT_COMPLETED = "last-attempt-completed"
   private const val KEY_SLEEP_REMINDER_PENDING = "sleep-reminder-pending"
   private const val KEY_WIDGET_PENDING = "widget-pending"
+  private const val KEY_QUICK_TIMER_PENDING = "quick-timer-pending"
   private const val KEY_WATCHDOG_AT = "watchdog-at"
   private const val KEY_WORK_ATTEMPTED = "work-attempted"
   private const val KEY_JOURNAL_ID = "journal-id"
@@ -76,6 +123,7 @@ internal object AlarmPyoAlarmRestoreStateStore {
     workAlarmPending: Boolean = true,
     sleepReminderPending: Boolean = false,
     widgetPending: Boolean = false,
+    quickTimerPending: Boolean = false,
     watchdogAt: Long = 0L,
     journalId: Long = 0L
   ): AlarmPyoAlarmRestoreState = AlarmPyoAlarmRestoreState(
@@ -90,6 +138,7 @@ internal object AlarmPyoAlarmRestoreStateStore {
     lastAttemptCompleted = false,
     sleepReminderPending = sleepReminderPending,
     widgetPending = widgetPending,
+    quickTimerPending = quickTimerPending,
     watchdogAt = watchdogAt,
     workAttempted = false,
     journalId = journalId
@@ -115,6 +164,7 @@ internal object AlarmPyoAlarmRestoreStateStore {
       },
       sleepReminderPending = values.getBoolean(KEY_SLEEP_REMINDER_PENDING, false),
       widgetPending = values.getBoolean(KEY_WIDGET_PENDING, false),
+      quickTimerPending = values.getBoolean(KEY_QUICK_TIMER_PENDING, false),
       watchdogAt = values.getLong(KEY_WATCHDOG_AT, 0L).coerceAtLeast(0L),
       workAttempted = if (values.contains(KEY_WORK_ATTEMPTED)) {
         values.getBoolean(KEY_WORK_ATTEMPTED, false)
@@ -139,6 +189,7 @@ internal object AlarmPyoAlarmRestoreStateStore {
         .putBoolean(KEY_LAST_ATTEMPT_COMPLETED, state.lastAttemptCompleted)
         .putBoolean(KEY_SLEEP_REMINDER_PENDING, state.sleepReminderPending)
         .putBoolean(KEY_WIDGET_PENDING, state.widgetPending)
+        .putBoolean(KEY_QUICK_TIMER_PENDING, state.quickTimerPending)
         .putLong(KEY_WATCHDOG_AT, state.watchdogAt)
         .putBoolean(KEY_WORK_ATTEMPTED, state.workAttempted)
         .putLong(KEY_JOURNAL_ID, state.journalId)
@@ -152,19 +203,22 @@ internal object AlarmPyoAlarmRestoreStateStore {
     nowMillis: Long,
     retryAllowed: Boolean = true,
     sleepRemindersCompleted: Boolean = true,
-    widgetCompleted: Boolean = true
+    widgetCompleted: Boolean = true,
+    quickTimerCompleted: Boolean = true
   ): AlarmPyoAlarmRestoreState {
     val workWasPending = previous.workAlarmPending
     val workCompleted = !workWasPending || result?.completed == true
     val workPending = previous.workAlarmPending && !workCompleted && retryAllowed
     val sleepPending = previous.sleepReminderPending && !sleepRemindersCompleted
     val pendingWidget = previous.widgetPending && !widgetCompleted
-    val anyPending = workPending || sleepPending || pendingWidget
+    val timerPending = previous.quickTimerPending && !quickTimerCompleted
+    val anyPending = workPending || sleepPending || pendingWidget || timerPending
     val attemptCount = previous.attemptCount + 1
     return previous.copy(
       workAlarmPending = workPending,
       sleepReminderPending = sleepPending,
       widgetPending = pendingWidget,
+      quickTimerPending = timerPending,
       attemptCount = attemptCount,
       lastAttemptAt = nowMillis,
       completedAt = if (workWasPending && workCompleted) nowMillis else previous.completedAt,

@@ -41,6 +41,15 @@ const NIGHT: ShiftType = {
   endsNextDay: true,
 };
 
+const EVENING: ShiftType = {
+  ...DAY,
+  id: 'evening',
+  name: '오후',
+  shortName: '오',
+  startMinutes: 15 * 60,
+  endMinutes: 23 * 60,
+};
+
 const OFF: ShiftType = {
   ...DAY,
   id: 'off',
@@ -69,8 +78,8 @@ const SUBSTITUTE_NIGHT: ShiftType = {
 
 function makeData(alarmsEnabled = true): AppData {
   return {
-    version: 19,
-    shiftTypes: [DAY, NIGHT, SUBSTITUTE_DAY, SUBSTITUTE_NIGHT, OFF],
+    version: 20,
+    shiftTypes: [DAY, EVENING, NIGHT, SUBSTITUTE_DAY, SUBSTITUTE_NIGHT, OFF],
     pattern: {
       name: '3조 2교대 (주주야야휴휴)',
       anchorDate: '2026-07-11',

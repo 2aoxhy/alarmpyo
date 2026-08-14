@@ -1,0 +1,497 @@
+import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+
+import { useAppDialog } from '@/components/app-dialog';
+import { AppIcon } from '@/components/app-icon';
+import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
+import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { StatusBanner } from '@/design-system';
+import {
+  createQuickTimerCountdownAnchor,
+  formatQuickTimerCountdown,
+  formatQuickTimerTarget,
+  getQuickTimerActionPresentation,
+  getQuickTimerDisplayLabel,
+  getQuickTimerRemainingLabel,
+  getQuickTimerRemainingMillis,
+  getQuickTimerTargetAt,
+  isQuickTimerScheduleConfirmed,
+  resolveQuickTimerCountdownSize,
+  shouldStackQuickTimerPresets,
+  type QuickTimerCountdownAnchor,
+} from '@/features/timer/quick-timer-model';
+import { useAppTheme } from '@/hooks/use-app-theme';
+import { useScreenActive } from '@/hooks/use-screen-active';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import {
+  cancelQuickTimer,
+  getQuickTimerStatus,
+  QUICK_TIMER_DURATIONS,
+  scheduleQuickTimer,
+  type QuickTimerDuration,
+  type QuickTimerStatus,
+} from '@/services/quick-timer-service';
+
+const FIRE_SETTLE_POLL_INTERVAL_MS = 750;
+const FIRE_SETTLE_MAX_ATTEMPTS = 8;
+
+export default function TimerScreen() {
+  const { showDialog } = useAppDialog();
+  const { palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
+  const screenActive = useScreenActive();
+  const stackPresets = shouldStackQuickTimerPresets(width, fontScale);
+  const countdownFontSize = resolveQuickTimerCountdownSize(width, fontScale);
+  const [status, setStatus] = useState<QuickTimerStatus | null>(null);
+  const [countdownAnchor, setCountdownAnchor] =
+    useState<QuickTimerCountdownAnchor | null>(null);
+  const [clock, setClock] = useState(() => ({
+    monotonic: performance.now(),
+    wall: Date.now(),
+  }));
+  const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState<'schedule' | 'cancel' | 'refresh' | null>(
+    null,
+  );
+  const [schedulingDuration, setSchedulingDuration] =
+    useState<QuickTimerDuration | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const mountedRef = useRef(true);
+  const hasLoadedRef = useRef(false);
+
+  const observeStatus = useCallback((nextStatus: QuickTimerStatus) => {
+    const nextClock = {
+      monotonic: performance.now(),
+      wall: Date.now(),
+    };
+    setCountdownAnchor(
+      createQuickTimerCountdownAnchor(nextStatus, nextClock.monotonic),
+    );
+    setStatus(nextStatus);
+    setClock(nextClock);
+    return nextClock;
+  }, []);
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
+  const refreshStatus = useCallback(async (
+    showLoading = false,
+    announceFailure = false,
+  ) => {
+    if (showLoading) setLoading(true);
+    setLoadError(false);
+    try {
+      const nextStatus = await getQuickTimerStatus();
+      if (!mountedRef.current) return;
+      observeStatus(nextStatus);
+    } catch {
+      if (mountedRef.current) {
+        setLoadError(true);
+        if (announceFailure) {
+          void AccessibilityInfo.announceForAccessibility(
+            '타이머 상태를 확인하지 못했어요.',
+          );
+        }
+      }
+    } finally {
+      if (mountedRef.current) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+        setBusyAction((current) => (current === 'refresh' ? null : current));
+      }
+    }
+  }, [observeStatus]);
+
+  useEffect(() => {
+    if (!screenActive) return;
+    void refreshStatus(!hasLoadedRef.current);
+  }, [refreshStatus, screenActive]);
+
+  useEffect(() => {
+    if (!screenActive || !status?.active || status.fireAt <= 0) return;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const tick = () => {
+      const current = {
+        monotonic: performance.now(),
+        wall: Date.now(),
+      };
+      setClock(current);
+      const nextSecond = 1_000 - (current.monotonic % 1_000) + 20;
+      timeout = setTimeout(tick, nextSecond);
+    };
+    tick();
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [screenActive, status?.active, status?.fireAt]);
+
+  const remainingMillis = countdownAnchor
+    ? getQuickTimerRemainingMillis(
+        countdownAnchor,
+        clock.monotonic,
+      )
+    : 0;
+  const targetAt = getQuickTimerTargetAt(remainingMillis, clock.wall);
+
+  useEffect(() => {
+    if (
+      !screenActive ||
+      !status?.active ||
+      status.fireAt <= 0 ||
+      remainingMillis > 0
+    ) {
+      return;
+    }
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    const pollSettledStatus = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      await refreshStatus();
+      if (!cancelled && attempts < FIRE_SETTLE_MAX_ATTEMPTS) {
+        timeout = setTimeout(
+          () => void pollSettledStatus(),
+          FIRE_SETTLE_POLL_INTERVAL_MS,
+        );
+      }
+    };
+    void pollSettledStatus();
+    return () => {
+      cancelled = true;
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [refreshStatus, remainingMillis, screenActive, status?.active, status?.fireAt]);
+
+  const actionPresentation = useMemo(
+    () => getQuickTimerActionPresentation(status?.requiredAction ?? 'none'),
+    [status?.requiredAction],
+  );
+
+  const announce = (message: string) => {
+    void AccessibilityInfo.announceForAccessibility(message);
+  };
+
+  const startTimer = async (durationMinutes: QuickTimerDuration) => {
+    if (busyAction !== null) return;
+    setBusyAction('schedule');
+    setSchedulingDuration(durationMinutes);
+    setLoadError(false);
+    try {
+      const nextStatus = await scheduleQuickTimer(durationMinutes);
+      if (!mountedRef.current) return;
+      const observedClock = observeStatus(nextStatus);
+      if (nextStatus.state === 'action-required') {
+        announce('타이머를 시작하려면 알람 설정을 확인해 주세요.');
+      } else if (nextStatus.state === 'error') {
+        setLoadError(true);
+        announce('타이머를 준비하지 못했어요. 다시 확인해 주세요.');
+      } else if (isQuickTimerScheduleConfirmed(nextStatus, durationMinutes)) {
+        const target = formatQuickTimerTarget(
+          getQuickTimerTargetAt(nextStatus.remainingMillis, observedClock.wall),
+          observedClock.wall,
+        );
+        announce(`${durationMinutes}분 타이머를 시작했어요. ${target}에 울려요.`);
+      } else {
+        setLoadError(true);
+        announce('타이머 설정 결과를 확인하지 못했어요. 다시 시도해 주세요.');
+      }
+    } catch {
+      if (mountedRef.current) {
+        setLoadError(true);
+        announce('타이머를 준비하지 못했어요. 다시 확인해 주세요.');
+      }
+    } finally {
+      if (mountedRef.current) {
+        setBusyAction(null);
+        setSchedulingDuration(null);
+      }
+    }
+  };
+
+  const selectDuration = (
+    durationMinutes: QuickTimerDuration,
+    currentWallClock: number,
+  ) => {
+    if (!status?.active) {
+      void startTimer(durationMinutes);
+      return;
+    }
+    const target = formatQuickTimerTarget(
+      currentWallClock + durationMinutes * 60_000,
+      currentWallClock,
+    );
+    showDialog(
+      '실행 중인 타이머를 바꿀까요?',
+      `현재 타이머를 취소하고 ${durationMinutes}분 타이머를 시작해요. ${target}에 울릴 예정이에요.`,
+      [
+        { text: '그대로 두기', style: 'cancel' },
+        {
+          text: `${durationMinutes}분으로 바꾸기`,
+          onPress: () => void startTimer(durationMinutes),
+        },
+      ],
+    );
+  };
+
+  const cancel = async () => {
+    if (busyAction !== null) return;
+    setBusyAction('cancel');
+    setLoadError(false);
+    try {
+      const nextStatus = await cancelQuickTimer();
+      if (!mountedRef.current) return;
+      observeStatus(nextStatus);
+      if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
+        setLoadError(true);
+        announce('타이머를 취소하지 못했어요. 다시 확인해 주세요.');
+      } else {
+        announce('타이머를 취소했어요.');
+      }
+    } catch {
+      if (mountedRef.current) {
+        setLoadError(true);
+        announce('타이머를 취소하지 못했어요. 다시 확인해 주세요.');
+      }
+    } finally {
+      if (mountedRef.current) setBusyAction(null);
+    }
+  };
+
+  const retry = () => {
+    if (busyAction !== null) return;
+    setBusyAction('refresh');
+    void refreshStatus(false, true);
+  };
+
+  const supported = status?.supported === true;
+  const active = supported && status.active;
+  const ringing = active && status.state === 'ringing';
+  const activeTimerLabel = active ? getQuickTimerDisplayLabel(status) : '';
+  const canShowIdleControls =
+    supported &&
+    !active &&
+    status.state !== 'error' &&
+    status.storageHealth !== 'corrupt';
+
+  return (
+    <Screen contentStyle={styles.screenContent}>
+      <View style={styles.header}>
+        <View style={styles.headerIcon}>
+          <AppIcon accessible={false} color={palette.indigoDark} name="timer" size={27} />
+        </View>
+        <AppText accessibilityRole="header" variant="title">
+          타이머
+        </AppText>
+        <AppText tone="secondary" style={styles.centerText}>
+          지금부터 30분 또는 60분 뒤에 알람음·진동으로 알려드려요.
+        </AppText>
+      </View>
+
+      {loading && status === null ? (
+        <Card style={styles.loadingCard}>
+          <ActivityIndicator color={palette.indigoDark} size="small" />
+          <AppText tone="secondary">타이머 상태를 확인하고 있어요.</AppText>
+        </Card>
+      ) : null}
+
+      {!loading && status && !status.supported ? (
+        <StatusBanner
+          announceChanges={false}
+          icon="alert-circle-outline"
+          message="타이머 알람은 지원되는 Android 설치본에서 사용할 수 있어요."
+          title="이 기기에서는 타이머를 사용할 수 없어요"
+          tone="neutral"
+        />
+      ) : null}
+
+      {loadError || status?.state === 'error' || status?.storageHealth === 'corrupt' ? (
+        <StatusBanner
+          actionLabel="다시 확인하기"
+          icon="alert-circle-outline"
+          message="타이머 상태를 확인하지 못했어요. 기존 근무 알람은 그대로 유지돼요."
+          onAction={retry}
+          title="타이머를 준비하지 못했어요"
+          tone="danger"
+        />
+      ) : null}
+
+      {supported && status.state === 'action-required' && actionPresentation ? (
+        <StatusBanner
+          actionLabel="알람 설정 확인하기"
+          icon="alert-circle-outline"
+          message={actionPresentation.message}
+          onAction={() => router.push('/alarm-settings')}
+          title={actionPresentation.title}
+          tone="warning"
+        />
+      ) : null}
+
+      {active ? (
+        <Card style={styles.activeCard}>
+          <View
+            accessible
+            accessibilityLabel={`${activeTimerLabel}. ${formatQuickTimerTarget(
+              targetAt,
+              clock.wall,
+            )}에 울려요. ${getQuickTimerRemainingLabel(remainingMillis)}`}>
+            <AppText tone="secondary" style={styles.centerText} variant="label">
+              {activeTimerLabel}
+            </AppText>
+            <AppText
+              maxFontSizeMultiplier={2}
+              numberOfLines={1}
+              style={[
+                styles.countdown,
+                {
+                  fontSize: countdownFontSize,
+                  lineHeight: Math.ceil(countdownFontSize * 1.22),
+                },
+              ]}
+              variant="display">
+              {formatQuickTimerCountdown(remainingMillis)}
+            </AppText>
+            <AppText tone="secondary" style={styles.centerText} variant="body">
+              {formatQuickTimerTarget(targetAt, clock.wall)}에 울려요
+            </AppText>
+          </View>
+          <AppButton
+            disabled={busyAction !== null}
+            icon="close"
+            label="타이머 취소"
+            loading={busyAction === 'cancel'}
+            onPress={() => void cancel()}
+            variant="secondary"
+          />
+          {!ringing && status.state !== 'action-required' ? (
+            <View style={styles.changeSection}>
+              <AppText tone="secondary" style={styles.centerText} variant="caption">
+                다른 시간으로 바꾸기
+              </AppText>
+              <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
+                {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
+                  <AppButton
+                    accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 바꿔요.`}
+                    accessibilityLabel={`${durationMinutes}분 타이머로 바꾸기`}
+                    disabled={busyAction !== null}
+                    icon="timer-outline"
+                    key={durationMinutes}
+                    label={`${durationMinutes}분`}
+                    loading={schedulingDuration === durationMinutes}
+                    onPress={() => selectDuration(durationMinutes, Date.now())}
+                    style={stackPresets ? styles.presetButtonStacked : styles.presetButton}
+                    variant="secondary"
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </Card>
+      ) : canShowIdleControls ? (
+        <Card style={styles.idleCard}>
+          <View style={styles.idleCopy}>
+            <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
+              얼마나 뒤에 알려드릴까요?
+            </AppText>
+            <AppText tone="secondary" style={styles.centerText} variant="body">
+              한 번에 하나의 타이머만 실행할 수 있어요.
+            </AppText>
+          </View>
+          <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
+            {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
+              <AppButton
+                accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울려요.`}
+                accessibilityLabel={`${durationMinutes}분 타이머 시작`}
+                disabled={busyAction !== null || status.state === 'action-required'}
+                icon="timer-outline"
+                key={durationMinutes}
+                label={`${durationMinutes}분`}
+                loading={schedulingDuration === durationMinutes}
+                onPress={() => selectDuration(durationMinutes, Date.now())}
+                style={stackPresets ? styles.presetButtonStacked : styles.presetButton}
+              />
+            ))}
+          </View>
+        </Card>
+      ) : null}
+
+      {supported ? (
+        <Card density="compact" style={styles.infoCard}>
+          <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={22} />
+          <View style={styles.infoCopy}>
+            <AppText variant="label">알람음·진동</AppText>
+            <AppText tone="secondary" variant="caption">
+              화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용해요.
+            </AppText>
+          </View>
+        </Card>
+      ) : null}
+    </Screen>
+  );
+}
+
+function createStyles(palette: AppPalette) {
+  return StyleSheet.create({
+    screenContent: { gap: spacing.large },
+    header: {
+      alignItems: 'center',
+      gap: spacing.small,
+      paddingBottom: spacing.small,
+    },
+    headerIcon: {
+      width: 52,
+      height: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radii.medium,
+      backgroundColor: palette.surfaceSoft,
+    },
+    centerText: { textAlign: 'center' },
+    loadingCard: {
+      minHeight: 120,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.medium,
+    },
+    activeCard: { gap: spacing.large },
+    changeSection: {
+      gap: spacing.small,
+      paddingTop: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
+    countdown: {
+      width: '100%',
+      color: palette.ink,
+      fontVariant: ['tabular-nums'],
+      textAlign: 'center',
+      paddingVertical: spacing.medium,
+    },
+    idleCard: { gap: spacing.large },
+    idleCopy: { gap: spacing.small },
+    presetButtons: { flexDirection: 'row', gap: spacing.small },
+    presetButtonsStacked: { flexDirection: 'column' },
+    presetButton: { minHeight: 64, flex: 1 },
+    presetButtonStacked: { width: '100%', minHeight: 64 },
+    infoCard: {
+      minHeight: 76,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.medium,
+    },
+    infoCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
+  });
+}

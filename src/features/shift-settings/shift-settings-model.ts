@@ -15,8 +15,10 @@ import {
   parseTimeInput,
 } from '../../utils/shift-time';
 import {
+  type BaseWorkShiftId,
   getWorkPatternKind,
-  getWorkPatternName,
+  getWorkPatternDisplayName,
+  getWorkPatternPresetId,
   type WorkPatternKind,
 } from '../../utils/work-pattern';
 
@@ -32,7 +34,7 @@ export type ShiftDraft = {
   alarmMinutesBefore: number;
 };
 
-export type EditorSection = 'day' | 'night' | 'substitute';
+export type EditorSection = 'day' | 'evening' | 'night' | 'substitute';
 
 export type WorkSchedulePreviewItem = {
   dateKey: string;
@@ -62,6 +64,7 @@ export function isNightShiftId(id: string): boolean {
 
 export function getEditorSectionForDraftId(id: string): EditorSection {
   if (id === 'day') return 'day';
+  if (id === 'evening') return 'evening';
   if (id === 'night') return 'night';
   return 'substitute';
 }
@@ -109,6 +112,7 @@ export function cloneWorkRoutineProfiles(
 ): WorkRoutineProfiles {
   return {
     day: { ...profiles.day },
+    evening: { ...profiles.evening },
     night: { ...profiles.night },
   };
 }
@@ -125,9 +129,10 @@ export function buildWorkScheduleOverview(
   today: string,
 ): WorkScheduleOverview {
   const kind = getWorkPatternKind(data.pattern.shiftTypeIds);
+  const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
   const scheduleStartDate = getScheduleStartDate(data);
   const previewStartDate = today < scheduleStartDate ? scheduleStartDate : today;
-  const previewLength = kind === 'weekday' ? 7 : 6;
+  const previewLength = data.pattern.shiftTypeIds.length;
   const referenceShiftId = data.pattern.shiftTypeIds[0];
   const referenceShift = data.shiftTypes.find(
     (shift) => shift.id === referenceShiftId,
@@ -135,11 +140,14 @@ export function buildWorkScheduleOverview(
 
   return {
     kind,
-    patternName: kind ? getWorkPatternName(kind) : data.pattern.name,
+    patternName: getWorkPatternDisplayName(
+      data.pattern.shiftTypeIds,
+      data.pattern.name,
+    ),
     scheduleStartDate,
     referenceDate: data.pattern.anchorDate,
     referenceShiftLabel:
-      kind === 'rotation' && referenceShift
+      presetId !== 'weekday' && referenceShift
         ? `${referenceShift.name} 첫째 날`
         : (referenceShift?.name ?? '근무 확인 필요'),
     preview: Array.from({ length: previewLength }, (_, index) => {
@@ -154,6 +162,7 @@ export function buildWorkScheduleOverview(
 
 export function formatShiftTimeSummary(
   shiftTypes: readonly ShiftType[],
+  activeShiftIds: readonly string[] = ['day', 'night'],
 ): string {
   const formatShift = (id: string, fallback: string) => {
     const shift = shiftTypes.find((item) => item.id === id);
@@ -163,17 +172,27 @@ export function formatShiftTimeSummary(
     return `${shift.name} ${formatTimeInput(shift.startMinutes)}~${formatTimeInput(shift.endMinutes)}`;
   };
 
-  return [
-    formatShift('day', '주간 시간 확인 필요'),
-    formatShift('night', '야간 시간 확인 필요'),
-  ].join(' · ');
+  const labels: Record<BaseWorkShiftId, string> = {
+    day: '주간',
+    evening: '오후',
+    night: '야간',
+    off: '휴무',
+  };
+  return [...new Set(activeShiftIds)]
+    .filter((id): id is Exclude<BaseWorkShiftId, 'off'> =>
+      id === 'day' || id === 'evening' || id === 'night',
+    )
+    .map((id) => formatShift(id, `${labels[id]} 시간 확인 필요`))
+    .join(' · ');
 }
 
 export function formatWakeTimeSummary(
   shiftTypes: readonly ShiftType[],
   includeNight = true,
+  includeEvening = false,
+  includeDay = true,
 ): string {
-  const formatWake = (id: 'day' | 'night', label: string) => {
+  const formatWake = (id: 'day' | 'evening' | 'night', label: string) => {
     const shift = shiftTypes.find((item) => item.id === id);
     if (!shift || shift.startMinutes === null) return `${label} 확인 필요`;
     return `${label} ${formatTimeInput(
@@ -182,7 +201,8 @@ export function formatWakeTimeSummary(
   };
 
   return [
-    formatWake('day', '주간'),
+    includeDay ? formatWake('day', '주간') : null,
+    includeEvening ? formatWake('evening', '오후') : null,
     includeNight ? formatWake('night', '야간') : null,
   ]
     .filter((label): label is string => Boolean(label))
@@ -192,8 +212,10 @@ export function formatWakeTimeSummary(
 export function formatDraftWakeTimeSummary(
   drafts: readonly ShiftDraft[],
   includeNight = true,
+  includeEvening = false,
+  includeDay = true,
 ): string {
-  const formatWake = (id: 'day' | 'night', label: string) => {
+  const formatWake = (id: 'day' | 'evening' | 'night', label: string) => {
     const draft = drafts.find((item) => item.id === id);
     const startMinutes = draft ? parseTimeInput(draft.start) : null;
     if (!draft || startMinutes === null) return `${label} 확인 필요`;
@@ -203,7 +225,8 @@ export function formatDraftWakeTimeSummary(
   };
 
   return [
-    formatWake('day', '주간'),
+    includeDay ? formatWake('day', '주간') : null,
+    includeEvening ? formatWake('evening', '오후') : null,
     includeNight ? formatWake('night', '야간') : null,
   ]
     .filter((label): label is string => Boolean(label))

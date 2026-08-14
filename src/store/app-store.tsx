@@ -25,7 +25,6 @@ import {
 } from '@/application/app-store-mutations';
 import {
   applyCanonicalSnapshotIfSourceIsCurrent,
-  clearSetupDraftBeforeApplyingReset,
   createDataReplacementResult,
   getSleepReminderSyncModeForAppState,
   getResetAllDataResult,
@@ -142,7 +141,12 @@ import {
   requestAlarmPyoSleepReminderPermission,
   syncAlarmPyoSleepReminders,
 } from '@/services/sleep-reminder-service';
-import { clearSetupDraft } from '@/services/setup-draft-service';
+import { cancelQuickTimer } from '@/services/quick-timer-service';
+import {
+  clearResetCleanupJournal,
+  prepareResetCleanupJournal,
+  resumeResetCleanupJournal,
+} from '@/services/reset-cleanup-journal-service';
 import {
   applyBulkDayChange,
   type BulkDayChange,
@@ -192,6 +196,13 @@ export type {
 
 export function createDefaultData(anchorDate = toDateKey(new Date())): AppData {
   return createDefaultAppData(anchorDate);
+}
+
+async function cancelQuickTimerForResetCleanup(): Promise<void> {
+  const status = await cancelQuickTimer();
+  if (status.supported && (status.active || status.state === 'error')) {
+    throw new Error('타이머를 취소하지 못했어요.');
+  }
 }
 
 const AUTOMATIC_SAVE_DEBOUNCE_MS = 300;
@@ -417,12 +428,23 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       ? result.source === 'reset' || await hasExplicitResetMarker(AsyncStorage).catch(() => false)
       : false;
     if (!mountedRef.current || loadAttemptRef.current !== attempt) return false;
+    let resetCleanupCompleted = true;
     if (result.ok) {
       await reconcilePendingRestoreBackup(
         AsyncStorage,
         storageWriter,
         result.data,
       );
+      try {
+        const cleanup = await resumeResetCleanupJournal({
+          persistedSnapshot: result.persistedSnapshot,
+          resetFallbackLoaded: result.source === 'reset',
+          cancelTimer: cancelQuickTimerForResetCleanup,
+        });
+        resetCleanupCompleted = cleanup.completed;
+      } catch {
+        resetCleanupCompleted = false;
+      }
     }
     if (!mountedRef.current || loadAttemptRef.current !== attempt) return false;
 
@@ -456,8 +478,14 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (recoveredFromDeviceBackup) {
       setSaveSuccessRevision((current) => current + 1);
     }
+    if (!resetCleanupCompleted) {
+      reportSaveIssue(
+        'reset-marker-cleanup-failed',
+        '자료는 초기화됐지만 타이머 또는 이전 설정 초안 정리가 남았어요. 앱을 다시 열면 자동으로 재시도해요.',
+      );
+    }
     return true;
-  }, [appDataWriter, storageWriter]);
+  }, [appDataWriter, reportSaveIssue, storageWriter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void loadData(), 0);
@@ -962,7 +990,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       replacement: AppData | ((current: AppData) => AppData),
       announceSuccess = false,
       forceAlarmSync = false,
-      afterPrimarySaveBeforeApply?: () => Promise<void>,
+      afterPrimarySaveBeforeApply?: (snapshot: string) => Promise<void>,
+      beforePrimarySave?: (snapshot: string) => Promise<void>,
     ): Promise<DataReplacementResult> => {
       const current = dataRef.current;
       const replacementData =
@@ -986,6 +1015,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         });
       }
 
+      if (beforePrimarySave) {
+        try {
+          await beforePrimarySave(snapshot);
+        } catch {
+          return createDataReplacementResult({
+            primarySaved: false,
+            dataApplied: false,
+            followUpSucceeded: false,
+          });
+        }
+      }
+
       automaticSaveGenerationRef.current += 1;
       const persisted = await persistSnapshot(snapshot, true, false, next);
       if (!persisted.primarySaved) {
@@ -998,7 +1039,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       let preApplyFollowUpSucceeded = true;
       if (afterPrimarySaveBeforeApply) {
         try {
-          await afterPrimarySaveBeforeApply();
+          await afterPrimarySaveBeforeApply(snapshot);
         } catch {
           preApplyFollowUpSucceeded = false;
         }
@@ -1240,6 +1281,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (
         workRoutineProfiles &&
         (!isValidWorkRoutineTiming(workRoutineProfiles.day) ||
+          !isValidWorkRoutineTiming(workRoutineProfiles.evening) ||
           !isValidWorkRoutineTiming(workRoutineProfiles.night))
       ) {
         return false;
@@ -1901,10 +1943,20 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         createDefaultData(),
         false,
         true,
-        () => clearSetupDraftBeforeApplyingReset(clearSetupDraft),
+        async (snapshot) => {
+          const cleanup = await resumeResetCleanupJournal({
+            persistedSnapshot: snapshot,
+            cancelTimer: cancelQuickTimerForResetCleanup,
+          });
+          if (!cleanup.completed) {
+            throw new Error('초기화 후속 정리를 완료하지 못했어요.');
+          }
+        },
+        (snapshot) => prepareResetCleanupJournal(snapshot),
       );
       const result = getResetAllDataResult(reset);
       if (!result.dataReset) {
+        await clearResetCleanupJournal().catch(() => undefined);
         await clearExplicitResetMarker(storageWriter).catch(() => undefined);
         explicitResetMarkerPendingRef.current = false;
       }

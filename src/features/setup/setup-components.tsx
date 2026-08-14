@@ -13,7 +13,7 @@ import {
   AnimatedShiftIcon,
   getShiftIconKind,
 } from '@/components/animated-shift-icon';
-import { AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText, Card } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -28,13 +28,15 @@ import {
 } from '@/utils/shift-time';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
-  ROTATION_PATTERN_NAME,
-  WEEKDAY_PATTERN_NAME,
-  type WorkPatternKind,
+  CUSTOM_PATTERN_MAX_DAYS,
+  CUSTOM_PATTERN_MIN_DAYS,
+  WORK_PATTERN_PRESETS,
+  type BaseWorkShiftId,
+  type WorkPatternPresetId,
 } from '@/utils/work-pattern';
 
 import {
-  ROTATION_SETUP_OPTIONS,
+  createSetupSequenceOptions,
   type SetupPreviewItem,
   type SetupScreenStep,
 } from './setup-flow';
@@ -63,7 +65,7 @@ export function SetupHero({ step }: { step: SetupScreenStep }) {
       </View>
       <View style={styles.stepBadge}>
         <AppText variant="label" color={palette.white}>
-          {step}/2
+          {step}/3
         </AppText>
       </View>
     </LinearGradient>
@@ -76,11 +78,11 @@ export function SetupProgress({ step }: { step: SetupScreenStep }) {
 
   return (
     <View
-      accessibilityLabel={`첫 설정 ${step}단계, 총 2단계`}
+      accessibilityLabel={`첫 설정 ${step}단계, 총 3단계`}
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: 2, now: step }}
+      accessibilityValue={{ min: 1, max: 3, now: step }}
       style={styles.progress}>
-      {(['근무 방식', '첫 근무일'] as const).map((label, index) => {
+      {(['근무 방식', '순서·시간', '첫 근무일'] as const).map((label, index) => {
         const value = (index + 1) as SetupScreenStep;
         const active = value <= step;
         return (
@@ -100,15 +102,13 @@ export function SetupProgress({ step }: { step: SetupScreenStep }) {
 }
 
 export function WorkModeStep({
-  daySchedule,
-  patternKind,
+  presetId,
   stackOptions,
   onSelect,
 }: {
-  daySchedule: string;
-  patternKind: WorkPatternKind | null;
+  presetId: WorkPatternPresetId | null;
   stackOptions: boolean;
-  onSelect: (kind: WorkPatternKind) => void;
+  onSelect: (presetId: WorkPatternPresetId) => void;
 }) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -126,28 +126,20 @@ export function WorkModeStep({
       <View
         accessibilityRole="radiogroup"
         style={[styles.modeOptions, stackOptions && styles.modeOptionsStacked]}>
-        <ModeOption
-          description="주간 2일 · 야간 2일 · 휴무 2일"
-          icon="repeat"
-          iconColor={palette.violet}
-          iconBackground={palette.violetSoft}
-          horizontal={stackOptions}
-          label={ROTATION_PATTERN_NAME}
-          onPress={() => onSelect('rotation')}
-          selected={patternKind === 'rotation'}
-          style={stackOptions ? styles.modeOptionStacked : undefined}
-        />
-        <ModeOption
-          description={`월~금 ${daySchedule} · 토·일 휴무`}
-          icon="shift-day"
-          iconColor={palette.mintDark}
-          iconBackground={palette.mintSoft}
-          horizontal={stackOptions}
-          label={WEEKDAY_PATTERN_NAME}
-          onPress={() => onSelect('weekday')}
-          selected={patternKind === 'weekday'}
-          style={stackOptions ? styles.modeOptionStacked : undefined}
-        />
+        {WORK_PATTERN_PRESETS.map((preset) => (
+          <ModeOption
+            description={preset.description}
+            icon={preset.id === 'weekday' ? 'shift-day' : 'repeat'}
+            iconColor={preset.id === 'weekday' ? palette.mintDark : palette.violet}
+            iconBackground={preset.id === 'weekday' ? palette.mintSoft : palette.violetSoft}
+            horizontal={stackOptions}
+            key={preset.id}
+            label={preset.name}
+            onPress={() => onSelect(preset.id)}
+            selected={presetId === preset.id}
+            style={stackOptions ? styles.modeOptionStacked : undefined}
+          />
+        ))}
       </View>
     </View>
   );
@@ -212,11 +204,13 @@ function ModeOption({
 export function RotationPositionPicker({
   compact,
   position,
+  sequence,
   shiftTypes,
   onSelect,
 }: {
   compact: boolean;
   position: number | null;
+  sequence: readonly BaseWorkShiftId[];
   shiftTypes: ShiftType[];
   onSelect: (position: number) => void;
 }) {
@@ -225,7 +219,7 @@ export function RotationPositionPicker({
 
   return (
     <View accessibilityRole="radiogroup" style={styles.positionGrid}>
-      {ROTATION_SETUP_OPTIONS.map((option, index) => {
+      {createSetupSequenceOptions(sequence).map((option, index) => {
         const selected = position === index;
         const shift = shiftTypes.find((item) => item.id === option.shiftTypeId);
         const appearance = shift ? getShiftAppearance(shift, palette, isDark) : null;
@@ -271,52 +265,169 @@ export function RotationPositionPicker({
   );
 }
 
+const SEQUENCE_ORDER: readonly BaseWorkShiftId[] = [
+  'day',
+  'evening',
+  'night',
+  'off',
+];
+
+const SEQUENCE_LABELS: Record<BaseWorkShiftId, string> = {
+  day: '주간',
+  evening: '오후',
+  night: '야간',
+  off: '휴무',
+};
+
+/** 대표 순서를 회사 순서에 맞게 1~42일 범위에서 바로 고쳐요. */
+export function PatternSequenceEditor({
+  sequence,
+  onChange,
+}: {
+  sequence: readonly BaseWorkShiftId[];
+  onChange: (sequence: BaseWorkShiftId[]) => void;
+}) {
+  const { isDark, palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const rotate = (index: number) => {
+    const current = sequence[index];
+    const next = SEQUENCE_ORDER[(SEQUENCE_ORDER.indexOf(current) + 1) % SEQUENCE_ORDER.length];
+    onChange(sequence.map((id, itemIndex) => (itemIndex === index ? next : id)));
+  };
+
+  return (
+    <View style={styles.sequenceEditor}>
+      <View accessibilityRole="list" style={styles.sequenceGrid}>
+        {sequence.map((id, index) => {
+          const shift = {
+            id,
+            isOff: id === 'off',
+            color: palette.ink,
+            softColor: palette.surfaceSoft,
+          };
+          const appearance = getShiftAppearance(shift, palette, isDark);
+          return (
+            <Pressable
+              accessibilityHint="누르면 주간, 오후, 야간, 휴무 순서로 바뀌어요."
+              accessibilityLabel={`${index + 1}일차 ${SEQUENCE_LABELS[id]}`}
+              accessibilityRole="button"
+              key={`${index}-${id}`}
+              onPress={() => rotate(index)}
+              style={({ pressed }) => [
+                styles.sequenceItem,
+                { borderColor: appearance.accentColor, backgroundColor: appearance.softColor },
+                pressed && styles.pressed,
+              ]}>
+              <AppText variant="caption" tone="secondary">
+                {index + 1}일
+              </AppText>
+              <AppText variant="label">{SEQUENCE_LABELS[id]}</AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.sequenceActions}>
+        <AppButton
+          disabled={sequence.length <= CUSTOM_PATTERN_MIN_DAYS}
+          label="마지막 날 빼기"
+          onPress={() => onChange(sequence.slice(0, -1))}
+          size="compact"
+          variant="secondary"
+        />
+        <AppButton
+          disabled={sequence.length >= CUSTOM_PATTERN_MAX_DAYS}
+          label="날짜 추가하기"
+          onPress={() => onChange([...sequence, 'off'])}
+          size="compact"
+          variant="secondary"
+        />
+      </View>
+      <AppText variant="caption" tone="tertiary">
+        각 날짜를 누르면 주간 → 오후 → 야간 → 휴무로 바뀌어요.
+      </AppText>
+    </View>
+  );
+}
+
 export function WorkTimeEditor({
   dayColor,
   dayDuration,
   dayEnd,
   dayStart,
+  eveningColor,
+  eveningDuration,
+  eveningEnd,
+  eveningStart,
   nightColor,
   nightDuration,
   nightEnd,
   nightStart,
   onChangeDayEnd,
   onChangeDayStart,
+  onChangeEveningEnd,
+  onChangeEveningStart,
   onChangeNightEnd,
   onChangeNightStart,
+  showDay = true,
+  showEvening = false,
   showNight = true,
 }: {
   dayColor: string;
   dayDuration: ReturnType<typeof calculateShiftDuration>;
   dayEnd: string;
   dayStart: string;
+  eveningColor: string;
+  eveningDuration: ReturnType<typeof calculateShiftDuration>;
+  eveningEnd: string;
+  eveningStart: string;
   nightColor: string;
   nightDuration: ReturnType<typeof calculateShiftDuration>;
   nightEnd: string;
   nightStart: string;
   onChangeDayEnd: (value: string) => void;
   onChangeDayStart: (value: string) => void;
+  onChangeEveningEnd: (value: string) => void;
+  onChangeEveningStart: (value: string) => void;
   onChangeNightEnd: (value: string) => void;
   onChangeNightStart: (value: string) => void;
+  showDay?: boolean;
+  showEvening?: boolean;
   showNight?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.workTimes}>
-      <TimeInputRow
-        color={dayColor}
-        duration={dayDuration}
-        end={dayEnd}
-        label="주간"
-        onChangeEnd={onChangeDayEnd}
-        onChangeStart={onChangeDayStart}
-        shiftId="day"
-        start={dayStart}
-      />
+      {showDay ? (
+        <TimeInputRow
+          color={dayColor}
+          duration={dayDuration}
+          end={dayEnd}
+          label="주간"
+          onChangeEnd={onChangeDayEnd}
+          onChangeStart={onChangeDayStart}
+          shiftId="day"
+          start={dayStart}
+        />
+      ) : null}
+      {showEvening ? (
+        <>
+          {showDay ? <View style={styles.divider} /> : null}
+          <TimeInputRow
+            color={eveningColor}
+            duration={eveningDuration}
+            end={eveningEnd}
+            label="오후"
+            onChangeEnd={onChangeEveningEnd}
+            onChangeStart={onChangeEveningStart}
+            shiftId="evening"
+            start={eveningStart}
+          />
+        </>
+      ) : null}
       {showNight ? (
         <>
-          <View style={styles.divider} />
+          {showDay || showEvening ? <View style={styles.divider} /> : null}
           <TimeInputRow
             color={nightColor}
             duration={nightDuration}
@@ -349,7 +460,7 @@ function TimeInputRow({
   label: string;
   onChangeEnd: (value: string) => void;
   onChangeStart: (value: string) => void;
-  shiftId: 'day' | 'night';
+  shiftId: 'day' | 'evening' | 'night';
   start: string;
 }) {
   const { palette } = useAppTheme();
@@ -597,12 +708,13 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     stepSection: { gap: spacing.large },
     sectionCopy: { minWidth: 0, gap: spacing.tiny },
     centerText: { textAlign: 'center' },
-    modeOptions: { flexDirection: 'row', gap: spacing.small },
-    modeOptionsStacked: { flexDirection: 'column' },
+    modeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+    modeOptionsStacked: { flexDirection: 'column', flexWrap: 'nowrap' },
     modeOption: {
       minWidth: 0,
       minHeight: 144,
-      flex: 1,
+      flexBasis: '46%',
+      flexGrow: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.small,
@@ -614,6 +726,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     modeOptionStacked: {
       minHeight: 104,
+      flexBasis: 'auto',
       flexDirection: 'row',
       justifyContent: 'flex-start',
     },
@@ -668,6 +781,20 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     positionOptionCompact: { minWidth: 116, flexBasis: '44%' },
     positionCopy: { minWidth: 0, gap: 1 },
+    sequenceEditor: { gap: spacing.small },
+    sequenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+    sequenceItem: {
+      minWidth: 76,
+      minHeight: 56,
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      borderWidth: 1.5,
+      borderRadius: radii.medium,
+      padding: spacing.small,
+    },
+    sequenceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     workTimes: { gap: spacing.medium },
     timeRow: { gap: spacing.small },
     timeHeading: {

@@ -74,7 +74,7 @@ export function RoutineTimingEditor({
         icon="time-outline"
         onPress={() => onExpandedChange(!expanded)}
         subtitle={`${formatMilestoneTime(profile.departMinutesBefore)} 출발 · ${formatMilestoneTime(profile.arriveMinutesBefore)} 도착 · ${formatMilestoneTime(profile.handoverMinutesBefore)} 교대 완료`}
-        title={`${kind === 'night' ? '야간' : '주간'} 출근 루틴`}
+        title={`${kind === 'night' ? '야간' : kind === 'evening' ? '오후' : '주간'} 출근 루틴`}
       />
 
       {expanded ? (
