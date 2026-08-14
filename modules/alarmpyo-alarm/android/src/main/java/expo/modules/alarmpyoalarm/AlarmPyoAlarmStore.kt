@@ -31,7 +31,8 @@ internal data class AlarmPyoAlarmSnapshotEnvelope(
 )
 
 internal object AlarmPyoAlarmSnapshotCodec {
-  const val SCHEMA_VERSION = 2
+  const val SCHEMA_VERSION = 3
+  private const val LEGACY_SCHEMA_VERSION = 2
 
   fun create(
     snapshot: AlarmPyoAlarmScheduleSnapshot,
@@ -43,17 +44,30 @@ internal object AlarmPyoAlarmSnapshotCodec {
       generation = snapshot.generation,
       committedAt = committedAt,
       payload = payload,
-      checksum = checksum(payload)
+      checksum = checksum(SCHEMA_VERSION, snapshot.generation, committedAt, payload)
+    )
+  }
+
+  internal fun createLegacy(
+    snapshot: AlarmPyoAlarmScheduleSnapshot
+  ): AlarmPyoAlarmSnapshotEnvelope {
+    val payload = encodePayload(snapshot)
+    return AlarmPyoAlarmSnapshotEnvelope(
+      schemaVersion = LEGACY_SCHEMA_VERSION,
+      generation = snapshot.generation,
+      committedAt = snapshot.committedAt,
+      payload = payload,
+      checksum = legacyChecksum(payload)
     )
   }
 
   fun decode(envelope: AlarmPyoAlarmSnapshotEnvelope): AlarmPyoAlarmScheduleSnapshot? {
     if (
-      envelope.schemaVersion != SCHEMA_VERSION ||
-      envelope.generation < 0L ||
+      envelope.schemaVersion !in setOf(LEGACY_SCHEMA_VERSION, SCHEMA_VERSION) ||
+      envelope.generation <= 0L ||
       envelope.committedAt <= 0L ||
       envelope.payload.isBlank() ||
-      !checksum(envelope.payload).equals(envelope.checksum, ignoreCase = true)
+      !expectedChecksum(envelope).equals(envelope.checksum, ignoreCase = true)
     ) return null
     return decodePayload(
       envelope.payload,
@@ -68,16 +82,15 @@ internal object AlarmPyoAlarmSnapshotCodec {
   ): Pair<AlarmPyoAlarmScheduleSnapshot?, Boolean> {
     val primarySnapshot = primary?.let(::decode)
     val previousSnapshot = previous?.let(::decode)
-    val selected = listOfNotNull(primarySnapshot, previousSnapshot)
-      .maxWithOrNull(compareBy(AlarmPyoAlarmScheduleSnapshot::generation)
-        .thenBy(AlarmPyoAlarmScheduleSnapshot::committedAt))
-    val recovered = selected != null && (
-      primarySnapshot == null ||
-        selected.generation != primarySnapshot.generation ||
-        selected.committedAt != primarySnapshot.committedAt
-      )
+    // Primary is the committed current generation. In particular, schema v2 generation and
+    // committedAt were not checksum-protected, so they must never outrank a valid primary.
+    val selected = primarySnapshot ?: previousSnapshot
+    val recovered = primarySnapshot == null && previousSnapshot != null
     return selected to recovered
   }
+
+  internal fun isLegacy(envelope: AlarmPyoAlarmSnapshotEnvelope?): Boolean =
+    envelope?.schemaVersion == LEGACY_SCHEMA_VERSION
 
   private fun encodePayload(snapshot: AlarmPyoAlarmScheduleSnapshot): String = JSONObject()
     .put("plans", JSONArray().apply {
@@ -133,9 +146,189 @@ internal object AlarmPyoAlarmSnapshotCodec {
     return result
   }
 
-  private fun checksum(value: String): String = MessageDigest.getInstance("SHA-256")
+  private fun expectedChecksum(envelope: AlarmPyoAlarmSnapshotEnvelope): String =
+    if (isLegacy(envelope)) {
+      legacyChecksum(envelope.payload)
+    } else {
+      checksum(
+        envelope.schemaVersion,
+        envelope.generation,
+        envelope.committedAt,
+        envelope.payload
+      )
+    }
+
+  private fun legacyChecksum(payload: String): String = sha256(payload)
+
+  private fun checksum(
+    schemaVersion: Int,
+    generation: Long,
+    committedAt: Long,
+    payload: String
+  ): String = sha256("$schemaVersion\n$generation\n$committedAt\n$payload")
+
+  private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray(Charsets.UTF_8))
     .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+internal enum class AlarmPyoAlarmStoreFailureCode {
+  CORRUPT_SNAPSHOT
+}
+
+/**
+ * A typed failure for mutations that cannot safely infer the schedule from durable storage.
+ * Callers must not translate this into an empty, successful schedule.
+ */
+internal class AlarmPyoAlarmStoreMutationException(
+  val code: AlarmPyoAlarmStoreFailureCode
+) : IllegalStateException("근무 알람 저장소가 손상되어 계획을 변경하지 않았어요.")
+
+internal interface AlarmPyoAlarmSnapshotPersistence {
+  fun readPrimary(): AlarmPyoAlarmSnapshotEnvelope?
+  fun readPrevious(): AlarmPyoAlarmSnapshotEnvelope?
+  fun writePrimary(envelope: AlarmPyoAlarmSnapshotEnvelope)
+  fun writePrevious(envelope: AlarmPyoAlarmSnapshotEnvelope)
+  fun readHealth(): AlarmPyoAlarmStorageHealth
+  fun writeHealth(health: AlarmPyoAlarmStorageHealth)
+}
+
+/**
+ * Durable snapshot state machine kept independent from Android so corruption and interrupted
+ * recovery can be exercised as complete JVM tests.
+ */
+internal class AlarmPyoAlarmStoreEngine(
+  private val persistence: AlarmPyoAlarmSnapshotPersistence,
+  private val nowMillis: () -> Long = System::currentTimeMillis
+) {
+  fun read(): AlarmPyoAlarmScheduleSnapshot? {
+    val (primary, previous) = runCatching {
+      persistence.readPrimary() to persistence.readPrevious()
+    }.getOrElse {
+      persistence.writeHealth(AlarmPyoAlarmStorageHealth.CORRUPT)
+      return null
+    }
+    val (selected, recovered) = AlarmPyoAlarmSnapshotCodec.selectBest(primary, previous)
+    if (selected == null) {
+      persistence.writeHealth(AlarmPyoAlarmStorageHealth.CORRUPT)
+      return null
+    }
+    val selectedEnvelope = if (primary?.let(AlarmPyoAlarmSnapshotCodec::decode) != null) {
+      primary
+    } else {
+      previous
+    }
+    val promoted = if (AlarmPyoAlarmSnapshotCodec.isLegacy(selectedEnvelope)) {
+      // Schema v2 metadata was not protected. Preserve only the decoded payload and establish a
+      // fresh local sequence instead of trusting a forged generation or timestamp.
+      selected.copy(
+        generation = 1L,
+        committedAt = nowMillis().coerceAtLeast(1L)
+      )
+    } else {
+      selected
+    }
+    if (recovered || promoted !== selected) {
+      persistence.writePrimary(AlarmPyoAlarmSnapshotCodec.create(promoted))
+    }
+    if (recovered) {
+      persistence.writeHealth(AlarmPyoAlarmStorageHealth.RECOVERED)
+    }
+    return promoted
+  }
+
+  fun write(
+    allowCorruptRecovery: Boolean = false,
+    transform: (AlarmPyoAlarmScheduleSnapshot) -> AlarmPyoAlarmScheduleSnapshot
+  ): AlarmPyoAlarmScheduleSnapshot {
+    val current = read() ?: throw corruptMutationFailure()
+    val healthBeforeWrite = persistence.readHealth()
+    if (healthBeforeWrite == AlarmPyoAlarmStorageHealth.CORRUPT && !allowCorruptRecovery) {
+      throw corruptMutationFailure()
+    }
+    val committedAt = nextCommittedAt(current.committedAt)
+    val desired = transform(current).copy(
+      generation = nextGeneration(current.generation),
+      committedAt = committedAt
+    )
+
+    // During authoritative recovery the previous corrupt envelope is evidence and a rollback
+    // boundary. Keep it untouched until the scheduler has reconciled successfully.
+    if (healthBeforeWrite != AlarmPyoAlarmStorageHealth.CORRUPT) {
+      persistence.readPrimary()
+        ?.takeIf { AlarmPyoAlarmSnapshotCodec.decode(it) != null }
+        ?.let(persistence::writePrevious)
+    }
+    persistence.writePrimary(AlarmPyoAlarmSnapshotCodec.create(desired))
+    persistence.writeHealth(
+      when (healthBeforeWrite) {
+        AlarmPyoAlarmStorageHealth.CORRUPT -> AlarmPyoAlarmStorageHealth.CORRUPT
+        AlarmPyoAlarmStorageHealth.RECOVERED -> AlarmPyoAlarmStorageHealth.RECOVERED
+        AlarmPyoAlarmStorageHealth.NORMAL -> AlarmPyoAlarmStorageHealth.NORMAL
+      }
+    )
+    return desired
+  }
+
+  /**
+   * Replaces only current with an authoritative JS schedule. Health deliberately remains corrupt
+   * until AlarmManager reconciliation and all follow-up work have succeeded.
+   */
+  fun reseedAfterCorruption(
+    snapshot: AlarmPyoAlarmScheduleSnapshot
+  ): AlarmPyoAlarmScheduleSnapshot {
+    check(persistence.readHealth() == AlarmPyoAlarmStorageHealth.CORRUPT) {
+      "정상 근무 알람 저장소를 손상 복구 경로로 다시 쓰지 않아요."
+    }
+    val primary = persistence.readPrimary()
+    val previous = persistence.readPrevious()
+    val validSnapshots = listOfNotNull(primary, previous)
+      .filterNot(AlarmPyoAlarmSnapshotCodec::isLegacy)
+      .mapNotNull(AlarmPyoAlarmSnapshotCodec::decode)
+    val latestGeneration = validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::generation)
+      ?: 0L
+    val generation = if (latestGeneration >= Long.MAX_VALUE - 1L) 1L else latestGeneration + 1L
+    val latestCommittedAt = validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::committedAt)
+      ?: 0L
+    val desired = snapshot.copy(
+      generation = generation,
+      committedAt = nextCommittedAt(latestCommittedAt)
+    )
+    persistence.writePrimary(AlarmPyoAlarmSnapshotCodec.create(desired))
+    return desired
+  }
+
+  fun markHealthy() {
+    if (read() == null) throw corruptMutationFailure()
+    persistence.writeHealth(AlarmPyoAlarmStorageHealth.NORMAL)
+  }
+
+  fun storageHealth(): AlarmPyoAlarmStorageHealth {
+    read()
+    return persistence.readHealth()
+  }
+
+  fun requireWritableSnapshot(): AlarmPyoAlarmScheduleSnapshot {
+    val snapshot = read() ?: throw corruptMutationFailure()
+    if (persistence.readHealth() == AlarmPyoAlarmStorageHealth.CORRUPT) {
+      throw corruptMutationFailure()
+    }
+    return snapshot
+  }
+
+  private fun corruptMutationFailure() = AlarmPyoAlarmStoreMutationException(
+    AlarmPyoAlarmStoreFailureCode.CORRUPT_SNAPSHOT
+  )
+
+  private fun nextGeneration(current: Long): Long =
+    if (current >= Long.MAX_VALUE - 1L) 1L else current + 1L
+
+  private fun nextCommittedAt(current: Long): Long =
+    if (current >= Long.MAX_VALUE - 1L) {
+      nowMillis().coerceAtLeast(1L)
+    } else {
+      nowMillis().coerceAtLeast(current + 1L).coerceAtLeast(1L)
+    }
 }
 
 internal object AlarmPyoAlarmStore {
@@ -209,70 +402,31 @@ internal object AlarmPyoAlarmStore {
   private fun metaPreferences(context: Context): SharedPreferences =
     snapshotPreferences(context, META_PREFERENCES_NAME)
 
+  private fun snapshotEngine(context: Context): AlarmPyoAlarmStoreEngine =
+    AlarmPyoAlarmStoreEngine(SharedPreferencesSnapshotPersistence(context))
+
   @Synchronized
   private fun readSnapshot(context: Context): AlarmPyoAlarmScheduleSnapshot? {
     val primaryValues = snapshotPreferences(context, PRIMARY_PREFERENCES_NAME)
     val previousValues = snapshotPreferences(context, PREVIOUS_PREFERENCES_NAME)
-    val primaryEnvelope = readEnvelope(primaryValues)
-    val previousEnvelope = readEnvelope(previousValues)
     val hasV2Values = primaryValues.all.isNotEmpty() || previousValues.all.isNotEmpty()
 
     if (!hasV2Values) return migrateLegacyOrInitialize(context)
-
-    val (selected, recovered) = AlarmPyoAlarmSnapshotCodec.selectBest(
-      primaryEnvelope,
-      previousEnvelope
-    )
-    if (selected == null) {
-      markStorageHealth(context, AlarmPyoAlarmStorageHealth.CORRUPT)
-      return null
-    }
-    if (recovered) {
-      val envelope = AlarmPyoAlarmSnapshotCodec.create(selected)
-      requireCommitted(
-        writeEnvelope(primaryValues, envelope),
-        "복구한 알람 예약 정보"
-      )
-      markStorageHealth(context, AlarmPyoAlarmStorageHealth.RECOVERED)
-    }
-    return selected
+    return snapshotEngine(context).read()
   }
 
   @Synchronized
   private fun writeSnapshot(
     context: Context,
+    allowCorruptRecovery: Boolean = false,
     transform: (AlarmPyoAlarmScheduleSnapshot) -> AlarmPyoAlarmScheduleSnapshot
   ) {
-    val current = readSnapshot(context) ?: AlarmPyoAlarmScheduleSnapshot(
-      plans = emptyList(),
-      scheduledIds = emptySet(),
-      singleRepeats = emptyList(),
-      generation = 0L,
-      committedAt = System.currentTimeMillis()
+    // Initialize or migrate only when there is genuinely no v2 snapshot yet. A corrupt pair is
+    // never converted to an empty schedule by this ordinary mutation path.
+    readSnapshot(context) ?: throw AlarmPyoAlarmStoreMutationException(
+      AlarmPyoAlarmStoreFailureCode.CORRUPT_SNAPSHOT
     )
-    val healthBeforeWrite = rawStorageHealth(context)
-    val now = System.currentTimeMillis().coerceAtLeast(current.committedAt + 1L)
-    val desired = transform(current).copy(
-      generation = current.generation + 1L,
-      committedAt = now
-    )
-    val primaryValues = snapshotPreferences(context, PRIMARY_PREFERENCES_NAME)
-    val previousValues = snapshotPreferences(context, PREVIOUS_PREFERENCES_NAME)
-    readEnvelope(primaryValues)?.takeIf { AlarmPyoAlarmSnapshotCodec.decode(it) != null }?.let {
-      requireCommitted(writeEnvelope(previousValues, it), "직전 알람 예약 정보")
-    }
-    requireCommitted(
-      writeEnvelope(primaryValues, AlarmPyoAlarmSnapshotCodec.create(desired)),
-      "알람 예약 정보"
-    )
-    markStorageHealth(
-      context,
-      if (healthBeforeWrite == AlarmPyoAlarmStorageHealth.RECOVERED) {
-        AlarmPyoAlarmStorageHealth.RECOVERED
-      } else {
-        AlarmPyoAlarmStorageHealth.NORMAL
-      }
-    )
+    snapshotEngine(context).write(allowCorruptRecovery, transform)
   }
 
   private fun migrateLegacyOrInitialize(context: Context): AlarmPyoAlarmScheduleSnapshot? {
@@ -394,6 +548,31 @@ internal object AlarmPyoAlarmStore {
     .putString(KEY_CHECKSUM, envelope.checksum)
     .commit()
 
+  private class SharedPreferencesSnapshotPersistence(
+    private val context: Context
+  ) : AlarmPyoAlarmSnapshotPersistence {
+    private val primary = snapshotPreferences(context, PRIMARY_PREFERENCES_NAME)
+    private val previous = snapshotPreferences(context, PREVIOUS_PREFERENCES_NAME)
+
+    override fun readPrimary(): AlarmPyoAlarmSnapshotEnvelope? = readEnvelope(primary)
+
+    override fun readPrevious(): AlarmPyoAlarmSnapshotEnvelope? = readEnvelope(previous)
+
+    override fun writePrimary(envelope: AlarmPyoAlarmSnapshotEnvelope) {
+      requireCommitted(writeEnvelope(primary, envelope), "근무 알람 예약 정보")
+    }
+
+    override fun writePrevious(envelope: AlarmPyoAlarmSnapshotEnvelope) {
+      requireCommitted(writeEnvelope(previous, envelope), "직전 근무 알람 예약 정보")
+    }
+
+    override fun readHealth(): AlarmPyoAlarmStorageHealth = rawStorageHealth(context)
+
+    override fun writeHealth(health: AlarmPyoAlarmStorageHealth) {
+      markStorageHealth(context, health)
+    }
+  }
+
   private fun markStorageHealth(context: Context, health: AlarmPyoAlarmStorageHealth) {
     requireCommitted(
       metaPreferences(context).edit()
@@ -410,13 +589,37 @@ internal object AlarmPyoAlarmStore {
   }
 
   fun markHealthy(context: Context) {
-    markStorageHealth(context, AlarmPyoAlarmStorageHealth.NORMAL)
+    readSnapshot(context) ?: throw AlarmPyoAlarmStoreMutationException(
+      AlarmPyoAlarmStoreFailureCode.CORRUPT_SNAPSHOT
+    )
+    snapshotEngine(context).markHealthy()
   }
 
   fun storageHealth(context: Context): AlarmPyoAlarmStorageHealth {
     readSnapshot(context)
     return rawStorageHealth(context)
   }
+
+  fun requireWritableSnapshot(context: Context): AlarmPyoAlarmScheduleSnapshot {
+    readSnapshot(context) ?: throw AlarmPyoAlarmStoreMutationException(
+      AlarmPyoAlarmStoreFailureCode.CORRUPT_SNAPSHOT
+    )
+    return snapshotEngine(context).requireWritableSnapshot()
+  }
+
+  /** Only a complete foreground JS plan or explicit full cancellation may call this path. */
+  fun reseedAfterCorruption(
+    context: Context,
+    plans: List<AlarmPyoAlarmPlan>
+  ): AlarmPyoAlarmScheduleSnapshot = snapshotEngine(context).reseedAfterCorruption(
+    AlarmPyoAlarmScheduleSnapshot(
+      plans = plans,
+      scheduledIds = emptySet(),
+      singleRepeats = emptyList(),
+      generation = 0L,
+      committedAt = 0L
+    )
+  )
 
   fun readPlans(context: Context): List<AlarmPyoAlarmPlan> =
     readSnapshot(context)?.plans.orEmpty()
@@ -431,6 +634,17 @@ internal object AlarmPyoAlarmStore {
     scheduledIds: Collection<String>
   ) {
     writeSnapshot(context) {
+      it.copy(plans = plans, scheduledIds = scheduledIds.toSet())
+    }
+  }
+
+  /** Scheduler-only continuation after [reseedAfterCorruption]. */
+  fun writeScheduleSnapshotForCorruptionRecovery(
+    context: Context,
+    plans: List<AlarmPyoAlarmPlan>,
+    scheduledIds: Collection<String>
+  ) {
+    writeSnapshot(context, allowCorruptRecovery = true) {
       it.copy(plans = plans, scheduledIds = scheduledIds.toSet())
     }
   }
@@ -515,9 +729,13 @@ internal object AlarmPyoAlarmStore {
       .take(MAX_RECENT_EVENTS)
   }.getOrElse { emptyList() }
 
-  fun clear(context: Context) {
-    writeSnapshot(context) {
-      it.copy(plans = emptyList(), scheduledIds = emptySet(), singleRepeats = emptyList())
+  fun clearForExplicitCancellation(context: Context) {
+    if (storageHealth(context) == AlarmPyoAlarmStorageHealth.CORRUPT) {
+      reseedAfterCorruption(context, emptyList())
+    } else {
+      writeSnapshot(context) {
+        it.copy(plans = emptyList(), scheduledIds = emptySet(), singleRepeats = emptyList())
+      }
     }
     requireCommitted(
       legacyPreferences(context).edit()
@@ -527,7 +745,6 @@ internal object AlarmPyoAlarmStore {
         .commit(),
       "알람 데이터"
     )
-    markHealthy(context)
   }
 
   internal fun requireCommitted(committed: Boolean, label: String) {

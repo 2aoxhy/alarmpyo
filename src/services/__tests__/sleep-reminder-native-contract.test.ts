@@ -41,7 +41,7 @@ describe('Android 수면 시작 알림 계약', () => {
     expect(scheduler).toContain('consumeAndReplenish');
   });
 
-  it('동일한 계획과 예약 ID는 AlarmManager에 다시 등록하지 않아요', () => {
+  it('새 프로세스에서는 같은 계획도 한 번 재등록하고 이후에만 재사용해요', () => {
     const scheduler = source(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoSleepReminderScheduler.kt',
     );
@@ -50,7 +50,7 @@ describe('Android 수면 시작 알림 계약', () => {
     );
 
     expect(policy).toContain('canReuseScheduledSnapshot');
-    expect(scheduler).toContain('canReuseScheduledSnapshot');
+    expect(scheduler).toContain('processSyncGate.reconcileIfNeeded');
     expect(scheduler.indexOf('canReuseScheduledSnapshot')).toBeLessThan(
       scheduler.indexOf('AlarmPyoSleepReminderStore.write'),
     );
@@ -163,10 +163,14 @@ describe('Android 수면 시작 알림 계약', () => {
     expect(reseedStart).toBeGreaterThan(-1);
     expect(reseedEnd).toBeGreaterThan(reseedStart);
     const reseedStore = store.slice(reseedStart, reseedEnd);
-    const corruptSync = scheduler.slice(
-      scheduler.indexOf('if (previous == null)'),
-      scheduler.indexOf('if (\n      AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot'),
+    const corruptSyncStart = scheduler.indexOf('if (previous == null)');
+    const corruptSyncEnd = scheduler.indexOf(
+      'if (AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot',
+      corruptSyncStart,
     );
+    expect(corruptSyncStart).toBeGreaterThan(-1);
+    expect(corruptSyncEnd).toBeGreaterThan(corruptSyncStart);
+    const corruptSync = scheduler.slice(corruptSyncStart, corruptSyncEnd);
 
     expect(reseedStore).toContain('persistence.writeCurrent');
     expect(reseedStore).not.toContain('persistence.writePrevious');

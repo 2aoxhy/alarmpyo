@@ -216,9 +216,9 @@ export default function AlarmSettingsScreen() {
     enableAlarms,
     getShiftForDate,
     resyncAlarms,
-    saveOutcome,
     sendTestAlarm,
     setSleepReminderEnabled,
+    sleepReminderSyncStatus,
   } = useAppStore();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -317,8 +317,7 @@ export default function AlarmSettingsScreen() {
     sleepReminderStatus,
     sleepReminderStatusError,
     sleepReminderSupported,
-    sleepReminderSyncFailed:
-      saveOutcome?.issueCode === 'sleep-reminder-sync-failed',
+    sleepReminderSyncStatus,
     totalPlannedAlarmCount,
     platformSupported: alarmPlatformSupported,
   });

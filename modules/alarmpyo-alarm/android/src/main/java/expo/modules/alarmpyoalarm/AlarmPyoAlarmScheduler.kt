@@ -71,9 +71,6 @@ internal object AlarmPyoAlarmScheduler {
     metadata: AlarmPyoAlarmSyncMetadata? = null
   ): List<AlarmPyoAlarmPlan> {
     val appContext = context.applicationContext
-    val previousPlans = AlarmPyoAlarmStore.readPlans(appContext)
-    val previousScheduledIds = AlarmPyoAlarmStore.readScheduledIds(appContext)
-
     val now = System.currentTimeMillis()
     val uniquePlans = LinkedHashMap<String, AlarmPyoAlarmPlan>()
     input.forEach { plan ->
@@ -94,12 +91,37 @@ internal object AlarmPyoAlarmScheduler {
         "알람 안전 계획 종료 시각이 실제 계획보다 이릅니다."
       }
     }
+    val recoveringCorruptStorage =
+      AlarmPyoAlarmStore.storageHealth(appContext) == AlarmPyoAlarmStorageHealth.CORRUPT
+    val previousPlans = if (recoveringCorruptStorage) {
+      emptyList()
+    } else {
+      AlarmPyoAlarmStore.readPlans(appContext)
+    }
+    val previousScheduledIds = if (recoveringCorruptStorage) {
+      emptySet()
+    } else {
+      AlarmPyoAlarmStore.readScheduledIds(appContext)
+    }
+    if (recoveringCorruptStorage) {
+      // A complete foreground JS plan is authoritative, including an intentionally empty plan.
+      AlarmPyoAlarmStore.reseedAfterCorruption(appContext, plans)
+    }
     val scheduled = replaceScheduleSafely(
       appContext,
       previousPlans,
       previousScheduledIds,
-      plans
+      plans,
+      recoveringCorruptStorage
     )
+    if (
+      recoveringCorruptStorage &&
+      AlarmPyoAlarmPermissions.canSchedule(appContext) &&
+      scheduled.size != selectRestorableSchedule(plans).size
+    ) {
+      rearmSafetyCheck(appContext, force = true)
+      error("손상 복구 중 일부 근무 알람을 예약하지 못해 다시 시도해야 해요.")
+    }
     AlarmPyoPlanRefreshReminder.update(appContext, plans, metadata)
     AlarmPyoAlarmStore.markHealthy(appContext)
     coldStartReconciler.markReconciled()
@@ -235,6 +257,7 @@ internal object AlarmPyoAlarmScheduler {
     isTest: Boolean
   ): Boolean {
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     if (plan.isSingleRepeat()) {
       val storedPlan = AlarmPyoAlarmStore.readSingleRepeats(appContext)
         .firstOrNull { it.rootPlanId == plan.rootPlanId }
@@ -284,6 +307,7 @@ internal object AlarmPyoAlarmScheduler {
     nowMillis: Long = System.currentTimeMillis()
   ): AlarmPyoAlarmDeliveryCompletionResult {
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     if (!hasCurrentDeliveryGeneration(appContext, plan, isTest)) {
       return AlarmPyoAlarmDeliveryCompletionResult(completed = false)
     }
@@ -316,6 +340,7 @@ internal object AlarmPyoAlarmScheduler {
     isTest: Boolean
   ): AlarmPyoAlarmRetryResult? {
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     val currentPlan = when {
       plan.isSingleRepeat() -> AlarmPyoAlarmStore.readSingleRepeats(appContext)
         .firstOrNull { it.hasSameDeliveryGeneration(plan) }
@@ -433,6 +458,7 @@ internal object AlarmPyoAlarmScheduler {
   ): AlarmPyoSingleRepeatResult? {
     if (!shouldArmAutomaticSingleRepeat(original)) return null
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     val existing = AlarmPyoAlarmStore.readSingleRepeats(appContext)
       .firstOrNull { it.rootPlanId == original.rootPlanId }
     if (existing != null) return AlarmPyoSingleRepeatResult(existing, created = false)
@@ -452,13 +478,16 @@ internal object AlarmPyoAlarmScheduler {
     minutes: Int = 5
   ): AlarmPyoAlarmPlan? {
     if (original.isSingleRepeat()) return null
+    val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     val alarmAt = System.currentTimeMillis() + minutes.coerceIn(1, 60) * 60_000L
-    return scheduleSingleRepeat(context.applicationContext, original, isTest, alarmAt)
+    return scheduleSingleRepeat(appContext, original, isTest, alarmAt)
   }
 
   @Synchronized
   fun cancelSingleRepeat(context: Context, rootPlanId: String) {
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     val stored = AlarmPyoAlarmStore.readSingleRepeats(appContext)
     val cancelled = stored.filter { it.rootPlanId == rootPlanId }
     val remaining = removeSingleRepeat(stored, rootPlanId)
@@ -516,6 +545,7 @@ internal object AlarmPyoAlarmScheduler {
   @Synchronized
   fun scheduleTest(context: Context, seconds: Int) {
     val appContext = context.applicationContext
+    AlarmPyoAlarmStore.requireWritableSnapshot(appContext)
     check(AlarmPyoAlarmPermissions.canDeliver(appContext)) { "알람 권한이 필요합니다." }
 
     cancelSingleRepeat(appContext, TEST_PLAN_ID)
@@ -546,7 +576,7 @@ internal object AlarmPyoAlarmScheduler {
       AlarmPyoAlarmStore.readPlans(appContext).mapTo(this, AlarmPyoAlarmPlan::id)
     }
     val knownRepeats = AlarmPyoAlarmStore.readSingleRepeats(appContext)
-    AlarmPyoAlarmStore.clear(appContext)
+    AlarmPyoAlarmStore.clearForExplicitCancellation(appContext)
     cancelWorkAlarmIds(appContext, knownWorkIds)
     cancelTestAlarm(appContext)
     knownRepeats.forEach { cancelSingleRepeatPendingIntent(appContext, it) }
@@ -555,6 +585,7 @@ internal object AlarmPyoAlarmScheduler {
     AlarmPyoAlarmActivity.finishActiveAlarm()
     coldStartReconciler.markReconciled()
     rearmSafetyCheck(appContext)
+    AlarmPyoAlarmStore.markHealthy(appContext)
   }
 
   private fun rearmSafetyCheck(context: Context, force: Boolean = false) {
@@ -601,7 +632,8 @@ internal object AlarmPyoAlarmScheduler {
     context: Context,
     previousPlans: List<AlarmPyoAlarmPlan>,
     previousScheduledIds: Set<String>,
-    plans: List<AlarmPyoAlarmPlan>
+    plans: List<AlarmPyoAlarmPlan>,
+    recoveringCorruptStorage: Boolean = false
   ): List<AlarmPyoAlarmPlan> {
     val previousKnownIds = buildSet {
       addAll(previousScheduledIds)
@@ -609,14 +641,15 @@ internal object AlarmPyoAlarmScheduler {
     }
     val transitionalPlans = transitionPlans(previousPlans, plans)
     val transitionIds = transitionalPlans.mapTo(linkedSetOf(), AlarmPyoAlarmPlan::id)
-    AlarmPyoAlarmStore.writeScheduleSnapshot(
+    writeScheduleSnapshot(
       context,
       transitionalPlans,
-      previousScheduledIds.intersect(transitionIds)
+      previousScheduledIds.intersect(transitionIds),
+      recoveringCorruptStorage
     )
 
     if (!AlarmPyoAlarmPermissions.canSchedule(context)) {
-      AlarmPyoAlarmStore.writeScheduleSnapshot(context, plans, emptySet())
+      writeScheduleSnapshot(context, plans, emptySet(), recoveringCorruptStorage)
       cancelWorkAlarmIds(context, previousKnownIds)
       cancelScheduledSingleRepeats(context)
       return emptyList()
@@ -633,10 +666,27 @@ internal object AlarmPyoAlarmScheduler {
       }
 
     // snapshot 저장이 실패하면 전환 snapshot과 기존 예약을 그대로 유지합니다.
-    AlarmPyoAlarmStore.writeScheduleSnapshot(context, plans, scheduledIds)
+    writeScheduleSnapshot(context, plans, scheduledIds, recoveringCorruptStorage)
     cancelWorkAlarmIds(context, previousKnownIds - scheduledIds)
     reconcileSingleRepeats(context)
     return selectScheduledPlans(plans, scheduledIds)
+  }
+
+  private fun writeScheduleSnapshot(
+    context: Context,
+    plans: List<AlarmPyoAlarmPlan>,
+    scheduledIds: Collection<String>,
+    recoveringCorruptStorage: Boolean
+  ) {
+    if (recoveringCorruptStorage) {
+      AlarmPyoAlarmStore.writeScheduleSnapshotForCorruptionRecovery(
+        context,
+        plans,
+        scheduledIds
+      )
+    } else {
+      AlarmPyoAlarmStore.writeScheduleSnapshot(context, plans, scheduledIds)
+    }
   }
 
   internal fun selectRestorableSchedule(

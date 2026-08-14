@@ -31,6 +31,7 @@ import {
   type AppPalette,
 } from '@/constants/app-theme';
 import {
+  createSemanticColors,
   interaction,
   radius,
   resolveTextTone,
@@ -42,6 +43,7 @@ import {
 import { shouldReflowControl } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import { resolveFloatingTabBarLayout } from '@/utils/floating-tab-bar';
 
 const DEFAULT_SCREEN_SAFE_AREA_EDGES: readonly Edge[] = [
@@ -225,6 +227,7 @@ export function AppButton({
 }: ButtonProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const buttonFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
   const visibleLabel = resolveAppButtonLabel(label);
@@ -253,6 +256,8 @@ export function AppButton({
       accessibilityState={{ disabled: blocked, busy: loading }}
       android_ripple={{ color: colorWithAlpha(foreground, 0.14) }}
       disabled={blocked}
+      onBlur={buttonFocus.onBlur}
+      onFocus={buttonFocus.onFocus}
       onPress={onPress}
       testID={testID}
       style={({ pressed }) => [
@@ -263,6 +268,7 @@ export function AppButton({
         pressed && !blocked && styles.buttonPressed,
         disabled && styles.buttonDisabled,
         loading && styles.buttonLoading,
+        buttonFocus.focusVisible && !blocked && styles.webFocusVisible,
       ]}>
       {loading ? (
         <ActivityIndicator color={foreground} size="small" />
@@ -439,6 +445,7 @@ export function ListRow({
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const rowFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
   const foreground = destructive ? palette.danger : palette.ink;
@@ -453,12 +460,15 @@ export function ListRow({
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityState={onPress ? { busy: loading, disabled: disabled || loading, expanded } : undefined}
       disabled={!onPress || disabled || loading}
+      onBlur={rowFocus.onBlur}
+      onFocus={rowFocus.onFocus}
       onPress={onPress}
       style={({ pressed }) => [
         styles.listRow,
         reflow && styles.listRowReflow,
         pressed && onPress && !disabled && !loading && styles.rowPressed,
         (disabled || loading) && styles.rowDisabled,
+        rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible,
       ]}>
       <IconTile
         icon={icon}
@@ -629,6 +639,15 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     textAlign: 'center',
   },
   buttonPressed: { transform: [{ scale: 0.985 }] },
+  webFocusVisible:
+    Platform.OS === 'web'
+      ? {
+          outlineColor: createSemanticColors(palette, isDark).focus,
+          outlineOffset: 2,
+          outlineStyle: 'solid',
+          outlineWidth: 2,
+        }
+      : {},
   buttonCompact: {
     minHeight: controlSize.minimumTouchTarget,
     minWidth: 88,

@@ -42,7 +42,11 @@ export default function TodayScreen() {
   const now = useNow(screenActive);
   const today = toDateKey(now);
   const { data, ready, getShiftForDate } = useAppStoreData();
-  const { alarmAutoCheckState, alarmSyncStatus, saveOutcome } = useAppStoreStatus();
+  const {
+    alarmAutoCheckState,
+    alarmSyncStatus,
+    sleepReminderSyncStatus,
+  } = useAppStoreStatus();
   const [alarmStatus, setAlarmStatus] = useState<AlarmPyoAlarmStatus | null>(null);
   const [alarmStatusError, setAlarmStatusError] = useState(false);
   const [sleepReminderStatus, setSleepReminderStatus] =
@@ -139,8 +143,7 @@ export default function TodayScreen() {
     sleepReminderStatus,
     sleepReminderStatusError,
     sleepReminderSupported,
-    sleepReminderSyncFailed:
-      saveOutcome?.issueCode === 'sleep-reminder-sync-failed',
+    sleepReminderSyncStatus,
     compactHome,
   });
 

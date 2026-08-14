@@ -262,16 +262,30 @@ describe('app-store-persistence', () => {
       retrySleepStart,
       replacementStart,
     );
-    expect(retrySleepSource).toContain(
-      "saveOutcomeRef.current?.issueCode === 'sleep-reminder-sync-failed'",
+    expect(retrySleepSource).toContain('syncSleepRemindersForSnapshot(');
+    expect(retrySleepSource).not.toContain('reportSaveSuccess()');
+    expect(providerSource).toContain(
+      "clearReportedSaveIssues('retry-sleep-reminders')",
     );
 
     const retryAlarmSource = providerSource.slice(
       alarmRetryStart,
       enableAlarmsStart,
     );
-    expect(retryAlarmSource).toContain(
-      "saveOutcomeRef.current?.issueCode === 'alarm-sync-failed'",
+    expect(retryAlarmSource).not.toContain('reportSaveSuccess()');
+    expect(providerSource).toContain(
+      "clearReportedSaveIssues('retry-alarms')",
+    );
+  });
+
+  it('기기 백업과 초기화 표시 정리 실패를 각각 기록해요', () => {
+    expect(providerSource).toContain('if (!deviceBackupSaved) {');
+    expect(providerSource).toContain(
+      "reportSaveIssue(\n            'device-backup-failed'",
+    );
+    expect(providerSource).toContain('if (!resetMarkerCleared) {');
+    expect(providerSource).toContain(
+      "reportSaveIssue(\n            'reset-marker-cleanup-failed'",
     );
   });
 

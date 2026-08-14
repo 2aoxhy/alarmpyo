@@ -61,6 +61,8 @@ export type AlarmHealthStateInput = {
   sleepReminderStatus?: SleepReminderStatus | null;
   sleepReminderStatusError?: boolean;
   sleepReminderSupported?: boolean;
+  sleepReminderSyncStatus?: 'idle' | 'syncing' | 'synced' | 'error';
+  /** @deprecated Pass sleepReminderSyncStatus from the Store instead. */
   sleepReminderSyncFailed?: boolean;
   totalPlannedAlarmCount?: number;
   platformSupported: boolean;
@@ -122,10 +124,13 @@ export function resolveAlarmHealthState({
   sleepReminderStatus = null,
   sleepReminderStatusError = false,
   sleepReminderSupported = false,
+  sleepReminderSyncStatus,
   sleepReminderSyncFailed = false,
   totalPlannedAlarmCount,
   platformSupported,
 }: AlarmHealthStateInput): AlarmHealthState {
+  const resolvedSleepReminderSyncStatus =
+    sleepReminderSyncStatus ?? (sleepReminderSyncFailed ? 'error' : 'idle');
   if (!Number.isFinite(now)) {
     throw new RangeError('알람 상태 기준 시각이 올바르지 않아요.');
   }
@@ -416,16 +421,27 @@ export function resolveAlarmHealthState({
         tone: 'warning',
       };
     }
-    if (sleepReminderSyncFailed) {
+    if (resolvedSleepReminderSyncStatus === 'error') {
       return {
         status: 'action-required',
         issueCode: 'sleep-reminder-schedule',
         action: 'retry-sleep-reminders',
         actionLabel: '수면 알림 다시 갱신하기',
         canTest: true,
-        description: '자료는 저장됐어요. 수면 알림 계획만 현재 일정에 맞춰 다시 갱신해 주세요.',
+        description: '수면 알림 계획만 현재 일정에 맞춰 다시 갱신해 주세요.',
         title: '수면 알림을 다시 갱신해야 해요',
         tone: 'warning',
+      };
+    }
+    if (resolvedSleepReminderSyncStatus === 'syncing') {
+      return {
+        status: 'checking',
+        issueCode: null,
+        action: 'none',
+        canTest: true,
+        description: '현재 근무표에 맞춰 수면 알림 계획을 갱신하고 있어요.',
+        title: '수면 알림을 갱신하고 있어요',
+        tone: 'neutral',
       };
     }
   }

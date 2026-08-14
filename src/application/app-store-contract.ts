@@ -28,6 +28,7 @@ import type {
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export type AlarmSyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
+export type SleepReminderSyncStatus = AlarmSyncStatus;
 
 export type SaveIssueCode =
   | 'invalid-data'
@@ -44,16 +45,25 @@ export type SaveRetryAction =
   | 'retry-sleep-reminders'
   | 'retry-alarms';
 
-export type SaveIssueOutcome = {
+export type SaveIssue = {
   status: 'partial' | 'failure';
   issueCode: SaveIssueCode;
   message: string;
   retryAction: SaveRetryAction;
 };
 
+export type SaveIssueOutcome = SaveIssue & {
+  /**
+   * All unresolved follow-up failures. The top-level fields are compatibility
+   * aliases for the highest-priority item in this list.
+   */
+  issues: SaveIssue[];
+};
+
 export type SaveOutcome =
   | {
       status: 'success';
+      issues: [];
       issueCode: null;
       message: null;
       retryAction: null;
@@ -101,6 +111,8 @@ export type AppStore = {
   saveSuccessRevision: number;
   alarmSyncStatus: AlarmSyncStatus;
   alarmSyncError: string | null;
+  sleepReminderSyncStatus: SleepReminderSyncStatus;
+  sleepReminderSyncError: string | null;
   corruptBackupKey: string | null;
   alarmAutoCheckState: AlarmAutoCheckState;
   retryLoad: () => Promise<boolean>;
@@ -180,6 +192,8 @@ export type AppStoreStatusState = Pick<
   | 'saveSuccessRevision'
   | 'alarmSyncStatus'
   | 'alarmSyncError'
+  | 'sleepReminderSyncStatus'
+  | 'sleepReminderSyncError'
   | 'corruptBackupKey'
   | 'alarmAutoCheckState'
 >;

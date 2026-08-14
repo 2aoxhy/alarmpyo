@@ -19,6 +19,7 @@ import {
 } from '@/components/save-feedback';
 import {
   executeSaveRetryAction,
+  getSaveRetryActions,
   resolveVisibleSaveOutcome,
 } from '@/application/save-outcome';
 import type { SaveOutcome, SaveRetryAction } from '@/application/app-store-contract';
@@ -30,9 +31,11 @@ import {
   spacing,
   type AppPalette,
 } from '@/constants/app-theme';
+import { createSemanticColors } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import {
   useAppStoreActions,
   useAppStoreStatus,
@@ -61,6 +64,9 @@ export function SaveErrorBanner() {
   } = useAppStoreStatus();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const closeButtonFocus = useWebFocusVisible();
+  const collapsedSummaryFocus = useWebFocusVisible();
+  const collapsedRetryFocus = useWebFocusVisible();
   const insets = useSafeAreaInsets();
   const { fontScale, width } = useWindowDimensions();
   const activeOutcome = useMemo(
@@ -72,7 +78,7 @@ export function SaveErrorBanner() {
     [alarmSyncError, alarmSyncStatus, saveOutcome],
   );
   const hasError = activeOutcome !== null;
-  const [retrying, setRetrying] = useState(false);
+  const [retrying, setRetrying] = useState<SaveRetryAction | null>(null);
   const [displayError, setDisplayError] = useState(hasError);
   const [displayOutcome, setDisplayOutcome] = useState<SaveOutcome | null>(
     activeOutcome,
@@ -152,21 +158,26 @@ export function SaveErrorBanner() {
     return null;
   }
   const presentation = getSaveOutcomePresentation(displayOutcome);
-  const retryCopy = getRetryCopy(displayOutcome.retryAction);
+  const additionalIssueCount = displayOutcome.issues.length - 1;
+  const retryActions = getSaveRetryActions(displayOutcome);
+  const primaryRetryCopy = getRetryCopy(displayOutcome.retryAction);
+  const visibleTitle = additionalIssueCount > 0
+    ? `${presentation.title} · 외 ${additionalIssueCount}건`
+    : presentation.title;
   const toneColor = presentation.kind === 'partial' ? palette.amber : palette.danger;
   const toneSoft = presentation.kind === 'partial' ? palette.amberSoft : palette.dangerSoft;
 
-  const retry = async () => {
-    if (retrying) return;
-    setRetrying(true);
+  const retry = async (action: SaveRetryAction) => {
+    if (retrying !== null) return;
+    setRetrying(action);
     try {
-      await executeSaveRetryAction(displayOutcome.retryAction, {
+      await executeSaveRetryAction(action, {
         retryAlarms: () => resyncAlarms(true),
         retrySave,
         retrySleepReminders: retrySleepReminderSync,
       });
     } finally {
-      setRetrying(false);
+      setRetrying(null);
     }
   };
 
@@ -220,49 +231,60 @@ export function SaveErrorBanner() {
                   <AppIcon color={toneColor} name="alert-circle-outline" size={23} />
                 </View>
                 <AppText variant="label" tone="primary" style={styles.title}>
-                  {presentation.title}
+                  {visibleTitle}
                 </AppText>
               </View>
               <Pressable
                 accessibilityLabel="오류 알림 축소하기"
                 accessibilityRole="button"
                 hitSlop={6}
+                onBlur={closeButtonFocus.onBlur}
+                onFocus={closeButtonFocus.onFocus}
                 onPress={() => setExpanded(false)}
                 style={({ pressed }) => [
                   styles.iconButton,
                   pressed && styles.iconButtonPressed,
+                  closeButtonFocus.focusVisible && styles.webFocusVisible,
                 ]}>
                 <AppIcon accessible={false} color={palette.inkMuted} name="close" size={19} />
               </Pressable>
             </View>
             <AppText variant="caption" color={toneColor} style={styles.message}>
               {presentation.message}
+              {additionalIssueCount > 0
+                ? `\n외 ${additionalIssueCount}건의 작업도 다시 확인해 주세요.`
+                : ''}
             </AppText>
-            <AppButton
-              accessibilityLabel={retryCopy.accessibilityLabel}
-              disabled={retrying}
-              icon="refresh-outline"
-              label={
-                retrying
-                  ? '시도 중'
-                  : retryCopy.label
-              }
-              loading={retrying}
-              onPress={() => void retry()}
-              style={styles.action}
-              variant={presentation.kind === 'partial' ? 'secondary' : 'danger'}
-            />
+            {retryActions.map((action) => {
+              const retryCopy = getRetryCopy(action);
+              return (
+                <AppButton
+                  accessibilityLabel={retryCopy.accessibilityLabel}
+                  disabled={retrying !== null}
+                  icon="refresh-outline"
+                  key={action}
+                  label={retrying === action ? '시도 중' : retryCopy.label}
+                  loading={retrying === action}
+                  onPress={() => void retry(action)}
+                  style={styles.action}
+                  variant={presentation.kind === 'partial' ? 'secondary' : 'danger'}
+                />
+              );
+            })}
           </>
         ) : (
           <View style={styles.collapsedRow}>
             <Pressable
               accessibilityHint="오류 내용과 해결 버튼을 펼쳐요."
-              accessibilityLabel={`${presentation.title}. 자세히 보기`}
+              accessibilityLabel={`${visibleTitle}. 자세히 보기`}
               accessibilityRole="button"
+              onBlur={collapsedSummaryFocus.onBlur}
+              onFocus={collapsedSummaryFocus.onFocus}
               onPress={() => setExpanded(true)}
               style={({ pressed }) => [
                 styles.collapsedSummary,
                 pressed && styles.iconButtonPressed,
+                collapsedSummaryFocus.focusVisible && styles.webFocusVisible,
               ]}>
               <View style={[styles.icon, styles.iconCollapsed, { backgroundColor: toneSoft }]}>
                 <AppIcon color={toneColor} name="alert-circle-outline" size={21} />
@@ -273,22 +295,30 @@ export function SaveErrorBanner() {
                 numberOfLines={1}
                 style={styles.collapsedTitle}
                 variant="label">
-                {presentation.title}
+                {visibleTitle}
               </AppText>
               <AppIcon accessible={false} color={palette.inkMuted} name="chevron-down" size={17} />
             </Pressable>
             <Pressable
-              accessibilityLabel={retryCopy.accessibilityLabel}
+              accessibilityLabel={primaryRetryCopy.accessibilityLabel}
               accessibilityRole="button"
-              accessibilityState={{ busy: retrying, disabled: retrying }}
-              disabled={retrying}
-              onPress={() => void retry()}
+              accessibilityState={{
+                busy: retrying === displayOutcome.retryAction,
+                disabled: retrying !== null,
+              }}
+              disabled={retrying !== null}
+              onBlur={collapsedRetryFocus.onBlur}
+              onFocus={collapsedRetryFocus.onFocus}
+              onPress={() => void retry(displayOutcome.retryAction)}
               style={({ pressed }) => [
                 styles.retryIconButton,
                 { backgroundColor: toneSoft },
-                pressed && !retrying && styles.iconButtonPressed,
+                pressed && retrying === null && styles.iconButtonPressed,
+                collapsedRetryFocus.focusVisible &&
+                  retrying === null &&
+                  styles.webFocusVisible,
               ]}>
-              {retrying ? (
+              {retrying === displayOutcome.retryAction ? (
                 <ActivityIndicator color={toneColor} size="small" />
               ) : (
                 <AppIcon accessible={false} color={toneColor} name="refresh-outline" size={20} />
@@ -394,4 +424,13 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     justifyContent: 'center',
     borderRadius: radii.medium,
   },
+  webFocusVisible:
+    Platform.OS === 'web'
+      ? {
+          outlineColor: createSemanticColors(palette, isDark).focus,
+          outlineOffset: 2,
+          outlineStyle: 'solid',
+          outlineWidth: 2,
+        }
+      : {},
 } satisfies Record<string, ViewStyle | TextStyle>);

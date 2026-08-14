@@ -53,12 +53,15 @@ import type {
   LatestBackupRestoreResult,
   SaveIssueCode,
   SaveOutcome,
+  SaveRetryAction,
   SaveStatus,
+  SleepReminderSyncStatus,
   UpdatePatternOptions,
 } from '@/application/app-store-contract';
 import {
+  clearSaveIssuesByRetryAction,
   createSavedOutcome,
-  createSaveIssueOutcome,
+  mergeSaveIssue,
 } from '@/application/save-outcome';
 
 import type {
@@ -216,6 +219,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const [alarmSyncStatus, setAlarmSyncStatus] =
     useState<AlarmSyncStatus>('idle');
   const [alarmSyncError, setAlarmSyncError] = useState<string | null>(null);
+  const [sleepReminderSyncStatus, setSleepReminderSyncStatus] =
+    useState<SleepReminderSyncStatus>('idle');
+  const [sleepReminderSyncError, setSleepReminderSyncError] =
+    useState<string | null>(null);
   const [corruptBackupKey, setCorruptBackupKey] = useState<string | null>(null);
   const [alarmAutoCheckState, setAlarmAutoCheckState] =
     useState<AlarmAutoCheckState>({ checkedAt: null, status: 'idle' });
@@ -236,6 +243,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const lastKnownGoodSnapshotRef = useRef<string | null>(null);
   const alarmResumeSyncRef = useRef<Promise<boolean> | null>(null);
   const sleepReminderSyncTailRef = useRef<Promise<boolean>>(Promise.resolve(true));
+  const sleepReminderSyncAttemptRef = useRef(0);
   const lastAlarmSyncSignatureRef = useRef<string | null>(null);
   const failedAlarmSyncSignatureRef = useRef<string | null>(null);
   const lastSleepReminderSyncSignatureRef = useRef<string | null>(null);
@@ -260,15 +268,35 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     issueCode: SaveIssueCode,
     message: string,
   ) => {
-    const outcome = createSaveIssueOutcome(issueCode, message);
+    const outcome = mergeSaveIssue(saveOutcomeRef.current, issueCode, message);
     recordSaveOutcome(outcome);
     if (mountedRef.current) setSaveStatus('error');
   }, [recordSaveOutcome]);
 
-  const reportSaveSuccess = useCallback(() => {
-    recordSaveOutcome(createSavedOutcome());
-    if (mountedRef.current) setSaveStatus('saved');
+  const clearReportedSaveIssues = useCallback((
+    retryAction: SaveRetryAction,
+    markSaved = false,
+  ) => {
+    const current = saveOutcomeRef.current;
+    if (
+      !markSaved &&
+      !current?.issues.some((issue) => issue.retryAction === retryAction)
+    ) {
+      return;
+    }
+    const outcome = clearSaveIssuesByRetryAction(
+      current,
+      retryAction,
+    );
+    recordSaveOutcome(outcome);
+    if (mountedRef.current) {
+      setSaveStatus(outcome.status === 'success' ? 'saved' : 'error');
+    }
   }, [recordSaveOutcome]);
+
+  const reportSaveSuccess = useCallback(() => {
+    clearReportedSaveIssues('retry-save', true);
+  }, [clearReportedSaveIssues]);
 
   const getPersistedDataForPendingRestore = useCallback((): AppData => {
     const persistedSnapshot = appDataWriter.getPersistedValue();
@@ -302,6 +330,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     setSaveError(null);
     setAlarmSyncStatus('idle');
     setAlarmSyncError(null);
+    setSleepReminderSyncStatus('idle');
+    setSleepReminderSyncError(null);
     setAlarmAutoCheckState({ checkedAt: null, status: 'idle' });
     lastKnownGoodSnapshotRef.current = null;
     missingPrimaryRecoveryRawRef.current = null;
@@ -310,6 +340,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     failedAlarmSyncSignatureRef.current = null;
     lastSleepReminderSyncSignatureRef.current = null;
     failedSleepReminderSyncSignatureRef.current = null;
+    sleepReminderSyncAttemptRef.current += 1;
     sleepReminderFailureSaveRevisionRef.current = null;
     saveOutcomeRef.current = null;
 
@@ -451,7 +482,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         ? '변경 내용은 저장했지만 알람을 다시 예약하지 못했어요. 알람 화면에서 권한을 확인한 뒤 다시 예약해 주세요.'
         : '알람을 끄는 설정은 저장했지만 기존 예약을 취소하지 못했어요. 알람 화면에서 다시 시도해 주세요.',
     );
-  }, []);
+    reportSaveIssue(
+      'alarm-sync-failed',
+      notificationsEnabled
+        ? '변경 내용은 저장됐지만 알람을 다시 예약하지 못했어요. 알람 화면에서 권한을 확인한 뒤 다시 예약해 주세요.'
+        : '알람을 끄는 설정은 저장됐지만 기존 예약을 취소하지 못했어요. 알람 화면에서 다시 시도해 주세요.',
+    );
+  }, [reportSaveIssue]);
 
   const syncAlarmsForSnapshot = useCallback(async (
     snapshot: AppData,
@@ -503,6 +540,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (mountedRef.current) {
         setAlarmSyncStatus('synced');
         setAlarmSyncError(null);
+        clearReportedSaveIssues('retry-alarms');
       }
       updateData((current) => {
         if (getAlarmScheduleSignature(current) !== signature) return current;
@@ -518,11 +556,17 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       reportAlarmSyncFailure(snapshot.settings.notificationsEnabled);
       return false;
     }
-  }, [reportAlarmSyncFailure, updateData]);
+  }, [clearReportedSaveIssues, reportAlarmSyncFailure, updateData]);
 
   const syncSleepRemindersForSnapshot = useCallback(
     (snapshot: AppData, force = false): Promise<boolean> => {
       const signature = getSleepReminderScheduleSignature(snapshot);
+      const attempt = sleepReminderSyncAttemptRef.current + 1;
+      sleepReminderSyncAttemptRef.current = attempt;
+      if (mountedRef.current) {
+        setSleepReminderSyncStatus('syncing');
+        setSleepReminderSyncError(null);
+      }
       const task = sleepReminderSyncTailRef.current
         .catch(() => false)
         .then(async () => {
@@ -530,6 +574,14 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             !force &&
             lastSleepReminderSyncSignatureRef.current === signature
           ) {
+            if (
+              mountedRef.current &&
+              sleepReminderSyncAttemptRef.current === attempt
+            ) {
+              setSleepReminderSyncStatus('synced');
+              setSleepReminderSyncError(null);
+              clearReportedSaveIssues('retry-sleep-reminders');
+            }
             return true;
           }
           try {
@@ -546,11 +598,26 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             lastSleepReminderSyncSignatureRef.current = signature;
             failedSleepReminderSyncSignatureRef.current = null;
             sleepReminderFailureSaveRevisionRef.current = null;
+            if (
+              mountedRef.current &&
+              sleepReminderSyncAttemptRef.current === attempt
+            ) {
+              setSleepReminderSyncStatus('synced');
+              setSleepReminderSyncError(null);
+              clearReportedSaveIssues('retry-sleep-reminders');
+            }
             return true;
           } catch {
             failedSleepReminderSyncSignatureRef.current = signature;
             if (lastSleepReminderSyncSignatureRef.current === signature) {
               lastSleepReminderSyncSignatureRef.current = null;
+            }
+            if (
+              mountedRef.current &&
+              sleepReminderSyncAttemptRef.current === attempt
+            ) {
+              setSleepReminderSyncStatus('error');
+              setSleepReminderSyncError(SLEEP_REMINDER_SYNC_SAVE_ERROR);
             }
             // 저장 결과 표시는 호출한 저장 흐름에서 결정하고, 앱 복귀·초기 동기화 실패가
             // unrelated 저장 오류를 덮어쓰지 않게 해요.
@@ -560,7 +627,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       sleepReminderSyncTailRef.current = task;
       return task;
     },
-    [],
+    [clearReportedSaveIssues],
   );
 
   const reportSleepReminderSaveFailure = useCallback((revision: number) => {
@@ -622,7 +689,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     const revision = saveRevisionRef.current + 1;
     saveRevisionRef.current = revision;
     if (mountedRef.current) {
-      recordSaveOutcome(null);
+      recordSaveOutcome(
+        clearSaveIssuesByRetryAction(
+          saveOutcomeRef.current,
+          'retry-save',
+        ),
+      );
       setSaveStatus('saving');
     }
 
@@ -683,14 +755,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (followUpSaved) {
         reportSaveSuccess();
       } else {
-        reportSaveIssue(
-          deviceBackupSaved
-            ? 'reset-marker-cleanup-failed'
-            : 'device-backup-failed',
-          deviceBackupSaved
-            ? '근무표는 저장됐지만 초기화 상태를 정리하지 못했어요. 다시 시도해 주세요.'
-            : '근무표는 저장됐지만 기기 안전 백업 파일을 갱신하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
-        );
+        if (!deviceBackupSaved) {
+          reportSaveIssue(
+            'device-backup-failed',
+            '근무표는 저장됐지만 기기 안전 백업 파일을 갱신하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+          );
+        }
+        if (!resetMarkerCleared) {
+          reportSaveIssue(
+            'reset-marker-cleanup-failed',
+            '근무표는 저장됐지만 초기화 상태를 정리하지 못했어요. 다시 시도해 주세요.',
+          );
+        }
       }
       if (announceSuccess && outcome.announceSuccess && followUpSaved) {
         setSaveSuccessRevision((current) => current + 1);
@@ -872,17 +948,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       );
       if (!synced) {
         reportSleepReminderSaveFailure(revision);
-      } else if (
-        saveOutcomeRef.current?.issueCode === 'sleep-reminder-sync-failed'
-      ) {
-        sleepReminderFailureSaveRevisionRef.current = null;
-        reportSaveSuccess();
       }
       return synced;
     });
   }, [
     mutationCoordinator,
-    reportSaveSuccess,
     reportSleepReminderSaveFailure,
     syncSleepRemindersForSnapshot,
   ]);
@@ -962,9 +1032,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         !alarmSyncRequired || await syncAlarmsForSnapshot(next);
       const persistenceFollowUpSucceeded =
         persisted.lastKnownGoodSaved && persisted.deviceBackupSaved;
-      if (!sleepReminderSyncSucceeded && persistenceFollowUpSucceeded) {
+      if (!sleepReminderSyncSucceeded) {
         reportSleepReminderSaveFailure(saveRevisionRef.current);
-      } else if (!preApplyFollowUpSucceeded && persistenceFollowUpSucceeded) {
+      }
+      if (!preApplyFollowUpSucceeded) {
         reportSaveIssue(
           'reset-marker-cleanup-failed',
           '자료는 저장됐지만 초기 설정 임시 상태를 정리하지 못했어요. 다시 시도해 주세요.',
@@ -1445,21 +1516,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     });
     alarmResumeSyncRef.current = task;
     try {
-      const succeeded = await task;
-      if (
-        succeeded &&
-        saveOutcomeRef.current?.issueCode === 'alarm-sync-failed'
-      ) {
-        reportSaveSuccess();
-      }
-      return succeeded;
+      return await task;
     } finally {
       if (alarmResumeSyncRef.current === task) alarmResumeSyncRef.current = null;
     }
   }, [
     mutationCoordinator,
     reportAlarmSyncFailure,
-    reportSaveSuccess,
     syncAlarmsForSnapshot,
     updateData,
   ]);
@@ -1879,6 +1942,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       saveSuccessRevision,
       alarmSyncStatus,
       alarmSyncError,
+      sleepReminderSyncStatus,
+      sleepReminderSyncError,
       corruptBackupKey,
       alarmAutoCheckState,
     }),
@@ -1893,6 +1958,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       saveSuccessRevision,
       alarmSyncStatus,
       alarmSyncError,
+      sleepReminderSyncStatus,
+      sleepReminderSyncError,
     ],
   );
 

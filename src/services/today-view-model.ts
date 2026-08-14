@@ -117,7 +117,7 @@ export function buildTodayViewModel(input: {
   sleepReminderStatus?: SleepReminderStatus | null;
   sleepReminderStatusError?: boolean;
   sleepReminderSupported?: boolean;
-  sleepReminderSyncFailed?: boolean;
+  sleepReminderSyncStatus?: 'idle' | 'syncing' | 'synced' | 'error';
   compactHome: boolean;
 }) {
   const {
@@ -133,7 +133,7 @@ export function buildTodayViewModel(input: {
     sleepReminderStatus = null,
     sleepReminderStatusError = false,
     sleepReminderSupported = false,
-    sleepReminderSyncFailed = false,
+    sleepReminderSyncStatus = 'idle',
     compactHome,
   } = input;
   const today = toDateKey(now);
@@ -272,7 +272,7 @@ export function buildTodayViewModel(input: {
     sleepReminderStatus,
     sleepReminderStatusError,
     sleepReminderSupported,
-    sleepReminderSyncFailed,
+    sleepReminderSyncStatus,
     totalPlannedAlarmCount: alarmPlanSummary.plannedAlarmCount,
   });
   const alarmsReady = alarmHealthState.status === 'ready';

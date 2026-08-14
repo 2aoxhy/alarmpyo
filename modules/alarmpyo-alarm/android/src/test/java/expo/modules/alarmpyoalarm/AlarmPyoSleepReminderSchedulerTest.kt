@@ -7,6 +7,70 @@ import org.junit.Test
 
 class AlarmPyoSleepReminderSchedulerTest {
   @Test
+  fun `a fresh process must reconcile before an identical snapshot can be reused`() {
+    val gate = AlarmPyoSleepReminderProcessSyncGate()
+    var calls = 0
+
+    assertEquals(false, gate.canReuseScheduledSnapshot())
+    assertEquals("first", gate.reconcileIfNeeded { calls += 1; "first" })
+    assertEquals(null, gate.reconcileIfNeeded { calls += 1; "second" })
+    assertEquals(true, gate.canReuseScheduledSnapshot())
+    assertEquals(1, calls)
+  }
+
+  @Test
+  fun `a restarted process requires reconciliation again`() {
+    val previousProcess = AlarmPyoSleepReminderProcessSyncGate().apply {
+      markSuccessfulSync()
+    }
+    val restartedProcess = AlarmPyoSleepReminderProcessSyncGate()
+
+    assertEquals(true, previousProcess.canReuseScheduledSnapshot())
+    assertEquals(false, restartedProcess.canReuseScheduledSnapshot())
+  }
+
+  @Test
+  fun `a failed first reconciliation keeps the retry gate open`() {
+    val gate = AlarmPyoSleepReminderProcessSyncGate()
+
+    assertThrows(IllegalStateException::class.java) {
+      gate.reconcileIfNeeded { throw IllegalStateException("schedule") }
+    }
+
+    assertEquals(false, gate.canReuseScheduledSnapshot())
+    assertEquals("retry", gate.reconcileIfNeeded { "retry" })
+    assertEquals(true, gate.canReuseScheduledSnapshot())
+  }
+
+  @Test
+  fun `recovered storage forces reconciliation after the process gate completed`() {
+    val gate = AlarmPyoSleepReminderProcessSyncGate().apply {
+      markSuccessfulSync()
+    }
+    var calls = 0
+
+    assertEquals(
+      "recovered",
+      gate.reconcileIfNeeded(force = true) { calls += 1; "recovered" }
+    )
+    assertEquals(1, calls)
+    assertEquals(true, gate.canReuseScheduledSnapshot())
+  }
+
+  @Test
+  fun `failed forced reconciliation remains retryable while storage is recovered`() {
+    val gate = AlarmPyoSleepReminderProcessSyncGate().apply {
+      markSuccessfulSync()
+    }
+
+    assertThrows(IllegalStateException::class.java) {
+      gate.reconcileIfNeeded(force = true) { throw IllegalStateException("schedule") }
+    }
+
+    assertEquals("retry", gate.reconcileIfNeeded(force = true) { "retry" })
+  }
+
+  @Test
   fun `corrupt storage is not reseeded from an empty authoritative plan`() {
     val error = assertThrows(IllegalStateException::class.java) {
       requireAuthoritativePlansForCorruptSleepReminderReseed(0)

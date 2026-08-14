@@ -5,7 +5,7 @@ import { formatAppReleaseVersion } from './app-release-version';
 describe('앱 표시 버전', () => {
   it('1.0.x 버전을 V00 형식으로 표시해요', () => {
     expect(formatAppReleaseVersion('1.0.0')).toBe('V00');
-    expect(formatAppReleaseVersion('1.0.3')).toBe('V03');
+    expect(formatAppReleaseVersion('1.0.4')).toBe('V04');
     expect(formatAppReleaseVersion('1.0.12')).toBe('V12');
   });
 

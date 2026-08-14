@@ -572,4 +572,39 @@ describe('통합 알람 상태', () => {
       },
     }).issueCode).toBe('alarm-volume');
   });
+
+  it('Store의 독립 수면 동기화 상태를 알람 건강 상태에 직접 반영해요', () => {
+    const input = {
+      alarmStatus: readyStatus,
+      alarmStatusError: false,
+      notificationsEnabled: true,
+      platformSupported: true,
+      sleepReminderEnabled: true,
+      sleepReminderStatus: {
+        supported: true,
+        enabled: true,
+        notificationsAllowed: true,
+        scheduledCount: 2,
+        storageHealth: 'normal' as const,
+      },
+      sleepReminderSupported: true,
+    } as const;
+
+    expect(resolveAlarmHealthState({
+      ...input,
+      sleepReminderSyncStatus: 'error',
+    })).toMatchObject({
+      status: 'action-required',
+      issueCode: 'sleep-reminder-schedule',
+      action: 'retry-sleep-reminders',
+    });
+    expect(resolveAlarmHealthState({
+      ...input,
+      sleepReminderSyncStatus: 'syncing',
+    })).toMatchObject({ status: 'checking', issueCode: null });
+    expect(resolveAlarmHealthState({
+      ...input,
+      sleepReminderSyncStatus: 'synced',
+    })).toMatchObject({ status: 'ready', issueCode: null });
+  });
 });

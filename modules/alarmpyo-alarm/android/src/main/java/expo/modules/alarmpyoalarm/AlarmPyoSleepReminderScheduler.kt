@@ -44,9 +44,33 @@ internal fun requireAuthoritativePlansForCorruptSleepReminderReseed(
   }
 }
 
+/**
+ * AlarmManager does not expose a reliable way to enumerate this app's alarms.
+ * A fresh native process therefore reconciles the stored snapshot once before
+ * the identical-snapshot reuse shortcut is allowed.
+ */
+internal class AlarmPyoSleepReminderProcessSyncGate {
+  private var completedSuccessfulSync = false
+
+  @Synchronized
+  fun canReuseScheduledSnapshot(): Boolean = completedSuccessfulSync
+
+  @Synchronized
+  fun <T> reconcileIfNeeded(force: Boolean = false, action: () -> T): T? {
+    if (completedSuccessfulSync && !force) return null
+    return action().also { completedSuccessfulSync = true }
+  }
+
+  @Synchronized
+  fun markSuccessfulSync() {
+    completedSuccessfulSync = true
+  }
+}
+
 internal object AlarmPyoSleepReminderScheduler {
   private const val TAG = "AlarmPyoSleepReminder"
   private const val REQUEST_CODE_SALT = 0x534C50
+  private val processSyncGate = AlarmPyoSleepReminderProcessSyncGate()
 
   @Synchronized
   fun sync(
@@ -76,14 +100,17 @@ internal object AlarmPyoSleepReminderScheduler {
       AlarmPyoSleepReminderStore.markHealthy(context)
       return reseeded
     }
-    if (
-      AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot(
-        previous,
-        active,
-        nowMillis
-      )
-    ) {
-      return previous
+    if (AlarmPyoSleepReminderPolicy.canReuseScheduledSnapshot(previous, active, nowMillis)) {
+      // SharedPreferences can outlive AlarmManager registrations after a force-stop
+      // or OEM cleanup. Re-register once per process, and always after storage
+      // recovery so the repaired snapshot and AlarmManager cannot diverge.
+      val storageNeedsReconciliation =
+        AlarmPyoSleepReminderStore.storageHealth(context) != AlarmPyoSleepReminderStorageHealth.NORMAL
+      val reconciled = processSyncGate.reconcileIfNeeded(force = storageNeedsReconciliation) {
+        reconcile(context, nowMillis)
+      } ?: return previous
+      AlarmPyoSleepReminderStore.markHealthy(context)
+      return reconciled
     }
     // 계획 전체를 먼저 한 번에 커밋해 프로세스가 중단되어도 복구 수신기가 다시 예약할 수 있어요.
     AlarmPyoSleepReminderStore.write(
@@ -130,9 +157,11 @@ internal object AlarmPyoSleepReminderScheduler {
         .onFailure { error -> schedulingFailures.add(plan.id to error) }
     }
     val result = AlarmPyoSleepReminderSnapshot(active, scheduledIds)
-    return persistSleepReminderReconciliation(result, schedulingFailures) { snapshot ->
+    val stored = persistSleepReminderReconciliation(result, schedulingFailures) { snapshot ->
       AlarmPyoSleepReminderStore.write(context, snapshot)
     }
+    processSyncGate.markSuccessfulSync()
+    return stored
   }
 
   @Synchronized
