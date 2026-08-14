@@ -114,13 +114,13 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
     @Synchronized
     fun prepareTransaction(context: Context, action: String?): AlarmPyoAlarmRestoreState? {
       val now = System.currentTimeMillis()
-      val watchdogAt = now + WATCHDOG_DELAY_MILLIS
+      val defaultWatchdogAt = now + WATCHDOG_DELAY_MILLIS
       val previous = AlarmPyoAlarmRestoreStateStore.read(context)
       val journalId = maxOf(now, (previous?.journalId ?: 0L) + 1L)
       val state = if (action == ACTION_RETRY_ALARMPYO_ALARM_RESTORE) {
         previous?.takeIf(AlarmPyoAlarmRestoreState::hasPendingWork)?.copy(
           retryAt = 0L,
-          watchdogAt = watchdogAt,
+          watchdogAt = defaultWatchdogAt,
           journalId = journalId
         ) ?: run {
           cancelRestoreWakeup(context)
@@ -129,13 +129,15 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
       } else {
         AlarmPyoAlarmRestoreStateStore.begin(
           context,
+          previous = previous,
           recalculateLocalTimes = action == Intent.ACTION_TIME_CHANGED ||
             action == Intent.ACTION_TIMEZONE_CHANGED,
           workAlarmPending = shouldRestorePersistedAlarms(action),
           sleepReminderPending = shouldRestoreSleepReminders(action),
           widgetPending = action != Intent.ACTION_LOCKED_BOOT_COMPLETED,
           quickTimerPending = shouldRestoreQuickTimer(action),
-          watchdogAt = watchdogAt,
+          nowMillis = now,
+          watchdogAt = defaultWatchdogAt,
           journalId = journalId
         )
       }
@@ -143,6 +145,10 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
       if (action == ACTION_RETRY_ALARMPYO_ALARM_RESTORE) {
         AlarmPyoAlarmRestoreStateStore.write(context, state)
       }
+      val earliestWakeup = listOf(state.retryAt, state.watchdogAt)
+        .filter { it > now }
+        .minOrNull() ?: defaultWatchdogAt
+      val watchdogAt = earliestWakeup
       scheduleRestoreWakeup(context, watchdogAt)
       return state
     }

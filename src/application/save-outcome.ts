@@ -12,16 +12,19 @@ const PARTIAL_ISSUES = new Set<SaveIssueCode>([
   'reset-marker-cleanup-failed',
   'sleep-reminder-sync-failed',
   'alarm-sync-failed',
+  'unsafe-alarm-schedule',
 ]);
 
 const SAVE_ISSUE_PRIORITY: readonly SaveIssueCode[] = [
   'invalid-data',
+  'invalid-work-schedule',
   'primary-save-failed',
   'restore-protection-failed',
   'safety-backup-failed',
   'device-backup-failed',
   'reset-marker-cleanup-failed',
   'alarm-sync-failed',
+  'unsafe-alarm-schedule',
   'sleep-reminder-sync-failed',
 ];
 
@@ -29,7 +32,15 @@ const SAVE_ISSUE_PRIORITY_INDEX = new Map(
   SAVE_ISSUE_PRIORITY.map((issueCode, index) => [issueCode, index]),
 );
 
-export function resolveSaveRetryAction(issueCode: SaveIssueCode): SaveRetryAction {
+export function resolveSaveRetryAction(
+  issueCode: SaveIssueCode,
+): SaveRetryAction | null {
+  if (
+    issueCode === 'invalid-work-schedule' ||
+    issueCode === 'unsafe-alarm-schedule'
+  ) {
+    return null;
+  }
   if (issueCode === 'sleep-reminder-sync-failed') {
     return 'retry-sleep-reminders';
   }
@@ -132,7 +143,13 @@ export function hasSaveIssue(
 export function getSaveRetryActions(
   outcome: SaveIssueOutcome,
 ): SaveRetryAction[] {
-  return Array.from(new Set(outcome.issues.map((issue) => issue.retryAction)));
+  return Array.from(
+    new Set(
+      outcome.issues
+        .map((issue) => issue.retryAction)
+        .filter((action): action is SaveRetryAction => action !== null),
+    ),
+  );
 }
 
 export function resolveVisibleSaveOutcome({

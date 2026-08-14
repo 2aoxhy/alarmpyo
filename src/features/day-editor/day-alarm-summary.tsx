@@ -40,6 +40,7 @@ type DayAlarmSummaryProps = {
   dayException: DayExceptionType | null;
   notificationsEnabled: boolean;
   onChange: (draft: DayAlarmDraft) => void;
+  showTitle?: boolean;
   usesDayAlarm: boolean;
 };
 
@@ -50,6 +51,7 @@ export function DayAlarmSummary({
   dayException,
   notificationsEnabled,
   onChange,
+  showTitle = true,
   usesDayAlarm,
 }: DayAlarmSummaryProps) {
   const { isDark, palette } = useAppTheme();
@@ -89,9 +91,8 @@ export function DayAlarmSummary({
     onChange({ ...alarmDraft, wakeDayOffset });
   };
 
-  return (
-    <MenuGroup centered title="근무 알람" style={styles.sectionGroup}>
-      <Card density="compact" style={styles.card}>
+  const content = (
+    <Card density="compact" style={styles.card}>
         <View
           accessible
           accessibilityLabel={`현재 알람 설정. ${currentSummary}`}
@@ -229,9 +230,13 @@ export function DayAlarmSummary({
             </View>
           </View>
         ) : null}
-      </Card>
-    </MenuGroup>
+    </Card>
   );
+  return showTitle ? (
+    <MenuGroup centered title="근무 알람" style={styles.sectionGroup}>
+      {content}
+    </MenuGroup>
+  ) : content;
 }
 
 function getCurrentSummary(

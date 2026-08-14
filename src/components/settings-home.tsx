@@ -43,7 +43,7 @@ export default function SettingsHome() {
           설정
         </AppText>
         <AppText tone="secondary" style={styles.headerDescription}>
-          필요한 설정을 한 번에 찾을 수 있어요.
+          자주 쓰는 설정만 모았어요.
         </AppText>
       </View>
 
@@ -58,7 +58,7 @@ export default function SettingsHome() {
         <ListRow
           icon="alarm-outline"
           onPress={() => router.push('/alarm-settings')}
-          subtitle={`${alarmLabel} · 알람음·진동과 권한을 확인해요`}
+          subtitle={`${alarmLabel} · 소리·진동·권한`}
           title="알람"
         />
       </MenuGroup>
@@ -67,14 +67,14 @@ export default function SettingsHome() {
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
-          subtitle="표시할 정보와 위젯 추가를 관리해요"
+          subtitle="위젯 정보·추가"
           title="홈 화면 위젯"
         />
         <MenuDivider />
         <ListRow
           icon="book-outline"
           onPress={() => router.push('/app-management' as Href)}
-          subtitle="백업·업데이트·개인정보를 관리해요"
+          subtitle="백업·업데이트·개인정보"
           title="데이터·앱 정보"
         />
       </MenuGroup>

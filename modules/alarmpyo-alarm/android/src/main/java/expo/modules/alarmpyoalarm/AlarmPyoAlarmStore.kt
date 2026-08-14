@@ -191,6 +191,8 @@ internal interface AlarmPyoAlarmSnapshotPersistence {
   fun writePrevious(envelope: AlarmPyoAlarmSnapshotEnvelope)
   fun readHealth(): AlarmPyoAlarmStorageHealth
   fun writeHealth(health: AlarmPyoAlarmStorageHealth)
+  fun readRollbackFloor(): Long = 0L
+  fun writeRollbackFloor(generation: Long) = Unit
 }
 
 /**
@@ -208,15 +210,27 @@ internal class AlarmPyoAlarmStoreEngine(
       persistence.writeHealth(AlarmPyoAlarmStorageHealth.CORRUPT)
       return null
     }
-    val (selected, recovered) = AlarmPyoAlarmSnapshotCodec.selectBest(primary, previous)
+    val rollbackFloor = persistence.readRollbackFloor().coerceAtLeast(0L)
+    val eligiblePrimary = primary?.takeIf { envelope ->
+      AlarmPyoAlarmSnapshotCodec.decode(envelope)?.generation?.let { it >= rollbackFloor } == true
+    }
+    val eligiblePrevious = previous?.takeIf { envelope ->
+      AlarmPyoAlarmSnapshotCodec.decode(envelope)?.generation?.let { it >= rollbackFloor } == true
+    }
+    val (selected, recovered) = AlarmPyoAlarmSnapshotCodec.selectBest(
+      eligiblePrimary,
+      eligiblePrevious
+    )
     if (selected == null) {
       persistence.writeHealth(AlarmPyoAlarmStorageHealth.CORRUPT)
       return null
     }
-    val selectedEnvelope = if (primary?.let(AlarmPyoAlarmSnapshotCodec::decode) != null) {
-      primary
+    val selectedEnvelope = if (
+      eligiblePrimary?.let(AlarmPyoAlarmSnapshotCodec::decode) != null
+    ) {
+      eligiblePrimary
     } else {
-      previous
+      eligiblePrevious
     }
     val promoted = if (AlarmPyoAlarmSnapshotCodec.isLegacy(selectedEnvelope)) {
       // Schema v2 metadata was not protected. Preserve only the decoded payload and establish a
@@ -251,6 +265,8 @@ internal class AlarmPyoAlarmStoreEngine(
       generation = nextGeneration(current.generation),
       committedAt = committedAt
     )
+    val resetsRollbackEpoch = desired.generation == 1L &&
+      persistence.readRollbackFloor() >= Long.MAX_VALUE - 1L
 
     // During authoritative recovery the previous corrupt envelope is evidence and a rollback
     // boundary. Keep it untouched until the scheduler has reconciled successfully.
@@ -260,6 +276,7 @@ internal class AlarmPyoAlarmStoreEngine(
         ?.let(persistence::writePrevious)
     }
     persistence.writePrimary(AlarmPyoAlarmSnapshotCodec.create(desired))
+    if (resetsRollbackEpoch) persistence.writeRollbackFloor(0L)
     persistence.writeHealth(
       when (healthBeforeWrite) {
         AlarmPyoAlarmStorageHealth.CORRUPT -> AlarmPyoAlarmStorageHealth.CORRUPT
@@ -285,9 +302,14 @@ internal class AlarmPyoAlarmStoreEngine(
     val validSnapshots = listOfNotNull(primary, previous)
       .filterNot(AlarmPyoAlarmSnapshotCodec::isLegacy)
       .mapNotNull(AlarmPyoAlarmSnapshotCodec::decode)
-    val latestGeneration = validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::generation)
-      ?: 0L
-    val generation = if (latestGeneration >= Long.MAX_VALUE - 1L) 1L else latestGeneration + 1L
+    val latestGeneration = maxOf(
+      validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::generation) ?: 0L,
+      persistence.readRollbackFloor().coerceAtLeast(0L)
+    )
+    val resetsRollbackEpoch = latestGeneration >= Long.MAX_VALUE - 1L
+    val generation = if (resetsRollbackEpoch) 1L else {
+      latestGeneration + 1L
+    }
     val latestCommittedAt = validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::committedAt)
       ?: 0L
     val desired = snapshot.copy(
@@ -295,7 +317,39 @@ internal class AlarmPyoAlarmStoreEngine(
       committedAt = nextCommittedAt(latestCommittedAt)
     )
     persistence.writePrimary(AlarmPyoAlarmSnapshotCodec.create(desired))
+    if (resetsRollbackEpoch) persistence.writeRollbackFloor(0L)
     return desired
+  }
+
+  /**
+   * An explicit cancellation is written to both replicas before its rollback floor is committed.
+   * A later corrupt primary can therefore never resurrect a pre-cancellation active generation.
+   */
+  fun commitCancellationTombstone(): AlarmPyoAlarmScheduleSnapshot {
+    val validSnapshots = listOfNotNull(
+      persistence.readPrimary(),
+      persistence.readPrevious()
+    ).filterNot(AlarmPyoAlarmSnapshotCodec::isLegacy)
+      .mapNotNull(AlarmPyoAlarmSnapshotCodec::decode)
+    val latestGeneration = maxOf(
+      validSnapshots.maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::generation) ?: 0L,
+      persistence.readRollbackFloor().coerceAtLeast(0L)
+    )
+    val latestCommittedAt = validSnapshots
+      .maxOfOrNull(AlarmPyoAlarmScheduleSnapshot::committedAt) ?: 0L
+    val tombstone = AlarmPyoAlarmScheduleSnapshot(
+      plans = emptyList(),
+      scheduledIds = emptySet(),
+      singleRepeats = emptyList(),
+      generation = if (latestGeneration >= Long.MAX_VALUE - 1L) 1L else latestGeneration + 1L,
+      committedAt = nextCommittedAt(latestCommittedAt)
+    )
+    val envelope = AlarmPyoAlarmSnapshotCodec.create(tombstone)
+    persistence.writePrevious(envelope)
+    persistence.writePrimary(envelope)
+    persistence.writeRollbackFloor(tombstone.generation)
+    persistence.writeHealth(AlarmPyoAlarmStorageHealth.NORMAL)
+    return tombstone
   }
 
   fun markHealthy() {
@@ -351,6 +405,7 @@ internal object AlarmPyoAlarmStore {
   private const val KEY_PAYLOAD = "payload"
   private const val KEY_CHECKSUM = "checksum"
   private const val KEY_LAST_STORAGE_HEALTH = "last-storage-health"
+  private const val KEY_ROLLBACK_FLOOR = "explicit-cancel-generation-floor"
   internal const val MAX_RECENT_EVENTS = 12
 
   private fun storageContext(context: Context): Context =
@@ -572,6 +627,19 @@ internal object AlarmPyoAlarmStore {
     override fun writeHealth(health: AlarmPyoAlarmStorageHealth) {
       markStorageHealth(context, health)
     }
+
+    override fun readRollbackFloor(): Long = metaPreferences(context)
+      .getLong(KEY_ROLLBACK_FLOOR, 0L)
+      .coerceAtLeast(0L)
+
+    override fun writeRollbackFloor(generation: Long) {
+      requireCommitted(
+        metaPreferences(context).edit()
+          .putLong(KEY_ROLLBACK_FLOOR, generation.coerceAtLeast(0L))
+          .commit(),
+        "명시적 알람 취소 표식"
+      )
+    }
   }
 
   private fun markStorageHealth(context: Context, health: AlarmPyoAlarmStorageHealth) {
@@ -751,6 +819,13 @@ internal object AlarmPyoAlarmStore {
     legacyPreferences(context).edit().putString(KEY_RECENT_EVENTS, array.toString()).apply()
   }
 
+  fun clearRecentEvents(context: Context) {
+    requireCommitted(
+      legacyPreferences(context).edit().remove(KEY_RECENT_EVENTS).commit(),
+      "알람 기록"
+    )
+  }
+
   internal fun decodeRecentEvents(raw: String): List<AlarmPyoAlarmHistoryEvent> = runCatching {
     val array = JSONArray(raw)
     buildList {
@@ -763,13 +838,7 @@ internal object AlarmPyoAlarmStore {
   }.getOrElse { emptyList() }
 
   fun clearForExplicitCancellation(context: Context, preserveActive: Boolean = false) {
-    if (storageHealth(context) == AlarmPyoAlarmStorageHealth.CORRUPT) {
-      reseedAfterCorruption(context, emptyList())
-    } else {
-      writeSnapshot(context) {
-        it.copy(plans = emptyList(), scheduledIds = emptySet(), singleRepeats = emptyList())
-      }
-    }
+    snapshotEngine(context).commitCancellationTombstone()
     val editor = legacyPreferences(context).edit().remove(KEY_TEST_ALARM_AT)
     if (!preserveActive) {
       editor

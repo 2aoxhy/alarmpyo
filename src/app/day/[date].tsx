@@ -11,6 +11,7 @@ import { AdditionalSettingsSection } from '@/features/day-editor/additional-sett
 import {
   areDayAlarmOverridesEqual,
   createDayAlarmDraft,
+  formatDayAlarmOverrideSummary,
   resolveDayAlarmDraft,
   type DayAlarmDraft,
 } from '@/features/day-editor/day-alarm-settings-model';
@@ -29,6 +30,7 @@ import { DayNoteEditor } from '@/features/day-editor/day-note-editor';
 import { ShiftSelectionSection } from '@/features/day-editor/shift-selection-section';
 import { ShiftTimeEditor } from '@/features/day-editor/shift-time-editor';
 import { SpecialScheduleSection } from '@/features/day-editor/special-schedule-section';
+import { DisclosureRow } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
@@ -53,6 +55,8 @@ import {
   formatTimeInput,
   parseTimeInput,
 } from '@/utils/shift-time';
+
+type AdditionalPanel = 'exception' | 'time' | 'alarm' | 'note';
 
 export default function DayEditorScreen() {
   const { showDialog } = useAppDialog();
@@ -137,6 +141,18 @@ export default function DayEditorScreen() {
         note: initialNote,
       }),
   );
+  const [additionalPanel, setAdditionalPanel] = useState<AdditionalPanel | null>(
+    () =>
+      storedDayException
+        ? 'exception'
+        : data.timeOverrides[dateKey]
+          ? 'time'
+          : initialAlarmOverride
+            ? 'alarm'
+            : initialNote.trim()
+              ? 'note'
+              : null,
+  );
   const [saving, setSaving] = useState(false);
   const selectedShift = shiftForSelection(selection);
   const parsedStartMinutes = parseTimeInput(startTime);
@@ -203,6 +219,26 @@ export default function DayEditorScreen() {
     hasTimeOverride: Boolean(timeRequired && !usesDefaultTime),
     hasNote: note.trim().length > 0,
   });
+  const timeSettingsSummary =
+    selectedShift && !selectedShift.isOff && dayException === null
+      ? `${startTime || '--:--'}~${endTime || '--:--'} · ${
+          usesDefaultTime ? '기본 시간' : '이날만 변경'
+        }`
+      : '현재 일정에는 근무 시간이 없어요.';
+  const alarmSettingsSummary =
+    !alarmSourceShift || alarmSourceShift.isOff
+      ? '현재 일정에는 근무 알람이 없어요.'
+      : !alarmDraftResult.valid
+        ? '기상 시각 확인 필요'
+        : formatDayAlarmOverrideSummary(
+            alarmOverrideForSave,
+            alarmSourceShift,
+          );
+
+  const toggleAdditionalPanel = (panel: AdditionalPanel) => {
+    void Haptics.selectionAsync();
+    setAdditionalPanel((current) => (current === panel ? null : panel));
+  };
 
   useEffect(
     () =>
@@ -356,6 +392,7 @@ export default function DayEditorScreen() {
         (timeRequired && (parsedStartMinutes === null || parsedEndMinutes === null)))
     ) {
       setAdditionalSettingsExpanded(true);
+      setAdditionalPanel('time');
       showDialog(
         '근무 시간을 확인해 주세요',
         '시작과 종료 시간을 06:45 형식으로 입력하고 서로 다르게 지정해 주세요.',
@@ -364,6 +401,7 @@ export default function DayEditorScreen() {
     }
     if (alarmSourceShift && !alarmSourceShift.isOff && !alarmDraftResult.valid) {
       setAdditionalSettingsExpanded(true);
+      setAdditionalPanel('alarm');
       showDialog('기상 시각을 확인해 주세요', alarmDraftResult.message);
       return;
     }
@@ -448,40 +486,80 @@ export default function DayEditorScreen() {
           setAdditionalSettingsExpanded((value) => !value);
         }}
         summary={additionalSettingsSummary}>
-        <SpecialScheduleSection
-          dayException={dayException}
-          onChange={chooseDayException}
+        <DisclosureRow
+          expanded={additionalPanel === 'exception'}
+          icon="options-outline"
+          onPress={() => toggleAdditionalPanel('exception')}
+          subtitle={selectedExceptionAppearance?.label ?? '없음'}
+          title="특별 일정"
         />
-
-        {selectedShift && !selectedShift.isOff && dayException === null ? (
-          <ShiftTimeEditor
-            compact={compactTimeFields}
-            endTime={endTime}
-            onEndTimeChange={setEndTime}
-            onReset={resetTime}
-            onStartTimeChange={setStartTime}
-            parsedEndMinutes={parsedEndMinutes}
-            parsedStartMinutes={parsedStartMinutes}
-            selectedDuration={selectedDuration}
-            selectedShift={selectedShift}
-            startTime={startTime}
-            usesDefaultTime={usesDefaultTime}
-          />
-        ) : null}
-
-        {alarmSourceShift && !alarmSourceShift.isOff ? (
-          <DayAlarmSummary
-            alarmDraft={alarmDraft}
-            alarmSourceShift={alarmSourceShift}
-            compact={compactTimeFields}
+        {additionalPanel === 'exception' ? (
+          <SpecialScheduleSection
             dayException={dayException}
-            notificationsEnabled={data.settings.notificationsEnabled}
-            onChange={setAlarmDraft}
-            usesDayAlarm={usesDayAlarm}
+            onChange={chooseDayException}
+            showTitle={false}
           />
         ) : null}
 
-        <DayNoteEditor note={note} onChange={setNote} />
+        <DisclosureRow
+          disabled={!selectedShift || selectedShift.isOff || dayException !== null}
+          expanded={additionalPanel === 'time'}
+          icon="time-outline"
+          onPress={() => toggleAdditionalPanel('time')}
+          subtitle={timeSettingsSummary}
+          title="근무 시간"
+        />
+        {additionalPanel === 'time' &&
+        selectedShift &&
+        !selectedShift.isOff &&
+        dayException === null ? (
+            <ShiftTimeEditor
+              compact={compactTimeFields}
+              endTime={endTime}
+              onEndTimeChange={setEndTime}
+              onReset={resetTime}
+              onStartTimeChange={setStartTime}
+              parsedEndMinutes={parsedEndMinutes}
+              parsedStartMinutes={parsedStartMinutes}
+              selectedDuration={selectedDuration}
+              selectedShift={selectedShift}
+              showHeader={false}
+              startTime={startTime}
+              usesDefaultTime={usesDefaultTime}
+            />
+          ) : null}
+
+        <DisclosureRow
+          disabled={!alarmSourceShift || alarmSourceShift.isOff}
+          expanded={additionalPanel === 'alarm'}
+          icon="alarm-outline"
+          onPress={() => toggleAdditionalPanel('alarm')}
+          subtitle={alarmSettingsSummary}
+          title="근무 알람"
+        />
+        {additionalPanel === 'alarm' && alarmSourceShift && !alarmSourceShift.isOff ? (
+            <DayAlarmSummary
+              alarmDraft={alarmDraft}
+              alarmSourceShift={alarmSourceShift}
+              compact={compactTimeFields}
+              dayException={dayException}
+              notificationsEnabled={data.settings.notificationsEnabled}
+              onChange={setAlarmDraft}
+              showTitle={false}
+              usesDayAlarm={usesDayAlarm}
+            />
+          ) : null}
+
+        <DisclosureRow
+          expanded={additionalPanel === 'note'}
+          icon="book-outline"
+          onPress={() => toggleAdditionalPanel('note')}
+          subtitle={note.trim() ? `${note.trim().length}자 작성됨` : '없음'}
+          title="메모"
+        />
+        {additionalPanel === 'note' ? (
+          <DayNoteEditor note={note} onChange={setNote} showTitle={false} />
+        ) : null}
       </AdditionalSettingsSection>
     </Screen>
   );

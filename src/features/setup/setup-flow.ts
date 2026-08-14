@@ -1,5 +1,9 @@
 import type { RotationPattern, ShiftType } from '../../models/app-data';
-import type { SetupStep } from '../../services/setup-draft-service';
+import type {
+  SetupStep,
+  SetupWorkTimeField,
+} from '../../services/setup-draft-service';
+import type { ScheduleSafetyResult } from '../../services/schedule-safety-service';
 import { addDays, isValidDateKey } from '../../utils/date';
 import {
   calculateShiftDuration,
@@ -91,6 +95,53 @@ export type InitialSetupPayload = {
 export type SetupSuggestedWorkTimes = Partial<
   Record<Exclude<BaseWorkShiftId, 'off'>, { start: string; end: string }>
 >;
+
+export type SetupWorkTimeValues = Record<SetupWorkTimeField, string>;
+
+export function createSetupSequenceSignature(
+  sequence: readonly BaseWorkShiftId[],
+): string {
+  return `sequence:v1:${sequence.join(',')}`;
+}
+
+export function createSetupWorkTimeSignature({
+  sequence,
+  values,
+}: {
+  sequence: readonly BaseWorkShiftId[];
+  values: SetupWorkTimeValues;
+}): string {
+  const activeShiftIds = [...new Set(sequence)].filter(
+    (id): id is Exclude<BaseWorkShiftId, 'off'> => id !== 'off',
+  );
+  return `times:v1:${activeShiftIds
+    .map((id) => `${id}:${values[`${id}Start`]}-${values[`${id}End`]}`)
+    .join('|')}`;
+}
+
+/** 사용자가 고친 필드는 보존하고 아직 손대지 않은 필드에만 대표 시간을 채워요. */
+export function applySetupPresetSuggestions({
+  editedFields,
+  suggestedTimes,
+  values,
+}: {
+  editedFields: readonly SetupWorkTimeField[];
+  suggestedTimes: SetupSuggestedWorkTimes | null;
+  values: SetupWorkTimeValues;
+}): SetupWorkTimeValues {
+  if (!suggestedTimes) return values;
+  const edited = new Set(editedFields);
+  const next = { ...values };
+  for (const id of ['day', 'evening', 'night'] as const) {
+    const suggestion = suggestedTimes[id];
+    if (!suggestion) continue;
+    const startField = `${id}Start` as SetupWorkTimeField;
+    const endField = `${id}End` as SetupWorkTimeField;
+    if (!edited.has(startField)) next[startField] = suggestion.start;
+    if (!edited.has(endField)) next[endField] = suggestion.end;
+  }
+  return next;
+}
 
 /**
  * 회사별 시간이 크게 다르므로 프리셋의 첫 선택 때만 보여줄 대표 예시예요.
@@ -302,11 +353,15 @@ type BuildInitialSetupPayloadInput = {
   nightDuration: ShiftDuration | null;
   nightEndMinutes: number | null;
   nightStartMinutes: number | null;
+  safetyResult?: ScheduleSafetyResult;
 };
 
 export function buildInitialSetupPayload(
   input: BuildInitialSetupPayloadInput,
 ): InitialSetupPayload {
+  if (input.safetyResult && !input.safetyResult.canSave) {
+    throw new RangeError('서로 겹치는 근무 시간을 먼저 수정해 주세요.');
+  }
   const presetId =
     input.presetId ??
     (input.patternKind === 'weekday' ? 'weekday' : 'three-team-two-shift');
@@ -361,7 +416,8 @@ export function buildInitialSetupPayload(
       referenceDate: input.referenceDate,
       shiftTypeIds: sequence,
     }),
-    notificationsEnabled: input.alarmsWanted,
+    notificationsEnabled:
+      input.alarmsWanted && (input.safetyResult?.canEnableAlarms ?? true),
     shiftTypePatches,
   };
 }

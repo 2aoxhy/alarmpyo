@@ -21,6 +21,8 @@ describe('구조화된 저장 결과', () => {
     ['reset-marker-cleanup-failed', 'partial', 'retry-save'],
     ['sleep-reminder-sync-failed', 'partial', 'retry-sleep-reminders'],
     ['alarm-sync-failed', 'partial', 'retry-alarms'],
+    ['invalid-work-schedule', 'failure', null],
+    ['unsafe-alarm-schedule', 'partial', null],
   ] as const)(
     '%s 원인을 정확한 결과와 재시도로 연결해요',
     (issueCode, status, retryAction) => {
@@ -33,6 +35,19 @@ describe('구조화된 저장 결과', () => {
       });
     },
   );
+
+  it('위험 일정 안내는 일정 수정 전 의미 없는 재시도 버튼을 만들지 않아요', () => {
+    const outcome = createSaveIssueOutcome(
+      'unsafe-alarm-schedule',
+      '근무 시간과 순서를 확인해 주세요.',
+    );
+
+    expect(outcome.retryAction).toBeNull();
+    expect(getSaveRetryActions(outcome)).toEqual([]);
+    expect(
+      clearSaveIssuesByRetryAction(outcome, 'retry-save'),
+    ).toEqual(outcome);
+  });
 
   it.each([
     ['retry-save', 'save'],

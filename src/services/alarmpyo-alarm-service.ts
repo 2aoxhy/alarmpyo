@@ -76,6 +76,27 @@ export type AlarmPyoAlarmTriggerState =
 
 export type AlarmPyoAlarmStorageHealth = 'normal' | 'recovered' | 'corrupt';
 
+export type AlarmPyoAlarmRuntimeResetIssueCode =
+  | 'work-alarms'
+  | 'sleep-reminders'
+  | 'quick-timer'
+  | 'active-alarm'
+  | 'alarm-sound'
+  | 'restore-journal'
+  | 'alarm-history';
+
+export type AlarmPyoAlarmRuntimeResetResult = {
+  outcome: 'success' | 'partial' | 'failure';
+  workAlarmsReset: boolean;
+  sleepRemindersReset: boolean;
+  quickTimerReset: boolean;
+  activeAlarmStopped: boolean;
+  alarmSoundReset: boolean;
+  restoreJournalReset: boolean;
+  alarmHistoryReset: boolean;
+  issueCodes: AlarmPyoAlarmRuntimeResetIssueCode[];
+};
+
 export type AlarmPyoWidgetPinStatus =
   | 'requested'
   | 'installed'
@@ -102,6 +123,15 @@ const ALARM_EVENT_TYPES = new Set<AlarmPyoAlarmEventType>([
   'retry_started',
   'retry_scheduled',
   'retry_exhausted',
+]);
+const ALARM_RUNTIME_RESET_ISSUE_CODES = new Set<AlarmPyoAlarmRuntimeResetIssueCode>([
+  'work-alarms',
+  'sleep-reminders',
+  'quick-timer',
+  'active-alarm',
+  'alarm-sound',
+  'restore-journal',
+  'alarm-history',
 ]);
 
 const UNSUPPORTED_STATUS: AlarmPyoAlarmStatus = {
@@ -151,6 +181,43 @@ function cloneStatus(status: AlarmPyoAlarmStatus): AlarmPyoAlarmStatus {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function normalizeAlarmPyoRuntimeResetResult(
+  value: unknown,
+): AlarmPyoAlarmRuntimeResetResult | null {
+  if (!isRecord(value)) return null;
+  const outcome = value.outcome;
+  const issueCodes = value.issueCodes;
+  if (
+    (outcome !== 'success' && outcome !== 'partial' && outcome !== 'failure') ||
+    typeof value.workAlarmsReset !== 'boolean' ||
+    typeof value.sleepRemindersReset !== 'boolean' ||
+    typeof value.quickTimerReset !== 'boolean' ||
+    typeof value.activeAlarmStopped !== 'boolean' ||
+    typeof value.alarmSoundReset !== 'boolean' ||
+    typeof value.restoreJournalReset !== 'boolean' ||
+    typeof value.alarmHistoryReset !== 'boolean' ||
+    !Array.isArray(issueCodes) ||
+    !issueCodes.every(
+      (code) =>
+        typeof code === 'string' &&
+        ALARM_RUNTIME_RESET_ISSUE_CODES.has(code as AlarmPyoAlarmRuntimeResetIssueCode),
+    )
+  ) {
+    return null;
+  }
+  return {
+    outcome,
+    workAlarmsReset: value.workAlarmsReset,
+    sleepRemindersReset: value.sleepRemindersReset,
+    quickTimerReset: value.quickTimerReset,
+    activeAlarmStopped: value.activeAlarmStopped,
+    alarmSoundReset: value.alarmSoundReset,
+    restoreJournalReset: value.restoreJournalReset,
+    alarmHistoryReset: value.alarmHistoryReset,
+    issueCodes: [...new Set(issueCodes as AlarmPyoAlarmRuntimeResetIssueCode[])],
+  };
 }
 
 function normalizeAlarmPlan(value: unknown): AlarmPyoAlarmPlan | null {
@@ -531,6 +598,23 @@ export async function cancelAllAlarmPyoAlarms(): Promise<AlarmPyoAlarmStatus> {
     const status = normalizeStatus(await nativeModule.cancelAllAsync());
     rememberStatus(status, cacheGeneration);
     return cloneStatus(status);
+  });
+}
+
+/** 새 네이티브 런타임의 모든 알람 상태를 한 트랜잭션으로 초기화해요. */
+export async function resetAlarmPyoRuntime(): Promise<AlarmPyoAlarmRuntimeResetResult | null> {
+  if (!nativeModule?.resetAlarmRuntimeAsync) return null;
+  latestSyncGeneration += 1;
+  invalidateStatusCache();
+  return enqueueNativeMutation(async () => {
+    const result = normalizeAlarmPyoRuntimeResetResult(
+      await nativeModule.resetAlarmRuntimeAsync!(),
+    );
+    invalidateStatusCache();
+    if (result === null) {
+      throw new Error('네이티브 알람 초기화 결과를 확인하지 못했어요.');
+    }
+    return result;
   });
 }
 

@@ -10,6 +10,19 @@ function source(path: string) {
 }
 
 describe('첫 설정과 근무 시간 편집 계약', () => {
+  it('첫 화면은 네 분류만 보여주고 2·3교대의 조 수를 나중에 선택해요', () => {
+    const components = source('src/features/setup/setup-components.tsx');
+    const patterns = source('src/utils/work-pattern.ts');
+
+    expect(components).toContain('WORK_PATTERN_CATEGORIES.map');
+    expect(components).toContain("categoryId === 'two-shift' || categoryId === 'three-shift'");
+    expect(components).toContain('조 수를 선택해요');
+    expect(patterns).toContain("name: '주간 고정'");
+    expect(patterns).toContain("name: '2교대'");
+    expect(patterns).toContain("name: '3교대'");
+    expect(patterns).toContain("name: '기타'");
+  });
+
   it('주간 고정에서도 주간 시간을 편집하고 방식 전환 시 입력값을 유지해요', () => {
     const setup = source('src/app/setup.tsx');
     const shiftSettings = source('src/app/shift-settings.tsx');
@@ -36,12 +49,14 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
     expect(pattern).not.toContain('DAY_SHIFT_END_MINUTES');
   });
 
-  it('초안 복원이나 시간 편집 전까지 프리셋별 대표 시간을 적용하고 회사 시간 편집을 안내해요', () => {
+  it('손대지 않은 시간에만 프리셋 대표 시간을 적용하고 회사 시간 확인을 요구해요', () => {
     const setup = source('src/app/setup.tsx');
 
-    expect(setup).toContain('shouldApplySetupPresetSuggestion({ resumedDraft, workTimesEdited })');
+    expect(setup).toContain('applySetupPresetSuggestions({');
+    expect(setup).toContain('editedFields: editedWorkTimeFields');
     expect(setup).toContain('getSuggestedWorkTimesForPreset(nextPresetId)');
-    expect(setup).toContain('setWorkTimesEdited(true)');
+    expect(setup).toContain("markWorkTimeEdited('dayStart')");
+    expect(setup).toContain('이 시간이 맞아요');
     expect(setup).toContain('대표 예시이며 회사 시간에 맞게 변경해 주세요.');
   });
 
@@ -57,13 +72,15 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
     expect(pattern).toContain('이 순서는 주간 고정과 같아');
   });
 
-  it('알람 권한은 사용자가 선택할 때만 요청하고 건너뛸 수 있다고 안내해요', () => {
+  it('알람 권한은 안전한 일정에서 사용자가 선택할 때만 요청해요', () => {
     const setup = source('src/app/setup.tsx');
 
     expect(setup).toContain('useState(false)');
-    expect(setup).toContain('if (alarmsWanted)');
-    expect(setup).toContain('정확한 알람·일반 알림·전체 화면 알람');
-    expect(setup).toContain('지금 건너뛰어도 나중에 알람에서 다시 설정할 수 있어요.');
+    expect(setup).toContain('if (effectiveAlarmsWanted)');
+    expect(setup).toContain('disabled={!scheduleSafety.canEnableAlarms}');
+    expect(setup).toContain('safetyResult: scheduleSafety');
+    expect(setup).toContain('!scheduleSafety.canSave');
+    expect(setup).toContain('지금 건너뛰어도 설정의 알람에서 나중에 켤 수 있어요.');
   });
 
   it('진입 목적에 맞게 근무 시간과 기상 시간 제목을 구분해요', () => {
@@ -84,6 +101,6 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
 
     expect(setup).toContain('자료는 이 휴대폰에만 저장돼요');
     expect(setup).toContain('앱을 삭제하면 근무표·메모·설정도 함께 사라져요.');
-    expect(setup).toContain('설정의 데이터 메뉴에서 백업 파일을 만들어');
+    expect(setup).toContain('설정 후 데이터 메뉴에서 외부 백업을 만들 수 있어요.');
   });
 });

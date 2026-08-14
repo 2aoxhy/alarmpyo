@@ -174,7 +174,23 @@ internal object AlarmPyoAlarmScheduler {
     val previousRepeats = AlarmPyoAlarmStore.readSingleRepeats(appContext)
 
     // 시험 알람은 진단 중에만 의미가 있으므로 재부팅·업데이트 뒤에는 남기지 않습니다.
-    val activeRepeats = restorableSingleRepeats(previousRepeats)
+    val repeatRestoreNow = System.currentTimeMillis()
+    val repeatRestoreElapsed = alarmPyoElapsedRealtime()
+    val repeatRestoreBootCount = alarmPyoBootCount(appContext)
+    val activeRepeats = previousRepeats.mapNotNull { repeat ->
+      if (!repeat.isSingleRepeat()) {
+        null
+      } else {
+        AlarmPyoSingleRepeatTimingPolicy.rebaseForRestore(
+          repeat,
+          currentBootCount = repeatRestoreBootCount,
+          nowWallClock = repeatRestoreNow,
+          nowElapsed = repeatRestoreElapsed,
+          overdueGraceMillis = MISSED_ALARM_GRACE_MILLIS
+        )
+      }
+    }.distinctBy(AlarmPyoAlarmPlan::rootPlanId)
+      .sortedBy(AlarmPyoAlarmPlan::alarmAt)
     AlarmPyoAlarmStore.writeSingleRepeats(
       appContext,
       activeRepeats
@@ -224,7 +240,7 @@ internal object AlarmPyoAlarmScheduler {
       val storedPlan = AlarmPyoAlarmStore.readSingleRepeats(appContext)
         .firstOrNull { it.hasSameDeliveryGeneration(intentPlan) }
         ?: return null
-      if (!isWithinFiringWindow(storedPlan)) {
+      if (!isWithinFiringWindow(appContext, storedPlan)) {
         removeSingleRepeat(appContext, storedPlan.rootPlanId)
         reconcileSingleRepeats(appContext)
         return null
@@ -234,7 +250,7 @@ internal object AlarmPyoAlarmScheduler {
     if (intent.getBooleanExtra(EXTRA_IS_TEST, false)) {
       val storedAlarmAt = AlarmPyoAlarmStore.readTestAlarmAt(appContext)
       if (storedAlarmAt != intentPlan.alarmAt) return null
-      if (!isWithinFiringWindow(intentPlan)) {
+      if (!isWithinFiringWindow(appContext, intentPlan)) {
         AlarmPyoAlarmStore.writeTestAlarmAt(appContext, 0L)
         return null
       }
@@ -243,7 +259,7 @@ internal object AlarmPyoAlarmScheduler {
     val storedPlan = AlarmPyoAlarmStore.readPlans(appContext)
       .firstOrNull { it.hasSameDeliveryGeneration(intentPlan) }
       ?: return null
-    if (!isWithinFiringWindow(storedPlan)) {
+    if (!isWithinFiringWindow(appContext, storedPlan)) {
       reconcileInternal(appContext)
       return null
     }
@@ -385,12 +401,18 @@ internal object AlarmPyoAlarmScheduler {
     }
     val confirmedRetryAt = requireNotNull(retryAt)
 
-    val retryPlan = currentPlan.copy(
+    var retryPlan = currentPlan.copy(
       alarmAt = confirmedRetryAt,
       originalAlarmAt = originalAlarmAt,
       deliveryAttempt = currentPlan.deliveryAttempt + 1
     )
     if (retryPlan.isSingleRepeat()) {
+      val nowElapsed = alarmPyoElapsedRealtime()
+      retryPlan = retryPlan.copy(
+        countdownStartedAtElapsed = nowElapsed,
+        fireAtElapsed = Math.addExact(nowElapsed, confirmedRetryAt - now),
+        bootCount = alarmPyoBootCount(appContext)
+      )
       if (!replaceStoredSingleRepeat(appContext, currentPlan, retryPlan)) return null
       val scheduled = runCatching {
         setAlarmClock(
@@ -537,7 +559,6 @@ internal object AlarmPyoAlarmScheduler {
     nowMillis: Long = System.currentTimeMillis()
   ): List<AlarmPyoAlarmPlan> = plans.filter { plan ->
     plan.isSingleRepeat() &&
-      plan.shiftTypeId != "test" &&
       plan.originalAlarmAt > nowMillis - MISSED_ALARM_GRACE_MILLIS
   }.distinctBy(AlarmPyoAlarmPlan::rootPlanId)
     .sortedBy(AlarmPyoAlarmPlan::alarmAt)
@@ -711,8 +732,18 @@ internal object AlarmPyoAlarmScheduler {
     if (plans != futurePlans) AlarmPyoAlarmStore.writePlans(context, futurePlans)
   }
 
-  private fun isWithinFiringWindow(plan: AlarmPyoAlarmPlan): Boolean {
+  private fun isWithinFiringWindow(context: Context, plan: AlarmPyoAlarmPlan): Boolean {
     val now = System.currentTimeMillis()
+    if (plan.isSingleRepeat()) {
+      val remaining = AlarmPyoSingleRepeatTimingPolicy.remainingMillis(
+        plan,
+        currentBootCount = alarmPyoBootCount(context),
+        nowWallClock = now,
+        nowElapsed = alarmPyoElapsedRealtime()
+      )
+      return remaining <= EARLY_DELIVERY_TOLERANCE_MILLIS &&
+        remaining >= -MISSED_ALARM_GRACE_MILLIS
+    }
     val originalAlarmAt = plan.originalAlarmAt.takeIf { it > 0L } ?: plan.alarmAt
     return plan.alarmAt > 0L &&
       plan.alarmAt <= now + EARLY_DELIVERY_TOLERANCE_MILLIS &&
@@ -740,7 +771,16 @@ internal object AlarmPyoAlarmScheduler {
   ): AlarmPyoAlarmPlan? {
     if (alarmAt <= System.currentTimeMillis()) return null
     val before = AlarmPyoAlarmStore.readSingleRepeats(context)
-    val repeat = createSingleRepeatPlan(original, alarmAt)
+    val nowWallClock = System.currentTimeMillis()
+    val delayMillis = alarmAt - nowWallClock
+    if (delayMillis <= 0L) return null
+    val repeat = AlarmPyoSingleRepeatTimingPolicy.arm(
+      createSingleRepeatPlan(original, alarmAt),
+      nowWallClock = nowWallClock,
+      nowElapsed = alarmPyoElapsedRealtime(),
+      currentBootCount = alarmPyoBootCount(context),
+      delayMillis = delayMillis
+    )
     AlarmPyoAlarmStore.writeSingleRepeats(context, upsertSingleRepeat(before, repeat))
     return runCatching {
       setAlarmClock(
@@ -768,7 +808,7 @@ internal object AlarmPyoAlarmScheduler {
     }
   }
 
-  private fun hasCurrentDeliveryGeneration(
+  internal fun hasCurrentDeliveryGeneration(
     context: Context,
     plan: AlarmPyoAlarmPlan,
     isTest: Boolean
@@ -908,8 +948,36 @@ internal object AlarmPyoAlarmScheduler {
   ) {
     val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val operation = alarmPendingIntent(context, plan, isTest, requestCode)
-    val showIntent = alarmListPendingIntent(context, requestCode)
-    manager.setAlarmClock(AlarmManager.AlarmClockInfo(plan.alarmAt, showIntent), operation)
+    if (
+      plan.isSingleRepeat() &&
+      AlarmPyoSingleRepeatTimingPolicy.isSameBootMonotonicTarget(
+        plan,
+        alarmPyoBootCount(context)
+      )
+    ) {
+      when {
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M ->
+          manager.setExactAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            plan.fireAtElapsed,
+            operation
+          )
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT ->
+          manager.setExact(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            plan.fireAtElapsed,
+            operation
+          )
+        else -> manager.set(
+          AlarmManager.ELAPSED_REALTIME_WAKEUP,
+          plan.fireAtElapsed,
+          operation
+        )
+      }
+    } else {
+      val showIntent = alarmListPendingIntent(context, requestCode)
+      manager.setAlarmClock(AlarmManager.AlarmClockInfo(plan.alarmAt, showIntent), operation)
+    }
   }
 
   private fun alarmPendingIntent(

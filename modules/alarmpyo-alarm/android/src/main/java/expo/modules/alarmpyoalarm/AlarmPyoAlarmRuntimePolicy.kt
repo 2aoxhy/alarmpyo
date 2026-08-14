@@ -24,4 +24,12 @@ internal object AlarmPyoAlarmRuntimePolicy {
 
   fun audioFocusGranted(requestResult: Int, grantedResult: Int): Boolean =
     requestResult == grantedResult
+
+  fun shouldExpirePreemptedDelivery(
+    incomingSource: AlarmPyoAlarmSource,
+    activeSource: AlarmPyoAlarmSource,
+    retryArmed: Boolean
+  ): Boolean = incomingSource == AlarmPyoAlarmSource.TIMER &&
+    activeSource == AlarmPyoAlarmSource.WORK &&
+    !retryArmed
 }

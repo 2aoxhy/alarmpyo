@@ -43,7 +43,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-현재 V05 Play 후보는 `versionCode: 6`이에요. V04(5)가 Play Alpha·테스터 업데이트 계보에 사용됐으므로 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 보수적으로 `5`예요. 후보를 업로드하기 전에 두 확인 결과를 `.release/play/release-evidence.json`에 기록하고, 추정값을 넣지 않아요. 확인 결과가 예제보다 높으면 실제 값으로 바꾸고, 둘 중 하나라도 `6` 이상이면 실제 최고값보다 큰 versionCode로 다시 정해 문서·설정·증거를 함께 갱신해요.
+2026-08-15 Play Console에서 확인한 활성 Alpha 최고값은 V05 `versionCode: 6`이며, 현재 V07 후보는 `versionCode: 7`이에요. 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 `6`으로 기록해요. 후보 업로드 직전에 두 값을 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록해요. 둘 중 하나라도 `7` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신해요.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인해요
 

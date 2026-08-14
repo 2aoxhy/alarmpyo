@@ -7,6 +7,7 @@ import {
   BackHandler,
   Easing,
   Platform,
+  Pressable,
   Share,
   StyleSheet,
   useWindowDimensions,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppDialog } from '@/components/app-dialog';
+import { AppSheet } from '@/components/app-sheet';
 import { Screen } from '@/components/ui-kit';
 import { spacing } from '@/constants/app-theme';
 import { CalendarMonthCard } from '@/features/calendar/calendar-month-card';
@@ -22,6 +24,7 @@ import { CalendarScreenHeader } from '@/features/calendar/calendar-screen-header
 import { CalendarSelectionPanel } from '@/features/calendar/calendar-selection-panel';
 import {
   CalendarHolidayNotice,
+  CalendarLegend,
   CalendarLargeTextStatusSummary,
   CalendarMenuSections,
 } from '@/features/calendar/calendar-support-sections';
@@ -82,11 +85,12 @@ export default function CalendarScreen() {
     month: initial.getMonth(),
   });
   const [bulkSaving, setBulkSaving] = useState(false);
-  const [legendExpanded, setLegendExpanded] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [selectionArmed, setSelectionArmed] = useState(false);
   const [selectedDateKeys, setSelectedDateKeys] = useState<readonly string[]>([]);
   const selectedDateKeysRef = useRef<readonly string[]>([]);
   const calendarGridRef = useRef<View>(null);
+  const legendTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const calendarGridFrameRef = useRef<CalendarGridFrame>({ x: 0, y: 0, width: 0 });
   const calendarRowLayoutsRef = useRef<Record<number, CalendarRowLayout>>({});
   const calendarDragSessionRef = useRef<CalendarDragSession | null>(null);
@@ -198,7 +202,7 @@ export default function CalendarScreen() {
   }, []);
 
   const startDateSelection = useCallback(() => {
-    setLegendExpanded(false);
+    setLegendOpen(false);
     setSelectionArmed(true);
     void Haptics.selectionAsync();
     AccessibilityInfo.announceForAccessibility(
@@ -619,7 +623,8 @@ export default function CalendarScreen() {
   ]);
 
   return (
-    <Screen
+    <>
+      <Screen
       contentStyle={[screenStyles.screen, { paddingHorizontal: calendarLayout.screenInset }]}
       footerBottomOffset={selectionMode ? selectionTabBarOffset : 0}
       footer={
@@ -750,15 +755,19 @@ export default function CalendarScreen() {
       />
 
       <CalendarMenuSections
-        isDark={isDark}
-        legendExpanded={legendExpanded}
-        onToggleLegend={() => {
-          setLegendExpanded((expanded) => !expanded);
-        }}
-        shiftTypes={data.shiftTypes}
+        onOpenLegend={() => setLegendOpen(true)}
+        triggerRef={legendTriggerRef}
       />
 
-    </Screen>
+      </Screen>
+      <AppSheet
+        onClose={() => setLegendOpen(false)}
+        returnFocusRef={legendTriggerRef}
+        title="달력 표시 안내"
+        visible={legendOpen}>
+        <CalendarLegend isDark={isDark} shiftTypes={data.shiftTypes} />
+      </AppSheet>
+    </>
   );
 }
 

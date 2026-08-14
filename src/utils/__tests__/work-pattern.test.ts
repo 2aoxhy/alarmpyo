@@ -6,6 +6,7 @@ import {
   createWorkPatternFromReference,
   getPatternPositionForDate,
   getEffectiveWorkPatternPresetId,
+  getWorkPatternCategoryId,
   getPositionAfterReferenceDateChange,
   getRotationPatternPositionForDate,
   getWeekdayPatternPosition,
@@ -18,6 +19,7 @@ import {
   WEEKDAY_PATTERN_NAME,
   WEEKDAY_PATTERN_SHIFT_TYPE_IDS,
   WORK_PATTERN_PRESETS,
+  WORK_PATTERN_CATEGORIES,
 } from '../work-pattern';
 
 describe('근무 방식 판별', () => {
@@ -35,6 +37,18 @@ describe('근무 방식 판별', () => {
       .toEqual(['day', 'evening', 'night']);
     expect(WORK_PATTERN_PRESETS.find((preset) => preset.id === 'four-team-three-shift')?.shiftTypeIds)
       .toEqual(['day', 'evening', 'night', 'off']);
+  });
+
+  it('첫 설정에서는 프리셋을 네 가지 근무 분류로 묶습니다', () => {
+    expect(WORK_PATTERN_CATEGORIES.map((category) => category.id)).toEqual([
+      'weekday',
+      'two-shift',
+      'three-shift',
+      'custom',
+    ]);
+    expect(getWorkPatternCategoryId('four-team-two-shift')).toBe('two-shift');
+    expect(getWorkPatternCategoryId('three-team-three-shift')).toBe('three-shift');
+    expect(getWorkPatternCategoryId(null)).toBeNull();
   });
 
   it('기존 분기 계약에서 주간 고정과 모든 대표 반복 교대를 판별합니다', () => {
@@ -69,6 +83,9 @@ describe('근무 방식 판별', () => {
       getEffectiveWorkPatternPresetId('four-team-two-shift', WEEKDAY_PATTERN_SHIFT_TYPE_IDS),
     ).toBe('weekday');
     expect(getEffectiveWorkPatternPresetId('weekday', ['day', 'off'])).toBe('custom');
+    expect(
+      getEffectiveWorkPatternPresetId('four-team-two-shift', ['day', 'night']),
+    ).toBe('two-team-two-shift');
     expect(getEffectiveWorkPatternPresetId(null, WEEKDAY_PATTERN_SHIFT_TYPE_IDS)).toBeNull();
   });
 

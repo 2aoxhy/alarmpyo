@@ -22,11 +22,13 @@ const EXCEPTION_OPTIONS: readonly {
 type SpecialScheduleSectionProps = {
   dayException: DayExceptionType | null;
   onChange: (value: DayExceptionType | null) => void;
+  showTitle?: boolean;
 };
 
 export function SpecialScheduleSection({
   dayException,
   onChange,
+  showTitle = true,
 }: SpecialScheduleSectionProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -34,9 +36,8 @@ export function SpecialScheduleSection({
     ? getDayExceptionAppearance(dayException, palette)
     : null;
 
-  return (
-    <MenuGroup centered title="특별 일정" style={styles.sectionGroup}>
-      <View style={styles.exceptionCard}>
+  const content = (
+    <View style={styles.exceptionCard}>
         <View accessibilityRole="radiogroup" style={styles.exceptionGrid}>
           {EXCEPTION_OPTIONS.map((option) => {
             const selected = dayException === option.value;
@@ -95,9 +96,13 @@ export function SpecialScheduleSection({
             </AppText>
           </View>
         ) : null}
-      </View>
-    </MenuGroup>
+    </View>
   );
+  return showTitle ? (
+    <MenuGroup centered title="특별 일정" style={styles.sectionGroup}>
+      {content}
+    </MenuGroup>
+  ) : content;
 }
 
 function createStyles(palette: AppPalette) {

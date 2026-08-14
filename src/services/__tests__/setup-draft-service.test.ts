@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   clearSetupDraft,
+  isMeaningfulSetupDraft,
   readSetupDraft,
   SETUP_DRAFT_STORAGE_KEY,
   SETUP_DRAFT_VERSION,
@@ -39,10 +40,13 @@ const draft: SetupDraft = {
   nightStart: '23:00',
   nightEnd: '07:00',
   alarmsWanted: true,
+  editedWorkTimeFields: ['dayStart'],
+  confirmedSequenceSignature: 'sequence:v1:day,evening,night',
+  confirmedWorkTimeSignature: 'times:v1:day:07:00-15:00|evening:15:00-23:00|night:23:00-07:00',
 };
 
 describe('initial setup draft', () => {
-  it('round-trips the v3 preset, editable sequence, and all three work times', async () => {
+  it('round-trips the v4 preset, confirmation signatures, and field edit sources', async () => {
     const storage = new MemoryStorage();
     await writeSetupDraft(draft, storage);
     await expect(readSetupDraft(storage)).resolves.toEqual(draft);
@@ -113,7 +117,69 @@ describe('initial setup draft', () => {
       nightStart: '18:00',
       nightEnd: '06:45',
       alarmsWanted,
+      editedWorkTimeFields: [
+        'dayStart',
+        'dayEnd',
+        'eveningStart',
+        'eveningEnd',
+        'nightStart',
+        'nightEnd',
+      ],
+      confirmedSequenceSignature: null,
+      confirmedWorkTimeSignature: null,
     });
+  });
+
+  it('migrates a v3 draft without replacing any restored work time', async () => {
+    const storage = new MemoryStorage();
+    storage.values.set(
+      SETUP_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        ...draft,
+        version: 3,
+        editedWorkTimeFields: undefined,
+        confirmedSequenceSignature: undefined,
+        confirmedWorkTimeSignature: undefined,
+      }),
+    );
+
+    await expect(readSetupDraft(storage)).resolves.toMatchObject({
+      version: SETUP_DRAFT_VERSION,
+      editedWorkTimeFields: [
+        'dayStart',
+        'dayEnd',
+        'eveningStart',
+        'eveningEnd',
+        'nightStart',
+        'nightEnd',
+      ],
+      confirmedSequenceSignature: null,
+      confirmedWorkTimeSignature: null,
+    });
+  });
+
+  it('does not treat an untouched v3 placeholder draft as edited input', async () => {
+    const storage = new MemoryStorage();
+    storage.values.set(
+      SETUP_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        ...draft,
+        version: 3,
+        step: 1,
+        presetId: null,
+        position: null,
+        editedWorkTimeFields: undefined,
+        confirmedSequenceSignature: undefined,
+        confirmedWorkTimeSignature: undefined,
+      }),
+    );
+
+    const restored = await readSetupDraft(storage);
+    expect(restored).toMatchObject({
+      editedWorkTimeFields: [],
+      presetId: null,
+    });
+    expect(restored && isMeaningfulSetupDraft(restored)).toBe(false);
   });
 
   it('migrates a legacy weekday draft without changing its weekday position', async () => {

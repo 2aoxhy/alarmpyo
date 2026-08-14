@@ -12,9 +12,20 @@ import {
 import { isValidDateKey } from '../utils/date';
 
 export const SETUP_DRAFT_STORAGE_KEY = 'alarmpyo:setup-draft:v1';
-export const SETUP_DRAFT_VERSION = 3 as const;
+export const SETUP_DRAFT_VERSION = 4 as const;
 
 export type SetupStep = 1 | 2 | 3;
+
+export const SETUP_WORK_TIME_FIELDS = [
+  'dayStart',
+  'dayEnd',
+  'eveningStart',
+  'eveningEnd',
+  'nightStart',
+  'nightEnd',
+] as const;
+
+export type SetupWorkTimeField = (typeof SETUP_WORK_TIME_FIELDS)[number];
 
 export type SetupDraft = {
   version: typeof SETUP_DRAFT_VERSION;
@@ -30,6 +41,9 @@ export type SetupDraft = {
   nightStart: string;
   nightEnd: string;
   alarmsWanted: boolean;
+  editedWorkTimeFields: SetupWorkTimeField[];
+  confirmedSequenceSignature: string | null;
+  confirmedWorkTimeSignature: string | null;
 };
 
 type SetupDraftStorage = Pick<
@@ -43,6 +57,19 @@ function isSetupStep(value: unknown): value is SetupStep {
 
 function isShortString(value: unknown, maxLength: number): value is string {
   return typeof value === 'string' && value.length <= maxLength;
+}
+
+function isNullableShortString(value: unknown, maxLength: number): value is string | null {
+  return value === null || isShortString(value, maxLength);
+}
+
+function parseEditedWorkTimeFields(value: unknown): SetupWorkTimeField[] | null {
+  if (!Array.isArray(value)) return null;
+  const known = new Set<SetupWorkTimeField>(SETUP_WORK_TIME_FIELDS);
+  if (!value.every((field) => typeof field === 'string' && known.has(field as SetupWorkTimeField))) {
+    return null;
+  }
+  return [...new Set(value as SetupWorkTimeField[])];
 }
 
 function isPresetId(value: unknown): value is WorkPatternPresetId {
@@ -78,6 +105,7 @@ function parseCurrentSetupDraft(item: Record<string, unknown>): SetupDraft | nul
   const presetId = item.presetId;
   const position = item.position;
   const sequence = item.sequence;
+  const editedWorkTimeFields = parseEditedWorkTimeFields(item.editedWorkTimeFields);
   if (
     (presetId !== null && !isPresetId(presetId)) ||
     !Array.isArray(sequence) ||
@@ -93,7 +121,10 @@ function parseCurrentSetupDraft(item: Record<string, unknown>): SetupDraft | nul
     !isShortString(item.eveningEnd, 8) ||
     !isShortString(item.nightStart, 8) ||
     !isShortString(item.nightEnd, 8) ||
-    typeof item.alarmsWanted !== 'boolean'
+    typeof item.alarmsWanted !== 'boolean' ||
+    editedWorkTimeFields === null ||
+    !isNullableShortString(item.confirmedSequenceSignature, 512) ||
+    !isNullableShortString(item.confirmedWorkTimeSignature, 512)
   ) {
     return null;
   }
@@ -112,7 +143,23 @@ function parseCurrentSetupDraft(item: Record<string, unknown>): SetupDraft | nul
     nightStart: item.nightStart,
     nightEnd: item.nightEnd,
     alarmsWanted: item.alarmsWanted,
+    editedWorkTimeFields,
+    confirmedSequenceSignature: item.confirmedSequenceSignature,
+    confirmedWorkTimeSignature: item.confirmedWorkTimeSignature,
   });
+}
+
+function parseVersionThreeSetupDraft(item: Record<string, unknown>): SetupDraft | null {
+  if (item.version !== 3) return null;
+  const compatible = parseCurrentSetupDraft({
+    ...item,
+    version: SETUP_DRAFT_VERSION,
+    editedWorkTimeFields:
+      item.presetId === null ? [] : [...SETUP_WORK_TIME_FIELDS],
+    confirmedSequenceSignature: null,
+    confirmedWorkTimeSignature: null,
+  });
+  return compatible;
 }
 
 function parseLegacySetupDraft(item: Record<string, unknown>): SetupDraft | null {
@@ -159,13 +206,22 @@ function parseLegacySetupDraft(item: Record<string, unknown>): SetupDraft | null
     nightEnd: item.nightEnd,
     // v1은 Android에서 알람이 자동 선택됐으므로 사용자 선택으로 간주하지 않아요.
     alarmsWanted: item.version === 2 ? item.alarmsWanted : false,
+    editedWorkTimeFields: [...SETUP_WORK_TIME_FIELDS],
+    confirmedSequenceSignature: null,
+    confirmedWorkTimeSignature: null,
   };
+}
+
+/** 자동 저장된 빈 1단계 초안은 이어하기 안내나 시간 제안을 막지 않아요. */
+export function isMeaningfulSetupDraft(draft: SetupDraft): boolean {
+  return draft.presetId !== null || draft.step !== 1 || draft.position !== null;
 }
 
 export function parseSetupDraft(value: unknown): SetupDraft | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
   if (item.version === SETUP_DRAFT_VERSION) return parseCurrentSetupDraft(item);
+  if (item.version === 3) return parseVersionThreeSetupDraft(item);
   return parseLegacySetupDraft(item);
 }
 

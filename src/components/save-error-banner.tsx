@@ -160,7 +160,10 @@ export function SaveErrorBanner() {
   const presentation = getSaveOutcomePresentation(displayOutcome);
   const additionalIssueCount = displayOutcome.issues.length - 1;
   const retryActions = getSaveRetryActions(displayOutcome);
-  const primaryRetryCopy = getRetryCopy(displayOutcome.retryAction);
+  const primaryRetryAction = displayOutcome.retryAction;
+  const primaryRetryCopy = primaryRetryAction === null
+    ? null
+    : getRetryCopy(primaryRetryAction);
   const visibleTitle = additionalIssueCount > 0
     ? `${presentation.title} · 외 ${additionalIssueCount}건`
     : presentation.title;
@@ -299,31 +302,33 @@ export function SaveErrorBanner() {
               </AppText>
               <AppIcon accessible={false} color={palette.inkMuted} name="chevron-down" size={17} />
             </Pressable>
-            <Pressable
-              accessibilityLabel={primaryRetryCopy.accessibilityLabel}
-              accessibilityRole="button"
-              accessibilityState={{
-                busy: retrying === displayOutcome.retryAction,
-                disabled: retrying !== null,
-              }}
-              disabled={retrying !== null}
-              onBlur={collapsedRetryFocus.onBlur}
-              onFocus={collapsedRetryFocus.onFocus}
-              onPress={() => void retry(displayOutcome.retryAction)}
-              style={({ pressed }) => [
-                styles.retryIconButton,
-                { backgroundColor: toneSoft },
-                pressed && retrying === null && styles.iconButtonPressed,
-                collapsedRetryFocus.focusVisible &&
-                  retrying === null &&
-                  styles.webFocusVisible,
-              ]}>
-              {retrying === displayOutcome.retryAction ? (
-                <ActivityIndicator color={toneColor} size="small" />
-              ) : (
-                <AppIcon accessible={false} color={toneColor} name="refresh-outline" size={20} />
-              )}
-            </Pressable>
+            {primaryRetryAction !== null && primaryRetryCopy ? (
+              <Pressable
+                accessibilityLabel={primaryRetryCopy.accessibilityLabel}
+                accessibilityRole="button"
+                accessibilityState={{
+                  busy: retrying === primaryRetryAction,
+                  disabled: retrying !== null,
+                }}
+                disabled={retrying !== null}
+                onBlur={collapsedRetryFocus.onBlur}
+                onFocus={collapsedRetryFocus.onFocus}
+                onPress={() => void retry(primaryRetryAction)}
+                style={({ pressed }) => [
+                  styles.retryIconButton,
+                  { backgroundColor: toneSoft },
+                  pressed && retrying === null && styles.iconButtonPressed,
+                  collapsedRetryFocus.focusVisible &&
+                    retrying === null &&
+                    styles.webFocusVisible,
+                ]}>
+                {retrying === primaryRetryAction ? (
+                  <ActivityIndicator color={toneColor} size="small" />
+                ) : (
+                  <AppIcon accessible={false} color={toneColor} name="refresh-outline" size={20} />
+                )}
+              </Pressable>
+            ) : null}
           </View>
         )}
       </View>

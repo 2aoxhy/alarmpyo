@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
   Platform,
@@ -30,8 +29,10 @@ import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
   CUSTOM_PATTERN_MAX_DAYS,
   CUSTOM_PATTERN_MIN_DAYS,
-  WORK_PATTERN_PRESETS,
+  WORK_PATTERN_CATEGORIES,
+  getWorkPatternPreset,
   type BaseWorkShiftId,
+  type WorkPatternCategoryId,
   type WorkPatternPresetId,
 } from '@/utils/work-pattern';
 
@@ -42,33 +43,23 @@ import {
 } from './setup-flow';
 
 export function SetupHero({ step }: { step: SetupScreenStep }) {
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
-    <LinearGradient
-      colors={isDark ? [palette.indigoSoft, palette.indigo] : [palette.navy, palette.violet]}
-      end={{ x: 1, y: 1 }}
-      start={{ x: 0, y: 0 }}
-      style={styles.hero}>
-      <View style={styles.heroGlow} />
+    <View style={styles.hero}>
       <View style={styles.logoMark}>
-        <AppIcon accessible={false} color={palette.white} name="calendar" size={24} />
+        <AppIcon accessible={false} color={palette.ink} name="calendar" size={22} />
       </View>
       <View style={styles.heroCopy}>
-        <AppText accessibilityRole="header" variant="title" color={palette.white}>
-          처음 설정
+        <AppText accessibilityRole="header" variant="heading">
+          처음 설정 · {step}/3
         </AppText>
-        <AppText variant="caption" color="rgba(255,255,255,0.82)">
-          약 1분이면 내 근무표를 만들 수 있어요.
-        </AppText>
-      </View>
-      <View style={styles.stepBadge}>
-        <AppText variant="label" color={palette.white}>
-          {step}/3
+        <AppText variant="caption" tone="secondary">
+          회사 순서와 시간을 확인해 내 근무표를 만들어요.
         </AppText>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -82,7 +73,7 @@ export function SetupProgress({ step }: { step: SetupScreenStep }) {
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 1, max: 3, now: step }}
       style={styles.progress}>
-      {(['근무 방식', '순서·시간', '첫 근무일'] as const).map((label, index) => {
+      {(['근무 방식', '순서·시간', '적용 시작일'] as const).map((label, index) => {
         const value = (index + 1) as SetupScreenStep;
         const active = value <= step;
         return (
@@ -102,12 +93,16 @@ export function SetupProgress({ step }: { step: SetupScreenStep }) {
 }
 
 export function WorkModeStep({
+  categoryId,
   presetId,
   stackOptions,
+  onSelectCategory,
   onSelect,
 }: {
+  categoryId: WorkPatternCategoryId | null;
   presetId: WorkPatternPresetId | null;
   stackOptions: boolean;
+  onSelectCategory: (categoryId: WorkPatternCategoryId) => void;
   onSelect: (presetId: WorkPatternPresetId) => void;
 }) {
   const { palette } = useAppTheme();
@@ -126,21 +121,50 @@ export function WorkModeStep({
       <View
         accessibilityRole="radiogroup"
         style={[styles.modeOptions, stackOptions && styles.modeOptionsStacked]}>
-        {WORK_PATTERN_PRESETS.map((preset) => (
+        {WORK_PATTERN_CATEGORIES.map((category) => (
           <ModeOption
-            description={preset.description}
-            icon={preset.id === 'weekday' ? 'shift-day' : 'repeat'}
-            iconColor={preset.id === 'weekday' ? palette.mintDark : palette.violet}
-            iconBackground={preset.id === 'weekday' ? palette.mintSoft : palette.violetSoft}
-            horizontal={stackOptions}
-            key={preset.id}
-            label={preset.name}
-            onPress={() => onSelect(preset.id)}
-            selected={presetId === preset.id}
-            style={stackOptions ? styles.modeOptionStacked : undefined}
+            description={category.description}
+            icon={category.id === 'weekday' ? 'shift-day' : 'repeat'}
+            iconColor={category.id === 'weekday' ? palette.mintDark : palette.inkMuted}
+            iconBackground={category.id === 'weekday' ? palette.mintSoft : palette.surfaceSoft}
+            horizontal
+            key={category.id}
+            label={category.name}
+            onPress={() => onSelectCategory(category.id)}
+            selected={categoryId === category.id}
+            style={styles.modeOptionStacked}
           />
         ))}
       </View>
+      {categoryId === 'two-shift' || categoryId === 'three-shift' ? (
+        <View style={styles.teamChoiceSection}>
+          <AppText variant="label">조 수를 선택해요</AppText>
+          <View accessibilityRole="radiogroup" style={styles.teamChoices}>
+            {WORK_PATTERN_CATEGORIES.find((category) => category.id === categoryId)?.presetIds.map(
+              (candidateId) => {
+                const preset = getWorkPatternPreset(candidateId);
+                return (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: presetId === candidateId }}
+                    key={candidateId}
+                    onPress={() => onSelect(candidateId)}
+                    style={({ pressed }) => [
+                      styles.teamChoice,
+                      presetId === candidateId && styles.teamChoiceSelected,
+                      pressed && styles.pressed,
+                    ]}>
+                    <AppText variant="label">{preset.shortName.replace(/\s*\d교대$/, '')}</AppText>
+                  </Pressable>
+                );
+              },
+            )}
+          </View>
+          <AppText variant="caption" tone="secondary">
+            선택 후 다음 화면에서 회사의 실제 순서와 시간을 확인해요.
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -311,7 +335,7 @@ export function PatternSequenceEditor({
               accessibilityHint="누르면 주간, 오후, 야간, 휴무 순서로 바뀌어요."
               accessibilityLabel={`${index + 1}일차 ${SEQUENCE_LABELS[id]}`}
               accessibilityRole="button"
-              key={`${index}-${id}`}
+              key={`sequence-slot-${index}`}
               onPress={() => rotate(index)}
               style={({ pressed }) => [
                 styles.sequenceItem,
@@ -615,7 +639,7 @@ export function SetupPreview({
           미리 보기
         </AppText>
         <AppText variant="caption" tone="secondary">
-          첫 근무일부터 이어지는 일정이에요.
+          일정 적용 시작일부터 이어지는 일정이에요.
         </AppText>
       </View>
       <View style={styles.previewGrid}>
@@ -659,22 +683,14 @@ export function SetupPreview({
 function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     hero: {
-      minHeight: 104,
+      minHeight: 72,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.medium,
-      overflow: 'hidden',
       borderRadius: radii.large,
-      padding: spacing.large,
-    },
-    heroGlow: {
-      position: 'absolute',
-      width: 150,
-      height: 150,
-      top: -76,
-      right: -30,
-      borderRadius: 75,
-      backgroundColor: 'rgba(255,255,255,0.10)',
+      backgroundColor: palette.surface,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
     },
     logoMark: {
       width: 44,
@@ -683,19 +699,9 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 15,
-      backgroundColor: 'rgba(255,255,255,0.14)',
+      backgroundColor: palette.surfaceSoft,
     },
     heroCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
-    stepBadge: {
-      minWidth: 48,
-      minHeight: 36,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.pill,
-      backgroundColor: 'rgba(255,255,255,0.14)',
-      paddingHorizontal: spacing.small,
-    },
     progress: { flexDirection: 'row', gap: spacing.small },
     progressItem: { flex: 1, gap: spacing.tiny },
     progressLine: {
@@ -712,7 +718,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     modeOptionsStacked: { flexDirection: 'column', flexWrap: 'nowrap' },
     modeOption: {
       minWidth: 0,
-      minHeight: 144,
+      minHeight: 72,
       flexBasis: '46%',
       flexGrow: 1,
       alignItems: 'center',
@@ -725,7 +731,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       padding: spacing.medium,
     },
     modeOptionStacked: {
-      minHeight: 104,
+      minHeight: 72,
       flexBasis: 'auto',
       flexDirection: 'row',
       justifyContent: 'flex-start',
@@ -744,6 +750,29 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     modeCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
     modeCopyCentered: { alignItems: 'center' },
+    teamChoiceSection: {
+      gap: spacing.small,
+      borderRadius: radii.medium,
+      backgroundColor: palette.surface,
+      padding: spacing.medium,
+    },
+    teamChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+    teamChoice: {
+      minWidth: 88,
+      minHeight: 48,
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: palette.controlLine,
+      borderRadius: radii.medium,
+      backgroundColor: palette.surfaceSoft,
+      paddingHorizontal: spacing.medium,
+    },
+    teamChoiceSelected: {
+      borderColor: palette.indigo,
+      backgroundColor: palette.indigoSoft,
+    },
     radio: {
       width: 22,
       height: 22,

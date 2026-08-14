@@ -71,10 +71,22 @@ export function getSaveOutcomePresentation(
         title: '변경 내용의 형식을 확인해 주세요',
         message: outcome.message,
       };
+    case 'invalid-work-schedule':
+      return {
+        kind,
+        title: '근무 시간과 순서를 확인해 주세요',
+        message: outcome.message,
+      };
     case 'primary-save-failed':
       return {
         kind,
         title: '변경 내용을 저장하지 못했어요',
+        message: outcome.message,
+      };
+    case 'unsafe-alarm-schedule':
+      return {
+        kind,
+        title: '근무 시간과 순서를 확인해 주세요',
         message: outcome.message,
       };
   }

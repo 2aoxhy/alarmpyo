@@ -306,6 +306,19 @@ internal object AlarmPyoQuickTimerScheduler {
   }
 
   @Synchronized
+  internal fun hasCurrentDeliveryGeneration(
+    context: Context,
+    plan: AlarmPyoAlarmPlan
+  ): Boolean {
+    val result = AlarmPyoQuickTimerStore.read(context.applicationContext)
+    if (result.storageHealth == AlarmPyoQuickTimerStorageHealth.CORRUPT) return false
+    return result.snapshot
+      ?.takeIf(AlarmPyoQuickTimerSnapshot::isActive)
+      ?.plan
+      ?.hasSameDeliveryGeneration(plan) == true
+  }
+
+  @Synchronized
   fun retryDelivery(
     context: Context,
     plan: AlarmPyoAlarmPlan

@@ -197,8 +197,7 @@ internal object AlarmPyoSleepReminderScheduler {
     val current = requireStoredSnapshot(context)
     current.plans.forEach { cancelPendingIntent(context, it.id) }
     current.scheduledIds.forEach { cancelPendingIntent(context, it) }
-    val empty = AlarmPyoSleepReminderSnapshot(emptyList(), emptySet())
-    val stored = AlarmPyoSleepReminderStore.write(context, empty)
+    val stored = AlarmPyoSleepReminderStore.clear(context)
     AlarmPyoSleepReminderStore.markHealthy(context)
     return stored
   }

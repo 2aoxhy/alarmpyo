@@ -1,4 +1,9 @@
-import { forwardRef, type PropsWithChildren, type ReactNode } from 'react';
+import {
+  forwardRef,
+  type PropsWithChildren,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -431,6 +436,7 @@ export function ListRow({
   loading = false,
   expanded,
   allowSubtitleWrapping = false,
+  elementRef,
 }: {
   icon: AppIconName;
   title: string;
@@ -442,6 +448,7 @@ export function ListRow({
   loading?: boolean;
   expanded?: boolean;
   allowSubtitleWrapping?: boolean;
+  elementRef?: Ref<React.ElementRef<typeof Pressable>>;
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -456,6 +463,7 @@ export function ListRow({
       : palette.indigo;
   return (
     <Pressable
+      ref={elementRef}
       accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityState={onPress ? { busy: loading, disabled: disabled || loading, expanded } : undefined}

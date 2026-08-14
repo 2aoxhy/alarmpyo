@@ -7,7 +7,7 @@ export const RESET_CLEANUP_JOURNAL_STORAGE_KEY =
   'alarmpyo:reset-cleanup-pending:v1';
 
 const RESET_CLEANUP_JOURNAL_FORMAT = 'alarmpyo-reset-cleanup';
-const RESET_CLEANUP_JOURNAL_VERSION = 1 as const;
+const RESET_CLEANUP_JOURNAL_VERSION = 2 as const;
 const MAX_RESET_CLEANUP_JOURNAL_BYTES = 128 * 1024;
 
 type ResetCleanupStorage = Pick<
@@ -21,6 +21,7 @@ type ResetCleanupJournal = {
   targetSnapshot: string;
   setupDraftBeforeReset: string | null;
   pending: {
+    alarmRuntime: boolean;
     setupDraft: boolean;
     quickTimer: boolean;
   };
@@ -30,6 +31,7 @@ export type ResetCleanupResumeResult = {
   found: boolean;
   completed: boolean;
   stale: boolean;
+  pendingAlarmRuntime: boolean;
   pendingSetupDraft: boolean;
   pendingQuickTimer: boolean;
 };
@@ -43,17 +45,29 @@ function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | nul
     return null;
   }
   try {
-    const value = JSON.parse(raw) as Partial<ResetCleanupJournal>;
+    const value = JSON.parse(raw) as {
+      format?: unknown;
+      version?: unknown;
+      targetSnapshot?: unknown;
+      setupDraftBeforeReset?: unknown;
+      pending?: {
+        alarmRuntime?: unknown;
+        setupDraft?: unknown;
+        quickTimer?: unknown;
+      };
+    };
     if (
       value.format !== RESET_CLEANUP_JOURNAL_FORMAT ||
-      value.version !== RESET_CLEANUP_JOURNAL_VERSION ||
+      (value.version !== 1 && value.version !== RESET_CLEANUP_JOURNAL_VERSION) ||
       typeof value.targetSnapshot !== 'string' ||
       value.targetSnapshot.length === 0 ||
       (value.setupDraftBeforeReset !== null &&
         typeof value.setupDraftBeforeReset !== 'string') ||
       !value.pending ||
       typeof value.pending.setupDraft !== 'boolean' ||
-      typeof value.pending.quickTimer !== 'boolean'
+      typeof value.pending.quickTimer !== 'boolean' ||
+      (value.version === RESET_CLEANUP_JOURNAL_VERSION &&
+        typeof value.pending.alarmRuntime !== 'boolean')
     ) {
       return null;
     }
@@ -63,6 +77,10 @@ function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | nul
       targetSnapshot: value.targetSnapshot,
       setupDraftBeforeReset: value.setupDraftBeforeReset,
       pending: {
+        alarmRuntime:
+          value.version === RESET_CLEANUP_JOURNAL_VERSION
+            ? value.pending.alarmRuntime === true
+            : false,
         setupDraft: value.pending.setupDraft,
         quickTimer: value.pending.quickTimer,
       },
@@ -96,7 +114,7 @@ export async function prepareResetCleanupJournal(
       version: RESET_CLEANUP_JOURNAL_VERSION,
       targetSnapshot,
       setupDraftBeforeReset,
-      pending: { setupDraft: true, quickTimer: true },
+      pending: { alarmRuntime: true, setupDraft: true, quickTimer: false },
     },
     storage,
   );
@@ -111,11 +129,13 @@ export async function clearResetCleanupJournal(
 export async function resumeResetCleanupJournal({
   persistedSnapshot,
   resetFallbackLoaded = false,
+  resetAlarmRuntime,
   cancelTimer,
   storage = AsyncStorage,
 }: {
   persistedSnapshot: string | null;
   resetFallbackLoaded?: boolean;
+  resetAlarmRuntime: () => Promise<void>;
   cancelTimer: () => Promise<void>;
   storage?: ResetCleanupStorage;
 }): Promise<ResetCleanupResumeResult> {
@@ -125,6 +145,7 @@ export async function resumeResetCleanupJournal({
       found: false,
       completed: true,
       stale: false,
+      pendingAlarmRuntime: false,
       pendingSetupDraft: false,
       pendingQuickTimer: false,
     };
@@ -135,6 +156,7 @@ export async function resumeResetCleanupJournal({
       found: true,
       completed: false,
       stale: false,
+      pendingAlarmRuntime: true,
       pendingSetupDraft: true,
       pendingQuickTimer: true,
     };
@@ -145,13 +167,26 @@ export async function resumeResetCleanupJournal({
       found: true,
       completed: true,
       stale: true,
+      pendingAlarmRuntime: false,
       pendingSetupDraft: false,
       pendingQuickTimer: false,
     };
   }
 
+  let pendingAlarmRuntime = journal.pending.alarmRuntime;
   let pendingSetupDraft = journal.pending.setupDraft;
   let pendingQuickTimer = journal.pending.quickTimer;
+
+  if (pendingAlarmRuntime) {
+    try {
+      await resetAlarmRuntime();
+      pendingAlarmRuntime = false;
+      journal.pending.alarmRuntime = false;
+      await writeResetCleanupJournal(journal, storage);
+    } catch {
+      // 다음 앱 실행에서 근무·수면·타이머와 재생 상태를 함께 다시 정리해요.
+    }
+  }
 
   if (pendingQuickTimer) {
     try {
@@ -182,7 +217,8 @@ export async function resumeResetCleanupJournal({
     }
   }
 
-  const completed = !pendingSetupDraft && !pendingQuickTimer;
+  const completed =
+    !pendingAlarmRuntime && !pendingSetupDraft && !pendingQuickTimer;
   if (completed) {
     try {
       await clearResetCleanupJournal(storage);
@@ -191,6 +227,7 @@ export async function resumeResetCleanupJournal({
         found: true,
         completed: false,
         stale: false,
+        pendingAlarmRuntime: false,
         pendingSetupDraft: false,
         pendingQuickTimer: false,
       };
@@ -200,6 +237,7 @@ export async function resumeResetCleanupJournal({
     found: true,
     completed,
     stale: false,
+    pendingAlarmRuntime,
     pendingSetupDraft,
     pendingQuickTimer,
   };

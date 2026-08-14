@@ -75,4 +75,32 @@ describe('저장 상태 안내 문구', () => {
       message: '변경 내용을 저장하지 못했어요. 저장 공간을 확인해 주세요.',
     });
   });
+
+  it('위험 일정으로 알람을 끈 경우 자료 저장 완료 범위를 분명히 해요', () => {
+    const outcome = createSaveIssueOutcome(
+      'unsafe-alarm-schedule',
+      '일정 충돌로 근무 알람을 껐어요.',
+    );
+
+    expect(outcome).toMatchObject({ status: 'partial', retryAction: null });
+    expect(getSaveOutcomePresentation(outcome)).toEqual({
+      kind: 'partial',
+      title: '자료 저장 완료',
+      message: '일정 충돌로 근무 알람을 껐어요.',
+    });
+  });
+
+  it('서로 겹치는 근무는 저장하지 않았다고 안내해요', () => {
+    const outcome = createSaveIssueOutcome(
+      'invalid-work-schedule',
+      '이전 근무와 시간이 겹쳐 저장하지 못했어요.',
+    );
+
+    expect(outcome).toMatchObject({ status: 'failure', retryAction: null });
+    expect(getSaveOutcomePresentation(outcome)).toEqual({
+      kind: 'error',
+      title: '근무 시간과 순서를 확인해 주세요',
+      message: '이전 근무와 시간이 겹쳐 저장하지 못했어요.',
+    });
+  });
 });

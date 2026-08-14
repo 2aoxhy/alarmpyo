@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Platform, StyleSheet, TextInput } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText, MenuGroup } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
@@ -10,15 +10,20 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 type DayNoteEditorProps = {
   note: string;
   onChange: (value: string) => void;
+  showTitle?: boolean;
 };
 
-export function DayNoteEditor({ note, onChange }: DayNoteEditorProps) {
+export function DayNoteEditor({
+  note,
+  onChange,
+  showTitle = true,
+}: DayNoteEditorProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
 
-  return (
-    <MenuGroup centered title="메모" style={styles.sectionGroup}>
+  const content = (
+    <View style={styles.editor}>
       <TextInput
         accessibilityLabel="하루 메모"
         accessibilityHint="인수인계나 준비물을 적어 둘 수 있어요."
@@ -37,13 +42,19 @@ export function DayNoteEditor({ note, onChange }: DayNoteEditorProps) {
       <AppText tone="tertiary" style={styles.counter} variant="caption">
         {note.length}/200자
       </AppText>
-    </MenuGroup>
+    </View>
   );
+  return showTitle ? (
+    <MenuGroup centered title="메모" style={styles.sectionGroup}>
+      {content}
+    </MenuGroup>
+  ) : content;
 }
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     sectionGroup: { gap: spacing.small },
+    editor: { gap: spacing.tiny },
     noteInput: {
       minHeight: 88,
       padding: spacing.medium,

@@ -21,6 +21,19 @@ export type WorkPatternPresetId =
   | 'four-team-three-shift'
   | 'custom';
 
+export type WorkPatternCategoryId =
+  | 'weekday'
+  | 'two-shift'
+  | 'three-shift'
+  | 'custom';
+
+export type WorkPatternCategory = {
+  description: string;
+  id: WorkPatternCategoryId;
+  name: string;
+  presetIds: readonly WorkPatternPresetId[];
+};
+
 export type WorkPatternPreset = {
   id: WorkPatternPresetId;
   name: string;
@@ -111,6 +124,33 @@ export const WORK_PATTERN_PRESETS: readonly WorkPatternPreset[] = [
   },
 ] as const;
 
+export const WORK_PATTERN_CATEGORIES: readonly WorkPatternCategory[] = [
+  {
+    id: 'weekday',
+    name: '주간 고정',
+    description: '평일 주간 근무',
+    presetIds: ['weekday'],
+  },
+  {
+    id: 'two-shift',
+    name: '2교대',
+    description: '주간·야간 교대',
+    presetIds: ['two-team-two-shift', 'three-team-two-shift', 'four-team-two-shift'],
+  },
+  {
+    id: 'three-shift',
+    name: '3교대',
+    description: '주간·오후·야간 교대',
+    presetIds: ['three-team-three-shift', 'four-team-three-shift'],
+  },
+  {
+    id: 'custom',
+    name: '기타',
+    description: '회사 순서를 직접 구성',
+    presetIds: ['custom'],
+  },
+] as const;
+
 const BASE_WORK_SHIFT_IDS = new Set<BaseWorkShiftId>([
   'day',
   'evening',
@@ -130,6 +170,13 @@ export function getWorkPatternPreset(id: WorkPatternPresetId): WorkPatternPreset
   const preset = WORK_PATTERN_PRESETS.find((item) => item.id === id);
   if (!preset) throw new RangeError('지원하지 않는 근무 방식이에요.');
   return preset;
+}
+
+export function getWorkPatternCategoryId(
+  presetId: WorkPatternPresetId | null,
+): WorkPatternCategoryId | null {
+  if (presetId === null) return null;
+  return WORK_PATTERN_CATEGORIES.find((category) => category.presetIds.includes(presetId))?.id ?? null;
 }
 
 export function getWorkPatternPresetId(
@@ -152,9 +199,8 @@ export function getEffectiveWorkPatternPresetId(
 ): WorkPatternPresetId | null {
   if (selectedPresetId === null) return null;
   const detectedPresetId = getWorkPatternPresetId(shiftTypeIds);
-  if (detectedPresetId === 'weekday') return 'weekday';
-  // weekday mode는 순서 자체로 표현되므로 다른 순서에 붙여 저장할 수 없어요.
-  return selectedPresetId === 'weekday' ? 'custom' : selectedPresetId;
+  // 프리셋 이름은 실제 저장 순서와 항상 함께 움직여 재로드·공유 표시가 달라지지 않게 해요.
+  return detectedPresetId;
 }
 
 export function isValidCustomPatternSequence(

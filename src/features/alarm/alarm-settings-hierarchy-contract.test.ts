@@ -11,7 +11,7 @@ const alarmSettings = readFileSync(
 );
 
 describe('알람 설정 화면 정보 구조 계약', () => {
-  it('상태, 다음 알람, 수면 알림, 기상 시간, 알람 관리 순서로 표시해요', () => {
+  it('상태, 필요한 다음 알람, 기상·수면 설정, 알람 관리 순서로 표시해요', () => {
     const status = alarmSettings.indexOf('testID="alarm-access-status"');
     const nextAlarm = alarmSettings.indexOf('<MenuGroup title="다음 알람">');
     const sleepReminder = alarmSettings.indexOf('<SleepReminderToggle');
@@ -20,9 +20,12 @@ describe('알람 설정 화면 정보 구조 계약', () => {
 
     expect(status).toBeGreaterThan(-1);
     expect(nextAlarm).toBeGreaterThan(status);
-    expect(sleepReminder).toBeGreaterThan(nextAlarm);
-    expect(wakeTime).toBeGreaterThan(sleepReminder);
-    expect(management).toBeGreaterThan(wakeTime);
+    expect(wakeTime).toBeGreaterThan(nextAlarm);
+    expect(sleepReminder).toBeGreaterThan(wakeTime);
+    expect(management).toBeGreaterThan(sleepReminder);
+    expect(alarmSettings).toContain(
+      'data.settings.notificationsEnabled || scheduledCount > 0',
+    );
   });
 
   it('권한 문제 해결 동작은 상태 카드에서 바로 제공해요', () => {

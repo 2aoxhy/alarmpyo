@@ -27,6 +27,7 @@ export function RoutineTimingEditor({
   onChange,
   onExpandedChange,
   profile,
+  showDisclosure = true,
   startMinutes,
 }: {
   alarmMinutesBefore: number;
@@ -36,6 +37,7 @@ export function RoutineTimingEditor({
   onChange: (profile: WorkRoutineTiming) => void;
   onExpandedChange: (expanded: boolean) => void;
   profile: WorkRoutineTiming;
+  showDisclosure?: boolean;
   startMinutes: number | null;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -69,13 +71,15 @@ export function RoutineTimingEditor({
 
   return (
     <View style={styles.container}>
-      <DisclosureRow
-        expanded={expanded}
-        icon="time-outline"
-        onPress={() => onExpandedChange(!expanded)}
-        subtitle={`${formatMilestoneTime(profile.departMinutesBefore)} 출발 · ${formatMilestoneTime(profile.arriveMinutesBefore)} 도착 · ${formatMilestoneTime(profile.handoverMinutesBefore)} 교대 완료`}
-        title={`${kind === 'night' ? '야간' : kind === 'evening' ? '오후' : '주간'} 출근 루틴`}
-      />
+      {showDisclosure ? (
+        <DisclosureRow
+          expanded={expanded}
+          icon="time-outline"
+          onPress={() => onExpandedChange(!expanded)}
+          subtitle={`${formatMilestoneTime(profile.departMinutesBefore)} 출발 · ${formatMilestoneTime(profile.arriveMinutesBefore)} 도착 · ${formatMilestoneTime(profile.handoverMinutesBefore)} 교대 완료`}
+          title={`${kind === 'night' ? '야간' : kind === 'evening' ? '오후' : '주간'} 출근 루틴`}
+        />
+      ) : null}
 
       {expanded ? (
         <Card density="compact" style={styles.body}>

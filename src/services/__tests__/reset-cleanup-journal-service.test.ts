@@ -41,13 +41,14 @@ describe('전체 초기화 후속 정리 저널', () => {
       fixture.values.get(RESET_CLEANUP_JOURNAL_STORAGE_KEY) ?? '{}',
     ) as Record<string, unknown>;
     expect(journal).toMatchObject({
+      version: 2,
       targetSnapshot: 'reset-snapshot',
       setupDraftBeforeReset: 'old-draft',
-      pending: { setupDraft: true, quickTimer: true },
+      pending: { alarmRuntime: true, setupDraft: true, quickTimer: false },
     });
   });
 
-  it('초기화 본문이 저장된 뒤 타이머와 이전 초안을 정리하고 저널을 지워요', async () => {
+  it('초기화 본문이 저장된 뒤 네이티브 런타임과 이전 초안을 정리하고 저널을 지워요', async () => {
     const fixture = createStorage({ [SETUP_DRAFT_STORAGE_KEY]: 'old-draft' });
     const events = fixture.events;
     await prepareResetCleanupJournal('reset-snapshot', fixture.storage);
@@ -55,6 +56,9 @@ describe('전체 초기화 후속 정리 저널', () => {
 
     const result = await resumeResetCleanupJournal({
       persistedSnapshot: 'reset-snapshot',
+      resetAlarmRuntime: async () => {
+        events.push('runtime:reset');
+      },
       cancelTimer: async () => {
         events.push('timer:cancel');
       },
@@ -62,7 +66,8 @@ describe('전체 초기화 후속 정리 저널', () => {
     });
 
     expect(result.completed).toBe(true);
-    expect(events.indexOf('timer:cancel')).toBeGreaterThanOrEqual(0);
+    expect(events.indexOf('runtime:reset')).toBeGreaterThanOrEqual(0);
+    expect(events).not.toContain('timer:cancel');
     expect(fixture.values.has(SETUP_DRAFT_STORAGE_KEY)).toBe(false);
     expect(fixture.values.has(RESET_CLEANUP_JOURNAL_STORAGE_KEY)).toBe(false);
   });
@@ -74,6 +79,7 @@ describe('전체 초기화 후속 정리 저널', () => {
 
     const result = await resumeResetCleanupJournal({
       persistedSnapshot: 'original-snapshot',
+      resetAlarmRuntime: async () => undefined,
       cancelTimer: async () => {
         timerCancelled = true;
       },
@@ -85,30 +91,33 @@ describe('전체 초기화 후속 정리 저널', () => {
     expect(fixture.values.get(SETUP_DRAFT_STORAGE_KEY)).toBe('old-draft');
   });
 
-  it('본문 저장 뒤 중단되면 다음 실행에서 남은 타이머 취소를 재시도해요', async () => {
+  it('본문 저장 뒤 중단되면 다음 실행에서 네이티브 런타임 초기화를 재시도해요', async () => {
     const fixture = createStorage({ [SETUP_DRAFT_STORAGE_KEY]: 'old-draft' });
     await prepareResetCleanupJournal('reset-snapshot', fixture.storage);
     let attempts = 0;
 
     const first = await resumeResetCleanupJournal({
       persistedSnapshot: 'reset-snapshot',
-      cancelTimer: async () => {
+      resetAlarmRuntime: async () => {
         attempts += 1;
         throw new Error('native unavailable');
       },
+      cancelTimer: async () => undefined,
       storage: fixture.storage,
     });
     expect(first).toMatchObject({
       completed: false,
-      pendingQuickTimer: true,
+      pendingAlarmRuntime: true,
+      pendingQuickTimer: false,
       pendingSetupDraft: false,
     });
 
     const second = await resumeResetCleanupJournal({
       persistedSnapshot: 'reset-snapshot',
-      cancelTimer: async () => {
+      resetAlarmRuntime: async () => {
         attempts += 1;
       },
+      cancelTimer: async () => undefined,
       storage: fixture.storage,
     });
     expect(second.completed).toBe(true);
@@ -122,6 +131,7 @@ describe('전체 초기화 후속 정리 저널', () => {
 
     const result = await resumeResetCleanupJournal({
       persistedSnapshot: 'reset-snapshot',
+      resetAlarmRuntime: async () => undefined,
       cancelTimer: async () => undefined,
       storage: fixture.storage,
     });
@@ -137,6 +147,7 @@ describe('전체 초기화 후속 정리 저널', () => {
     const result = await resumeResetCleanupJournal({
       persistedSnapshot: null,
       resetFallbackLoaded: true,
+      resetAlarmRuntime: async () => undefined,
       cancelTimer: async () => undefined,
       storage: fixture.storage,
     });
@@ -151,5 +162,30 @@ describe('전체 초기화 후속 정리 저널', () => {
     await clearResetCleanupJournal(fixture.storage);
 
     expect(fixture.values.has(RESET_CLEANUP_JOURNAL_STORAGE_KEY)).toBe(false);
+  });
+
+  it('v1 저널은 기존 quick timer 취소 계약으로 이어서 완료해요', async () => {
+    const fixture = createStorage({
+      [RESET_CLEANUP_JOURNAL_STORAGE_KEY]: JSON.stringify({
+        format: 'alarmpyo-reset-cleanup',
+        version: 1,
+        targetSnapshot: 'reset-snapshot',
+        setupDraftBeforeReset: null,
+        pending: { setupDraft: false, quickTimer: true },
+      }),
+    });
+    let timerCancelled = false;
+
+    const result = await resumeResetCleanupJournal({
+      persistedSnapshot: 'reset-snapshot',
+      resetAlarmRuntime: async () => undefined,
+      cancelTimer: async () => {
+        timerCancelled = true;
+      },
+      storage: fixture.storage,
+    });
+
+    expect(result.completed).toBe(true);
+    expect(timerCancelled).toBe(true);
   });
 });

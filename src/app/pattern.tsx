@@ -165,6 +165,7 @@ export default function PatternEditorScreen() {
 
   const changeSequence = (next: BaseWorkShiftId[]) => {
     setSequence(next);
+    setPresetId(getWorkPatternPresetId(next));
     setSelectedPosition(null);
   };
 

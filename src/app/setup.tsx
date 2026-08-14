@@ -24,29 +24,42 @@ import {
   WorkTimeEditor,
 } from '@/features/setup/setup-components';
 import {
+  applySetupPresetSuggestions,
   buildInitialSetupPayload,
   buildSetupPreview,
+  createSetupSequenceSignature,
+  createSetupSequenceOptions,
+  createSetupWorkTimeSignature,
   getSuggestedWorkTimesForPreset,
   normalizeSetupScreenStep,
-  shouldApplySetupPresetSuggestion,
   type SetupScreenStep,
+  type SetupWorkTimeValues,
   validateSetupInput,
 } from '@/features/setup/setup-flow';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   clearSetupDraft,
+  isMeaningfulSetupDraft,
   readSetupDraft,
   SETUP_DRAFT_VERSION,
+  type SetupWorkTimeField,
   writeSetupDraft,
 } from '@/services/setup-draft-service';
+import {
+  analyzeScheduleSafety,
+  createScheduleSafetyShifts,
+} from '@/services/schedule-safety-service';
 import { useAppStore } from '@/store/app-store';
 import { formatTimeInput } from '@/utils/shift-time';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
   getPositionAfterReferenceDateChange,
+  getWorkPatternCategoryId,
+  getWorkPatternPresetId,
   getWorkPatternPreset,
   type BaseWorkShiftId,
+  type WorkPatternCategoryId,
   type WorkPatternPresetId,
 } from '@/utils/work-pattern';
 import { formatKoreanDate, toDateKey } from '@/utils/date';
@@ -70,6 +83,7 @@ export default function SetupScreen() {
   const nightAppearance = nightShift ? getShiftAppearance(nightShift, palette, isDark) : null;
   const [today] = useState(() => toDateKey(new Date()));
   const [step, setStep] = useState<SetupScreenStep>(1);
+  const [categoryId, setCategoryId] = useState<WorkPatternCategoryId | null>(null);
   const [presetId, setPresetId] = useState<WorkPatternPresetId | null>(null);
   const [sequence, setSequence] = useState<BaseWorkShiftId[]>(() => [
     ...getWorkPatternPreset('three-team-two-shift').shiftTypeIds,
@@ -97,7 +111,10 @@ export default function SetupScreen() {
   const [alarmsWanted, setAlarmsWanted] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [resumedDraft, setResumedDraft] = useState(false);
-  const [workTimesEdited, setWorkTimesEdited] = useState(false);
+  const [editedWorkTimeFields, setEditedWorkTimeFields] = useState<SetupWorkTimeField[]>([]);
+  const [confirmedSequenceSignature, setConfirmedSequenceSignature] = useState<string | null>(null);
+  const [confirmedWorkTimeSignature, setConfirmedWorkTimeSignature] = useState<string | null>(null);
+  const [openEditor, setOpenEditor] = useState<'sequence' | 'times' | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -107,6 +124,7 @@ export default function SetupScreen() {
       if (draft) {
         setStep(draft.presetId ? normalizeSetupScreenStep(draft.step) : 1);
         setPresetId(draft.presetId);
+        setCategoryId(getWorkPatternCategoryId(draft.presetId));
         setSequence(draft.sequence);
         setPosition(draft.position);
         setReferenceDate(draft.referenceDate);
@@ -117,7 +135,10 @@ export default function SetupScreen() {
         setNightStart(draft.nightStart);
         setNightEnd(draft.nightEnd);
         setAlarmsWanted(draft.alarmsWanted);
-        setResumedDraft(true);
+        setEditedWorkTimeFields(draft.editedWorkTimeFields);
+        setConfirmedSequenceSignature(draft.confirmedSequenceSignature);
+        setConfirmedWorkTimeSignature(draft.confirmedWorkTimeSignature);
+        setResumedDraft(isMeaningfulSetupDraft(draft));
       }
       setDraftReady(true);
     });
@@ -143,6 +164,9 @@ export default function SetupScreen() {
         nightStart,
         nightEnd,
         alarmsWanted,
+        editedWorkTimeFields,
+        confirmedSequenceSignature,
+        confirmedWorkTimeSignature,
       }).catch(() => undefined);
     }, 180);
     return () => clearTimeout(timeout);
@@ -153,6 +177,9 @@ export default function SetupScreen() {
     draftReady,
     eveningEnd,
     eveningStart,
+    editedWorkTimeFields,
+    confirmedSequenceSignature,
+    confirmedWorkTimeSignature,
     nightEnd,
     nightStart,
     presetId,
@@ -161,6 +188,18 @@ export default function SetupScreen() {
     sequence,
     step,
   ]);
+
+  const workTimeValues = useMemo<SetupWorkTimeValues>(
+    () => ({
+      dayStart,
+      dayEnd,
+      eveningStart,
+      eveningEnd,
+      nightStart,
+      nightEnd,
+    }),
+    [dayEnd, dayStart, eveningEnd, eveningStart, nightEnd, nightStart],
+  );
 
   const validation = useMemo(
     () =>
@@ -200,26 +239,112 @@ export default function SetupScreen() {
     [presetId, referenceDate, sequence, validation.activePosition],
   );
 
+  const sequenceSignature = useMemo(
+    () => createSetupSequenceSignature(sequence),
+    [sequence],
+  );
+  const workTimeSignature = useMemo(
+    () => createSetupWorkTimeSignature({ sequence, values: workTimeValues }),
+    [sequence, workTimeValues],
+  );
+  const sequenceConfirmed = confirmedSequenceSignature === sequenceSignature;
+  const workTimesConfirmed = confirmedWorkTimeSignature === workTimeSignature;
+  const scheduleSafety = useMemo(
+    () =>
+      analyzeScheduleSafety({
+        sequence,
+        shifts: createScheduleSafetyShifts(data.shiftTypes, {
+          day: {
+            startMinutes: validation.dayStartMinutes,
+            endMinutes: validation.dayEndMinutes,
+          },
+          evening: {
+            startMinutes: validation.eveningStartMinutes,
+            endMinutes: validation.eveningEndMinutes,
+          },
+          night: {
+            startMinutes: validation.nightStartMinutes,
+            endMinutes: validation.nightEndMinutes,
+          },
+        }),
+      }),
+    [
+      data.shiftTypes,
+      sequence,
+      validation.dayEndMinutes,
+      validation.dayStartMinutes,
+      validation.eveningEndMinutes,
+      validation.eveningStartMinutes,
+      validation.nightEndMinutes,
+      validation.nightStartMinutes,
+    ],
+  );
+
+  const effectiveAlarmsWanted = alarmsWanted && scheduleSafety.canEnableAlarms;
+  const sequenceSummary = useMemo(
+    () => createSetupSequenceOptions(sequence).map((item) => item.shortName).join(' → '),
+    [sequence],
+  );
+  const workTimeSummary = useMemo(
+    () =>
+      validation.activeShiftIds
+        .map((id) => {
+          const label = id === 'day' ? '주간' : id === 'evening' ? '오후' : '야간';
+          return `${label} ${workTimeValues[`${id}Start`]}~${workTimeValues[`${id}End`]}`;
+        })
+        .join(' · '),
+    [validation.activeShiftIds, workTimeValues],
+  );
+
   const selectPreset = (nextPresetId: WorkPatternPresetId) => {
-    const suggestedTimes =
-      shouldApplySetupPresetSuggestion({ resumedDraft, workTimesEdited })
-        ? getSuggestedWorkTimesForPreset(nextPresetId)
-        : null;
+    const nextTimes = applySetupPresetSuggestions({
+      editedFields: editedWorkTimeFields,
+      suggestedTimes: getSuggestedWorkTimesForPreset(nextPresetId),
+      values: workTimeValues,
+    });
+    setCategoryId(getWorkPatternCategoryId(nextPresetId));
     setPresetId(nextPresetId);
     setSequence([...getWorkPatternPreset(nextPresetId).shiftTypeIds]);
     setPosition(null);
-    if (suggestedTimes?.day) {
-      setDayStart(suggestedTimes.day.start);
-      setDayEnd(suggestedTimes.day.end);
+    setDayStart(nextTimes.dayStart);
+    setDayEnd(nextTimes.dayEnd);
+    setEveningStart(nextTimes.eveningStart);
+    setEveningEnd(nextTimes.eveningEnd);
+    setNightStart(nextTimes.nightStart);
+    setNightEnd(nextTimes.nightEnd);
+    setConfirmedSequenceSignature(null);
+    setConfirmedWorkTimeSignature(null);
+    setAlarmsWanted(false);
+  };
+
+  const selectCategory = (nextCategoryId: WorkPatternCategoryId) => {
+    setCategoryId(nextCategoryId);
+    if (nextCategoryId === 'weekday' || nextCategoryId === 'custom') {
+      selectPreset(nextCategoryId);
+      return;
     }
-    if (suggestedTimes?.evening) {
-      setEveningStart(suggestedTimes.evening.start);
-      setEveningEnd(suggestedTimes.evening.end);
+    if (getWorkPatternCategoryId(presetId) !== nextCategoryId) {
+      setPresetId(null);
+      setPosition(null);
+      setConfirmedSequenceSignature(null);
+      setConfirmedWorkTimeSignature(null);
     }
-    if (suggestedTimes?.night) {
-      setNightStart(suggestedTimes.night.start);
-      setNightEnd(suggestedTimes.night.end);
-    }
+  };
+
+  const changeSequence = (next: BaseWorkShiftId[]) => {
+    const detectedPresetId = getWorkPatternPresetId(next);
+    setSequence(next);
+    setPresetId(detectedPresetId);
+    setCategoryId(getWorkPatternCategoryId(detectedPresetId));
+    setPosition(null);
+    setAlarmsWanted(false);
+  };
+
+  const markWorkTimeEdited = (field: SetupWorkTimeField) => {
+    setEditedWorkTimeFields((current) =>
+      current.includes(field) ? current : [...current, field],
+    );
+    setAlarmsWanted(false);
   };
 
   const changeReferenceDate = (nextDate: string) => {
@@ -237,7 +362,7 @@ export default function SetupScreen() {
     if (!validation.referenceDateValid) {
       showDialog(
         '날짜를 확인해 주세요',
-        '첫 근무일을 연도-월-일 형식으로 정확히 입력해 주세요.',
+        '일정 적용 시작일을 연도-월-일 형식으로 정확히 입력해 주세요.',
       );
       return;
     }
@@ -252,10 +377,23 @@ export default function SetupScreen() {
       );
       return;
     }
-
+    if (!sequenceConfirmed || !workTimesConfirmed) {
+      showDialog(
+        '회사 근무표를 확인해 주세요',
+        '근무 순서와 시간을 각각 확인한 뒤 설정을 완료해 주세요.',
+      );
+      return;
+    }
+    if (!scheduleSafety.canSave) {
+      showDialog(
+        '겹치는 근무 시간을 수정해 주세요',
+        '이전 근무가 끝나기 전에 다음 근무가 시작하고 있어요.',
+      );
+      return;
+    }
     const payload = buildInitialSetupPayload({
       activePosition: validation.activePosition,
-      alarmsWanted,
+      alarmsWanted: effectiveAlarmsWanted,
       dayDuration: validation.dayDuration,
       dayEndMinutes: validation.dayEndMinutes,
       dayStartMinutes: validation.dayStartMinutes,
@@ -268,13 +406,14 @@ export default function SetupScreen() {
       presetId,
       sequence,
       referenceDate,
+      safetyResult: scheduleSafety,
     });
 
     setSaving(true);
     try {
       let alarmReady = true;
       let alarmFailed = false;
-      if (alarmsWanted) {
+      if (effectiveAlarmsWanted) {
         try {
           alarmReady = await requestAlarmAccess();
         } catch {
@@ -293,7 +432,7 @@ export default function SetupScreen() {
       }
 
       await clearSetupDraft().catch(() => undefined);
-      if (alarmsWanted && !alarmReady) {
+      if (effectiveAlarmsWanted && !alarmReady) {
         showDialog(
           '근무표 설정을 마쳤어요',
           alarmFailed
@@ -304,6 +443,15 @@ export default function SetupScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const goForward = () => {
+    if (step === 1) {
+      setOpenEditor(presetId === 'custom' ? 'sequence' : null);
+      setStep(2);
+      return;
+    }
+    if (step === 2) setStep(3);
   };
 
   const footer = (
@@ -321,19 +469,28 @@ export default function SetupScreen() {
       <AppButton
         disabled={
           !draftReady ||
-          (step === 1 ? presetId === null : saving)
+          (step === 1
+            ? presetId === null
+            : step === 2
+              ? saving ||
+                !sequenceConfirmed ||
+                !workTimesConfirmed ||
+                !scheduleSafety.canSave
+              : saving)
         }
         label={
           step === 1
             ? '순서와 시간 설정하기'
             : step === 2
-              ? '첫 근무일 설정하기'
+              ? sequenceConfirmed && workTimesConfirmed && scheduleSafety.canSave
+                ? '일정 적용 시작일 설정하기'
+                : '순서와 시간을 확인해 주세요'
               : validation.canComplete
               ? '설정 완료하기'
               : '입력 확인하기'
         }
         loading={step === 3 && saving}
-        onPress={step < 3 ? () => setStep((step + 1) as SetupScreenStep) : () => void save()}
+        onPress={step < 3 ? goForward : () => void save()}
         size="compact"
         style={styles.footerButton}
       />
@@ -341,7 +498,7 @@ export default function SetupScreen() {
   );
 
   return (
-    <Screen contentStyle={styles.screenContent} footer={footer}>
+    <Screen key={step} contentStyle={styles.screenContent} footer={footer}>
       <SetupHero step={step} />
       <SetupProgress step={step} />
 
@@ -363,6 +520,8 @@ export default function SetupScreen() {
 
       {step === 1 ? (
         <WorkModeStep
+          categoryId={categoryId}
+          onSelectCategory={selectCategory}
           onSelect={selectPreset}
           presetId={presetId}
           stackOptions={stackModeOptions}
@@ -381,88 +540,138 @@ export default function SetupScreen() {
           </View>
 
           <Card style={styles.setupCard}>
-            {presetId === 'weekday' ? (
-              <View style={styles.sectionBlock}>
-                <View style={styles.sectionCopy}>
-                  <AppText accessibilityRole="header" variant="label">
-                    주간 고정 일정
-                  </AppText>
-                  <AppText variant="caption" tone="secondary">
-                    월요일부터 금요일까지 근무하고 토·일요일은 쉬어요.
-                  </AppText>
-                </View>
-                <WeekdaySchedule dayEnd={dayEnd} dayStart={dayStart} />
+            <View style={styles.summaryHeading}>
+              <View style={styles.summaryCopy}>
+                <AppText accessibilityRole="header" variant="label">
+                  회사 근무 순서
+                </AppText>
+                <AppText variant="caption" tone="secondary">
+                  {presetId === 'weekday' ? '월~금 주간 · 토~일 휴무' : sequenceSummary}
+                </AppText>
               </View>
+              <AppButton
+                label={openEditor === 'sequence' ? '접기' : '순서 수정'}
+                onPress={() => setOpenEditor((current) => current === 'sequence' ? null : 'sequence')}
+                size="compact"
+                variant="secondary"
+              />
+            </View>
+
+            {openEditor === 'sequence' ? (
+              <View style={styles.sectionBlock}>
+                {presetId === 'weekday' ? (
+                  <WeekdaySchedule dayEnd={dayEnd} dayStart={dayStart} />
+                ) : (
+                  <PatternSequenceEditor sequence={sequence} onChange={changeSequence} />
+                )}
+                <AppButton
+                  icon="checkmark"
+                  label={sequenceConfirmed ? '순서 확인됨' : '이 순서가 맞아요'}
+                  onPress={() => {
+                    setConfirmedSequenceSignature(sequenceSignature);
+                    setOpenEditor(null);
+                  }}
+                  variant={sequenceConfirmed ? 'secondary' : 'primary'}
+                />
+              </View>
+            ) : sequenceConfirmed ? (
+              <AppText variant="caption" tone="tertiary">순서를 확인했어요.</AppText>
             ) : (
-              <View style={styles.sectionBlock}>
-                <View style={styles.sectionCopy}>
-                  <AppText accessibilityRole="header" variant="label">
-                    근무 반복 순서
-                  </AppText>
-                  <AppText variant="caption" tone="secondary">
-                    1~42일 안에서 날짜를 누르거나 더하고 빼서 회사 순서와 맞춰요.
-                  </AppText>
-                </View>
-                <PatternSequenceEditor sequence={sequence} onChange={(next) => {
-                  setSequence(next);
-                  setPosition(null);
-                }} />
-              </View>
+              <AppText variant="caption" tone="secondary">순서를 열어 회사 일정과 확인해 주세요.</AppText>
             )}
 
             <View style={styles.divider} />
-            <View style={styles.sectionBlock}>
-              <View style={styles.sectionCopy}>
+            <View style={styles.summaryHeading}>
+              <View style={styles.summaryCopy}>
                 <AppText accessibilityRole="header" variant="label">
                   근무 시간
                 </AppText>
                 <AppText variant="caption" tone="secondary">
-                  근무 사이에 인수인계 시간이 겹쳐도 저장할 수 있어요.
+                  {workTimeSummary}
                 </AppText>
               </View>
-              <WorkTimeEditor
-                dayColor={dayAppearance?.accentColor ?? palette.mintDark}
-                dayDuration={validation.dayDuration}
-                dayEnd={dayEnd}
-                dayStart={dayStart}
-                eveningColor={eveningAppearance?.accentColor ?? palette.indigoDark}
-                eveningDuration={validation.eveningDuration}
-                eveningEnd={eveningEnd}
-                eveningStart={eveningStart}
-                nightColor={nightAppearance?.accentColor ?? palette.violet}
-                nightDuration={validation.nightDuration}
-                nightEnd={nightEnd}
-                nightStart={nightStart}
-                onChangeDayEnd={(value) => {
-                  setWorkTimesEdited(true);
-                  setDayEnd(value);
-                }}
-                onChangeDayStart={(value) => {
-                  setWorkTimesEdited(true);
-                  setDayStart(value);
-                }}
-                onChangeEveningEnd={(value) => {
-                  setWorkTimesEdited(true);
-                  setEveningEnd(value);
-                }}
-                onChangeEveningStart={(value) => {
-                  setWorkTimesEdited(true);
-                  setEveningStart(value);
-                }}
-                onChangeNightEnd={(value) => {
-                  setWorkTimesEdited(true);
-                  setNightEnd(value);
-                }}
-                onChangeNightStart={(value) => {
-                  setWorkTimesEdited(true);
-                  setNightStart(value);
-                }}
-                showDay={validation.activeShiftIds.includes('day')}
-                showEvening={validation.activeShiftIds.includes('evening')}
-                showNight={validation.activeShiftIds.includes('night')}
+              <AppButton
+                label={openEditor === 'times' ? '접기' : '시간 수정'}
+                onPress={() => setOpenEditor((current) => current === 'times' ? null : 'times')}
+                size="compact"
+                variant="secondary"
               />
             </View>
+
+            {openEditor === 'times' ? (
+              <View style={styles.sectionBlock}>
+                <WorkTimeEditor
+                  dayColor={dayAppearance?.accentColor ?? palette.mintDark}
+                  dayDuration={validation.dayDuration}
+                  dayEnd={dayEnd}
+                  dayStart={dayStart}
+                  eveningColor={eveningAppearance?.accentColor ?? palette.indigoDark}
+                  eveningDuration={validation.eveningDuration}
+                  eveningEnd={eveningEnd}
+                  eveningStart={eveningStart}
+                  nightColor={nightAppearance?.accentColor ?? palette.violet}
+                  nightDuration={validation.nightDuration}
+                  nightEnd={nightEnd}
+                  nightStart={nightStart}
+                  onChangeDayEnd={(value) => {
+                    markWorkTimeEdited('dayEnd');
+                    setDayEnd(value);
+                  }}
+                  onChangeDayStart={(value) => {
+                    markWorkTimeEdited('dayStart');
+                    setDayStart(value);
+                  }}
+                  onChangeEveningEnd={(value) => {
+                    markWorkTimeEdited('eveningEnd');
+                    setEveningEnd(value);
+                  }}
+                  onChangeEveningStart={(value) => {
+                    markWorkTimeEdited('eveningStart');
+                    setEveningStart(value);
+                  }}
+                  onChangeNightEnd={(value) => {
+                    markWorkTimeEdited('nightEnd');
+                    setNightEnd(value);
+                  }}
+                  onChangeNightStart={(value) => {
+                    markWorkTimeEdited('nightStart');
+                    setNightStart(value);
+                  }}
+                  showDay={validation.activeShiftIds.includes('day')}
+                  showEvening={validation.activeShiftIds.includes('evening')}
+                  showNight={validation.activeShiftIds.includes('night')}
+                />
+                <AppButton
+                  disabled={!validation.activeShiftIds.every((id) => validation.shifts[id].duration !== null)}
+                  icon="checkmark"
+                  label={workTimesConfirmed ? '시간 확인됨' : '이 시간이 맞아요'}
+                  onPress={() => {
+                    setConfirmedWorkTimeSignature(workTimeSignature);
+                    setOpenEditor(null);
+                  }}
+                  variant={workTimesConfirmed ? 'secondary' : 'primary'}
+                />
+              </View>
+            ) : workTimesConfirmed ? (
+              <AppText variant="caption" tone="tertiary">시간을 확인했어요.</AppText>
+            ) : (
+              <AppText variant="caption" tone="secondary">시간을 열어 회사 시간과 확인해 주세요.</AppText>
+            )}
           </Card>
+
+          {!scheduleSafety.canSave ? (
+            <StatusBanner
+              icon="alert-circle-outline"
+              message="이전 근무가 끝나기 전에 다음 근무가 시작해요. 순서나 시간을 수정해야 저장할 수 있어요."
+              tone="warning"
+            />
+          ) : !scheduleSafety.canEnableAlarms ? (
+            <StatusBanner
+              icon="alarm-outline"
+              message="다음 근무 알람이 이전 근무 중 울리는 순서예요. 일정은 저장할 수 있지만 수정 전에는 근무 알람을 켤 수 없어요."
+              tone="warning"
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -470,23 +679,23 @@ export default function SetupScreen() {
         <View style={styles.secondStep}>
           <View style={styles.stepHeading}>
             <AppText accessibilityRole="header" variant="heading" style={styles.centerText}>
-              첫 근무일을 설정해요
+              일정 적용 시작일을 설정해요
             </AppText>
             <AppText variant="body" tone="secondary" style={styles.centerText}>
-              날짜와 그날의 실제 근무를 맞추면 이후 일정이 자동으로 이어져요.
+              이 날짜의 실제 근무를 맞추면 이후 일정이 자동으로 이어져요.
             </AppText>
           </View>
 
           <Card style={styles.setupCard}>
             <View style={styles.sectionCopy}>
-              <AppText accessibilityRole="header" variant="label">첫 근무일</AppText>
+              <AppText accessibilityRole="header" variant="label">일정 적용 시작일</AppText>
               <AppText variant="caption" tone="secondary">
                 이 날짜 전 일정은 만들지 않아요.
               </AppText>
             </View>
             <View style={[styles.dateRow, stackFooter && styles.dateRowStacked]}>
               <AppField
-                accessibilityLabel="첫 근무일"
+                accessibilityLabel="일정 적용 시작일"
                 autoCapitalize="none"
                 autoCorrect={false}
                 containerStyle={[styles.dateField, stackFooter && styles.dateFieldStacked]}
@@ -500,7 +709,7 @@ export default function SetupScreen() {
                 value={referenceDate}
               />
               <AppButton
-                accessibilityHint="첫 근무일을 오늘로 바꿔요."
+                accessibilityHint="일정 적용 시작일을 오늘로 바꿔요."
                 label="오늘로 변경하기"
                 onPress={() => changeReferenceDate(today)}
                 size="compact"
@@ -517,7 +726,7 @@ export default function SetupScreen() {
                     <AppText accessibilityRole="header" variant="label">
                       {validation.referenceDateValid
                         ? `${formatKoreanDate(referenceDate)}의 실제 근무`
-                        : '첫 근무일의 실제 근무'}
+                        : '일정 적용 시작일의 실제 근무'}
                     </AppText>
                     <AppText variant="caption" tone="secondary">
                       근무를 시작한 날짜를 기준으로 정확한 순번을 선택해요.
@@ -540,11 +749,16 @@ export default function SetupScreen() {
           {Platform.OS === 'android' ? (
             <Card density="compact" style={styles.alarmCard}>
               <ToggleRow
+                disabled={!scheduleSafety.canEnableAlarms}
                 icon="alarm-outline"
                 onValueChange={setAlarmsWanted}
-                subtitle="켜면 설정 완료 후 필요한 권한을 하나씩 안내해요. 정확한 알람·일반 알림·전체 화면 알람은 지금 건너뛰어도 나중에 알람에서 다시 설정할 수 있어요."
+                subtitle={
+                  scheduleSafety.canEnableAlarms
+                    ? '설정 완료 후 필요한 권한을 안내해요. 지금 건너뛰어도 설정의 알람에서 나중에 켤 수 있어요.'
+                    : '다음 알람이 이전 근무 중 울리지 않도록 순서나 시간을 먼저 수정해 주세요.'
+                }
                 title="근무 알람 준비하기"
-                value={alarmsWanted}
+                value={effectiveAlarmsWanted}
               />
             </Card>
           ) : null}
@@ -554,10 +768,7 @@ export default function SetupScreen() {
               자료는 이 휴대폰에만 저장돼요
             </AppText>
             <AppText tone="secondary" variant="caption">
-              계정이나 자체 서버로 보내지 않아요. 앱을 삭제하면 근무표·메모·설정도 함께 사라져요.
-            </AppText>
-            <AppText tone="secondary" variant="caption">
-              설정을 마친 뒤 설정의 데이터 메뉴에서 백업 파일을 만들어 다른 위치에 보관할 수 있어요.
+              서버로 보내지 않아요. 앱을 삭제하면 근무표·메모·설정도 함께 사라져요. 설정 후 데이터 메뉴에서 외부 백업을 만들 수 있어요.
             </AppText>
           </Card>
         </View>
@@ -581,6 +792,14 @@ function createStyles(palette: AppPalette) {
     setupCard: { gap: spacing.large },
     sectionBlock: { gap: spacing.medium },
     sectionCopy: { minWidth: 0, gap: spacing.tiny },
+    summaryHeading: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.small,
+    },
+    summaryCopy: { minWidth: 180, flex: 1, gap: spacing.tiny },
     dateRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',

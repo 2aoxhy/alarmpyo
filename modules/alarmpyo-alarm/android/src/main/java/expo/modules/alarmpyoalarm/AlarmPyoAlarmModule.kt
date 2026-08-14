@@ -87,6 +87,10 @@ class AlarmPyoAlarmModule : Module() {
       status(emptyList())
     }
 
+    AsyncFunction("resetAlarmRuntimeAsync") {
+      AlarmPyoAlarmRuntimeResetter.reset(context).toMap()
+    }
+
     AsyncFunction("getQuickTimerStatusAsync") {
       AlarmPyoQuickTimerScheduler.status(context).toMap()
     }

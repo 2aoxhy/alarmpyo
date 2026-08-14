@@ -130,6 +130,11 @@ class AlarmPyoAlarmService : Service() {
     hasArmedRetry: Boolean,
     automaticRepeatEligible: Boolean
   ) {
+    if (!hasCurrentDeliveryGeneration(plan, source)) {
+      Log.w(TAG, "취소되었거나 교체된 알람 세대라 재생을 시작하지 않습니다.")
+      if (ringingPlanId == null) stopSelf()
+      return
+    }
     val activePlan = ringingPlan
     val activeSource = ringingSource ?: AlarmPyoAlarmSource.WORK
     if (
@@ -138,6 +143,19 @@ class AlarmPyoAlarmService : Service() {
     ) return
     if (activePlan != null && source.priority < activeSource.priority) {
       Log.w(TAG, "더 중요한 알람이 울리는 중이라 현재 알람은 안전 재시도를 기다립니다.")
+      if (
+        AlarmPyoAlarmRuntimePolicy.shouldExpirePreemptedDelivery(
+          source,
+          activeSource,
+          hasArmedRetry
+        )
+      ) {
+        runCatching {
+          AlarmPyoQuickTimerScheduler.markDeliveryExhausted(applicationContext, plan)
+        }.onFailure { error ->
+          Log.e(TAG, "근무 알람에 선점된 타이머를 만료 처리하지 못했습니다.", error)
+        }
+      }
       return
     }
     if (
@@ -169,6 +187,13 @@ class AlarmPyoAlarmService : Service() {
 
     AlarmPyoAlarmSoundPreview.stop()
     cleanUpRinging()
+    // Receiver verification and service execution are separated by an Android process boundary.
+    // Recheck immediately before any notification, vibration or sound becomes observable.
+    if (!hasCurrentDeliveryGeneration(plan, source)) {
+      Log.w(TAG, "재생 직전에 알람이 취소되거나 교체되어 중단합니다.")
+      stopSelf()
+      return
+    }
     ringStartedAt = System.currentTimeMillis()
     val ringDurationMillis = AlarmPyoAlarmRuntimePolicy.ringDurationMillis(
       automaticRepeatArmed = false
@@ -229,6 +254,18 @@ class AlarmPyoAlarmService : Service() {
         retryAndStop(plan, source)
       }
     }, SOUND_START_TIMEOUT_MILLIS)
+  }
+
+  private fun hasCurrentDeliveryGeneration(
+    plan: AlarmPyoAlarmPlan,
+    source: AlarmPyoAlarmSource
+  ): Boolean = when (source) {
+    AlarmPyoAlarmSource.TIMER ->
+      AlarmPyoQuickTimerScheduler.hasCurrentDeliveryGeneration(applicationContext, plan)
+    AlarmPyoAlarmSource.TEST ->
+      AlarmPyoAlarmScheduler.hasCurrentDeliveryGeneration(applicationContext, plan, isTest = true)
+    AlarmPyoAlarmSource.WORK ->
+      AlarmPyoAlarmScheduler.hasCurrentDeliveryGeneration(applicationContext, plan, isTest = false)
   }
 
   private fun confirmDelivery(

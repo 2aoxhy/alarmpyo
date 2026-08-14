@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { shouldStackHeroFooter } from '@/design-system';
 import type { DayExceptionType } from '@/models/app-data';
 import { formatKoreanDate } from '@/utils/date';
 import { getDayExceptionLabel } from '@/utils/day-exception';
@@ -49,7 +50,9 @@ export function TodayHero({
 }: TodayHeroProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
   const heroGradient = getShiftSkyGradient(now.getHours());
+  const stackFooter = shouldStackHeroFooter(width, fontScale) || largeText;
 
   return (
     <LinearGradient
@@ -84,8 +87,16 @@ export function TodayHero({
       </View>
 
       <View style={styles.heroFooterPanel}>
-        <View style={[styles.heroFooter, largeText && styles.heroFooterLargeText]}>
-          <View style={styles.heroFooterCopy}>
+        <View
+          style={[
+            styles.heroFooter,
+            stackFooter && styles.heroFooterStacked,
+          ]}>
+          <View
+            style={[
+              styles.heroFooterCopy,
+              stackFooter && styles.heroFooterCopyCompact,
+            ]}>
             <AppText color={colorWithAlpha(palette.white, 0.78)} variant="caption">
               {footerLabel}
             </AppText>
@@ -106,7 +117,7 @@ export function TodayHero({
             }
             style={({ pressed }) => [
               styles.heroEdit,
-              largeText && styles.heroEditLargeText,
+              stackFooter && styles.heroEditStacked,
               pressed && styles.pressed,
             ]}>
             <AppIcon
@@ -193,7 +204,7 @@ const createStyles = (_palette: AppPalette) =>
       justifyContent: 'space-between',
       gap: spacing.medium,
     },
-    heroFooterLargeText: {
+    heroFooterStacked: {
       minHeight: 0,
       flexDirection: 'column',
       alignItems: 'stretch',
@@ -203,6 +214,7 @@ const createStyles = (_palette: AppPalette) =>
       minWidth: 0,
       gap: 1,
     },
+    heroFooterCopyCompact: { flex: 0 },
     heroEdit: {
       minWidth: 96,
       minHeight: 44,
@@ -215,7 +227,7 @@ const createStyles = (_palette: AppPalette) =>
       backgroundColor: 'rgba(255, 255, 255, 0.20)',
       paddingHorizontal: 12,
     },
-    heroEditLargeText: {
+    heroEditStacked: {
       width: '100%',
       marginTop: spacing.small,
       paddingVertical: spacing.small,

@@ -77,7 +77,7 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('지원되는 Android 설치본');
     expect(timer).toContain('알람 설정 확인하기');
     expect(timer).toContain('알람음·진동');
-    expect(settings).toContain('알람음·진동과 권한을 확인해요');
+    expect(settings).toContain('소리·진동·권한');
   });
 
   it('큰 글자에서는 버튼을 세로로 재배치하고 최소 64dp 높이를 사용해요', () => {

@@ -26,6 +26,7 @@ type ShiftTimeEditorProps = {
   parsedStartMinutes: number | null;
   selectedDuration: ShiftDuration | null;
   selectedShift: ShiftType;
+  showHeader?: boolean;
   startTime: string;
   usesDefaultTime: boolean;
 };
@@ -40,6 +41,7 @@ export function ShiftTimeEditor({
   parsedStartMinutes,
   selectedDuration,
   selectedShift,
+  showHeader = true,
   startTime,
   usesDefaultTime,
 }: ShiftTimeEditorProps) {
@@ -50,7 +52,7 @@ export function ShiftTimeEditor({
 
   return (
     <Card density="compact" style={styles.timeCard}>
-      <View style={styles.timeHeader}>
+      {showHeader ? <View style={styles.timeHeader}>
         <View style={[styles.timeIcon, { backgroundColor: appearance.softColor }]}>
           <AppIcon
             accessible={false}
@@ -77,7 +79,7 @@ export function ShiftTimeEditor({
             variant="ghost"
           />
         ) : null}
-      </View>
+      </View> : null}
 
       <View style={[styles.timeRow, compact && styles.timeRowCompact]}>
         <View style={styles.timeField}>

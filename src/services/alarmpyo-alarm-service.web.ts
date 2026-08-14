@@ -62,6 +62,27 @@ export type AlarmPyoWidgetPinResult = {
   installed: false;
 };
 
+export type AlarmPyoAlarmRuntimeResetIssueCode =
+  | 'work-alarms'
+  | 'sleep-reminders'
+  | 'quick-timer'
+  | 'active-alarm'
+  | 'alarm-sound'
+  | 'restore-journal'
+  | 'alarm-history';
+
+export type AlarmPyoAlarmRuntimeResetResult = {
+  outcome: 'success' | 'partial' | 'failure';
+  workAlarmsReset: boolean;
+  sleepRemindersReset: boolean;
+  quickTimerReset: boolean;
+  activeAlarmStopped: boolean;
+  alarmSoundReset: boolean;
+  restoreJournalReset: boolean;
+  alarmHistoryReset: boolean;
+  issueCodes: AlarmPyoAlarmRuntimeResetIssueCode[];
+};
+
 const WEB_STATUS: AlarmPyoAlarmStatus = {
   supported: false,
   enabled: false,
@@ -126,6 +147,16 @@ export async function scheduleAlarmPyoTestAlarm(_seconds = 5): Promise<void> {
 
 export async function cancelAllAlarmPyoAlarms(): Promise<AlarmPyoAlarmStatus> {
   return webStatus();
+}
+
+export function normalizeAlarmPyoRuntimeResetResult(
+  _value: unknown,
+): AlarmPyoAlarmRuntimeResetResult | null {
+  return null;
+}
+
+export async function resetAlarmPyoRuntime(): Promise<AlarmPyoAlarmRuntimeResetResult | null> {
+  return null;
 }
 
 export async function syncAlarmPyoWidget(_snapshot: AlarmPyoWidgetSnapshot): Promise<boolean> {

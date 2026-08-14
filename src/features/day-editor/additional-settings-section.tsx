@@ -36,6 +36,6 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    gap: space.lg,
+    gap: space.sm,
   },
 });

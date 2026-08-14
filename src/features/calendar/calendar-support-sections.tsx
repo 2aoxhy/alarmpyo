@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import type { Ref } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
@@ -127,95 +128,96 @@ export function CalendarLargeTextStatusSummary({
 }
 
 type MenuProps = {
-  isDark: boolean;
-  legendExpanded: boolean;
-  onToggleLegend: () => void;
-  shiftTypes: readonly ShiftType[];
+  onOpenLegend: () => void;
+  triggerRef?: Ref<React.ElementRef<typeof Pressable>>;
 };
 
 export function CalendarMenuSections({
-  isDark,
-  legendExpanded,
-  onToggleLegend,
-  shiftTypes,
+  onOpenLegend,
+  triggerRef,
 }: MenuProps) {
+  const { palette } = useAppTheme();
+
+  return (
+    <MenuGroup title="달력 메뉴">
+      <ListRow
+        elementRef={triggerRef}
+        icon="ellipse-outline"
+        onPress={onOpenLegend}
+        subtitle="근무·급여·예외 일정 표시를 확인해요."
+        title="표시 안내"
+        trailing={
+          <AppText variant="label" color={palette.indigoDark}>
+            보기
+          </AppText>
+        }
+      />
+    </MenuGroup>
+  );
+}
+
+type LegendProps = {
+  isDark: boolean;
+  shiftTypes: readonly ShiftType[];
+};
+
+export function CalendarLegend({ isDark, shiftTypes }: LegendProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
-    <>
-      <MenuGroup title="달력 메뉴">
-        <ListRow
-          expanded={legendExpanded}
-          icon="ellipse-outline"
-          onPress={onToggleLegend}
-          subtitle="근무와 예외 일정 색상을 확인해요."
-          title="표시 안내"
-          trailing={
-            <AppText variant="label" color={palette.indigoDark}>
-              {legendExpanded ? '접기' : '보기'}
+    <View style={styles.legend}>
+      {shiftTypes.map((shift) => {
+        const appearance = getShiftAppearance(shift, palette, isDark);
+        return (
+          <View
+            key={shift.id}
+            style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
+            <AnimatedShiftIcon
+              animated={false}
+              color={appearance.accentColor}
+              kind={getShiftIconKind(shift.id, shift.isOff)}
+              size={16}
+            />
+            <AppText variant="caption" color={appearance.accentColor}>
+              {shift.name}
             </AppText>
-          }
-        />
-      </MenuGroup>
-
-      {legendExpanded ? (
-        <View style={styles.legendSection}>
-          <View style={styles.legend}>
-            {shiftTypes.map((shift) => {
-              const appearance = getShiftAppearance(shift, palette, isDark);
-              return (
-                <View
-                  key={shift.id}
-                  style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
-                  <AnimatedShiftIcon
-                    animated={false}
-                    color={appearance.accentColor}
-                    kind={getShiftIconKind(shift.id, shift.isOff)}
-                    size={16}
-                  />
-                  <AppText variant="caption" color={appearance.accentColor}>
-                    {shift.name}
-                  </AppText>
-                </View>
-              );
-            })}
-            <View style={[styles.legendItem, styles.overrideLegendItem]}>
-              <View style={styles.overrideLegend} />
-              <AppText variant="caption" tone="secondary">
-                직접 변경한 날
-              </AppText>
-            </View>
-            <View style={[styles.legendItem, styles.paydayLegendItem]}>
-              <View style={styles.paydayLegendMarker}>
-                <AppText
-                  color={palette.canvas}
-                  style={styles.paydayLegendMarkerText}
-                  variant="caption">
-                  급
-                </AppText>
-              </View>
-              <AppText variant="caption" color={palette.white}>
-                회사 기준 급여일 · * 예상일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
-              </AppText>
-            </View>
-            {DAY_EXCEPTION_TYPES.map((type) => {
-              const appearance = getDayExceptionAppearance(type, palette);
-              return (
-                <View
-                  key={type}
-                  style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
-                  <AppIcon color={appearance.accentColor} name={appearance.iconName} size={16} />
-                  <AppText variant="caption" color={appearance.accentColor}>
-                    {appearance.label}
-                  </AppText>
-                </View>
-              );
-            })}
           </View>
+        );
+      })}
+      <View style={[styles.legendItem, styles.overrideLegendItem]}>
+        <View style={styles.overrideLegend} />
+        <AppText variant="caption" tone="secondary">
+          직접 변경한 날
+        </AppText>
+      </View>
+      <View style={[styles.legendItem, styles.paydayLegendItem]}>
+        <View style={styles.paydayLegendMarker}>
+          <AppText
+            color={palette.canvas}
+            style={styles.paydayLegendMarkerText}
+            variant="caption">
+            급
+          </AppText>
         </View>
-      ) : null}
-    </>
+        <AppText variant="caption" color={palette.white}>
+          회사 기준 급여일 · * 예상일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
+        </AppText>
+      </View>
+      {DAY_EXCEPTION_TYPES.map((type) => {
+        const appearance = getDayExceptionAppearance(type, palette);
+        return (
+          <View
+            key={type}
+            style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
+            <AppIcon color={appearance.accentColor} name={appearance.iconName} size={16} />
+            <AppText variant="caption" color={appearance.accentColor}>
+              {appearance.label}
+            </AppText>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -280,10 +282,6 @@ function createStyles(palette: AppPalette) {
       height: 8,
       borderRadius: radii.pill,
       backgroundColor: palette.amber,
-    },
-    legendSection: {
-      gap: 6,
-      paddingHorizontal: spacing.tiny,
     },
     legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     legendItem: {

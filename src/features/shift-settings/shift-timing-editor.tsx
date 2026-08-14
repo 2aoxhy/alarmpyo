@@ -60,6 +60,7 @@ export function ShiftTimingEditor({
   substituteDayHasError = false,
   substituteMode,
   substituteNightHasError = false,
+  visibleSection = 'all',
 }: {
   compact: boolean;
   draft: ShiftDraft;
@@ -70,6 +71,7 @@ export function ShiftTimingEditor({
   substituteDayHasError?: boolean;
   substituteMode?: 'day' | 'night';
   substituteNightHasError?: boolean;
+  visibleSection?: 'all' | 'time' | 'wake';
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -91,6 +93,9 @@ export function ShiftTimingEditor({
   const [focusedField, setFocusedField] = useState<'start' | 'end' | null>(
     null,
   );
+  const showTime = visibleSection !== 'wake';
+  const showWake = visibleSection !== 'time';
+  const wakeFirst = showWake && (visibleSection === 'wake' || emphasizeWake);
 
   const timeErrorMessage =
     startMinutes === null || endMinutes === null
@@ -222,17 +227,23 @@ export function ShiftTimingEditor({
               : `${shift.name} 근무`}
           </AppText>
           <AppText tone="secondary" variant="caption">
-            근무 시간과 기상 시각을 설정해요.
+            {visibleSection === 'time'
+              ? '근무 시간을 설정해요.'
+              : visibleSection === 'wake'
+                ? '기상 알람과 시각을 설정해요.'
+                : '근무 시간과 기상 시각을 설정해요.'}
           </AppText>
         </View>
       </View>
 
-      {emphasizeWake ? renderWakeSettings() : null}
+      {wakeFirst ? renderWakeSettings() : null}
 
-      {emphasizeWake ? <View style={styles.divider} /> : null}
+      {showTime && showWake && wakeFirst ? <View style={styles.divider} /> : null}
 
-      <View style={[styles.timeRow, compact && styles.timeRowCompact]}>
-        <AppField
+      {showTime ? (
+        <>
+          <View style={[styles.timeRow, compact && styles.timeRowCompact]}>
+            <AppField
           accessibilityHint="24시간 형식으로 입력해 주세요."
           accessibilityLabel={`${shift.name} 시작 시간`}
           autoCorrect={false}
@@ -259,8 +270,8 @@ export function ShiftTimingEditor({
           placeholder={isNightShiftId(shift.id) ? '17:45' : '06:45'}
           selectTextOnFocus
           value={draft.start}
-        />
-        <AppField
+            />
+            <AppField
           accessibilityHint="24시간 형식으로 입력해 주세요."
           accessibilityLabel={`${shift.name} 종료 시간`}
           autoCorrect={false}
@@ -291,25 +302,27 @@ export function ShiftTimingEditor({
           }
           selectTextOnFocus
           value={draft.end}
-        />
-      </View>
+            />
+          </View>
 
-      <StatusBanner
-        message={
-          duration
-            ? `${draft.start}부터 ${duration.endsNextDay ? '다음 날 ' : ''}${draft.end}까지예요.`
-            : (timeErrorMessage ?? '시간을 확인해 주세요.')
-        }
-        title={
-          duration
-            ? `총 ${formatDuration(duration.durationMinutes)} 근무`
-            : '시간 확인 필요'
-        }
-        tone={duration ? 'success' : 'danger'}
-      />
+          <StatusBanner
+            message={
+              duration
+                ? `${draft.start}부터 ${duration.endsNextDay ? '다음 날 ' : ''}${draft.end}까지예요.`
+                : (timeErrorMessage ?? '시간을 확인해 주세요.')
+            }
+            title={
+              duration
+                ? `총 ${formatDuration(duration.durationMinutes)} 근무`
+                : '시간 확인 필요'
+            }
+            tone={duration ? 'success' : 'danger'}
+          />
+        </>
+      ) : null}
 
-      {!emphasizeWake ? <View style={styles.divider} /> : null}
-      {!emphasizeWake ? renderWakeSettings() : null}
+      {showTime && showWake && !wakeFirst ? <View style={styles.divider} /> : null}
+      {showWake && !wakeFirst ? renderWakeSettings() : null}
     </Card>
   );
 }

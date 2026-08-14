@@ -233,7 +233,7 @@ class AlarmPyoAlarmSchedulerTest {
   }
 
   @Test
-  fun rebootRestoresWorkRepeatButDropsTestAndExpiredRepeats() {
+  fun rebootRestoresWorkAndTestRepeatsButDropsExpiredRepeats() {
     val now = 1_000_000L
     val work = AlarmPyoAlarmScheduler.createSingleRepeatPlan(basePlan, now + 1_000L)
     val test = AlarmPyoAlarmScheduler.createSingleRepeatPlan(
@@ -250,7 +250,7 @@ class AlarmPyoAlarmSchedulerTest {
       now
     )
 
-    assertEquals(listOf(work), restored)
+    assertEquals(listOf(test, work), restored)
   }
 
   @Test

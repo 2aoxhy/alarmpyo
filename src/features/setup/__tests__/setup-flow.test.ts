@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInitialSetupPayload,
   buildSetupPreview,
+  applySetupPresetSuggestions,
+  createSetupSequenceSignature,
+  createSetupWorkTimeSignature,
   getSuggestedWorkTimesForPreset,
   normalizeSetupScreenStep,
   shouldApplySetupPresetSuggestion,
@@ -64,6 +67,64 @@ describe('initial setup flow', () => {
       evening: { start: '15:00', end: '23:00' },
       night: { start: '23:00', end: '07:00' },
     });
+  });
+
+  it('applies a new preset suggestion only to untouched time fields', () => {
+    const values = {
+      dayStart: '06:45',
+      dayEnd: '17:45',
+      eveningStart: '15:00',
+      eveningEnd: '23:00',
+      nightStart: '17:45',
+      nightEnd: '06:45',
+    };
+    expect(
+      applySetupPresetSuggestions({
+        editedFields: ['dayStart'],
+        suggestedTimes: getSuggestedWorkTimesForPreset('three-team-three-shift'),
+        values,
+      }),
+    ).toEqual({
+      dayStart: '06:45',
+      dayEnd: '15:00',
+      eveningStart: '15:00',
+      eveningEnd: '23:00',
+      nightStart: '23:00',
+      nightEnd: '07:00',
+    });
+  });
+
+  it('creates stable confirmation signatures from the visible sequence and active times', () => {
+    const values = {
+      dayStart: '07:00',
+      dayEnd: '15:00',
+      eveningStart: '15:00',
+      eveningEnd: '23:00',
+      nightStart: '23:00',
+      nightEnd: '07:00',
+    };
+    expect(createSetupSequenceSignature(['day', 'evening', 'night'])).toBe(
+      'sequence:v1:day,evening,night',
+    );
+    expect(
+      createSetupWorkTimeSignature({ sequence: ['day', 'evening', 'night'], values }),
+    ).toBe('times:v1:day:07:00-15:00|evening:15:00-23:00|night:23:00-07:00');
+    expect(
+      createSetupWorkTimeSignature({ sequence: ['day', 'off'], values }),
+    ).toBe('times:v1:day:07:00-15:00');
+
+    const confirmedSequence = createSetupSequenceSignature(['day', 'evening', 'night']);
+    const confirmedTimes = createSetupWorkTimeSignature({
+      sequence: ['day', 'evening', 'night'],
+      values,
+    });
+    expect(createSetupSequenceSignature(['day', 'night', 'off'])).not.toBe(confirmedSequence);
+    expect(
+      createSetupWorkTimeSignature({
+        sequence: ['day', 'evening', 'night'],
+        values: { ...values, eveningStart: '14:30' },
+      }),
+    ).not.toBe(confirmedTimes);
   });
 
   it('requires a selected position and every active shift time', () => {
@@ -209,6 +270,51 @@ describe('initial setup flow', () => {
       evening: { startMinutes: 900, endMinutes: 1380, endsNextDay: false },
       night: { startMinutes: 1380, endMinutes: 420, endsNextDay: true },
     });
+  });
+
+  it('blocks overlapping work and turns off an unsafe alarm opt-in defensively', () => {
+    expect(() =>
+      buildInitialSetupPayload({
+        activePosition: 0,
+        alarmsWanted: true,
+        dayDuration: { durationMinutes: 660, endsNextDay: false },
+        dayEndMinutes: 1065,
+        dayStartMinutes: 405,
+        eveningDuration: null,
+        eveningEndMinutes: null,
+        eveningStartMinutes: null,
+        nightDuration: { durationMinutes: 780, endsNextDay: true },
+        nightEndMinutes: 420,
+        nightStartMinutes: 1065,
+        presetId: 'two-team-two-shift',
+        sequence: ['day', 'night'],
+        referenceDate: '2026-07-13',
+        safetyResult: {
+          canEnableAlarms: false,
+          canSave: false,
+          issues: [{ code: 'work-overlap', sequenceIndex: 0, shiftTypeId: 'day' }],
+        },
+      }),
+    ).toThrow('서로 겹치는 근무 시간을 먼저 수정해 주세요.');
+
+    const payload = buildInitialSetupPayload({
+      activePosition: 0,
+      alarmsWanted: true,
+      dayDuration: { durationMinutes: 720, endsNextDay: false },
+      dayEndMinutes: 1140,
+      dayStartMinutes: 420,
+      eveningDuration: null,
+      eveningEndMinutes: null,
+      eveningStartMinutes: null,
+      nightDuration: { durationMinutes: 720, endsNextDay: true },
+      nightEndMinutes: 420,
+      nightStartMinutes: 1140,
+      presetId: 'two-team-two-shift',
+      sequence: ['day', 'night'],
+      referenceDate: '2026-07-13',
+      safetyResult: { canEnableAlarms: false, canSave: true, issues: [] },
+    });
+    expect(payload.notificationsEnabled).toBe(false);
   });
 
   it('keeps the legacy rotation call contract while callers migrate', () => {

@@ -252,6 +252,81 @@ class AlarmPyoSleepReminderStoreTest {
     assertEquals(AlarmPyoSleepReminderStorageHealth.RECOVERED, persistence.health)
   }
 
+  @Test
+  fun `explicit cancellation tombstone survives corrupt current without reviving reminders`() {
+    val active = AlarmPyoSleepReminderSnapshot(listOf(plan), setOf(plan.id), generation = 4L)
+    val persistence = FakeSleepReminderPersistence(
+      current = AlarmPyoSleepReminderSnapshotCodec.create(active),
+      previous = AlarmPyoSleepReminderSnapshotCodec.create(emptySnapshot(3L))
+    )
+    val store = AlarmPyoSleepReminderStoreEngine(persistence)
+
+    val tombstone = store.commitCancellationTombstone()
+    persistence.current = persistence.current?.copy(checksum = "broken")
+    val recovered = store.read()
+
+    assertTrue(tombstone.plans.isEmpty())
+    assertEquals(tombstone.generation, persistence.rollbackFloor)
+    assertTrue(recovered?.plans?.isEmpty() == true)
+    assertEquals(tombstone.generation, recovered?.generation)
+    assertEquals(AlarmPyoSleepReminderStorageHealth.RECOVERED, persistence.health)
+  }
+
+  @Test
+  fun `authoritative reseed starts a new epoch after rollback floor exhaustion`() {
+    val previousActive = AlarmPyoSleepReminderSnapshot(
+      listOf(plan),
+      setOf(plan.id),
+      generation = Long.MAX_VALUE - 1L
+    )
+    val corruptCurrent = AlarmPyoSleepReminderSnapshotCodec.create(emptySnapshot(9L))
+      .copy(checksum = "broken-current")
+    val persistence = FakeSleepReminderPersistence(
+      current = corruptCurrent,
+      previous = AlarmPyoSleepReminderSnapshotCodec.create(previousActive),
+      health = AlarmPyoSleepReminderStorageHealth.CORRUPT
+    ).apply {
+      rollbackFloor = Long.MAX_VALUE - 1L
+    }
+    val store = AlarmPyoSleepReminderStoreEngine(persistence)
+
+    val reseeded = store.reseedAfterCorruption(emptySnapshot(0L))
+    val loaded = store.read()
+
+    assertEquals(1L, reseeded.generation)
+    assertTrue(loaded?.plans?.isEmpty() == true)
+    assertEquals(1L, loaded?.generation)
+    assertEquals(0L, persistence.rollbackFloor)
+    assertEquals(
+      previousActive,
+      persistence.previous?.let(AlarmPyoSleepReminderSnapshotCodec::decode)
+    )
+  }
+
+  @Test
+  fun `normal write rolls exhausted generation into a current-first epoch`() {
+    val exhausted = AlarmPyoSleepReminderSnapshot(
+      listOf(plan),
+      setOf(plan.id),
+      generation = Long.MAX_VALUE - 1L
+    )
+    val persistence = FakeSleepReminderPersistence(
+      current = AlarmPyoSleepReminderSnapshotCodec.create(exhausted),
+      previous = AlarmPyoSleepReminderSnapshotCodec.create(
+        emptySnapshot(Long.MAX_VALUE - 2L)
+      )
+    ).apply {
+      rollbackFloor = Long.MAX_VALUE - 1L
+    }
+    val store = AlarmPyoSleepReminderStoreEngine(persistence)
+
+    val written = store.write(emptySnapshot(0L))
+
+    assertEquals(1L, written.generation)
+    assertEquals(written, store.read())
+    assertEquals(0L, persistence.rollbackFloor)
+  }
+
   private fun emptySnapshot(generation: Long) = AlarmPyoSleepReminderSnapshot(
     plans = emptyList(),
     scheduledIds = emptySet(),
@@ -267,6 +342,7 @@ class AlarmPyoSleepReminderStoreTest {
   ) : AlarmPyoSleepReminderPersistence {
     var legacyCleared = false
     var currentWriteCount = 0
+    var rollbackFloor = 0L
 
     override fun hasV2Values(): Boolean = current != null || previous != null
 
@@ -294,6 +370,12 @@ class AlarmPyoSleepReminderStoreTest {
 
     override fun writeHealth(health: AlarmPyoSleepReminderStorageHealth) {
       this.health = health
+    }
+
+    override fun readRollbackFloor(): Long = rollbackFloor
+
+    override fun writeRollbackFloor(generation: Long) {
+      rollbackFloor = generation
     }
   }
 }

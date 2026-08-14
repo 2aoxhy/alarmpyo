@@ -462,6 +462,25 @@ describe('근무 설정 공유 파일', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it('저장 전 안전 검사에서 거절하면 백업 세대를 회전하지 않아요', async () => {
+    const current = createDefaultAppData('2026-07-13');
+    const preview = previewWorkSettingsImport(JSON.stringify(exportedDocument()));
+    const createSafetyBackup = vi.fn(async () => undefined);
+    const save = vi.fn(async () => true);
+
+    const result = await applyWorkSettingsTransaction({
+      current,
+      preview,
+      createSafetyBackup,
+      prepare: () => null,
+      save,
+    });
+
+    expect(result).toEqual({ success: false, reason: 'save-failed' });
+    expect(createSafetyBackup).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('저장 실패와 변조된 파일을 구분합니다', async () => {
     const current = createDefaultAppData('2026-07-13');
     const preview = previewWorkSettingsImport(JSON.stringify(exportedDocument()));

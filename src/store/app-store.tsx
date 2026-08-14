@@ -40,6 +40,11 @@ import {
   selectNoteForDate,
   selectShiftForDate,
 } from '@/application/app-store-selectors';
+import {
+  analyzeAppDataScheduleSafety,
+  enforceAppDataScheduleSafety,
+  type EnforcedScheduleSafety,
+} from '@/application/app-store-schedule-safety';
 import type {
   AlarmAutoCheckState,
   AlarmSyncStatus,
@@ -58,6 +63,7 @@ import type {
   UpdatePatternOptions,
 } from '@/application/app-store-contract';
 import {
+  clearSaveIssue,
   clearSaveIssuesByRetryAction,
   createSavedOutcome,
   mergeSaveIssue,
@@ -122,6 +128,7 @@ import {
   cancelAllAlarmPyoAlarms,
   getAlarmPyoAlarmStatus,
   requestAlarmPyoAlarmPermissions,
+  resetAlarmPyoRuntime,
   scheduleAlarmPyoTestAlarm,
   syncAlarmPyoAlarms,
 } from '@/services/alarmpyo-alarm-service';
@@ -142,6 +149,7 @@ import {
   syncAlarmPyoSleepReminders,
 } from '@/services/sleep-reminder-service';
 import { cancelQuickTimer } from '@/services/quick-timer-service';
+import { resetAlarmSound } from '@/services/alarm-sound-service';
 import {
   clearResetCleanupJournal,
   prepareResetCleanupJournal,
@@ -202,6 +210,41 @@ async function cancelQuickTimerForResetCleanup(): Promise<void> {
   const status = await cancelQuickTimer();
   if (status.supported && (status.active || status.state === 'error')) {
     throw new Error('타이머를 취소하지 못했어요.');
+  }
+}
+
+async function resetAlarmRuntimeForResetCleanup(): Promise<void> {
+  const unified = await resetAlarmPyoRuntime();
+  if (unified !== null) {
+    if (
+      unified.outcome !== 'success' ||
+      unified.issueCodes.length > 0 ||
+      !unified.workAlarmsReset ||
+      !unified.sleepRemindersReset ||
+      !unified.quickTimerReset ||
+      !unified.activeAlarmStopped ||
+      !unified.alarmSoundReset ||
+      !unified.restoreJournalReset ||
+      !unified.alarmHistoryReset
+    ) {
+      throw new Error('네이티브 알람 상태 일부를 초기화하지 못했어요.');
+    }
+    return;
+  }
+
+  // OTA 뒤 구형 네이티브 모듈이 잠시 실행되는 경우에도 기존 API로 최대한 정리해요.
+  await cancelQuickTimerForResetCleanup();
+  const work = await cancelAllAlarmPyoAlarms();
+  if (work.supported && (work.enabled || work.scheduledCount > 0)) {
+    throw new Error('근무 알람을 초기화하지 못했어요.');
+  }
+  const sleep = await cancelAlarmPyoSleepReminders();
+  if (sleep.supported && (sleep.enabled || sleep.scheduledCount > 0)) {
+    throw new Error('수면 알림을 초기화하지 못했어요.');
+  }
+  const sound = await resetAlarmSound();
+  if (sound.supported && sound.selected) {
+    throw new Error('알람음을 초기화하지 못했어요.');
   }
 }
 
@@ -283,6 +326,60 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     recordSaveOutcome(outcome);
     if (mountedRef.current) setSaveStatus('error');
   }, [recordSaveOutcome]);
+
+  const clearReportedSaveIssue = useCallback((issueCode: SaveIssueCode) => {
+    const current = saveOutcomeRef.current;
+    if (!current?.issues.some((issue) => issue.issueCode === issueCode)) return;
+    const outcome = clearSaveIssue(current, issueCode);
+    recordSaveOutcome(outcome);
+    if (mountedRef.current) {
+      setSaveStatus(outcome.status === 'success' ? 'saved' : 'error');
+    }
+  }, [recordSaveOutcome]);
+
+  const reportUnsafeAlarmSchedule = useCallback((
+    enforced: EnforcedScheduleSafety,
+  ) => {
+    if (enforced.safety.canEnableAlarms) {
+      clearReportedSaveIssue('unsafe-alarm-schedule');
+      clearReportedSaveIssue('invalid-work-schedule');
+      return;
+    }
+    const hasUnsupportedShift = enforced.safety.unsupportedShiftTypeIds.length > 0;
+    reportSaveIssue(
+      'unsafe-alarm-schedule',
+      hasUnsupportedShift
+        ? '자료는 보존했지만 이전 형식의 근무가 포함되어 근무 알람을 껐어요. 근무 방식을 다시 확인해 주세요.'
+        : '자료는 저장됐지만 이전 근무 중 알람이 울릴 수 있어 근무 알람을 껐어요. 근무 시간과 순서를 확인한 뒤 알람을 다시 켜 주세요.',
+    );
+  }, [clearReportedSaveIssue, reportSaveIssue]);
+
+  const reportInvalidWorkSchedule = useCallback(() => {
+    reportSaveIssue(
+      'invalid-work-schedule',
+      '근무 시간이 이전 일정과 겹치거나 올바르지 않아 저장하지 못했어요. 근무 시간과 순서를 확인해 주세요.',
+    );
+  }, [reportSaveIssue]);
+
+  const reportAlarmEnableBlocked = useCallback(() => {
+    reportSaveIssue(
+      'invalid-work-schedule',
+      '이전 근무 중 알람이 울리거나 근무 시간이 겹칠 수 있어 알람을 켜지 않았어요. 근무 시간과 순서를 먼저 확인해 주세요.',
+    );
+  }, [reportSaveIssue]);
+
+  const finalizeScheduleMutation = useCallback((
+    enforced: EnforcedScheduleSafety | null,
+    saved: boolean,
+  ): boolean => {
+    if (enforced === null || enforced.data === null) {
+      reportInvalidWorkSchedule();
+      return false;
+    }
+    if (!saved) return false;
+    reportUnsafeAlarmSchedule(enforced);
+    return true;
+  }, [reportInvalidWorkSchedule, reportUnsafeAlarmSchedule]);
 
   const clearReportedSaveIssues = useCallback((
     retryAction: SaveRetryAction,
@@ -439,6 +536,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         const cleanup = await resumeResetCleanupJournal({
           persistedSnapshot: result.persistedSnapshot,
           resetFallbackLoaded: result.source === 'reset',
+          resetAlarmRuntime: resetAlarmRuntimeForResetCleanup,
           cancelTimer: cancelQuickTimerForResetCleanup,
         });
         resetCleanupCompleted = cleanup.completed;
@@ -458,11 +556,15 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       return false;
     }
 
-    dataRef.current = result.data;
+    const loadedScheduleSafety = enforceAppDataScheduleSafety(result.data, {
+      mode: 'ingress',
+    });
+    const loadedData = loadedScheduleSafety.data ?? result.data;
+    dataRef.current = loadedData;
     explicitResetMarkerPendingRef.current = explicitResetMarkerPending;
     appDataWriter.setPersistedValue(result.persistedSnapshot);
     lastKnownGoodSnapshotRef.current = matchingLastKnownGoodSnapshot;
-    setData(result.data);
+    setData(loadedData);
     readyRef.current = true;
     setReady(true);
     setSaveStatus(
@@ -481,11 +583,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (!resetCleanupCompleted) {
       reportSaveIssue(
         'reset-marker-cleanup-failed',
-        '자료는 초기화됐지만 타이머 또는 이전 설정 초안 정리가 남았어요. 앱을 다시 열면 자동으로 재시도해요.',
+        '자료는 초기화됐지만 알람 상태 또는 이전 설정 초안 정리가 남았어요. 앱을 다시 열면 자동으로 재시도해요.',
       );
     }
+    reportUnsafeAlarmSchedule(loadedScheduleSafety);
     return true;
-  }, [appDataWriter, reportSaveIssue, storageWriter]);
+  }, [appDataWriter, reportSaveIssue, reportUnsafeAlarmSchedule, storageWriter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void loadData(), 0);
@@ -524,18 +627,26 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     preparedMetadata?: AlarmPyoAlarmSyncMetadata,
   ) => {
     const signature = getAlarmScheduleSignature(snapshot);
+    const enforcedScheduleSafety = enforceAppDataScheduleSafety(snapshot, {
+      mode: 'ingress',
+    });
+    const syncSnapshot = enforcedScheduleSafety.data ?? snapshot;
+    const scheduleSafetyBlocked = !enforcedScheduleSafety.safety.canEnableAlarms;
+    if (scheduleSafetyBlocked) reportUnsafeAlarmSchedule(enforcedScheduleSafety);
     if (mountedRef.current) {
       setAlarmSyncStatus('syncing');
       setAlarmSyncError(null);
     }
     try {
-      const plan = preparedPlan ?? buildAlarmPyoAlarmPlan(
-        snapshot,
+      const plan = syncSnapshot.settings.notificationsEnabled
+        ? preparedPlan ?? buildAlarmPyoAlarmPlan(
+        syncSnapshot,
         (dateKey) =>
-          resolveShiftFromData(snapshot, dateKey),
-      );
+          resolveShiftFromData(syncSnapshot, dateKey),
+      )
+        : [];
       const status = await applyNativeAlarmSnapshot({
-        notificationsEnabled: snapshot.settings.notificationsEnabled,
+        notificationsEnabled: syncSnapshot.settings.notificationsEnabled,
         plan,
         synchronize: (alarms) => syncAlarmPyoAlarms(
           alarms,
@@ -572,8 +683,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       }
       updateData((current) => {
         if (getAlarmScheduleSignature(current) !== signature) return current;
+        const safeCurrent = scheduleSafetyBlocked
+          ? enforceAppDataScheduleSafety(current, { mode: 'ingress' }).data ?? current
+          : current;
         return withAlarmRuntimeState(
-          current,
+          safeCurrent,
           status.scheduledCount,
           new Date().toISOString(),
         );
@@ -581,10 +695,15 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       return true;
     } catch {
       failedAlarmSyncSignatureRef.current = signature;
-      reportAlarmSyncFailure(snapshot.settings.notificationsEnabled);
+      reportAlarmSyncFailure(syncSnapshot.settings.notificationsEnabled);
       return false;
     }
-  }, [clearReportedSaveIssues, reportAlarmSyncFailure, updateData]);
+  }, [
+    clearReportedSaveIssues,
+    reportAlarmSyncFailure,
+    reportUnsafeAlarmSchedule,
+    updateData,
+  ]);
 
   const syncSleepRemindersForSnapshot = useCallback(
     (snapshot: AppData, force = false): Promise<boolean> => {
@@ -996,6 +1115,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       const current = dataRef.current;
       const replacementData =
         typeof replacement === 'function' ? replacement(current) : replacement;
+      if (Object.is(replacementData, current)) {
+        return createDataReplacementResult({
+          primarySaved: true,
+          dataApplied: true,
+          followUpSucceeded: true,
+        });
+      }
       let next: AppData;
       let snapshot: string;
       try {
@@ -1202,6 +1328,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       }
 
       let applied = false;
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
       const saved = await replaceDataAndPersist((current) => {
         const next = tryApplyDayEditValues(current, dateKey, {
           selection,
@@ -1212,26 +1339,34 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         });
         if (!next) return current;
         applied = true;
-        return next;
+        scheduleEnforcement = enforceAppDataScheduleSafety(next, {
+          focusDateKeys: [dateKey],
+        });
+        return scheduleEnforcement.data ?? current;
       }, true);
-      return applied && saved;
+      return applied && finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const saveDays = useCallback(
     async (dateKeys: readonly string[], change: BulkDayChange) => {
       if (!readyRef.current) return false;
       let applied = false;
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
       const saved = await replaceDataAndPersist((current) => {
         const next = applyBulkDayChange(current, dateKeys, change);
         if (!next) return current;
         applied = true;
-        return pruneInvalidDayAlarmOverrides(next);
+        scheduleEnforcement = enforceAppDataScheduleSafety(
+          pruneInvalidDayAlarmOverrides(next),
+          { focusDateKeys: dateKeys },
+        );
+        return scheduleEnforcement.data ?? current;
       }, true);
-      return applied && saved;
+      return applied && finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const updatePattern = useCallback(
@@ -1257,18 +1392,23 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       ) {
         return false;
       }
-      return replaceDataAndPersist(
-        (current) =>
-          applyPatternSettings(
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
+      const saved = await replaceDataAndPersist(
+        (current) => {
+          const candidate = applyPatternSettings(
             current,
             pattern,
             shiftTypePatches,
             clearFrom,
-          ),
+          );
+          scheduleEnforcement = enforceAppDataScheduleSafety(candidate);
+          return scheduleEnforcement.data ?? current;
+        },
         true,
       );
+      return finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const updateShiftTypes = useCallback(
@@ -1291,14 +1431,17 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       }
       if (shiftTypeIds.size === 0 && !workRoutineProfiles) return true;
       let compatible = true;
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
       const saved = await replaceDataAndPersist((current) => {
         const result = applyShiftSettings(current, patches, workRoutineProfiles);
         compatible = result.compatible;
-        return result.data;
+        if (!result.compatible) return current;
+        scheduleEnforcement = enforceAppDataScheduleSafety(result.data);
+        return scheduleEnforcement.data ?? current;
       }, true);
-      return compatible && saved;
+      return compatible && finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const setThemeMode = useCallback(
@@ -1324,12 +1467,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const completeSetup = useCallback(
     async (pattern?: RotationPattern) => {
       if (pattern && pattern.shiftTypeIds.length === 0) return false;
-      return replaceDataAndPersist(
-        (current) => applySetupCompletion(current, pattern),
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
+      const saved = await replaceDataAndPersist(
+        (current) => {
+          const candidate = applySetupCompletion(current, pattern);
+          scheduleEnforcement = enforceAppDataScheduleSafety(candidate);
+          return scheduleEnforcement.data ?? current;
+        },
         true,
       );
+      return finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const completeInitialSetup = useCallback(
@@ -1350,17 +1499,22 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         return false;
       }
 
-      return replaceDataAndPersist(
-        (current) =>
-          applyInitialSetupValues(current, {
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
+      const saved = await replaceDataAndPersist(
+        (current) => {
+          const candidate = applyInitialSetupValues(current, {
             pattern,
             notificationsEnabled,
             shiftTypePatches,
-          }),
+          });
+          scheduleEnforcement = enforceAppDataScheduleSafety(candidate);
+          return scheduleEnforcement.data ?? current;
+        },
         true,
       );
+      return finalizeScheduleMutation(scheduleEnforcement, saved);
     },
-    [replaceDataAndPersist],
+    [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
   const getAlarmStatus = useCallback(async () => getAlarmPyoAlarmStatus(), []);
@@ -1382,6 +1536,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     const task = mutationCoordinator.run(async () => {
       const snapshot = dataRef.current;
       const signature = getAlarmScheduleSignature(snapshot);
+      const enforcedScheduleSafety = enforceAppDataScheduleSafety(snapshot, {
+        mode: 'ingress',
+      });
+      const syncSnapshot = enforcedScheduleSafety.data ?? snapshot;
+      const scheduleSafetyBlocked = !enforcedScheduleSafety.safety.canEnableAlarms;
+      if (scheduleSafetyBlocked) reportUnsafeAlarmSchedule(enforcedScheduleSafety);
       const retryPending = failedAlarmSyncSignatureRef.current === signature;
       const scheduleChanged =
         lastAlarmSyncSignatureRef.current !== null &&
@@ -1397,26 +1557,27 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       try {
         const result = await runAlarmSyncCheck({
           skipStatusCheck:
+            !scheduleSafetyBlocked &&
             !force &&
             !retryPending &&
             !scheduleChanged &&
             canSkipDisabledAlarmStatusCheck({
-              notificationsEnabled: snapshot.settings.notificationsEnabled,
-              storedScheduledCount: snapshot.settings.scheduledNotificationCount,
-              lastSyncAt: snapshot.settings.lastNotificationSyncAt,
+              notificationsEnabled: syncSnapshot.settings.notificationsEnabled,
+              storedScheduledCount: syncSnapshot.settings.scheduledNotificationCount,
+              lastSyncAt: syncSnapshot.settings.lastNotificationSyncAt,
             }),
           readStatus: getAlarmPyoAlarmStatus,
           createPlan: () => buildAlarmPyoAlarmPlan(
-            snapshot,
-            (dateKey) => resolveShiftFromData(snapshot, dateKey),
+            syncSnapshot,
+            (dateKey) => resolveShiftFromData(syncSnapshot, dateKey),
             {
               now: syncCheckNow,
               maxAlarms: MAX_NATIVE_SCHEDULED_ALARMS,
             },
           ),
           createSyncPlan: () => buildAlarmPyoAlarmPlan(
-            snapshot,
-            (dateKey) => resolveShiftFromData(snapshot, dateKey),
+            syncSnapshot,
+            (dateKey) => resolveShiftFromData(syncSnapshot, dateKey),
             { now: syncCheckNow },
           ),
           shouldSynchronize: (status, plan) => {
@@ -1430,7 +1591,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             automaticRepairBlocked = shouldBlockAutomaticAlarmRepair({
               exactAlarmAllowed: status.exactAlarmAllowed,
               notificationsAllowed: status.notificationsAllowed,
-              notificationsEnabled: snapshot.settings.notificationsEnabled,
+              notificationsEnabled: syncSnapshot.settings.notificationsEnabled,
               supported: status.supported,
             });
             const countSynchronized = isAlarmPyoAlarmScheduleSynchronized({
@@ -1456,8 +1617,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               !scheduleChanged
             ) {
               recentPlan ??= buildAlarmPyoAlarmPlan(
-                snapshot,
-                (dateKey) => resolveShiftFromData(snapshot, dateKey),
+                syncSnapshot,
+                (dateKey) => resolveShiftFromData(syncSnapshot, dateKey),
                 {
                   now: new Date(
                     syncCheckNow.getTime() - ALARM_DELIVERY_RETRY_GRACE_MS,
@@ -1488,8 +1649,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               exactAlarmAllowed: status.exactAlarmAllowed,
               notificationsAllowed: status.notificationsAllowed,
               plannedAlarmCount: plan.length,
-              storedScheduledCount: snapshot.settings.scheduledNotificationCount,
-              lastSyncAt: snapshot.settings.lastNotificationSyncAt,
+              storedScheduledCount: syncSnapshot.settings.scheduledNotificationCount,
+              lastSyncAt: syncSnapshot.settings.lastNotificationSyncAt,
               now: syncCheckNow,
               previousTimeZoneOffset: lastTimeZoneOffsetRef.current,
             });
@@ -1519,7 +1680,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           if (
             automaticRepairBlocked &&
             result.status &&
-            snapshot.settings.scheduledNotificationCount !==
+            syncSnapshot.settings.scheduledNotificationCount !==
               result.status.scheduledCount
           ) {
             updateData((current) => {
@@ -1552,7 +1713,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             status: 'error',
           });
         }
-        reportAlarmSyncFailure(snapshot.settings.notificationsEnabled);
+        reportAlarmSyncFailure(syncSnapshot.settings.notificationsEnabled);
         return false;
       }
     });
@@ -1565,6 +1726,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, [
     mutationCoordinator,
     reportAlarmSyncFailure,
+    reportUnsafeAlarmSchedule,
     syncAlarmsForSnapshot,
     updateData,
   ]);
@@ -1585,17 +1747,45 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, [alarmScheduleSignature, ready, resyncAlarms]);
 
   const enableAlarms = useCallback(async () => {
+    const scheduleSafety = analyzeAppDataScheduleSafety(dataRef.current);
+    if (!scheduleSafety.canEnableAlarms) {
+      reportAlarmEnableBlocked();
+      return false;
+    }
     const status = await requestAlarmPyoAlarmPermissions();
     if (!status.supported) return false;
 
     // 사용자가 알람을 켜려는 의사와 Android 전달 권한의 준비 상태는 별개예요.
     // 설정 화면에서 돌아오기 전의 권한 응답이 false여도 저장 실패로 표시하지 않고,
     // 알람 화면의 상태 카드가 다음으로 필요한 권한을 이어서 안내해요.
-    return replaceDataAndPersist((current) => ({
-      ...current,
-      settings: { ...current.settings, notificationsEnabled: true },
-    }));
-  }, [replaceDataAndPersist]);
+    return mutationCoordinator.run(async () => {
+      const current = dataRef.current;
+      const candidate = {
+        ...current,
+        settings: { ...current.settings, notificationsEnabled: true },
+      };
+      const latestSafety = analyzeAppDataScheduleSafety(candidate);
+      if (!latestSafety.canEnableAlarms) {
+        const failClosed = enforceAppDataScheduleSafety(current, { mode: 'ingress' });
+        if (failClosed.alarmsDisabled && failClosed.data) {
+          await replaceDataAndPersistInternal(failClosed.data, false, true);
+        }
+        reportAlarmEnableBlocked();
+        return false;
+      }
+      const saved = await replaceDataAndPersistInternal(candidate);
+      if (saved) {
+        clearReportedSaveIssue('invalid-work-schedule');
+        clearReportedSaveIssue('unsafe-alarm-schedule');
+      }
+      return saved;
+    });
+  }, [
+    clearReportedSaveIssue,
+    mutationCoordinator,
+    replaceDataAndPersistInternal,
+    reportAlarmEnableBlocked,
+  ]);
 
   const disableAlarms = useCallback(async () => {
     return mutationCoordinator.run(() => replaceDataAndPersistInternal(
@@ -1703,21 +1893,38 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!readyRef.current) {
         return { success: false, reason: 'not-ready' } as const;
       }
-      return mutationCoordinator.run(() =>
+      const scheduleEnforcementRef: { current: EnforcedScheduleSafety | null } = {
+        current: null,
+      };
+      const result = await mutationCoordinator.run(() =>
         applyWorkSettingsTransaction({
           current: dataRef.current,
           preview,
           // 개인 일정에 영향을 주는 작업이므로 적용 직전의 전체 데이터를 안전 백업해요.
           createSafetyBackup: createBackupInternal,
-          save: (next) => replaceDataAndPersistInternal(
-            pruneInvalidDayAlarmOverrides(next),
-            false,
-            true,
-          ),
+          prepare: (next) => {
+            scheduleEnforcementRef.current = enforceAppDataScheduleSafety(
+              pruneInvalidDayAlarmOverrides(next),
+            );
+            return scheduleEnforcementRef.current.data;
+          },
+          save: (next) => replaceDataAndPersistInternal(next, false, true),
         }),
       );
+      const scheduleEnforcement = scheduleEnforcementRef.current;
+      if (scheduleEnforcement?.data === null) reportInvalidWorkSchedule();
+      if (result.success && scheduleEnforcement !== null) {
+        reportUnsafeAlarmSchedule(scheduleEnforcement);
+      }
+      return result;
     },
-    [createBackupInternal, mutationCoordinator, replaceDataAndPersistInternal],
+    [
+      createBackupInternal,
+      mutationCoordinator,
+      replaceDataAndPersistInternal,
+      reportInvalidWorkSchedule,
+      reportUnsafeAlarmSchedule,
+    ],
   );
 
   const importData = useCallback(
@@ -1731,7 +1938,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         throw new Error('가져올 근무표를 다시 확인해 주세요.');
       }
 
-      return mutationCoordinator.run(async () => {
+      const scheduleEnforcement = enforceAppDataScheduleSafety(imported, {
+        mode: 'ingress',
+      });
+      imported = scheduleEnforcement.data ?? imported;
+
+      const importedSuccessfully = await mutationCoordinator.run(async () => {
         try {
           await createBackupInternal();
         } catch {
@@ -1739,8 +1951,15 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         }
         return replaceDataAndPersistInternal(imported, false, true);
       });
+      if (importedSuccessfully) reportUnsafeAlarmSchedule(scheduleEnforcement);
+      return importedSuccessfully;
     },
-    [createBackupInternal, mutationCoordinator, replaceDataAndPersistInternal],
+    [
+      createBackupInternal,
+      mutationCoordinator,
+      replaceDataAndPersistInternal,
+      reportUnsafeAlarmSchedule,
+    ],
   );
 
   const getLatestBackupPreview = useCallback(async () => {
@@ -1802,7 +2021,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
       try {
         const restored = withoutAlarmRuntimeState(appDataFromImportPreview(preview));
-        await storageWriter.write(APP_DATA_STORAGE_KEY, serializeAppData(restored));
+        const enforced = enforceAppDataScheduleSafety(restored, { mode: 'ingress' });
+        await storageWriter.write(
+          APP_DATA_STORAGE_KEY,
+          serializeAppData(enforced.data ?? restored),
+        );
         await clearExplicitResetMarker(storageWriter).catch(() => undefined);
       } catch {
         return false;
@@ -1843,8 +2066,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           return { status: 'failure', reason: 'protection-failed' } as const;
         }
         let restored: AppData;
+        let scheduleEnforcement: EnforcedScheduleSafety;
         try {
           restored = withoutAlarmRuntimeState(appDataFromImportPreview(preview));
+          scheduleEnforcement = enforceAppDataScheduleSafety(restored, {
+            mode: 'ingress',
+          });
+          restored = scheduleEnforcement.data ?? restored;
         } catch {
           return { status: 'failure', reason: 'backup-unavailable' } as const;
         }
@@ -1860,6 +2088,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         if (!transaction.restoreResult?.operationSucceeded) {
           return { status: 'failure', reason: 'restore-failed' } as const;
         }
+        reportUnsafeAlarmSchedule(scheduleEnforcement);
         if (!transaction.automaticBackupSaved) {
           return { status: 'partial', reason: 'backup-pending' } as const;
         }
@@ -1870,9 +2099,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       }
 
       try {
+        const restored = withoutAlarmRuntimeState(preview.data);
+        const scheduleEnforcement = enforceAppDataScheduleSafety(restored, {
+          mode: 'ingress',
+        });
         await storageWriter.write(
           APP_DATA_STORAGE_KEY,
-          serializeAppData(withoutAlarmRuntimeState(preview.data)),
+          serializeAppData(scheduleEnforcement.data ?? restored),
         );
       } catch {
         return { status: 'failure', reason: 'restore-failed' } as const;
@@ -1887,6 +2120,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     loadData,
     mutationCoordinator,
     replaceDataAndPersistDetailedInternal,
+    reportUnsafeAlarmSchedule,
     storageWriter,
   ]);
 
@@ -1946,6 +2180,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         async (snapshot) => {
           const cleanup = await resumeResetCleanupJournal({
             persistedSnapshot: snapshot,
+            resetAlarmRuntime: resetAlarmRuntimeForResetCleanup,
             cancelTimer: cancelQuickTimerForResetCleanup,
           });
           if (!cleanup.completed) {

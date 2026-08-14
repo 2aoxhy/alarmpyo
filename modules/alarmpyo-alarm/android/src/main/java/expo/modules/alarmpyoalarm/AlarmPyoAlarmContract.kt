@@ -26,6 +26,10 @@ internal const val EXTRA_IS_TEST = "alarmpyo_is_test"
 internal const val EXTRA_RETRY_ARMED = "alarmpyo_retry_armed"
 internal const val EXTRA_AUTOMATIC_REPEAT_ELIGIBLE = "alarmpyo_automatic_repeat_eligible"
 internal const val EXTRA_ALARM_SOURCE = "alarmpyo_alarm_source"
+internal const val EXTRA_COUNTDOWN_STARTED_AT_ELAPSED =
+  "alarmpyo_countdown_started_at_elapsed"
+internal const val EXTRA_FIRE_AT_ELAPSED = "alarmpyo_fire_at_elapsed"
+internal const val EXTRA_BOOT_COUNT = "alarmpyo_boot_count"
 
 internal const val ALARM_CHANNEL_ID = "alarmpyo-alarm-runtime-v1"
 internal const val LEGACY_ALARM_CHANNEL_ID = "shift-alarms-v2"
@@ -117,7 +121,10 @@ internal data class AlarmPyoAlarmPlan(
   val originalAlarmAt: Long = alarmAt,
   val deliveryAttempt: Int = 0,
   val rootPlanId: String = id,
-  val repeatStage: Int = 0
+  val repeatStage: Int = 0,
+  val countdownStartedAtElapsed: Long = -1L,
+  val fireAtElapsed: Long = -1L,
+  val bootCount: Int = -1
 ) {
   fun hasSameDeliveryGeneration(other: AlarmPyoAlarmPlan): Boolean =
     id == other.id &&
@@ -125,7 +132,10 @@ internal data class AlarmPyoAlarmPlan(
       originalAlarmAt == other.originalAlarmAt &&
       deliveryAttempt == other.deliveryAttempt &&
       rootPlanId == other.rootPlanId &&
-      repeatStage == other.repeatStage
+      repeatStage == other.repeatStage &&
+      countdownStartedAtElapsed == other.countdownStartedAtElapsed &&
+      fireAtElapsed == other.fireAtElapsed &&
+      bootCount == other.bootCount
 
   fun isSingleRepeat(): Boolean = repeatStage == SINGLE_REPEAT_STAGE
 
@@ -141,6 +151,9 @@ internal data class AlarmPyoAlarmPlan(
     .put("deliveryAttempt", deliveryAttempt)
     .put("rootPlanId", rootPlanId)
     .put("repeatStage", repeatStage)
+    .put("countdownStartedAtElapsed", countdownStartedAtElapsed)
+    .put("fireAtElapsed", fireAtElapsed)
+    .put("bootCount", bootCount)
 
   fun toMap(): Map<String, Any> = mapOf(
     "id" to id,
@@ -164,6 +177,9 @@ internal data class AlarmPyoAlarmPlan(
     .putExtra(EXTRA_DELIVERY_ATTEMPT, deliveryAttempt)
     .putExtra(EXTRA_ROOT_PLAN_ID, rootPlanId)
     .putExtra(EXTRA_REPEAT_STAGE, repeatStage)
+    .putExtra(EXTRA_COUNTDOWN_STARTED_AT_ELAPSED, countdownStartedAtElapsed)
+    .putExtra(EXTRA_FIRE_AT_ELAPSED, fireAtElapsed)
+    .putExtra(EXTRA_BOOT_COUNT, bootCount)
 
   companion object {
     fun fromJson(json: JSONObject): AlarmPyoAlarmPlan? = runCatching {
@@ -183,7 +199,10 @@ internal data class AlarmPyoAlarmPlan(
         rootPlanId = json.optString("rootPlanId")
           .trim()
           .ifBlank { inferRootPlanId(id) },
-        repeatStage = repeatStage
+        repeatStage = repeatStage,
+        countdownStartedAtElapsed = json.optLong("countdownStartedAtElapsed", -1L),
+        fireAtElapsed = json.optLong("fireAtElapsed", -1L),
+        bootCount = json.optInt("bootCount", -1)
       )
     }.getOrNull()
 
@@ -210,7 +229,13 @@ internal data class AlarmPyoAlarmPlan(
           ?.trim()
           ?.takeIf { it.isNotBlank() }
           ?: inferRootPlanId(id),
-        repeatStage = repeatStage
+        repeatStage = repeatStage,
+        countdownStartedAtElapsed = intent.getLongExtra(
+          EXTRA_COUNTDOWN_STARTED_AT_ELAPSED,
+          -1L
+        ),
+        fireAtElapsed = intent.getLongExtra(EXTRA_FIRE_AT_ELAPSED, -1L),
+        bootCount = intent.getIntExtra(EXTRA_BOOT_COUNT, -1)
       )
     }
 

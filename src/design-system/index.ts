@@ -39,5 +39,6 @@ export {
   LARGE_TEXT_CALENDAR_SCALE,
   NARROW_CONTROL_WIDTH,
   shouldReflowControl,
+  shouldStackHeroFooter,
   usesSimplifiedCalendar,
 } from './responsive';

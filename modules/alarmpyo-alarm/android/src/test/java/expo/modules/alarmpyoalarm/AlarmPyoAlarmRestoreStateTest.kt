@@ -162,4 +162,39 @@ class AlarmPyoAlarmRestoreStateTest {
     assertEquals(0L, next.watchdogAt)
     assertEquals(0L, next.retryAt)
   }
+
+  @Test
+  fun `new system event merges pending targets and keeps earliest retry`() {
+    val previous = initial.copy(
+      workAlarmPending = false,
+      sleepReminderPending = true,
+      quickTimerPending = true,
+      attemptCount = 2,
+      retryAt = 1_500L,
+      watchdogAt = 1_800L,
+      journalId = 8L
+    )
+
+    val merged = AlarmPyoAlarmRestoreTransactionPolicy.mergeTargets(
+      previous = previous,
+      recalculateLocalTimes = true,
+      workAlarmPending = true,
+      sleepReminderPending = false,
+      widgetPending = true,
+      quickTimerPending = false,
+      nowMillis = 1_000L,
+      watchdogAt = 2_000L,
+      journalId = 9L
+    )
+
+    assertTrue(merged.workAlarmPending)
+    assertTrue(merged.sleepReminderPending)
+    assertTrue(merged.quickTimerPending)
+    assertTrue(merged.widgetPending)
+    assertTrue(merged.recalculateLocalTimes)
+    assertEquals(2, merged.attemptCount)
+    assertEquals(1_500L, merged.retryAt)
+    assertEquals(1_800L, merged.watchdogAt)
+    assertEquals(9L, merged.journalId)
+  }
 }

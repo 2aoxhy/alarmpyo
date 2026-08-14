@@ -109,6 +109,26 @@ export type AlarmPyoQuickTimerStatus = {
   requiredAction: 'none' | 'exact-alarm' | 'notifications' | 'full-screen';
 };
 
+export type AlarmPyoAlarmRuntimeResetResult = {
+  outcome: 'success' | 'partial' | 'failure';
+  workAlarmsReset: boolean;
+  sleepRemindersReset: boolean;
+  quickTimerReset: boolean;
+  activeAlarmStopped: boolean;
+  alarmSoundReset: boolean;
+  restoreJournalReset: boolean;
+  alarmHistoryReset: boolean;
+  issueCodes: Array<
+    | 'work-alarms'
+    | 'sleep-reminders'
+    | 'quick-timer'
+    | 'active-alarm'
+    | 'alarm-sound'
+    | 'restore-journal'
+    | 'alarm-history'
+  >;
+};
+
 type AlarmPyoAlarmNativeModule = {
   syncAlarmsAsync(plans: AlarmPyoAlarmPlan[]): Promise<AlarmPyoAlarmStatus>;
   syncAlarmsWithMetadataAsync?(
@@ -123,6 +143,7 @@ type AlarmPyoAlarmNativeModule = {
   openBatterySettingsAsync(): Promise<boolean>;
   scheduleTestAlarmAsync(seconds?: number): Promise<AlarmPyoAlarmStatus>;
   cancelAllAsync(): Promise<AlarmPyoAlarmStatus>;
+  resetAlarmRuntimeAsync?(): Promise<AlarmPyoAlarmRuntimeResetResult>;
   getQuickTimerStatusAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   scheduleQuickTimerAsync?(durationMinutes: 30 | 60): Promise<AlarmPyoQuickTimerStatus>;
   cancelQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;

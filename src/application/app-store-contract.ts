@@ -38,7 +38,9 @@ export type SaveIssueCode =
   | 'device-backup-failed'
   | 'reset-marker-cleanup-failed'
   | 'sleep-reminder-sync-failed'
-  | 'alarm-sync-failed';
+  | 'alarm-sync-failed'
+  | 'invalid-work-schedule'
+  | 'unsafe-alarm-schedule';
 
 export type SaveRetryAction =
   | 'retry-save'
@@ -49,7 +51,7 @@ export type SaveIssue = {
   status: 'partial' | 'failure';
   issueCode: SaveIssueCode;
   message: string;
-  retryAction: SaveRetryAction;
+  retryAction: SaveRetryAction | null;
 };
 
 export type SaveIssueOutcome = SaveIssue & {

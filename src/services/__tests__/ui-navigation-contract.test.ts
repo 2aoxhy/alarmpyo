@@ -113,6 +113,7 @@ describe('핵심 화면 탐색 계약', () => {
   });
 
   it('달력 메뉴는 이달 요약과 달력 내보내기를 보여 주지 않아요', () => {
+    const calendar = source('src/app/(tabs)/calendar.tsx');
     const calendarSupport = source(
       'src/features/calendar/calendar-support-sections.tsx',
     );
@@ -120,6 +121,10 @@ describe('핵심 화면 탐색 계약', () => {
     expect(calendarSupport).not.toContain('title="이달 요약"');
     expect(calendarSupport).not.toContain('title="달력 내보내기"');
     expect(calendarSupport).toContain('title="표시 안내"');
+    expect(calendar).toContain('<AppSheet');
+    expect(calendar).toContain('<CalendarLegend');
+    expect(calendar).toContain('visible={legendOpen}');
+    expect(calendarSupport).not.toContain('legendExpanded ?');
   });
 
   it('좁은 달력은 가로 탐색 단서를 보이고 월 이동은 한 번만 알립니다', () => {
@@ -139,7 +144,7 @@ describe('핵심 화면 탐색 계약', () => {
     const themeProvider = source('src/providers/app-theme-provider.tsx');
 
     expect(settings).toContain('title="홈 화면 위젯"');
-    expect(settings).toContain('subtitle="표시할 정보와 위젯 추가를 관리해요"');
+    expect(settings).toContain('subtitle="위젯 정보·추가"');
     expect(displaySettings).toContain("title: '홈 화면 위젯'");
     expect(displaySettings).not.toContain(
       '<AppText accessibilityRole="header" variant="heading">홈 화면 위젯',
@@ -188,9 +193,12 @@ describe('핵심 화면 탐색 계약', () => {
     const playUpdate = source('src/features/update/play-app-update-screen.tsx');
 
     expect(additional).toContain('title="특별 일정·시간·알람·메모"');
-    expect(shiftSettings.indexOf('title="근무 시간과 기상 시간"')).toBeLessThan(
-      shiftSettings.indexOf('title="근무 방식"'),
-    );
+    const pattern = shiftSettings.indexOf('title="근무 방식"');
+    const time = shiftSettings.indexOf('title="근무 시간"');
+    const routine = shiftSettings.indexOf('title="기상·출근 루틴"');
+    expect(pattern).toBeGreaterThan(-1);
+    expect(time).toBeGreaterThan(pattern);
+    expect(routine).toBeGreaterThan(time);
     expect(playUpdate).toContain('accessibilityRole="header"');
     expect(playUpdate).not.toContain(
       'accessibilityLabel="Google Play에서 업데이트해요.',
@@ -264,7 +272,7 @@ describe('핵심 화면 탐색 계약', () => {
     expect(alarmSettings).toContain('setSleepReminderEnabled');
     expect(sleepReminderToggle).toContain('title="수면 시작 알림"');
     expect(sleepReminderToggle).toContain(
-      '권장 취침 시각에 일반 알림으로 알려요. 무음·방해 금지 설정을 따라요.',
+      '참고 취침 시각에 일반 알림으로 알려요.',
     );
   });
 

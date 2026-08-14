@@ -112,7 +112,7 @@ Google의 건강 앱 선언에는 `Sleep Management`가 별도 항목으로 있�
 
 - 수면 기능 분류 또는 개발자 계정 유형
 - 활성 개인정보처리방침 URL 또는 별도로 결정할 Play App Signing 인증서
-- 현재 V05 후보 `1.0.5(6)`가 Play Console의 기존 V04 `versionCode 5`보다 높은 같은 package 계보인지 확인
+- 현재 V07 후보 `1.0.7(7)`이 Play Console의 활성 V05 `versionCode 6`보다 높은 같은 package 계보인지 확인
 - 권한·FGS 선언 영상, 데이터 보안, 개인정보 처리방침
 - 실제 기기 스크린샷과 지원 연락처
 - Play 생성 APK 실기기 QA, 16KB 환경, 사전 출시 보고서

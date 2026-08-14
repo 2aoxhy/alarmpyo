@@ -677,59 +677,41 @@ export default function AlarmSettingsScreen() {
           ) : null}
         </Card>
 
-        {alarmPlatformSupported && data.settings.notificationsEnabled ? (
-          <StatusBanner
-            icon="alert-circle-outline"
-            message="휴대폰 설정에서 알람표를 강제 종료하면 앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없어요."
-            title="강제 종료 상태에서는 알람을 보장할 수 없어요"
-            tone="warning"
-          />
-        ) : null}
-
-        <MenuGroup title="다음 알람">
-          <NextAlarmDisclosureRow
-            expanded={scheduleOpen}
-            hasDateOverride={Boolean(
-              nearestAlarm &&
-                data.alarmOverrides[nearestAlarm.dateKey]?.mode === "wake-time"
-            )}
-            nearestAlarm={nearestAlarm}
-            onPress={() => setScheduleOpen((open) => !open)}
-            scheduledCount={scheduledCount}
-            title={nextAlarmTitle}
-          />
-          {scheduleOpen ? (
-            <View style={styles.disclosureBody}>
-              {scheduledAlarms.length > 0 ? (
-                scheduledAlarms.map((alarm, index) => (
-                  <View key={alarm.id} style={[index > 0 && styles.rowDivider]}>
-                    <AlarmRow alarm={alarm} />
-                  </View>
-                ))
-              ) : (
-                <AppText
-                  tone="secondary"
-                  style={styles.disclosureEmptyCopy}
-                  variant="caption"
-                >
-                  {scheduleEmptyCopy}
-                </AppText>
+        {data.settings.notificationsEnabled || scheduledCount > 0 ? (
+          <MenuGroup title="다음 알람">
+            <NextAlarmDisclosureRow
+              expanded={scheduleOpen}
+              hasDateOverride={Boolean(
+                nearestAlarm &&
+                  data.alarmOverrides[nearestAlarm.dateKey]?.mode === "wake-time"
               )}
-            </View>
-          ) : null}
-        </MenuGroup>
-
-        {sleepReminderSupported ? (
-          <View style={styles.sleepReminderBlock}>
-            <SleepReminderToggle
-              disabled={sleepReminderBusy}
-              onValueChange={(enabled) => void toggleSleepReminder(enabled)}
-              value={data.settings.sleepReminderEnabled}
+              nearestAlarm={nearestAlarm}
+              onPress={() => setScheduleOpen((open) => !open)}
+              scheduledCount={scheduledCount}
+              title={nextAlarmTitle}
             />
-          </View>
+            {scheduleOpen ? (
+              <View style={styles.disclosureBody}>
+                {scheduledAlarms.length > 0 ? (
+                  scheduledAlarms.map((alarm, index) => (
+                    <View key={alarm.id} style={[index > 0 && styles.rowDivider]}>
+                      <AlarmRow alarm={alarm} />
+                    </View>
+                  ))
+                ) : (
+                  <AppText
+                    tone="secondary"
+                    style={styles.disclosureEmptyCopy}
+                    variant="caption">
+                    {scheduleEmptyCopy}
+                  </AppText>
+                )}
+              </View>
+            ) : null}
+          </MenuGroup>
         ) : null}
 
-        <MenuGroup title="알람 시간">
+        <MenuGroup title="알림 설정">
           <ListRow
             icon="alarm-outline"
             onPress={() => router.push("/shift-settings?focus=wake")}
@@ -737,6 +719,14 @@ export default function AlarmSettingsScreen() {
             title="기상 시간"
             allowSubtitleWrapping
           />
+          {sleepReminderSupported ? <MenuDivider /> : null}
+          {sleepReminderSupported ? (
+            <SleepReminderToggle
+              disabled={sleepReminderBusy}
+              onValueChange={(enabled) => void toggleSleepReminder(enabled)}
+              value={data.settings.sleepReminderEnabled}
+            />
+          ) : null}
         </MenuGroup>
 
         <View style={styles.detailsSection}>
@@ -751,14 +741,22 @@ export default function AlarmSettingsScreen() {
             style={styles.detailsDisclosure}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
-                ? `알람음·진동, 시험 알람, 권한과 최근 기록 ${recentAlarmEvents.length}개를 관리해요.`
-                : "알람음·진동, 시험 알람과 권한 상태를 관리해요."
+                ? `알람음·진동 · 시험 · 권한 · 기록 ${recentAlarmEvents.length}개`
+                : "알람음·진동 · 시험 · 권한"
             }
             testID="alarm-management-disclosure"
             title="알람 관리"
           />
           {managementOpen ? (
             <View style={styles.managementBody}>
+              {alarmPlatformSupported && data.settings.notificationsEnabled ? (
+                <StatusBanner
+                  icon="alert-circle-outline"
+                  message="휴대폰 설정에서 알람표를 강제 종료하면 앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없어요."
+                  title="강제 종료 상태에서는 알람을 보장할 수 없어요"
+                  tone="warning"
+                />
+              ) : null}
               <AlarmSoundSettings />
 
               <Card style={styles.testCard}>
@@ -1045,7 +1043,6 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       paddingVertical: 0,
       backgroundColor: palette.transparent,
     },
-    sleepReminderBlock: { gap: spacing.small },
     fullWidthButton: { width: "100%" },
     testCard: { gap: spacing.medium },
     testHeader: {

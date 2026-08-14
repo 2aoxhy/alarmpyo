@@ -256,10 +256,10 @@ describe('stable 배포 설정', () => {
     expect(app.expo.description).toBe(
       '교대 근무표와 근무·타이머 알람을 간편하게 관리해요',
     );
-    expect(pkg.version).toBe('1.0.5');
-    expect(app.expo.version).toBe('1.0.5');
-    expect(app.expo.android.versionCode).toBe(6);
-    expect(app.expo.ios.buildNumber).toBe('6');
+    expect(pkg.version).toBe('1.0.7');
+    expect(app.expo.version).toBe('1.0.7');
+    expect(app.expo.android.versionCode).toBe(7);
+    expect(app.expo.ios.buildNumber).toBe('7');
     // `android`는 Expo prebuild가 만드는 생성물이므로 새 clone과 소스
     // 아카이브에는 없을 수 있어요. 생성물이 있을 때에는 그 결과도 함께
     // 검증하고, 없을 때에는 원본 Expo 설정 계약만 검증해요.

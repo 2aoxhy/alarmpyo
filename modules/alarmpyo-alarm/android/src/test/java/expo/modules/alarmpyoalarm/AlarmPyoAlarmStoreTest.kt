@@ -237,6 +237,27 @@ class AlarmPyoAlarmStoreTest {
     assertEquals(AlarmPyoAlarmStorageHealth.CORRUPT, persistence.storedHealth)
   }
 
+  @Test
+  fun `explicit cancellation tombstone prevents previous active generation revival`() {
+    val active = emptySnapshot(4L).copy(plans = listOf(workPlan))
+    val persistence = FakeSnapshotPersistence(
+      primary = AlarmPyoAlarmSnapshotCodec.create(active),
+      previous = AlarmPyoAlarmSnapshotCodec.create(emptySnapshot(3L)),
+      storedHealth = AlarmPyoAlarmStorageHealth.NORMAL
+    )
+    val engine = AlarmPyoAlarmStoreEngine(persistence) { 1_900_000_000_000L }
+
+    val tombstone = engine.commitCancellationTombstone()
+    persistence.primary = persistence.primary?.copy(checksum = "broken")
+    val recovered = engine.read()
+
+    assertTrue(tombstone.plans.isEmpty())
+    assertEquals(tombstone.generation, persistence.rollbackFloor)
+    assertTrue(recovered?.plans?.isEmpty() == true)
+    assertEquals(tombstone.generation, recovered?.generation)
+    assertEquals(AlarmPyoAlarmStorageHealth.RECOVERED, persistence.storedHealth)
+  }
+
   private fun emptySnapshot(generation: Long) = AlarmPyoAlarmScheduleSnapshot(
     plans = emptyList(),
     scheduledIds = emptySet(),
@@ -251,6 +272,7 @@ class AlarmPyoAlarmStoreTest {
     var storedHealth: AlarmPyoAlarmStorageHealth = AlarmPyoAlarmStorageHealth.CORRUPT
   ) : AlarmPyoAlarmSnapshotPersistence {
     var failNextPrimaryWrite = false
+    var rollbackFloor = 0L
 
     override fun readPrimary(): AlarmPyoAlarmSnapshotEnvelope? = primary
 
@@ -272,6 +294,12 @@ class AlarmPyoAlarmStoreTest {
 
     override fun writeHealth(health: AlarmPyoAlarmStorageHealth) {
       storedHealth = health
+    }
+
+    override fun readRollbackFloor(): Long = rollbackFloor
+
+    override fun writeRollbackFloor(generation: Long) {
+      rollbackFloor = generation
     }
   }
 }

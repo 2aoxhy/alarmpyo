@@ -69,8 +69,17 @@ internal object AlarmPyoSleepReminderSnapshotCodec {
   ): Pair<AlarmPyoSleepReminderSnapshot?, Boolean> {
     val currentSnapshot = current?.let(::decode)
     val previousSnapshot = previous?.let(::decode)
-    val selected = listOfNotNull(currentSnapshot, previousSnapshot)
-      .maxByOrNull(AlarmPyoSleepReminderSnapshot::generation)
+    // Generation rolls from MAX-1 to 1 only on an authoritative reseed/cancellation. In that
+    // single protected boundary, current starts a new epoch and must outrank the previous epoch.
+    val selected = if (
+      currentSnapshot?.generation == 1L &&
+      (previousSnapshot?.generation ?: 0L) >= Long.MAX_VALUE - 1L
+    ) {
+      currentSnapshot
+    } else {
+      listOfNotNull(currentSnapshot, previousSnapshot)
+        .maxByOrNull(AlarmPyoSleepReminderSnapshot::generation)
+    }
     val recovered = selected != null && (
       currentSnapshot == null || selected.generation != currentSnapshot.generation
       )
@@ -163,6 +172,8 @@ internal interface AlarmPyoSleepReminderPersistence {
   fun clearLegacy()
   fun readHealth(): AlarmPyoSleepReminderStorageHealth
   fun writeHealth(health: AlarmPyoSleepReminderStorageHealth)
+  fun readRollbackFloor(): Long = 0L
+  fun writeRollbackFloor(generation: Long) = Unit
 }
 
 /**
@@ -186,9 +197,18 @@ internal class AlarmPyoSleepReminderStoreEngine(
       persistence.writeHealth(AlarmPyoSleepReminderStorageHealth.CORRUPT)
       return null
     }
+    val rollbackFloor = persistence.readRollbackFloor().coerceAtLeast(0L)
+    val eligibleCurrent = current?.takeIf { envelope ->
+      AlarmPyoSleepReminderSnapshotCodec.decode(envelope)
+        ?.generation?.let { it >= rollbackFloor } == true
+    }
+    val eligiblePrevious = previous?.takeIf { envelope ->
+      AlarmPyoSleepReminderSnapshotCodec.decode(envelope)
+        ?.generation?.let { it >= rollbackFloor } == true
+    }
     val (selected, recovered) = AlarmPyoSleepReminderSnapshotCodec.selectBest(
-      current,
-      previous
+      eligibleCurrent,
+      eligiblePrevious
     )
     if (selected == null) {
       persistence.writeHealth(AlarmPyoSleepReminderStorageHealth.CORRUPT)
@@ -205,15 +225,17 @@ internal class AlarmPyoSleepReminderStoreEngine(
     val current = requireNotNull(read()) {
       "수면 시작 알림 저장소가 손상되어 계획을 덮어쓰지 않았어요."
     }
-    check(current.generation < Long.MAX_VALUE) {
-      "수면 시작 알림 저장 세대를 더 늘릴 수 없어요."
-    }
-    val desired = normalizedSnapshot(snapshot, current.generation + 1L)
+    val resetsRollbackEpoch = current.generation >= Long.MAX_VALUE - 1L
+    val desired = normalizedSnapshot(
+      snapshot,
+      if (resetsRollbackEpoch) 1L else current.generation + 1L
+    )
     val healthBeforeWrite = persistence.readHealth()
     persistence.readCurrent()
       ?.takeIf { AlarmPyoSleepReminderSnapshotCodec.decode(it) != null }
       ?.let(persistence::writePrevious)
     persistence.writeCurrent(AlarmPyoSleepReminderSnapshotCodec.create(desired))
+    if (resetsRollbackEpoch) persistence.writeRollbackFloor(0L)
     if (current.generation == 0L) persistence.clearLegacy()
     persistence.writeHealth(
       if (healthBeforeWrite == AlarmPyoSleepReminderStorageHealth.RECOVERED) {
@@ -233,19 +255,53 @@ internal class AlarmPyoSleepReminderStoreEngine(
     }
     val current = persistence.readCurrent()
     val previous = persistence.readPrevious()
+    val codecGeneration = AlarmPyoSleepReminderSnapshotCodec.nextGenerationForReseed(
+      current,
+      previous
+    )
+    val rollbackFloor = persistence.readRollbackFloor().coerceAtLeast(0L)
+    val resetsRollbackEpoch = rollbackFloor >= Long.MAX_VALUE - 1L
+    val generation = if (resetsRollbackEpoch) 1L else {
+      maxOf(codecGeneration, rollbackFloor + 1L)
+    }
     val desired = normalizedSnapshot(
       snapshot,
-      AlarmPyoSleepReminderSnapshotCodec.nextGenerationForReseed(current, previous)
+      generation
     )
     // Corrupt generations are deliberately not rotated into previous.
     persistence.writeCurrent(AlarmPyoSleepReminderSnapshotCodec.create(desired))
+    if (resetsRollbackEpoch) persistence.writeRollbackFloor(0L)
     persistence.clearLegacy()
     persistence.writeHealth(AlarmPyoSleepReminderStorageHealth.RECOVERED)
     return desired
   }
 
-  fun clear(): AlarmPyoSleepReminderSnapshot =
-    write(AlarmPyoSleepReminderSnapshot(emptyList(), emptySet()))
+  fun clear(): AlarmPyoSleepReminderSnapshot = commitCancellationTombstone()
+
+  fun commitCancellationTombstone(): AlarmPyoSleepReminderSnapshot {
+    val current = persistence.readCurrent()
+    val previous = persistence.readPrevious()
+    val latestValidGeneration = listOfNotNull(current, previous)
+      .mapNotNull(AlarmPyoSleepReminderSnapshotCodec::decode)
+      .maxOfOrNull(AlarmPyoSleepReminderSnapshot::generation) ?: 0L
+    val latestGeneration = maxOf(
+      latestValidGeneration,
+      persistence.readRollbackFloor().coerceAtLeast(0L)
+    )
+    val generation = if (latestGeneration >= Long.MAX_VALUE - 1L) {
+      1L
+    } else {
+      latestGeneration + 1L
+    }
+    val tombstone = AlarmPyoSleepReminderSnapshot(emptyList(), emptySet(), generation)
+    val envelope = AlarmPyoSleepReminderSnapshotCodec.create(tombstone)
+    persistence.writePrevious(envelope)
+    persistence.writeCurrent(envelope)
+    persistence.writeRollbackFloor(generation)
+    persistence.clearLegacy()
+    persistence.writeHealth(AlarmPyoSleepReminderStorageHealth.NORMAL)
+    return tombstone
+  }
 
   fun markHealthy() {
     persistence.writeHealth(AlarmPyoSleepReminderStorageHealth.NORMAL)
@@ -299,6 +355,7 @@ internal object AlarmPyoSleepReminderStore {
   private const val KEY_PAYLOAD = "payload"
   private const val KEY_CHECKSUM = "checksum"
   private const val KEY_LAST_STORAGE_HEALTH = "last-storage-health"
+  private const val KEY_ROLLBACK_FLOOR = "explicit-cancel-generation-floor"
 
   @Synchronized
   fun read(context: Context): AlarmPyoSleepReminderSnapshot? = engine(context).read()
@@ -383,6 +440,20 @@ internal object AlarmPyoSleepReminderStore {
       requireCommitted(
         meta.edit().putString(KEY_LAST_STORAGE_HEALTH, health.wireValue).commit(),
         "수면 시작 알림 저장소 상태"
+      )
+    }
+
+    override fun readRollbackFloor(): Long = meta
+      .getLong(KEY_ROLLBACK_FLOOR, 0L)
+      .coerceAtLeast(0L)
+
+    override fun writeRollbackFloor(generation: Long) {
+      requireCommitted(
+        meta.edit().putLong(
+          KEY_ROLLBACK_FLOOR,
+          generation.coerceAtLeast(0L)
+        ).commit(),
+        "명시적 수면 알림 취소 표식"
       )
     }
 

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
-import { AppButton, AppText, Screen, SectionHeader } from '@/components/ui-kit';
+import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { DisclosureRow, SegmentedControl, StatusBanner } from '@/design-system';
 import {
@@ -40,7 +40,12 @@ import {
   normalizeTimeInput,
   parseTimeInput,
 } from '@/utils/shift-time';
-import { getWorkPatternKind } from '@/utils/work-pattern';
+import {
+  getWorkPatternDisplayName,
+  getWorkPatternKind,
+} from '@/utils/work-pattern';
+
+type SettingsPanel = 'pattern' | 'time' | 'routine';
 
 export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
@@ -71,8 +76,9 @@ export default function ShiftSettingsScreen() {
   const [editorSection, setEditorSection] = useState<EditorSection>(
     activeWorkShiftIds[0] ?? 'day',
   );
-  const [timeSettingsExpanded, setTimeSettingsExpanded] = useState(true);
-  const [routineExpanded, setRoutineExpanded] = useState(false);
+  const [activePanel, setActivePanel] = useState<SettingsPanel | null>(() =>
+    focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null,
+  );
   const [saving, setSaving] = useState(false);
   const screenTitle =
     focus === 'wake'
@@ -213,9 +219,12 @@ export default function ShiftSettingsScreen() {
     }));
   };
 
-  const focusDraft = (draftId: string) => {
+  const focusDraft = (
+    draftId: string,
+    targetPanel: Extract<SettingsPanel, 'time' | 'routine'> = 'time',
+  ) => {
     const section = getEditorSectionForDraftId(draftId);
-    setTimeSettingsExpanded(true);
+    setActivePanel(targetPanel);
     setEditorSection(section);
     if (section === 'substitute') {
       setSubstituteMode(
@@ -241,8 +250,7 @@ export default function ShiftSettingsScreen() {
       return;
     }
     if (invalidRoutineIssue) {
-      focusDraft(invalidRoutineIssue.draftId);
-      setRoutineExpanded(true);
+      focusDraft(invalidRoutineIssue.draftId, 'routine');
       showDialog(
         '출근 루틴을 확인해 주세요',
         '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해 주세요.',
@@ -347,6 +355,32 @@ export default function ShiftSettingsScreen() {
         : ''
     }`,
   }));
+  const patternSummary = getWorkPatternDisplayName(
+    data.pattern.shiftTypeIds,
+    data.pattern.name,
+  );
+  const timeSummary = formatShiftTimeSummary(
+    data.shiftTypes,
+    activeWorkShiftIds,
+  );
+  const routineSummary = formatDraftWakeTimeSummary(
+    drafts,
+    activeWorkShiftIds.includes('night'),
+    activeWorkShiftIds.includes('evening'),
+    activeWorkShiftIds.includes('day'),
+  );
+  const togglePanel = (panel: SettingsPanel) => {
+    void Haptics.selectionAsync();
+    setActivePanel((current) => (current === panel ? null : panel));
+  };
+  const openFirstInvalidSetting = () => {
+    if (invalidRoutineIssue) {
+      focusDraft(invalidRoutineIssue.draftId, 'routine');
+      return;
+    }
+    const invalidDraft = drafts.find((draft) => !isShiftDraftValid(draft));
+    if (invalidDraft) focusDraft(invalidDraft.id, 'time');
+  };
 
   return (
     <>
@@ -365,47 +399,43 @@ export default function ShiftSettingsScreen() {
         }>
         <View style={styles.intro}>
           <AppText tone="secondary" style={styles.centerText} variant="body">
-            회사 근무 방식과 시간을 한곳에서 확인해요.
+            현재 설정을 확인하고 필요한 항목만 열어 수정하세요.
           </AppText>
         </View>
 
         <View style={styles.section}>
-          <SectionHeader centered title="근무 시간과 기상 시간" />
           <DisclosureRow
-            expanded={timeSettingsExpanded}
-            icon={focus === 'wake' ? 'alarm-outline' : 'time-outline'}
-            onPress={() => setTimeSettingsExpanded((expanded) => !expanded)}
-            subtitle={
-              focus === 'wake'
-                  ? `${formatDraftWakeTimeSummary(
-                    drafts,
-                    activeWorkShiftIds.includes('night'),
-                    activeWorkShiftIds.includes('evening'),
-                    activeWorkShiftIds.includes('day'),
-                  )}`
-                : formatShiftTimeSummary(data.shiftTypes, activeWorkShiftIds)
-            }
-            title={focus === 'wake' ? '기상 시간 선택' : '시간 설정'}
+            expanded={activePanel === 'pattern'}
+            icon="repeat-outline"
+            onPress={() => togglePanel('pattern')}
+            subtitle={patternSummary}
+            title="근무 방식"
           />
-
-          {hasInvalidDrafts && !timeSettingsExpanded ? (
-            <StatusBanner
-              actionLabel="확인하기"
-              message="근무 시간 또는 출근 루틴을 확인해 주세요."
-              onAction={() => setTimeSettingsExpanded(true)}
-              title="설정 확인 필요"
-              tone="danger"
-            />
+          {activePanel === 'pattern' ? (
+            <View style={styles.editorBody}>
+              <WorkPatternOverview
+                data={data}
+                onEdit={() => router.push('/pattern')}
+                today={today}
+              />
+            </View>
           ) : null}
 
-          {timeSettingsExpanded ? (
+          <DisclosureRow
+            expanded={activePanel === 'time'}
+            icon="time-outline"
+            onPress={() => togglePanel('time')}
+            subtitle={timeSummary}
+            title="근무 시간"
+          />
+
+          {activePanel === 'time' ? (
             <View style={styles.editorBody}>
               <SegmentedControl
                 label="근무 종류"
                 onChange={(section) => {
                   void Haptics.selectionAsync();
                   setEditorSection(section);
-                  setRoutineExpanded(false);
                 }}
                 options={sectionOptions}
                 value={editorSection}
@@ -418,26 +448,10 @@ export default function ShiftSettingsScreen() {
                   <ShiftTimingEditor
                     compact={compactEditor}
                     draft={selectedDraft}
-                    emphasizeWake={focus === 'wake'}
                     onChange={(patch) => updateDraft(selectedShift.id, patch)}
                     shift={selectedShift}
+                    visibleSection="time"
                   />
-                  {editorSection === 'day' ||
-                  editorSection === 'evening' ||
-                  editorSection === 'night' ? (
-                    <RoutineTimingEditor
-                      alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
-                      compact={compactEditor}
-                      expanded={routineExpanded}
-                      kind={editorSection}
-                      onChange={(profile) =>
-                        updateRoutineProfile(editorSection, profile)
-                      }
-                      onExpandedChange={setRoutineExpanded}
-                      profile={workRoutineProfiles[editorSection]}
-                      startMinutes={parseTimeInput(selectedDraft.start)}
-                    />
-                  ) : null}
                 </>
               ) : null}
 
@@ -453,7 +467,6 @@ export default function ShiftSettingsScreen() {
                     }
                     onSubstituteModeChange={(mode) => {
                       setSubstituteMode(mode);
-                      setRoutineExpanded(false);
                     }}
                     shift={activeSubstitute}
                     substituteDayHasError={
@@ -475,36 +488,111 @@ export default function ShiftSettingsScreen() {
                           )
                         : false
                     }
+                    visibleSection="time"
                   />
-                  {weekdayFixed ? (
-                    <RoutineTimingEditor
-                      alarmMinutesBefore={
-                        activeSubstituteDraft.alarmMinutesBefore
-                      }
-                      compact={compactEditor}
-                      expanded={routineExpanded}
-                      kind={substituteMode}
-                      onChange={(profile) =>
-                        updateRoutineProfile(substituteMode, profile)
-                      }
-                      onExpandedChange={setRoutineExpanded}
-                      profile={workRoutineProfiles[substituteMode]}
-                      startMinutes={parseTimeInput(activeSubstituteDraft.start)}
-                    />
-                  ) : null}
                 </>
               ) : null}
             </View>
           ) : null}
-        </View>
 
-        <View style={styles.section}>
-          <SectionHeader centered title="근무 방식" />
-          <WorkPatternOverview
-            data={data}
-            onEdit={() => router.push('/pattern')}
-            today={today}
+          <DisclosureRow
+            expanded={activePanel === 'routine'}
+            icon="alarm-outline"
+            onPress={() => togglePanel('routine')}
+            subtitle={routineSummary}
+            title="기상·출근 루틴"
           />
+          {activePanel === 'routine' ? (
+            <View style={styles.editorBody}>
+              <SegmentedControl
+                label="근무 종류"
+                onChange={(section) => {
+                  void Haptics.selectionAsync();
+                  setEditorSection(section);
+                }}
+                options={sectionOptions}
+                value={editorSection}
+              />
+
+              {editorSection !== 'substitute' && selectedDraft ? (
+                <>
+                  {selectedShift ? (
+                    <ShiftTimingEditor
+                      compact={compactEditor}
+                      draft={selectedDraft}
+                      onChange={(patch) => updateDraft(selectedShift.id, patch)}
+                      shift={selectedShift}
+                      visibleSection="wake"
+                    />
+                  ) : null}
+                  <RoutineTimingEditor
+                    alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
+                    compact={compactEditor}
+                    expanded
+                    kind={editorSection}
+                    onChange={(profile) =>
+                      updateRoutineProfile(editorSection, profile)
+                    }
+                    onExpandedChange={() => undefined}
+                    profile={workRoutineProfiles[editorSection]}
+                    showDisclosure={false}
+                    startMinutes={parseTimeInput(selectedDraft.start)}
+                  />
+                </>
+              ) : null}
+
+              {editorSection === 'substitute' &&
+              activeSubstituteDraft &&
+              weekdayFixed ? (
+                <>
+                  {activeSubstitute ? (
+                    <ShiftTimingEditor
+                      compact={compactEditor}
+                      draft={activeSubstituteDraft}
+                      onChange={(patch) =>
+                        updateDraft(activeSubstitute.id, patch)
+                      }
+                      onSubstituteModeChange={setSubstituteMode}
+                      shift={activeSubstitute}
+                      substituteMode={substituteMode}
+                      visibleSection="wake"
+                    />
+                  ) : null}
+                  <RoutineTimingEditor
+                    alarmMinutesBefore={activeSubstituteDraft.alarmMinutesBefore}
+                    compact={compactEditor}
+                    expanded
+                    kind={substituteMode}
+                    onChange={(profile) =>
+                      updateRoutineProfile(substituteMode, profile)
+                    }
+                    onExpandedChange={() => undefined}
+                    profile={workRoutineProfiles[substituteMode]}
+                    showDisclosure={false}
+                    startMinutes={parseTimeInput(activeSubstituteDraft.start)}
+                  />
+                </>
+              ) : null}
+
+              {editorSection === 'substitute' && !weekdayFixed ? (
+                <StatusBanner
+                  message="교대근무의 대체 근무는 주간·오후·야간 루틴을 사용해요."
+                  title="별도 루틴이 필요하지 않아요"
+                  tone="info"
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {hasInvalidDrafts ? (
+            <StatusBanner
+              actionLabel="확인하기"
+              message="근무 시간 또는 출근 루틴을 확인해 주세요."
+              onAction={openFirstInvalidSetting}
+              title="설정 확인 필요"
+              tone="danger"
+            />
+          ) : null}
         </View>
       </Screen>
     </>

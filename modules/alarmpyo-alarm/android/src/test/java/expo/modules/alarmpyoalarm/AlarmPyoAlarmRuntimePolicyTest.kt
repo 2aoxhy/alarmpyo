@@ -42,4 +42,23 @@ class AlarmPyoAlarmRuntimePolicyTest {
     assertTrue(AlarmPyoAlarmRuntimePolicy.audioFocusGranted(1, 1))
     assertEquals(false, AlarmPyoAlarmRuntimePolicy.audioFocusGranted(0, 1))
   }
+
+  @Test
+  fun `timer expires when work owns the last delivery attempt`() {
+    assertTrue(
+      AlarmPyoAlarmRuntimePolicy.shouldExpirePreemptedDelivery(
+        AlarmPyoAlarmSource.TIMER,
+        AlarmPyoAlarmSource.WORK,
+        retryArmed = false
+      )
+    )
+    assertEquals(
+      false,
+      AlarmPyoAlarmRuntimePolicy.shouldExpirePreemptedDelivery(
+        AlarmPyoAlarmSource.TIMER,
+        AlarmPyoAlarmSource.WORK,
+        retryArmed = true
+      )
+    )
+  }
 }

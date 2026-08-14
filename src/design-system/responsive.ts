@@ -1,5 +1,6 @@
 export const LARGE_TEXT_CALENDAR_SCALE = 1.4;
 export const NARROW_CONTROL_WIDTH = 340;
+export const HERO_FOOTER_STACK_SCALE = 1.3;
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -15,5 +16,13 @@ export function shouldReflowControl(width: number, fontScale: number): boolean {
   return (
     finiteOr(width, NARROW_CONTROL_WIDTH) < NARROW_CONTROL_WIDTH ||
     finiteOr(fontScale, 1) >= LARGE_TEXT_CALENDAR_SCALE
+  );
+}
+
+/** 320dp 또는 130% 이상 글자에서 오늘 카드의 값과 동작을 세로로 배치해요. */
+export function shouldStackHeroFooter(width: number, fontScale: number): boolean {
+  return (
+    finiteOr(width, NARROW_CONTROL_WIDTH) < NARROW_CONTROL_WIDTH ||
+    finiteOr(fontScale, 1) >= HERO_FOOTER_STACK_SCALE
   );
 }

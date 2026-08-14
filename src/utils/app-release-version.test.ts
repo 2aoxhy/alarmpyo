@@ -6,6 +6,7 @@ describe('앱 표시 버전', () => {
   it('1.0.x 버전을 V00 형식으로 표시해요', () => {
     expect(formatAppReleaseVersion('1.0.0')).toBe('V00');
     expect(formatAppReleaseVersion('1.0.5')).toBe('V05');
+    expect(formatAppReleaseVersion('1.0.7')).toBe('V07');
     expect(formatAppReleaseVersion('1.0.12')).toBe('V12');
   });
 

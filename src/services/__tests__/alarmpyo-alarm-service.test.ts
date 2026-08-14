@@ -68,6 +68,17 @@ function nativeModule() {
     openDoNotDisturbSettingsAsync: vi.fn(async () => true),
     openBatterySettingsAsync: vi.fn(async () => true),
     cancelAllAsync: vi.fn(async () => STATUS),
+    resetAlarmRuntimeAsync: vi.fn(async (): Promise<unknown> => ({
+      outcome: 'success',
+      workAlarmsReset: true,
+      sleepRemindersReset: true,
+      quickTimerReset: true,
+      activeAlarmStopped: true,
+      alarmSoundReset: true,
+      restoreJournalReset: true,
+      alarmHistoryReset: true,
+      issueCodes: [],
+    })),
     isWidgetInstalledAsync: vi.fn(async () => false),
     requestWidgetPinAsync: vi.fn(async () => ({
       status: 'requested',
@@ -116,6 +127,41 @@ describe('ALARMPYO 알람 서비스', () => {
 
     expect(native.cancelAllAsync).toHaveBeenCalledOnce();
     expect(native.syncAlarmsAsync).not.toHaveBeenCalled();
+  });
+
+  it('통합 런타임 초기화 결과를 검증해 그대로 반환해요', async () => {
+    const native = nativeModule();
+    native.resetAlarmRuntimeAsync.mockResolvedValueOnce({
+      outcome: 'partial',
+      workAlarmsReset: true,
+      sleepRemindersReset: true,
+      quickTimerReset: false,
+      activeAlarmStopped: true,
+      alarmSoundReset: true,
+      restoreJournalReset: true,
+      alarmHistoryReset: true,
+      issueCodes: ['quick-timer', 'quick-timer'],
+    });
+    const service = await loadService(native);
+
+    await expect(service.resetAlarmPyoRuntime()).resolves.toEqual({
+      outcome: 'partial',
+      workAlarmsReset: true,
+      sleepRemindersReset: true,
+      quickTimerReset: false,
+      activeAlarmStopped: true,
+      alarmSoundReset: true,
+      restoreJournalReset: true,
+      alarmHistoryReset: true,
+      issueCodes: ['quick-timer'],
+    });
+  });
+
+  it('구형 네이티브 모듈에는 통합 초기화가 없음을 구분해요', async () => {
+    const native = nativeModule();
+    delete (native as Partial<typeof native>).resetAlarmRuntimeAsync;
+    const service = await loadService(native);
+    await expect(service.resetAlarmPyoRuntime()).resolves.toBeNull();
   });
 
   it('네이티브 모듈이 없는 실행 환경에서는 서로 독립된 안전 상태를 반환해요', async () => {

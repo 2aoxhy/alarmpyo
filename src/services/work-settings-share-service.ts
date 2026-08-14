@@ -496,11 +496,13 @@ export async function applyWorkSettingsTransaction({
   current,
   preview,
   createSafetyBackup,
+  prepare,
   save,
 }: {
   current: AppData;
   preview: WorkSettingsSharePreview;
   createSafetyBackup: () => Promise<unknown>;
+  prepare?: (next: AppData) => AppData | null;
   save: (next: AppData) => Promise<boolean>;
 }): Promise<WorkSettingsApplyResult> {
   let next: AppData;
@@ -508,6 +510,16 @@ export async function applyWorkSettingsTransaction({
     next = applyWorkSettingsPreview(current, preview);
   } catch {
     return { success: false, reason: 'invalid-file' };
+  }
+
+  if (prepare) {
+    try {
+      const prepared = prepare(next);
+      if (prepared === null) return { success: false, reason: 'save-failed' };
+      next = prepared;
+    } catch {
+      return { success: false, reason: 'save-failed' };
+    }
   }
 
   try {

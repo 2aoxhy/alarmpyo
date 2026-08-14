@@ -45,6 +45,45 @@ internal data class AlarmPyoAlarmRestoreResult(
   )
 }
 
+internal object AlarmPyoAlarmRestoreTransactionPolicy {
+  fun mergeTargets(
+    previous: AlarmPyoAlarmRestoreState?,
+    recalculateLocalTimes: Boolean,
+    workAlarmPending: Boolean,
+    sleepReminderPending: Boolean,
+    widgetPending: Boolean,
+    quickTimerPending: Boolean,
+    nowMillis: Long,
+    watchdogAt: Long,
+    journalId: Long
+  ): AlarmPyoAlarmRestoreState {
+    val base = previous ?: AlarmPyoAlarmRestoreState(
+      workAlarmPending = false,
+      recalculateLocalTimes = false,
+      attemptCount = 0,
+      lastAttemptAt = 0L,
+      completedAt = 0L,
+      retryAt = 0L,
+      expectedCount = 0,
+      scheduledCount = 0
+    )
+    val earliestRetry = base.retryAt.takeIf { it > nowMillis } ?: 0L
+    val earliestWatchdog = listOf(base.watchdogAt, watchdogAt)
+      .filter { it > nowMillis }
+      .minOrNull() ?: watchdogAt
+    return base.copy(
+      workAlarmPending = base.workAlarmPending || workAlarmPending,
+      recalculateLocalTimes = base.recalculateLocalTimes || recalculateLocalTimes,
+      sleepReminderPending = base.sleepReminderPending || sleepReminderPending,
+      widgetPending = base.widgetPending || widgetPending,
+      quickTimerPending = base.quickTimerPending || quickTimerPending,
+      retryAt = earliestRetry,
+      watchdogAt = earliestWatchdog,
+      journalId = journalId
+    )
+  }
+}
+
 internal object AlarmPyoQuickTimerRestoreJournalPolicy {
   fun markPending(
     previous: AlarmPyoAlarmRestoreState?,
@@ -125,22 +164,18 @@ internal object AlarmPyoAlarmRestoreStateStore {
     widgetPending: Boolean = false,
     quickTimerPending: Boolean = false,
     watchdogAt: Long = 0L,
-    journalId: Long = 0L
-  ): AlarmPyoAlarmRestoreState = AlarmPyoAlarmRestoreState(
-    workAlarmPending = workAlarmPending,
+    journalId: Long = 0L,
+    previous: AlarmPyoAlarmRestoreState? = null,
+    nowMillis: Long = System.currentTimeMillis()
+  ): AlarmPyoAlarmRestoreState = AlarmPyoAlarmRestoreTransactionPolicy.mergeTargets(
+    previous = previous,
     recalculateLocalTimes = recalculateLocalTimes,
-    attemptCount = 0,
-    lastAttemptAt = 0L,
-    completedAt = 0L,
-    retryAt = 0L,
-    expectedCount = 0,
-    scheduledCount = 0,
-    lastAttemptCompleted = false,
+    workAlarmPending = workAlarmPending,
     sleepReminderPending = sleepReminderPending,
     widgetPending = widgetPending,
     quickTimerPending = quickTimerPending,
+    nowMillis = nowMillis,
     watchdogAt = watchdogAt,
-    workAttempted = false,
     journalId = journalId
   ).also { write(context, it) }
 
@@ -195,6 +230,12 @@ internal object AlarmPyoAlarmRestoreStateStore {
         .putLong(KEY_JOURNAL_ID, state.journalId)
         .commit()
     ) { "알람 복원 상태를 저장하지 못했어요." }
+  }
+
+  fun clear(context: Context) {
+    check(preferences(context).edit().clear().commit()) {
+      "알람 복원 상태를 초기화하지 못했어요."
+    }
   }
 
   internal fun afterAttempt(
