@@ -39,6 +39,12 @@ export const LAUNCH_TRANSITION_TIMING = {
   reducedMotionExit: 140,
 } as const;
 
+export const LAUNCH_BRAND_LAYOUT = {
+  groupHeight: 240,
+  markSize: 240,
+  wordmarkTop: 196,
+} as const;
+
 type LaunchTransitionOverlayProps = {
   fontMode: LaunchFontMode;
   ready: boolean;
@@ -171,6 +177,7 @@ export function LaunchTransitionOverlay({
             <AppText
               variant="display"
               color="#FFFFFF"
+              maxFontSizeMultiplier={1}
               style={[styles.wordmark, fontMode === 'fallback' && styles.fallbackWordmark]}>
               알람표
             </AppText>
@@ -198,17 +205,19 @@ const styles = StyleSheet.create({
   brand: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 160,
+    height: LAUNCH_BRAND_LAYOUT.groupHeight,
     width: '100%',
   },
   brandMark: {
-    height: 160,
-    width: 160,
+    height: LAUNCH_BRAND_LAYOUT.markSize,
+    position: 'absolute',
+    top: 0,
+    width: LAUNCH_BRAND_LAYOUT.markSize,
   },
   brandCopy: {
     alignItems: 'center',
     position: 'absolute',
-    top: 176,
+    top: LAUNCH_BRAND_LAYOUT.wordmarkTop,
   },
   wordmark: {
     fontSize: 60,

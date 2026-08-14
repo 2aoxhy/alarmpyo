@@ -295,7 +295,7 @@ describe('stable 배포 설정', () => {
     ).toMatchObject({
       backgroundColor: '#101214',
       image: './assets/images/splash-transparent.png',
-      imageWidth: 160,
+      imageWidth: 240,
     });
   });
 

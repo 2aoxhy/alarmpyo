@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  LAUNCH_BRAND_LAYOUT,
   LAUNCH_TRANSITION_TIMING,
   resolveLaunchBrandVisibility,
   resolveLaunchFontMode,
@@ -27,6 +28,18 @@ vi.mock('react-native', () => ({
   },
 }));
 vi.mock('@/components/ui-kit', () => ({ AppText: () => null }));
+
+describe('시작 화면 브랜드 배치', () => {
+  it('투명 마스터의 여백을 보정해 마크를 키우고 전체 묶음을 중앙에 배치해요', () => {
+    expect(LAUNCH_BRAND_LAYOUT.markSize).toBe(240);
+    expect(LAUNCH_BRAND_LAYOUT.wordmarkTop).toBeLessThan(
+      LAUNCH_BRAND_LAYOUT.markSize,
+    );
+    expect(LAUNCH_BRAND_LAYOUT.groupHeight).toBeGreaterThan(
+      LAUNCH_BRAND_LAYOUT.wordmarkTop,
+    );
+  });
+});
 
 describe('브랜드 시작 화면 전환 시간', () => {
   it('일반 전환은 약 1.6초를 유지하고 마지막 종료는 약 0.3초예요', () => {
