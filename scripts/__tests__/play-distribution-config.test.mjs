@@ -51,7 +51,7 @@ describe('Google Play 배포 설정', () => {
     ).toHaveLength(1);
   });
 
-  it('Play 프로필은 AAB와 내부 테스트 초안 제출로 고정해요', () => {
+  it('Play 프로필은 AAB와 내부 초안·Alpha 활성 제출로 분리해요', () => {
     const eas = readJson('eas.json');
 
     expect(eas.build.stable).toMatchObject({
@@ -77,6 +77,10 @@ describe('Google Play 배포 설정', () => {
     expect(eas.submit.internal.android).toEqual({
       track: 'internal',
       releaseStatus: 'draft',
+    });
+    expect(eas.submit.alpha.android).toEqual({
+      track: 'alpha',
+      releaseStatus: 'completed',
     });
   });
 });

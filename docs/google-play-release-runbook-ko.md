@@ -125,7 +125,7 @@ AAB 검증기는 다음을 모두 확인해요.
 2. **Play 생성 APK:** App Bundle Explorer에서 같은 versionCode의 기기별 split APK를 내려받아요. Android SDK의 `zipalign -c -P 16 -v 4 <APK>`를 모든 네이티브 라이브러리 포함 APK에 실행해요.
 3. **ELF와 런타임:** Linux/macOS에서는 Android 공식 `check_elf_alignment.sh`로 모든 `.so`의 ELF `LOAD` 정렬을 확인해요. Windows에서는 Android Studio APK Analyzer의 Alignment 경고와 SDK `zipalign`을 사용하고, 필요하면 WSL/Linux에서 공식 스크립트를 실행해요. 16KB Android 15 이상 기기나 AVD에서 `adb shell getconf PAGE_SIZE`가 `16384`인지 확인한 뒤 설치·실행·알람·위젯을 검사해요.
 
-## 5. 내부 테스트 초안에만 제출해요
+## 5. 내부 초안과 Alpha 활성 제출을 분리해요
 
 ```powershell
 npm run submit:internal -- --aab .release/AlarmPyo.aab `
@@ -133,6 +133,17 @@ npm run submit:internal -- --aab .release/AlarmPyo.aab `
 ```
 
 이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드해요. 업로드 후 Play Console에서 실제 내부 테스트 릴리스를 별도로 검토해요.
+
+기존 Alpha 비공개 테스트 트랙과 테스터 그룹을 Play Console에서 확인한 뒤, 검증된 AAB를 Alpha 테스터에게 바로 제공하려면 다음 명령을 사용해요.
+
+```powershell
+npm run submit:alpha -- --aab .release/AlarmPyo-V07.aab `
+  --eas-build .release/eas-build-play-v07.json
+```
+
+`submit:alpha`는 `track: alpha`, `releaseStatus: completed`로 고정돼요. 제출이 완료되면 기존 Alpha 테스터에게 새 버전이 제공되므로, 내부 초안과 달리 단순 업로드 명령으로 사용하지 않아요. AAB의 versionCode가 Play에 이미 존재하거나 소스·EAS 출처·서명·16KB 검증이 실패하면 제출하지 않아요.
+
+동일한 versionCode의 AAB를 `submit:internal`과 `submit:alpha`로 각각 업로드하지 않아요. Alpha에 바로 제공할 버전은 `submit:alpha`만 한 번 실행하고, 이미 internal 초안으로 업로드했다면 Play Console의 번들 라이브러리에서 그 기존 번들을 Alpha 출시로 추가하거나 승격해요.
 
 서명 연속성과 최종 전달물 QA에는 Internal App Sharing을 사용하지 않아요. Internal App Sharing은 테스트 인증서로 다시 서명돼요. Samsung 실기기는 내부 또는 비공개 트랙의 Play Store에서 설치하고, 16KB 환경은 App Bundle Explorer의 기기별 APK를 `adb install-multiple`로 설치해요. [Play App Signing의 테스트 안내](https://support.google.com/googleplay/android-developer/answer/9842756?hl=ko), [App Bundle Explorer 안내](https://support.google.com/googleplay/android-developer/answer/9844279?hl=ko)
 
@@ -202,7 +213,8 @@ production 승인 조건은 다음과 같아요.
 
 다음 중 하나라도 발생하면 확대를 멈추고 해당 출시를 중단해요.
 
-- 설치·실행 실패, 서명 불일치, direct APK에서 업데이트 실패 또는 데이터·권한 손실
+- 설치·실행 실패, Play V05→V07 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
+- direct→Play는 별도 signer 때문에 제자리 업데이트가 불가능하므로 실패 판정 대신 외부 백업·제거·Play판 설치·복원 안내를 확인
 - 근무 알람 미전달, 중복 알람, 재부팅·시간대 변경 복구 실패, 전체 화면·알람음·위젯 회귀
 - 새 보안·개인정보·정책 위반 또는 Play 정책 거부
 - 새 crash·ANR 군집, 급격한 증가, Android vitals의 bad behavior 기준 초과

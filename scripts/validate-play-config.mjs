@@ -111,6 +111,11 @@ export async function validatePlayConfig() {
         eas.submit?.internal?.android?.releaseStatus === 'draft',
       'Play 초안 제출이 내부 테스트 트랙으로 고정되지 않았어요.',
     );
+    ensure(
+      eas.submit?.alpha?.android?.track === 'alpha' &&
+        eas.submit?.alpha?.android?.releaseStatus === 'completed',
+      'Play Alpha 제출이 활성 비공개 테스트 트랙으로 고정되지 않았어요.',
+    );
 
     const gradle = await readFile(
       resolve(root, 'modules/alarmpyo-alarm/android/build.gradle'),

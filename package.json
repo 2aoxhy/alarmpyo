@@ -107,6 +107,7 @@
     "build:aab": "npm run release:preflight:play && node scripts/run-eas-cli.mjs build --platform android --profile production --non-interactive --wait",
     "build:aab:play-signing-bootstrap": "npm run release:preflight:play-signing-bootstrap && node scripts/run-eas-cli.mjs build --platform android --profile play-signing-bootstrap --non-interactive --wait",
     "submit:internal": "node scripts/submit-play-internal.mjs",
+    "submit:alpha": "node scripts/submit-play-alpha.mjs",
     "publish:update": "npm run release:preflight:update && node scripts/publish-eas-update.mjs --platform android --channel stable --environment production",
     "publish:update:canary": "npm run release:preflight:update && node scripts/publish-eas-update.mjs --platform android --channel canary --environment preview",
     "publish:update:stable": "npm run publish:update"

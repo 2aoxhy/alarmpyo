@@ -178,7 +178,7 @@ describe('Play AAB 하드닝', () => {
     expect(metro).toContain('play-app-update-screen.tsx');
   });
 
-  it('Play 전용 사전 검증·AAB 빌드·내부 테스트 제출 명령을 고정해요', () => {
+  it('Play 전용 사전 검증·AAB 빌드·내부 및 Alpha 제출 명령을 고정해요', () => {
     const scripts = JSON.parse(source('package.json')).scripts;
     const preflight = source('scripts/run-play-preflight.mjs');
     const aabValidator = source('scripts/validate-play-aab.mjs');
@@ -186,6 +186,7 @@ describe('Play AAB 하드닝', () => {
       'scripts/validate-play-release-evidence.mjs',
     );
     const submit = source('scripts/submit-play-internal.mjs');
+    const submitAlpha = source('scripts/submit-play-alpha.mjs');
     expect(scripts['release:preflight:play']).toBe('node scripts/run-play-preflight.mjs');
     expect(scripts['release:verify:aab']).toBe('node scripts/validate-play-aab.mjs');
     expect(scripts['release:verify:play-evidence']).toBe(
@@ -196,6 +197,7 @@ describe('Play AAB 하드닝', () => {
     );
     expect(scripts['build:aab']).toContain('--profile production');
     expect(scripts['submit:internal']).toBe('node scripts/submit-play-internal.mjs');
+    expect(scripts['submit:alpha']).toBe('node scripts/submit-play-alpha.mjs');
     expect(preflight).toContain('verifyExactToolchain();');
     for (const commonCheck of [
       "['run', 'release:source']",
@@ -224,6 +226,8 @@ describe('Play AAB 하드닝', () => {
       'readReleasePolicy(root, { allowBlocked: true })',
     );
     expect(submit).not.toContain('readReleasePolicy');
+    expect(submitAlpha).toContain("'--profile',\n      'alpha'");
+    expect(submitAlpha).not.toContain("'--profile',\n      'internal'");
   });
 
   it('Play 생성 APK·16KB 기기·사전 출시 보고서를 production 증거로 묶어요', () => {
@@ -250,6 +254,16 @@ describe('Play AAB 하드닝', () => {
       'play-physical-device',
       'play-16kb-device',
     ]);
+    expect(deviceEvidenceSchema.$defs.physicalChecks.required).toEqual(
+      expect.arrayContaining([
+        'timerWhileClosed',
+        'timerAfterReboot',
+        'timerSoundAndVibration',
+      ]),
+    );
+    expect(deviceEvidenceSchema.$defs.pageSize16KbChecks.required).toEqual(
+      expect.arrayContaining(['timerWhileClosed', 'timerAfterReboot']),
+    );
     expect(preLaunchEvidenceSchema.properties.status.const).toBe('completed');
     expect(validator).toContain('assertPlayReleaseEvidence');
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");

@@ -100,6 +100,9 @@
         "permissionsPreserved",
         "alarmWhileClosed",
         "alarmAfterReboot",
+        "timerWhileClosed",
+        "timerAfterReboot",
+        "timerSoundAndVibration",
         "timeAndTimezoneRecovery",
         "notificationDeniedState",
         "exactAlarm",
@@ -114,6 +117,9 @@
         "permissionsPreserved": { "type": "boolean" },
         "alarmWhileClosed": { "const": true },
         "alarmAfterReboot": { "const": true },
+        "timerWhileClosed": { "const": true },
+        "timerAfterReboot": { "const": true },
+        "timerSoundAndVibration": { "const": true },
         "timeAndTimezoneRecovery": { "const": true },
         "notificationDeniedState": { "const": true },
         "exactAlarm": { "const": true },
@@ -159,6 +165,8 @@
         "coreScheduleFlow",
         "alarmWhileClosed",
         "alarmAfterReboot",
+        "timerWhileClosed",
+        "timerAfterReboot",
         "fullScreenAlarm",
         "widgetAvailable"
       ],
@@ -167,6 +175,8 @@
         "coreScheduleFlow": { "const": true },
         "alarmWhileClosed": { "const": true },
         "alarmAfterReboot": { "const": true },
+        "timerWhileClosed": { "const": true },
+        "timerAfterReboot": { "const": true },
         "fullScreenAlarm": { "const": true },
         "widgetAvailable": { "const": true }
       }
