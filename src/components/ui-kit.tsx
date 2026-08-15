@@ -134,10 +134,10 @@ export function Screen({
       style={[
         styles.screenContent,
         { maxWidth: maxContentWidth },
+        contentStyle,
         footer
           ? styles.screenContentWithFooter
           : { paddingBottom: floatingTabBarContentOffset },
-        contentStyle,
       ]}>
       {children}
     </View>
@@ -492,7 +492,7 @@ export function ListRow({
             variant="caption"
             tone="secondary"
             numberOfLines={
-              allowSubtitleWrapping || fontScale >= 1.3 ? undefined : 2
+              allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2
             }
             style={styles.listRowSubtitle}>
             {subtitle}

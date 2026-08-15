@@ -48,6 +48,8 @@ export function AlarmPyoWidgetSyncBridge() {
       // JSON 직렬화를 하지 않아요. 앱으로 돌아오면 다시 확인하므로 새로 설치한
       // 위젯은 기존 근무 데이터가 바뀌지 않았어도 즉시 스냅샷을 받아요.
       const now = new Date();
+      const supportsGeneratedPreview =
+        typeof Platform.Version === 'number' && Platform.Version >= 35;
       const snapshot = await createInstalledWidgetSnapshot(
         isAlarmPyoWidgetInstalled,
         () =>
@@ -55,8 +57,9 @@ export function AlarmPyoWidgetSyncBridge() {
             snapshotData,
             (dateKey) => resolveShiftFromAppData(snapshotData, dateKey),
             { now },
-          ),
+        ),
         () => cancelled,
+        supportsGeneratedPreview,
       );
       if (cancelled) return;
       if (!snapshot) {

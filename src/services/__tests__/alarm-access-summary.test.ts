@@ -61,17 +61,19 @@ describe('알람 권한 안내', () => {
         notificationsAllowed: false,
       }),
     ).toMatchObject({
-      action: 'open-settings',
-      actionLabel: '알람 권한 설정하기',
+      action: 'open-exact-alarm-settings',
+      actionLabel: '정확한 알람 설정 열기',
       title: '정확한 알람을 허용해 주세요',
     });
 
     expect(summary({ fullScreenAllowed: false, notificationsAllowed: false })).toMatchObject({
-      actionLabel: '알람 권한 설정하기',
+      action: 'open-notification-settings',
+      actionLabel: '알림 설정 열기',
       title: '알람 알림을 허용해 주세요',
     });
     expect(summary({ notificationsAllowed: false })).toMatchObject({
-      actionLabel: '알람 권한 설정하기',
+      action: 'open-notification-settings',
+      actionLabel: '알림 설정 열기',
       title: '알람 알림을 허용해 주세요',
     });
     expect(summary({ fullScreenAllowed: false })).toMatchObject({
@@ -89,7 +91,7 @@ describe('알람 권한 안내', () => {
       triggerState: 'delivery-blocked',
       scheduledCount: 3,
     })).toMatchObject({
-      action: 'open-settings',
+      action: 'open-notification-settings',
       canTest: false,
       title: '예약은 유지되고 알림 전달만 차단됐어요',
     });
@@ -261,7 +263,7 @@ describe('알람 권한 안내', () => {
     });
 
     expect(result).toMatchObject({
-      action: 'open-settings',
+      action: 'open-exact-alarm-settings',
       title: '정확한 알람을 허용해 주세요',
     });
   });
@@ -294,6 +296,7 @@ describe('알람 권한 안내', () => {
       action: 'open-battery-settings',
       actionLabel: '배터리 설정 열기',
       canTest: true,
+      description: '배터리 최적화 앱 목록에서 알람표를 찾아 제한 없음으로 설정해 주세요.',
       title: '배터리 사용 제한을 확인해 주세요',
       tone: 'warning',
     });
@@ -432,7 +435,7 @@ describe('통합 알람 상태', () => {
     })).toMatchObject({
       status: 'action-required',
       issueCode: 'alarm-permissions',
-      action: 'open-settings',
+      action: 'open-exact-alarm-settings',
     });
   });
 

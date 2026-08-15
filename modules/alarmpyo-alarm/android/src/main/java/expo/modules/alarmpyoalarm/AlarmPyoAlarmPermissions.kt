@@ -4,13 +4,10 @@ import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
-import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
-import android.provider.Settings
 
 internal data class AlarmPyoDoNotDisturbAlarmStatus(
   val active: Boolean,
@@ -132,7 +129,7 @@ internal object AlarmPyoAlarmPermissions {
     else -> RequiredSettings.NONE
   }
 
-  fun openNextRequiredSettings(context: Context) {
+  fun openNextRequiredSettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
     when (
       nextRequiredSettings(
         exactAlarmAllowed(context),
@@ -145,71 +142,73 @@ internal object AlarmPyoAlarmPermissions {
       RequiredSettings.FULL_SCREEN -> openFullScreenSettings(context)
       RequiredSettings.NONE -> openNotificationSettings(context)
     }
-  }
 
-  fun openExactAlarmSettings(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-      openNotificationSettings(context)
-      return
-    }
-    startSettings(
+  fun openExactAlarmSettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
+    AlarmPyoPermissionSettings.open(
       context,
-      Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}"))
+      AlarmPyoPermissionSettingsTarget.EXACT_ALARM
+    )
+
+  fun openFullScreenSettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
+    AlarmPyoPermissionSettings.open(
+      context,
+      AlarmPyoPermissionSettingsTarget.FULL_SCREEN
+    )
+
+  fun openNotificationSettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
+    AlarmPyoPermissionSettings.open(
+      context,
+      AlarmPyoPermissionSettingsTarget.ALARM_NOTIFICATIONS
+    )
+
+  fun openDoNotDisturbSettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
+    AlarmPyoPermissionSettings.open(
+      context,
+      AlarmPyoPermissionSettingsTarget.DO_NOT_DISTURB
+    )
+
+  fun openBatterySettings(context: Context): AlarmPyoPermissionSettingsLaunchResult =
+    AlarmPyoPermissionSettings.open(
+      context,
+      AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION
+    )
+
+  internal fun alarmNotificationSettingsScope(context: Context): AlarmPyoNotificationSettingsScope {
+    AlarmPyoAlarmChannels.ensure(context)
+    return notificationSettingsScope(
+      context = context,
+      channelId = ALARM_CHANNEL_ID,
+      minimumImportance = NotificationManager.IMPORTANCE_HIGH
     )
   }
 
-  fun openFullScreenSettings(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-      openNotificationSettings(context)
-      return
-    }
-    startSettings(
-      context,
-      Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}"))
+  internal fun sleepNotificationSettingsScope(context: Context): AlarmPyoNotificationSettingsScope {
+    AlarmPyoSleepReminderChannels.ensure(context)
+    return notificationSettingsScope(
+      context = context,
+      channelId = SLEEP_REMINDER_CHANNEL_ID,
+      minimumImportance = NotificationManager.IMPORTANCE_MIN
     )
   }
 
-  fun openNotificationSettings(context: Context) {
-    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        .putExtra(Settings.EXTRA_CHANNEL_ID, ALARM_CHANNEL_ID)
-    } else {
-      Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+  private fun notificationSettingsScope(
+    context: Context,
+    channelId: String,
+    minimumImportance: Int
+  ): AlarmPyoNotificationSettingsScope {
+    if (!runtimeNotificationPermissionAllowed(context)) {
+      return AlarmPyoNotificationSettingsScope.APP
     }
-    startSettings(context, intent)
-  }
-
-  fun openDoNotDisturbSettings(context: Context) {
-    val action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS
-    } else {
-      Settings.ACTION_SOUND_SETTINGS
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !manager.areNotificationsEnabled()) {
+      return AlarmPyoNotificationSettingsScope.APP
     }
-    startSettings(context, Intent(action))
-  }
-
-  fun openBatterySettings(context: Context) {
-    // 제조사마다 배터리 제한 화면의 주소가 달라 앱 정보 화면을 기준점으로 열어요.
-    // 사용자는 여기에서 배터리 항목을 눌러 AlarmPyo를 제한 없음으로 바꿀 수 있어요.
-    startSettings(
-      context,
-      Intent(
-        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        Uri.parse("package:${context.packageName}")
-      )
-    )
-  }
-
-  private fun startSettings(context: Context, intent: Intent) {
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    runCatching { context.startActivity(intent) }.onFailure {
-      val fallback = Intent(
-        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        Uri.parse("package:${context.packageName}")
-      ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-      context.startActivity(fallback)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = manager.getNotificationChannel(channelId)
+      if (channel != null && channel.importance < minimumImportance) {
+        return AlarmPyoNotificationSettingsScope.CHANNEL
+      }
     }
+    return AlarmPyoNotificationSettingsScope.APP
   }
 }

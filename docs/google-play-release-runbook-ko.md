@@ -43,7 +43,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-2026-08-15 Play Console에서 확인한 활성 Alpha 최고값은 V05 `versionCode: 6`이며, 현재 V07 후보는 `versionCode: 7`이에요. 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 `6`으로 기록해요. 후보 업로드 직전에 두 값을 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록해요. 둘 중 하나라도 `7` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신해요.
+2026-08-15 Play Console에 등록한 V07의 `versionCode: 7`이 현재 Alpha 계보의 최고값이며, 현재 V08 후보는 `versionCode: 8`이에요. 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 `7`로 기록해요. 후보 업로드 직전에 두 값을 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록해요. 둘 중 하나라도 `8` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신해요.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인해요
 
@@ -132,16 +132,18 @@ npm run submit:internal -- --aab .release/AlarmPyo.aab `
   --eas-build .release/eas-build-play.json
 ```
 
-이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드해요. 업로드 후 Play Console에서 실제 내부 테스트 릴리스를 별도로 검토해요.
+이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드해요. 초안만으로는 Play Store 설치 링크가 열리지 않으므로, 업로드 후 Play Console에서 같은 번들의 내부 테스트 릴리스를 검토하고 출시해 내부 테스터에게 활성화해요.
 
-기존 Alpha 비공개 테스트 트랙과 테스터 그룹을 Play Console에서 확인한 뒤, 검증된 AAB를 Alpha 테스터에게 바로 제공하려면 다음 명령을 사용해요.
+V08은 이렇게 활성화한 internal Play 설치본으로 위젯·권한·줄바꿈을 검증하고 스크린샷을 촬영한 뒤, Play Console에서 **같은 versionCode 8 번들**을 Alpha 출시로 추가하거나 승격해요. 이때 AAB를 다시 업로드하지 않아요.
+
+internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용해요.
 
 ```powershell
-npm run submit:alpha -- --aab .release/AlarmPyo-V07.aab `
-  --eas-build .release/eas-build-play-v07.json
+npm run submit:alpha -- --aab .release/AlarmPyo-V08.aab `
+  --eas-build .release/eas-build-play-v08.json
 ```
 
-`submit:alpha`는 `track: alpha`, `releaseStatus: completed`로 고정돼요. 제출이 완료되면 기존 Alpha 테스터에게 새 버전이 제공되므로, 내부 초안과 달리 단순 업로드 명령으로 사용하지 않아요. AAB의 versionCode가 Play에 이미 존재하거나 소스·EAS 출처·서명·16KB 검증이 실패하면 제출하지 않아요.
+`submit:alpha`는 `track: alpha`, `releaseStatus: completed`로 고정돼요. 제출이 완료되면 기존 Alpha 테스터에게 새 버전이 제공되므로, 내부 초안과 달리 단순 업로드 명령으로 사용하지 않아요. AAB의 versionCode가 internal을 포함한 Play의 어느 트랙에든 이미 존재하거나 소스·EAS 출처·서명·16KB 검증이 실패하면 실행하지 않아요.
 
 동일한 versionCode의 AAB를 `submit:internal`과 `submit:alpha`로 각각 업로드하지 않아요. Alpha에 바로 제공할 버전은 `submit:alpha`만 한 번 실행하고, 이미 internal 초안으로 업로드했다면 Play Console의 번들 라이브러리에서 그 기존 번들을 Alpha 출시로 추가하거나 승격해요.
 
@@ -213,7 +215,7 @@ production 승인 조건은 다음과 같아요.
 
 다음 중 하나라도 발생하면 확대를 멈추고 해당 출시를 중단해요.
 
-- 설치·실행 실패, Play V05→V07 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
+- 설치·실행 실패, Play V07→V08 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
 - direct→Play는 별도 signer 때문에 제자리 업데이트가 불가능하므로 실패 판정 대신 외부 백업·제거·Play판 설치·복원 안내를 확인
 - 근무 알람 미전달, 중복 알람, 재부팅·시간대 변경 복구 실패, 전체 화면·알람음·위젯 회귀
 - 새 보안·개인정보·정책 위반 또는 Play 정책 거부

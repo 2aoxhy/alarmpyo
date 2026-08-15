@@ -43,7 +43,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     const sound = alarmSettings.indexOf('<AlarmSoundSettings />');
     const testAlarm = alarmSettings.indexOf('label="시험 알람 울리기"');
     const permissions = alarmSettings.indexOf(
-      '<AlarmPermissionChecklist status={alarmStatus} />',
+      '<AlarmPermissionChecklist',
     );
     const recentHistory = alarmSettings.indexOf(
       '<AppText variant="label">최근 알람 기록</AppText>',
@@ -59,6 +59,24 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(permissions).toBeGreaterThan(testAlarm);
     expect(recentHistory).toBeGreaterThan(permissions);
     expect(alarmSettings.match(/<DisclosureRow\b/g)).toHaveLength(1);
+  });
+
+  it('권한 조치는 해당 Android 설정 대상으로 직접 연결해요', () => {
+    expect(alarmSettings).toContain(
+      'openPermissionTarget("exact-alarm")',
+    );
+    expect(alarmSettings).toContain(
+      'openPermissionTarget("alarm-notifications")',
+    );
+    expect(alarmSettings).toContain(
+      'openPermissionTarget("full-screen")',
+    );
+    expect(alarmSettings).toContain(
+      'openPermissionTarget("battery-optimization")',
+    );
+    expect(alarmSettings).toContain(
+      'onOpenSettings={(target) => void openPermissionTarget(target)}',
+    );
   });
 
   it('다음 알람에는 이날만 바꾼 기상 시각을 표시해요', () => {

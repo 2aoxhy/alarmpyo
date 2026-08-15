@@ -91,6 +91,10 @@ describe('오늘 화면 계산 모델', () => {
     expect(model.footerLabel).toBe('근무 시작까지');
     expect(model.upcomingWorkDays).toHaveLength(3);
     expect(model.alarmStateLabel).toBe('근무 알람을 사용하지 않아요');
+    expect(model.alarmSummary).toEqual({
+      title: '알람을 사용하지 않아요',
+      description: '스위치를 켜면 다음 근무에 맞춰 알람을 자동으로 예약해요.',
+    });
   });
 
   it('분 단위 파생 계산은 366일 알람 계획을 다시 탐색하지 않아요', () => {
@@ -182,6 +186,9 @@ describe('오늘 화면 계산 모델', () => {
       action: 'retry-sleep-reminders',
     });
     expect(model.alarmsReady).toBe(false);
-    expect(model.alarmSummaryLabel).toContain('수면 알림 계획을 복구해야 해요');
+    expect(model.alarmSummary).toMatchObject({
+      title: '수면 알림 계획을 복구해야 해요',
+    });
+    expect(model.alarmSummary.description).toBeTruthy();
   });
 });

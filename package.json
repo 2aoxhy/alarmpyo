@@ -1,7 +1,7 @@
 {
   "name": "alarmpyo",
   "main": "expo-router/entry",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
@@ -47,6 +47,7 @@
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
     "opentype.js": "2.0.0",
+    "sharp": "0.35.3",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   },
@@ -77,6 +78,7 @@
     "audit:artifacts": "node scripts/audit-public-apks.mjs",
     "assets:brand:generate": "node scripts/generate-brand-assets.mjs --write",
     "assets:brand:check": "node scripts/generate-brand-assets.mjs --check",
+    "assets:play:screenshots:prepare": "node scripts/prepare-play-phone-screenshots.mjs",
     "clean:export": "node scripts/prepare-static-export.mjs --apply",
     "export:web": "npm run clean:export && expo export --platform web --output-dir dist",
     "deploy:web": "node scripts/check-deploy-source.mjs && npm run check && npm run audit:dependencies && npm run audit:tooling && node scripts/run-expo-doctor.mjs && npm run export:web && node scripts/deploy-production.mjs",

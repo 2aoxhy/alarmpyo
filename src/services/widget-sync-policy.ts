@@ -2,15 +2,17 @@ import type { AlarmPyoWidgetSnapshot } from './widget-planner';
 
 /**
  * 위젯 설치 여부를 먼저 확인한 뒤에만 비용이 큰 스냅샷 계산을 실행해요.
+ * Android 15+ 생성형 선택기 미리보기에는 설치 전에도 명시적으로 계산할 수 있어요.
  * 설치 확인을 기다리는 동안 화면 상태가 바뀌면 이전 계산도 건너뛰어요.
  */
 export async function createInstalledWidgetSnapshot<T>(
   checkInstalled: () => Promise<boolean>,
   createSnapshot: () => T,
   shouldCancel: () => boolean = () => false,
+  includeWhenNotInstalled = false,
 ): Promise<T | null> {
   const installed = await checkInstalled();
-  if (!installed || shouldCancel()) return null;
+  if ((!installed && !includeWhenNotInstalled) || shouldCancel()) return null;
   return createSnapshot();
 }
 

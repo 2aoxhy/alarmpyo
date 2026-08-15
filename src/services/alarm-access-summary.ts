@@ -10,6 +10,8 @@ import type { SleepReminderStatus } from './sleep-reminder-service';
 export type AlarmAccessAction =
   | 'none'
   | 'open-settings'
+  | 'open-exact-alarm-settings'
+  | 'open-notification-settings'
   | 'open-full-screen-settings'
   | 'open-dnd-settings'
   | 'open-battery-settings'
@@ -212,8 +214,8 @@ export function resolveAlarmHealthState({
     return {
       status: 'action-required',
       issueCode: 'alarm-permissions',
-      action: 'open-settings',
-      actionLabel: '알람 권한 설정하기',
+      action: 'open-exact-alarm-settings',
+      actionLabel: '정확한 알람 설정 열기',
       canTest: false,
       description: '근무 시각에 맞춰 울리도록 알람 및 리마인더 권한을 허용해 주세요.',
       title: '정확한 알람을 허용해 주세요',
@@ -230,8 +232,8 @@ export function resolveAlarmHealthState({
     return {
       status: 'action-required',
       issueCode: 'alarm-permissions',
-      action: 'open-settings',
-      actionLabel: '알람 권한 설정하기',
+      action: 'open-notification-settings',
+      actionLabel: '알림 설정 열기',
       canTest: false,
       description:
         alarmStatus.triggerState === 'delivery-blocked'
@@ -468,7 +470,7 @@ export function resolveAlarmHealthState({
       actionLabel: '배터리 설정 열기',
       canTest: true,
       description:
-        '앱을 오래 열지 않아도 안정적으로 울리도록 알람표의 배터리 사용을 제한하지 않음으로 설정해 주세요.',
+        '배터리 최적화 앱 목록에서 알람표를 찾아 제한 없음으로 설정해 주세요.',
       title: '배터리 사용 제한을 확인해 주세요',
       tone: 'warning',
     };

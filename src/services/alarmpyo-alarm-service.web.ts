@@ -83,6 +83,35 @@ export type AlarmPyoAlarmRuntimeResetResult = {
   issueCodes: AlarmPyoAlarmRuntimeResetIssueCode[];
 };
 
+export type AlarmPyoPermissionSettingsTarget =
+  | 'exact-alarm'
+  | 'alarm-notifications'
+  | 'sleep-notifications'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'battery-optimization'
+  | 'app-details';
+
+export type AlarmPyoPermissionSettingsDestination =
+  | 'exact-alarm'
+  | 'app-notifications'
+  | 'alarm-channel'
+  | 'sleep-channel'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'sound'
+  | 'battery-optimization'
+  | 'app-details'
+  | 'application-settings'
+  | 'system-settings';
+
+export type AlarmPyoPermissionSettingsLaunchResult = {
+  opened: boolean;
+  requestedTarget: AlarmPyoPermissionSettingsTarget;
+  openedTarget: AlarmPyoPermissionSettingsDestination | null;
+  fallbackUsed: boolean;
+};
+
 const WEB_STATUS: AlarmPyoAlarmStatus = {
   supported: false,
   enabled: false,
@@ -123,6 +152,24 @@ export async function syncAlarmPyoAlarms(
 
 export async function requestAlarmPyoAlarmPermissions(): Promise<AlarmPyoAlarmStatus> {
   return webStatus();
+}
+
+export function normalizeAlarmPyoPermissionSettingsLaunchResult(
+  _value: unknown,
+  _requestedTarget: AlarmPyoPermissionSettingsTarget,
+): AlarmPyoPermissionSettingsLaunchResult | null {
+  return null;
+}
+
+export async function openAlarmPyoPermissionSettings(
+  requestedTarget: AlarmPyoPermissionSettingsTarget,
+): Promise<AlarmPyoPermissionSettingsLaunchResult> {
+  return {
+    opened: false,
+    requestedTarget,
+    openedTarget: null,
+    fallbackUsed: false,
+  };
 }
 
 export async function openAlarmPyoAlarmPermissionSettings(): Promise<boolean> {

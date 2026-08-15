@@ -125,13 +125,15 @@ internal object AlarmPyoShiftWidgetUpdater {
     manager: AppWidgetManager,
     ids: IntArray
   ) {
+    val nowMillis = System.currentTimeMillis()
+    val storedSnapshot = runCatching { AlarmPyoWidgetStore.read(context) }.getOrNull()
+    updateGeneratedPreview(context, storedSnapshot, nowMillis)
     if (ids.isEmpty()) {
       cancelRefresh(context)
       return
     }
 
-    val nowMillis = System.currentTimeMillis()
-    val snapshot = AlarmPyoWidgetStore.read(context) ?: AlarmPyoWidgetSnapshot(
+    val snapshot = storedSnapshot ?: AlarmPyoWidgetSnapshot(
       generatedAt = 0L,
       setupCompleted = false,
       entries = emptyList()
@@ -144,14 +146,99 @@ internal object AlarmPyoShiftWidgetUpdater {
         AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP
       )
       val heightMode = AlarmPyoWidgetSizePolicy.heightMode(minHeightDp)
-      val views = RemoteViews(context.packageName, R.layout.alarmpyo_shift_widget_compact)
-      bindState(views, state, fontScale, heightMode)
+      val views = createRemoteViews(context, state, fontScale, heightMode)
       views.setOnClickPendingIntent(R.id.alarmpyo_widget_root, openAppIntent(context))
       manager.updateAppWidget(widgetId, views)
     }
 
     val refreshAt = state.nextRefreshAt
     if (refreshAt == null) cancelRefresh(context) else scheduleRefresh(context, refreshAt)
+  }
+
+  /**
+   * Pushes a personalized picker preview on Android 15+. This is deliberately
+   * fail-soft: a launcher/API problem must never turn a successful schedule save
+   * or an installed widget refresh into a failure.
+   */
+  fun updateGeneratedPreview(
+    context: Context,
+    snapshot: AlarmPyoWidgetSnapshot?,
+    nowMillis: Long = System.currentTimeMillis()
+  ): AlarmPyoWidgetPreviewUpdateResult = try {
+    updateGeneratedPreviewSafely(context, snapshot, nowMillis)
+  } catch (_: Exception) {
+    AlarmPyoWidgetPreviewUpdateResult.FAILED
+  } catch (_: LinkageError) {
+    AlarmPyoWidgetPreviewUpdateResult.FAILED
+  }
+
+  private fun updateGeneratedPreviewSafely(
+    context: Context,
+    snapshot: AlarmPyoWidgetSnapshot?,
+    nowMillis: Long
+  ): AlarmPyoWidgetPreviewUpdateResult {
+    val applicationContext = context.applicationContext
+    val fontScale = applicationContext.resources.configuration.fontScale
+    val state = snapshot?.let { AlarmPyoWidgetFormatter.format(it, nowMillis) }
+    val signature = state?.let { AlarmPyoWidgetPreviewPolicy.signature(it, fontScale) }
+    val decision = AlarmPyoWidgetPreviewPolicy.decide(
+      sdkInt = Build.VERSION.SDK_INT,
+      hasSnapshot = snapshot != null,
+      signature = signature,
+      storedSignature = AlarmPyoWidgetPreviewStateStore.signature(applicationContext),
+      lastAttemptAt = AlarmPyoWidgetPreviewStateStore.lastAttemptAt(applicationContext),
+      nowMillis = nowMillis
+    )
+    when (decision) {
+      AlarmPyoWidgetPreviewDecision.UNSUPPORTED ->
+        return AlarmPyoWidgetPreviewUpdateResult.UNSUPPORTED
+      AlarmPyoWidgetPreviewDecision.NO_DATA ->
+        return AlarmPyoWidgetPreviewUpdateResult.NO_DATA
+      AlarmPyoWidgetPreviewDecision.UNCHANGED ->
+        return AlarmPyoWidgetPreviewUpdateResult.UNCHANGED
+      AlarmPyoWidgetPreviewDecision.DEFERRED ->
+        return AlarmPyoWidgetPreviewUpdateResult.DEFERRED
+      AlarmPyoWidgetPreviewDecision.UPDATE -> Unit
+    }
+
+    val previewState = state ?: return AlarmPyoWidgetPreviewUpdateResult.NO_DATA
+    val previewSignature = signature ?: return AlarmPyoWidgetPreviewUpdateResult.NO_DATA
+    AlarmPyoWidgetPreviewStateStore.recordAttempt(applicationContext, nowMillis)
+    val preview = createRemoteViews(
+      applicationContext,
+      previewState,
+      fontScale,
+      AlarmPyoWidgetHeightMode.REGULAR
+    )
+    val updated = setGeneratedPreview(applicationContext, preview)
+    if (!updated) return AlarmPyoWidgetPreviewUpdateResult.RATE_LIMITED
+
+    AlarmPyoWidgetPreviewStateStore.recordSuccess(
+      applicationContext,
+      previewSignature,
+      nowMillis
+    )
+    return AlarmPyoWidgetPreviewUpdateResult.UPDATED
+  }
+
+  @android.annotation.TargetApi(AlarmPyoWidgetPreviewPolicy.MIN_SUPPORTED_API)
+  private fun setGeneratedPreview(context: Context, preview: RemoteViews): Boolean =
+    AppWidgetManager.getInstance(context).setWidgetPreview(
+      ComponentName(context, AlarmPyoShiftWidgetProvider::class.java),
+      android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+      preview
+    )
+
+  private fun createRemoteViews(
+    context: Context,
+    state: AlarmPyoWidgetViewState,
+    fontScale: Float,
+    heightMode: AlarmPyoWidgetHeightMode
+  ): RemoteViews = RemoteViews(
+    context.packageName,
+    R.layout.alarmpyo_shift_widget_compact
+  ).also { views ->
+    bindState(views, state, fontScale, heightMode)
   }
 
   private fun bindState(

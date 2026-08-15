@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   AppText,
@@ -9,9 +9,9 @@ import {
   Screen,
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
+import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreData } from '@/store/app-store';
-import { formatCompactTime } from '@/utils/date';
 import {
   getWorkPatternDisplayName,
   getWorkPatternPreset,
@@ -21,16 +21,18 @@ import {
 export default function SettingsHome() {
   const { data } = useAppStoreData();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
   const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
   const patternLabel =
     presetId === 'custom'
       ? getWorkPatternDisplayName(data.pattern.shiftTypeIds, data.pattern.name)
       : getWorkPatternPreset(presetId).shortName;
   const activeIds = new Set(data.pattern.shiftTypeIds);
-  const workTimeLabel = data.shiftTypes
-    .filter((shift) => !shift.isOff && activeIds.has(shift.id))
-    .map((shift) => `${shift.shortName} ${formatCompactTime(shift.startMinutes)}`)
-    .join(' · ');
+  const workSummary = formatSettingsWorkSummary(
+    patternLabel,
+    data.shiftTypes.filter((shift) => activeIds.has(shift.id)),
+    { fontScale, width },
+  );
   const alarmLabel = data.settings.notificationsEnabled
     ? data.settings.scheduledNotificationCount > 0
       ? `${data.settings.scheduledNotificationCount}개 예약`
@@ -51,7 +53,7 @@ export default function SettingsHome() {
         <ListRow
           icon="repeat-outline"
           onPress={() => router.push('/shift-settings')}
-          subtitle={`${patternLabel} · ${workTimeLabel}`}
+          subtitle={workSummary}
           title="근무표 설정"
         />
         <MenuDivider />

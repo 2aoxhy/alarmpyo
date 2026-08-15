@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vector fallback for launchers that do not inflate previewLayout. It intentionally
+     contains no company-specific date or time, so it cannot become stale. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="100dp"
+    android:viewportWidth="400"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="@color/alarmpyo_widget_card_background"
+        android:pathData="M24,0H376A24,24 0,0 1,400 24V76A24,24 0,0 1,376 100H24A24,24 0,0 1,0 76V24A24,24 0,0 1,24 0Z"
+        android:strokeColor="@color/alarmpyo_widget_card_border"
+        android:strokeWidth="1" />
+    <path
+        android:fillColor="@color/alarmpyo_widget_card_background_soft"
+        android:pathData="M234,10H376A14,14 0,0 1,390 24V76A14,14 0,0 1,376 90H234A14,14 0,0 1,220 76V24A14,14 0,0 1,234 10Z"
+        android:strokeColor="@color/alarmpyo_widget_card_border"
+        android:strokeWidth="1" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M31,26H115M58,49H180M58,70H147M244,34H315M244,58H354"
+        android:strokeColor="@color/alarmpyo_text_primary"
+        android:strokeLineCap="round"
+        android:strokeWidth="8" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M35,42A15,15 0,1 0,35 72A15,15 0,1 0,35 42M35,36V29M35,85V78M14,57H7M63,57H56"
+        android:strokeColor="@color/alarmpyo_widget_icon_day"
+        android:strokeLineCap="round"
+        android:strokeWidth="4" />
+</vector>

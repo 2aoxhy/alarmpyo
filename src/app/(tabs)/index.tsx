@@ -179,7 +179,7 @@ export default function TodayScreen() {
             data.alarmOverrides[viewModel.scheduledAlarms[0].dateKey]?.mode ===
               'wake-time',
         )}
-        alarmSummaryLabel={viewModel.alarmSummaryLabel}
+        alarmSummary={viewModel.alarmSummary}
         alarmHealthState={viewModel.alarmHealthState}
         compact={compactHome}
         largeText={largeText}

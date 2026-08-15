@@ -10,8 +10,10 @@ import {
   findDuplicatePhoneScreenshotPaths,
   inspectPlayStoreImage,
   PLAY_STORE_ASSET_PATHS,
+  readPhoneScreenshotManifest,
   validateOpaquePlayImageMetadata,
   validatePhoneScreenshotMetadata,
+  validatePhoneScreenshotManifest,
   validatePlayStoreAssets,
 } from '../play-store-assets.mjs';
 import { parsePlayStoreAssetArguments } from '../validate-play-store-assets.mjs';
@@ -60,6 +62,95 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
+  it('V08 재촬영 순서와 대체 텍스트를 manifest에 고정해요', async () => {
+    const manifest = await readPhoneScreenshotManifest(root);
+
+    expect(manifest).toMatchObject({
+      release: 'V08',
+      status: 'recapture-required',
+      target: {
+        width: 1080,
+        height: 1920,
+        format: 'png',
+        colorMode: 'rgb',
+        alpha: false,
+      },
+    });
+    expect(
+      manifest.screenshots.map(({ captureId, outputFile, sourceFile }) => ({
+        captureId,
+        outputFile,
+        sourceFile,
+      })),
+    ).toEqual([
+      {
+        captureId: 'launch-brand',
+        sourceFile: '01-brand.webp',
+        outputFile: '01-brand.png',
+      },
+      {
+        captureId: 'today-ready',
+        sourceFile: '02-today.webp',
+        outputFile: '02-today.png',
+      },
+      {
+        captureId: 'timer-running',
+        sourceFile: '03-timer.webp',
+        outputFile: '03-timer.png',
+      },
+      {
+        captureId: 'settings-home',
+        sourceFile: '04-settings.webp',
+        outputFile: '04-settings.png',
+      },
+    ]);
+    for (const screenshot of manifest.screenshots) {
+      expect([...screenshot.altText].length).toBeGreaterThan(0);
+      expect([...screenshot.altText].length).toBeLessThanOrEqual(140);
+    }
+  });
+
+  it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
+    const valid = {
+      version: 1,
+      release: 'V08',
+      status: 'recapture-required',
+      target: {
+        width: 1080,
+        height: 1920,
+        format: 'png',
+        colorMode: 'rgb',
+        alpha: false,
+      },
+      screenshots: Array.from({ length: 4 }, (_, index) => ({
+        order: index + 1,
+        captureId: `screen-${index + 1}`,
+        sourceFile: `0${index + 1}-source.webp`,
+        outputFile: `0${index + 1}-output.png`,
+        altText: `화면 ${index + 1}`,
+      })),
+    };
+    expect(validatePhoneScreenshotManifest(valid)).toBe(valid);
+    expect(() =>
+      validatePhoneScreenshotManifest({
+        ...valid,
+        screenshots: [
+          { ...valid.screenshots[0], sourceFile: '../source.webp' },
+          ...valid.screenshots.slice(1),
+        ],
+      }),
+    ).toThrow('폴더 경로');
+    expect(() =>
+      validatePhoneScreenshotManifest({
+        ...valid,
+        screenshots: valid.screenshots.map((item, index) => ({
+          ...item,
+          altText: index === 0 ? '가'.repeat(141) : item.altText,
+        })),
+      }),
+    ).toThrow('140자 이하');
+  });
+
   it('현재 PNG 아이콘과 대표 그래픽의 CRC·압축 데이터·크기·색상 계약을 확인해요', async () => {
     const result = await validatePlayStoreAssets({
       requirePhoneScreenshots: false,
@@ -231,6 +322,9 @@ describe('Google Play 등록 이미지', () => {
     );
     expect(packageJson.scripts['assets:brand:check']).toBe(
       'node scripts/generate-brand-assets.mjs --check',
+    );
+    expect(packageJson.scripts['assets:play:screenshots:prepare']).toBe(
+      'node scripts/prepare-play-phone-screenshots.mjs',
     );
     expect(listing).toContain('npm run release:verify:play-store-assets');
     expect(listing).toContain('npm run assets:brand:check');

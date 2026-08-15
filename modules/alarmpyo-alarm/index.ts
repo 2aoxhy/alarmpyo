@@ -109,6 +109,35 @@ export type AlarmPyoQuickTimerStatus = {
   requiredAction: 'none' | 'exact-alarm' | 'notifications' | 'full-screen';
 };
 
+export type AlarmPyoPermissionSettingsTarget =
+  | 'exact-alarm'
+  | 'alarm-notifications'
+  | 'sleep-notifications'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'battery-optimization'
+  | 'app-details';
+
+export type AlarmPyoPermissionSettingsDestination =
+  | 'exact-alarm'
+  | 'app-notifications'
+  | 'alarm-channel'
+  | 'sleep-channel'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'sound'
+  | 'battery-optimization'
+  | 'app-details'
+  | 'application-settings'
+  | 'system-settings';
+
+export type AlarmPyoPermissionSettingsLaunchResult = {
+  opened: boolean;
+  requestedTarget: AlarmPyoPermissionSettingsTarget;
+  openedTarget: AlarmPyoPermissionSettingsDestination | null;
+  fallbackUsed: boolean;
+};
+
 export type AlarmPyoAlarmRuntimeResetResult = {
   outcome: 'success' | 'partial' | 'failure';
   workAlarmsReset: boolean;
@@ -137,6 +166,9 @@ type AlarmPyoAlarmNativeModule = {
   ): Promise<AlarmPyoAlarmStatus>;
   getStatusAsync(): Promise<AlarmPyoAlarmStatus>;
   requestAlarmPermissionsAsync(): Promise<AlarmPyoAlarmStatus>;
+  openPermissionSettingsAsync?(
+    target: AlarmPyoPermissionSettingsTarget,
+  ): Promise<AlarmPyoPermissionSettingsLaunchResult>;
   openAlarmPermissionSettingsAsync(): Promise<AlarmPyoAlarmStatus>;
   openFullScreenPermissionSettingsAsync(): Promise<AlarmPyoAlarmStatus>;
   openDoNotDisturbSettingsAsync(): Promise<boolean>;

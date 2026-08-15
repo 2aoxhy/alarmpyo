@@ -43,7 +43,7 @@ describe('Android 네이티브 안전 계약', () => {
     );
   });
 
-  it('위젯 설치 전에도 스냅샷을 저장하고 367일 범위를 받아요', () => {
+  it('위젯 설치 전에도 스냅샷을 저장하고 생성형 미리보기를 갱신해요', () => {
     const moduleSource = source(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoAlarmModule.kt',
     );
@@ -56,8 +56,9 @@ describe('Android 네이티브 안전 계약', () => {
     );
 
     expect(syncWidget.indexOf('AlarmPyoWidgetStore.write')).toBeLessThan(
-      syncWidget.indexOf('AlarmPyoShiftWidgetUpdater.isInstalled'),
+      syncWidget.indexOf('AlarmPyoShiftWidgetUpdater.updateAll'),
     );
+    expect(syncWidget).not.toContain('AlarmPyoShiftWidgetUpdater.isInstalled');
     expect(syncWidget.trimEnd()).toMatch(/true\s*}\s*$/);
     expect(widgetModel).toContain('entriesJson.length() in 1..367');
     expect(widgetModel).toContain('alarmsJson.length() <= 366');

@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
-import { extname, resolve } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -12,10 +12,108 @@ export const PLAY_STORE_ASSET_PATHS = Object.freeze({
   featureGraphic: 'assets/play-store/alarmpyo-feature-graphic.png',
   icon: 'assets/play-store/alarmpyo-icon-512.png',
   phoneScreenshots: 'assets/play-store/phone-screenshots',
+  phoneScreenshotManifest:
+    'assets/play-store/phone-screenshots/manifest.json',
 });
+
+const PHONE_SCREENSHOT_MANIFEST_STATUSES = new Set([
+  'recapture-required',
+  'ready',
+]);
+const MAX_SCREENSHOT_ALT_TEXT_LENGTH = 140;
 
 function ensure(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeFileName(value, extension, label) {
+  ensure(typeof value === 'string' && value.length > 0, `${label}이 비어 있어요.`);
+  ensure(basename(value) === value, `${label}에는 폴더 경로를 넣을 수 없어요.`);
+  ensure(extname(value).toLowerCase() === extension, `${label}은 ${extension} 파일이어야 해요.`);
+  return value;
+}
+
+export function validatePhoneScreenshotManifest(
+  manifest,
+  label = 'Play 휴대전화 스크린샷 manifest',
+) {
+  ensure(plainObject(manifest), `${label}가 JSON 객체가 아니에요.`);
+  ensure(manifest.version === 1, `${label} version은 1이어야 해요.`);
+  ensure(/^V\d{2}$/u.test(manifest.release), `${label} release는 V00 형식이어야 해요.`);
+  ensure(
+    PHONE_SCREENSHOT_MANIFEST_STATUSES.has(manifest.status),
+    `${label} status가 올바르지 않아요.`,
+  );
+  ensure(plainObject(manifest.target), `${label} target이 없어요.`);
+  ensure(
+    manifest.target.width === 1080 && manifest.target.height === 1920,
+    `${label} target은 1080×1920이어야 해요.`,
+  );
+  ensure(
+    manifest.target.format === 'png' &&
+      manifest.target.colorMode === 'rgb' &&
+      manifest.target.alpha === false,
+    `${label} target은 알파 없는 RGB PNG여야 해요.`,
+  );
+  ensure(
+    Array.isArray(manifest.screenshots) && manifest.screenshots.length === 4,
+    `${label}에는 추천 노출용 스크린샷 4장이 있어야 해요.`,
+  );
+
+  const captureIds = new Set();
+  const sourceFiles = new Set();
+  const outputFiles = new Set();
+  for (const [index, screenshot] of manifest.screenshots.entries()) {
+    const itemLabel = `${label} ${index + 1}번`;
+    ensure(plainObject(screenshot), `${itemLabel} 항목이 객체가 아니에요.`);
+    ensure(screenshot.order === index + 1, `${itemLabel} order가 노출 순서와 달라요.`);
+    ensure(
+      typeof screenshot.captureId === 'string' &&
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(screenshot.captureId),
+      `${itemLabel} captureId가 올바르지 않아요.`,
+    );
+    safeFileName(screenshot.sourceFile, '.webp', `${itemLabel} sourceFile`);
+    safeFileName(screenshot.outputFile, '.png', `${itemLabel} outputFile`);
+    ensure(
+      typeof screenshot.altText === 'string' && screenshot.altText.trim().length > 0,
+      `${itemLabel} 대체 텍스트가 비어 있어요.`,
+    );
+    ensure(
+      [...screenshot.altText].length <= MAX_SCREENSHOT_ALT_TEXT_LENGTH,
+      `${itemLabel} 대체 텍스트는 ${MAX_SCREENSHOT_ALT_TEXT_LENGTH}자 이하여야 해요.`,
+    );
+    ensure(!captureIds.has(screenshot.captureId), `${itemLabel} captureId가 중복됐어요.`);
+    ensure(!sourceFiles.has(screenshot.sourceFile), `${itemLabel} sourceFile이 중복됐어요.`);
+    ensure(!outputFiles.has(screenshot.outputFile), `${itemLabel} outputFile이 중복됐어요.`);
+    captureIds.add(screenshot.captureId);
+    sourceFiles.add(screenshot.sourceFile);
+    outputFiles.add(screenshot.outputFile);
+  }
+  return manifest;
+}
+
+export async function readPhoneScreenshotManifest(root = process.cwd()) {
+  const manifestPath = resolve(
+    root,
+    PLAY_STORE_ASSET_PATHS.phoneScreenshotManifest,
+  );
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      throw new Error(`${manifestPath}: 스크린샷 manifest가 없어요.`);
+    }
+    if (error instanceof SyntaxError) {
+      throw new Error(`${manifestPath}: JSON 문법이 올바르지 않아요.`);
+    }
+    throw error;
+  }
+  return validatePhoneScreenshotManifest(manifest, manifestPath);
 }
 
 const crcTable = (() => {
@@ -370,7 +468,18 @@ export async function validatePlayStoreAssets({
 } = {}) {
   const errors = [];
   const warnings = [];
-  const assets = { featureGraphic: null, icon: null, phoneScreenshots: [] };
+  const assets = {
+    featureGraphic: null,
+    icon: null,
+    phoneScreenshotManifest: null,
+    phoneScreenshots: [],
+  };
+
+  try {
+    assets.phoneScreenshotManifest = await readPhoneScreenshotManifest(root);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
 
   try {
     const icon = await inspectPlayStoreImage(resolve(root, PLAY_STORE_ASSET_PATHS.icon));
@@ -420,6 +529,13 @@ export async function validatePlayStoreAssets({
     errors.push('휴대전화 스크린샷은 최대 8장까지 등록할 수 있어요.');
   }
 
+  const screenshotManifest = assets.phoneScreenshotManifest;
+  if (screenshotManifest?.status === 'recapture-required') {
+    const message = `${screenshotManifest.release} 휴대전화 스크린샷은 실기기 재촬영이 필요해요. 가짜 또는 저해상도 이미지를 대신 만들지 마세요.`;
+    if (requirePhoneScreenshots) errors.push(message);
+    else warnings.push(message);
+  }
+
   for (const screenshotPath of screenshotPaths) {
     try {
       const screenshot = await inspectPlayStoreImage(screenshotPath);
@@ -427,6 +543,21 @@ export async function validatePlayStoreAssets({
       assets.phoneScreenshots.push(screenshot);
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  if (screenshotManifest?.status === 'ready') {
+    const expectedNames = screenshotManifest.screenshots.map(
+      (screenshot) => screenshot.outputFile,
+    );
+    const actualNames = screenshotPaths.map((screenshotPath) => basename(screenshotPath));
+    if (
+      expectedNames.length !== actualNames.length ||
+      expectedNames.some((name, index) => name !== actualNames[index])
+    ) {
+      errors.push(
+        `휴대전화 스크린샷 파일과 manifest 순서가 달라요. 기대: ${expectedNames.join(', ')}; 실제: ${actualNames.join(', ') || '없음'}`,
+      );
     }
   }
 

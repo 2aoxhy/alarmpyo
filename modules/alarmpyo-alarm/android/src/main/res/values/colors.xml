@@ -18,21 +18,18 @@
     <color name="alarmpyo_surface_soft">#20FFFFFF</color>
     <color name="alarmpyo_surface_border">#30FFFFFF</color>
 
-    <!-- Widget gradients and chrome -->
-    <color name="alarmpyo_widget_day_gradient_start">#07596A</color>
-    <color name="alarmpyo_widget_night_gradient_start">#1D2228</color>
-    <color name="alarmpyo_widget_off_gradient_start">#222835</color>
-    <color name="alarmpyo_widget_training_gradient_start">#123A58</color>
-    <color name="alarmpyo_widget_reserve_gradient_start">#33411F</color>
-    <color name="alarmpyo_widget_unknown_gradient_start">#242A30</color>
-    <color name="alarmpyo_widget_panel_background">#29040A16</color>
-    <color name="alarmpyo_widget_panel_border">#14FFFFFF</color>
-    <color name="alarmpyo_widget_card_border">#2EFFFFFF</color>
-    <color name="alarmpyo_widget_icon_day">#FFF0A8</color>
-    <color name="alarmpyo_widget_icon_night">#E2E6EA</color>
-    <color name="alarmpyo_widget_icon_off">#EEF0F5</color>
-    <color name="alarmpyo_widget_icon_training">#C8EEFF</color>
-    <color name="alarmpyo_widget_icon_reserve">#E7F3A8</color>
-    <color name="alarmpyo_widget_icon_reserve_detail">#455124</color>
-    <color name="alarmpyo_widget_icon_unknown">#E4E8EC</color>
+    <!-- Widget chrome stays neutral dark. Shift meaning is limited to the small
+         glyph so the card remains consistent with the app's gray hierarchy. -->
+    <color name="alarmpyo_widget_card_background">#181B1F</color>
+    <color name="alarmpyo_widget_card_background_soft">#22262B</color>
+    <color name="alarmpyo_widget_panel_background">#22262B</color>
+    <color name="alarmpyo_widget_panel_border">#737D89</color>
+    <color name="alarmpyo_widget_card_border">#737D89</color>
+    <color name="alarmpyo_widget_icon_day">#7AE6D0</color>
+    <color name="alarmpyo_widget_icon_night">#9AC7FF</color>
+    <color name="alarmpyo_widget_icon_off">#D9DDE3</color>
+    <color name="alarmpyo_widget_icon_training">#89CEFF</color>
+    <color name="alarmpyo_widget_icon_reserve">#D5E477</color>
+    <color name="alarmpyo_widget_icon_reserve_detail">#181B1F</color>
+    <color name="alarmpyo_widget_icon_unknown">#B5BDC8</color>
 </resources>

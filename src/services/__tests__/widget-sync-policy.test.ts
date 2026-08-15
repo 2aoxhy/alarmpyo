@@ -115,6 +115,21 @@ describe('ALARMPYO 위젯 동기화 정책', () => {
     expect(createSnapshot).not.toHaveBeenCalled();
   });
 
+  it('Android 15+ 생성형 미리보기는 설치된 위젯이 없어도 스냅샷을 만들어요', async () => {
+    const snapshot = { entries: ['오늘', '다음 근무'] };
+    const createSnapshot = vi.fn(() => snapshot);
+
+    await expect(
+      createInstalledWidgetSnapshot(
+        async () => false,
+        createSnapshot,
+        () => false,
+        true,
+      ),
+    ).resolves.toBe(snapshot);
+    expect(createSnapshot).toHaveBeenCalledOnce();
+  });
+
   it('위젯을 설치하면 같은 앱 실행 중에도 스냅샷을 만들어요', async () => {
     const snapshot = { entries: ['오늘', '다음 근무'] };
     const createSnapshot = vi.fn(() => snapshot);

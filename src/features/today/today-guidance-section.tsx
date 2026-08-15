@@ -11,11 +11,12 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { SleepTimingGuidance } from '@/services/sleep-timing-planner';
 import type { WorkRoutinePlan } from '@/services/work-routine-planner';
 import type { AlarmHealthState } from '@/services/alarm-access-summary';
+import type { TodayAlarmSummary } from '@/services/today-view-model';
 
 type TodayGuidanceSectionProps = {
   alarmHasDateOverride: boolean;
   alarmHealthState: AlarmHealthState;
-  alarmSummaryLabel: string;
+  alarmSummary: TodayAlarmSummary;
   compact: boolean;
   largeText: boolean;
   now: Date;
@@ -27,7 +28,7 @@ type TodayGuidanceSectionProps = {
 export function TodayGuidanceSection({
   alarmHasDateOverride,
   alarmHealthState,
-  alarmSummaryLabel,
+  alarmSummary,
   compact,
   largeText,
   now,
@@ -41,6 +42,9 @@ export function TodayGuidanceSection({
   const hasAlarmIssue =
     alarmHealthState.status === 'action-required' ||
     alarmHealthState.status === 'error';
+  const alarmAccessibilitySummary = alarmSummary.description
+    ? `${alarmSummary.title}. ${alarmSummary.description}`
+    : alarmSummary.title;
 
   return (
     <View style={styles.section}>
@@ -49,7 +53,7 @@ export function TodayGuidanceSection({
       <Card style={[styles.alarmCard, hasAlarmIssue && styles.alarmIssueCard]}>
         <Pressable
           accessibilityHint="알람 상태와 예약 내용을 확인해요."
-          accessibilityLabel={`근무 알람. ${alarmSummaryLabel}${
+          accessibilityLabel={`근무 알람. ${alarmAccessibilitySummary}${
             alarmHasDateOverride ? '. 이날만 설정한 알람이에요' : ''
           }`}
           accessibilityRole="button"
@@ -101,11 +105,18 @@ export function TodayGuidanceSection({
             <View style={styles.alarmSummary}>
               <AppText
                 color={hasAlarmIssue ? palette.danger : undefined}
-                numberOfLines={largeText ? undefined : 2}
                 tone={hasAlarmIssue ? 'primary' : 'secondary'}
-                variant="caption">
-                {alarmSummaryLabel}
+                variant="label">
+                {alarmSummary.title}
               </AppText>
+              {alarmSummary.description ? (
+                <AppText
+                  color={hasAlarmIssue ? palette.danger : undefined}
+                  tone={hasAlarmIssue ? 'primary' : 'secondary'}
+                  variant="caption">
+                  {alarmSummary.description}
+                </AppText>
+              ) : null}
             </View>
           </View>
 
@@ -178,6 +189,7 @@ const createStyles = (palette: AppPalette) =>
     },
     alarmSummary: {
       minWidth: 0,
+      gap: 2,
     },
     rowPressed: {
       opacity: 0.72,

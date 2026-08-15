@@ -1,15 +1,22 @@
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppIcon } from "@/components/app-icon";
 import { AppText } from "@/components/ui-kit";
 import { radii, spacing, type AppPalette } from "@/constants/app-theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
-import type { AlarmPyoAlarmStatus } from "@/services/alarmpyo-alarm-service";
+import type {
+  AlarmPyoAlarmStatus,
+  AlarmPyoPermissionSettingsTarget,
+} from "@/services/alarmpyo-alarm-service";
 
 export function AlarmPermissionChecklist({
+  disabled = false,
+  onOpenSettings,
   status,
 }: {
+  disabled?: boolean;
+  onOpenSettings: (target: AlarmPyoPermissionSettingsTarget) => void;
   status: AlarmPyoAlarmStatus | null;
 }) {
   const { palette } = useAppTheme();
@@ -23,14 +30,32 @@ export function AlarmPermissionChecklist({
     );
   }
 
-  const items = [
-    { label: "정확한 알람", ready: status.exactAlarmAllowed },
-    { label: "전체 화면 알람", ready: status.fullScreenAllowed },
-    { label: "알림", ready: status.notificationsAllowed },
+  const items: {
+    label: string;
+    ready: boolean;
+    readyCopy?: string;
+    target: AlarmPyoPermissionSettingsTarget;
+  }[] = [
+    {
+      label: "정확한 알람",
+      ready: status.exactAlarmAllowed,
+      target: "exact-alarm",
+    },
+    {
+      label: "전체 화면 알람",
+      ready: status.fullScreenAllowed,
+      target: "full-screen",
+    },
+    {
+      label: "알림",
+      ready: status.notificationsAllowed,
+      target: "alarm-notifications",
+    },
     {
       label: "배터리 사용 제한",
       ready: status.batteryOptimizationIgnored,
       readyCopy: "제한되어 있지 않아요",
+      target: "battery-optimization",
     },
   ];
 
@@ -42,11 +67,19 @@ export function AlarmPermissionChecklist({
           : "확인이 필요해요";
         const color = item.ready ? palette.mintDark : palette.danger;
         return (
-          <View
+          <Pressable
             accessible
-            accessibilityLabel={`${item.label}. ${copy}`}
+            accessibilityHint={`${item.label}에 해당하는 휴대폰 설정 화면을 열어요.`}
+            accessibilityLabel={`${item.label}. ${copy}. 설정 열기`}
+            accessibilityRole="button"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
             key={item.label}
-            style={styles.row}
+            onPress={() => onOpenSettings(item.target)}
+            style={({ pressed }) => [
+              styles.row,
+              pressed && !disabled && styles.rowPressed,
+            ]}
           >
             <View
               style={[
@@ -75,7 +108,13 @@ export function AlarmPermissionChecklist({
             <AppText color={color} style={styles.value} variant="caption">
               {copy}
             </AppText>
-          </View>
+            <AppIcon
+              accessible={false}
+              color={palette.inkMuted}
+              name="chevron-forward"
+              size={18}
+            />
+          </Pressable>
         );
       })}
     </View>
@@ -99,6 +138,9 @@ function createStyles(palette: AppPalette) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: palette.line,
     },
+    rowPressed: {
+      backgroundColor: palette.disabledSurface,
+    },
     icon: {
       width: 32,
       height: 32,
@@ -112,7 +154,7 @@ function createStyles(palette: AppPalette) {
       flex: 1,
     },
     value: {
-      maxWidth: "46%",
+      maxWidth: "42%",
       flexShrink: 1,
       textAlign: "right",
     },

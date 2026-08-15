@@ -20,6 +20,7 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings).toContain('title="홈 화면 위젯"');
     expect(settings).toContain('title="데이터·앱 정보"');
     expect(settings).not.toContain('title="기상 시간"');
+    expect(settings).toContain('formatSettingsWorkSummary(');
     for (const title of [
       '데이터 관리',
       'Google Play 업데이트',
@@ -27,6 +28,21 @@ describe('핵심 화면 탐색 계약', () => {
     ]) {
       expect(appManagement).toContain(title);
     }
+  });
+
+  it('좁은 화면의 목록 설명은 자연스럽게 흐르고 하단 메뉴 안전 여백을 덮어쓰지 않아요', () => {
+    const uiKit = source('src/components/ui-kit.tsx');
+    const contentStyle = uiKit.indexOf('contentStyle,');
+    const protectedBottomSpacing = uiKit.indexOf(
+      ': { paddingBottom: floatingTabBarContentOffset },',
+      contentStyle,
+    );
+
+    expect(uiKit).toContain(
+      'allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2',
+    );
+    expect(contentStyle).toBeGreaterThan(-1);
+    expect(protectedBottomSpacing).toBeGreaterThan(contentStyle);
   });
 
   it('근무 방식 개요는 시작일과 기준일 근무를 반복해서 보여 주지 않아요', () => {

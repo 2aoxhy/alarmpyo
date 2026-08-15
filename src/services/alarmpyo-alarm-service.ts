@@ -97,6 +97,35 @@ export type AlarmPyoAlarmRuntimeResetResult = {
   issueCodes: AlarmPyoAlarmRuntimeResetIssueCode[];
 };
 
+export type AlarmPyoPermissionSettingsTarget =
+  | 'exact-alarm'
+  | 'alarm-notifications'
+  | 'sleep-notifications'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'battery-optimization'
+  | 'app-details';
+
+export type AlarmPyoPermissionSettingsDestination =
+  | 'exact-alarm'
+  | 'app-notifications'
+  | 'alarm-channel'
+  | 'sleep-channel'
+  | 'full-screen'
+  | 'do-not-disturb'
+  | 'sound'
+  | 'battery-optimization'
+  | 'app-details'
+  | 'application-settings'
+  | 'system-settings';
+
+export type AlarmPyoPermissionSettingsLaunchResult = {
+  opened: boolean;
+  requestedTarget: AlarmPyoPermissionSettingsTarget;
+  openedTarget: AlarmPyoPermissionSettingsDestination | null;
+  fallbackUsed: boolean;
+};
+
 export type AlarmPyoWidgetPinStatus =
   | 'requested'
   | 'installed'
@@ -132,6 +161,19 @@ const ALARM_RUNTIME_RESET_ISSUE_CODES = new Set<AlarmPyoAlarmRuntimeResetIssueCo
   'alarm-sound',
   'restore-journal',
   'alarm-history',
+]);
+const PERMISSION_SETTINGS_DESTINATIONS = new Set<AlarmPyoPermissionSettingsDestination>([
+  'exact-alarm',
+  'app-notifications',
+  'alarm-channel',
+  'sleep-channel',
+  'full-screen',
+  'do-not-disturb',
+  'sound',
+  'battery-optimization',
+  'app-details',
+  'application-settings',
+  'system-settings',
 ]);
 
 const UNSUPPORTED_STATUS: AlarmPyoAlarmStatus = {
@@ -181,6 +223,34 @@ function cloneStatus(status: AlarmPyoAlarmStatus): AlarmPyoAlarmStatus {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function normalizeAlarmPyoPermissionSettingsLaunchResult(
+  value: unknown,
+  requestedTarget: AlarmPyoPermissionSettingsTarget,
+): AlarmPyoPermissionSettingsLaunchResult | null {
+  if (!isRecord(value)) return null;
+  const openedTarget = value.openedTarget;
+  if (
+    typeof value.opened !== 'boolean' ||
+    value.requestedTarget !== requestedTarget ||
+    typeof value.fallbackUsed !== 'boolean' ||
+    !(
+      openedTarget === null ||
+      (typeof openedTarget === 'string' &&
+        PERMISSION_SETTINGS_DESTINATIONS.has(
+          openedTarget as AlarmPyoPermissionSettingsDestination,
+        ))
+    )
+  ) {
+    return null;
+  }
+  return {
+    opened: value.opened,
+    requestedTarget,
+    openedTarget: openedTarget as AlarmPyoPermissionSettingsDestination | null,
+    fallbackUsed: value.fallbackUsed,
+  };
 }
 
 export function normalizeAlarmPyoRuntimeResetResult(
@@ -547,9 +617,72 @@ export async function requestAlarmPyoAlarmPermissions(): Promise<AlarmPyoAlarmSt
   return cloneStatus(status);
 }
 
+function failedPermissionSettingsLaunch(
+  requestedTarget: AlarmPyoPermissionSettingsTarget,
+): AlarmPyoPermissionSettingsLaunchResult {
+  return {
+    opened: false,
+    requestedTarget,
+    openedTarget: null,
+    fallbackUsed: false,
+  };
+}
+
+async function openLegacyPermissionSettings(
+  target: AlarmPyoPermissionSettingsTarget,
+): Promise<boolean> {
+  if (!nativeModule) return false;
+  switch (target) {
+    case 'exact-alarm':
+    case 'alarm-notifications':
+      await nativeModule.openAlarmPermissionSettingsAsync();
+      return true;
+    case 'sleep-notifications':
+      if (!nativeModule.openSleepReminderSettingsAsync) return false;
+      await nativeModule.openSleepReminderSettingsAsync();
+      return true;
+    case 'full-screen':
+      await nativeModule.openFullScreenPermissionSettingsAsync();
+      return true;
+    case 'do-not-disturb':
+      if (!nativeModule.openDoNotDisturbSettingsAsync) return false;
+      return (await nativeModule.openDoNotDisturbSettingsAsync()) !== false;
+    case 'battery-optimization':
+      if (!nativeModule.openBatterySettingsAsync) return false;
+      return (await nativeModule.openBatterySettingsAsync()) !== false;
+    case 'app-details':
+      return false;
+  }
+}
+
+export async function openAlarmPyoPermissionSettings(
+  target: AlarmPyoPermissionSettingsTarget,
+): Promise<AlarmPyoPermissionSettingsLaunchResult> {
+  if (!nativeModule) return failedPermissionSettingsLaunch(target);
+  invalidateStatusCache();
+  try {
+    if (nativeModule.openPermissionSettingsAsync) {
+      const normalized = normalizeAlarmPyoPermissionSettingsLaunchResult(
+        await nativeModule.openPermissionSettingsAsync(target),
+        target,
+      );
+      return normalized ?? failedPermissionSettingsLaunch(target);
+    }
+    const opened = await openLegacyPermissionSettings(target);
+    return {
+      opened,
+      requestedTarget: target,
+      openedTarget: null,
+      fallbackUsed: false,
+    };
+  } finally {
+    invalidateStatusCache();
+  }
+}
+
 export async function openAlarmPyoAlarmPermissionSettings(): Promise<boolean> {
   if (!nativeModule) return false;
-  // 네이티브 계층이 정확한 알람 → 전체 화면 → 알람 채널 순서로 필요한 설정을 열어요.
+  // 구형 호출 계약은 네이티브 계층이 정확한 알람 → 알림 → 전체 화면 순서로 처리해요.
   invalidateStatusCache();
   await nativeModule.openAlarmPermissionSettingsAsync();
   invalidateStatusCache();
@@ -557,27 +690,15 @@ export async function openAlarmPyoAlarmPermissionSettings(): Promise<boolean> {
 }
 
 export async function openAlarmPyoFullScreenPermissionSettings(): Promise<boolean> {
-  if (!nativeModule) return false;
-  invalidateStatusCache();
-  await nativeModule.openFullScreenPermissionSettingsAsync();
-  invalidateStatusCache();
-  return true;
+  return (await openAlarmPyoPermissionSettings('full-screen')).opened;
 }
 
 export async function openAlarmPyoDoNotDisturbSettings(): Promise<boolean> {
-  if (!nativeModule?.openDoNotDisturbSettingsAsync) return false;
-  invalidateStatusCache();
-  await nativeModule.openDoNotDisturbSettingsAsync();
-  invalidateStatusCache();
-  return true;
+  return (await openAlarmPyoPermissionSettings('do-not-disturb')).opened;
 }
 
 export async function openAlarmPyoBatterySettings(): Promise<boolean> {
-  if (!nativeModule?.openBatterySettingsAsync) return false;
-  invalidateStatusCache();
-  await nativeModule.openBatterySettingsAsync();
-  invalidateStatusCache();
-  return true;
+  return (await openAlarmPyoPermissionSettings('battery-optimization')).opened;
 }
 
 export async function scheduleAlarmPyoTestAlarm(seconds = 5): Promise<void> {

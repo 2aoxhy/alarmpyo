@@ -37,6 +37,11 @@ export type TodayAlarmPlanSummary = {
   plannedAlarmCount: number;
 };
 
+export type TodayAlarmSummary = {
+  title: string;
+  description?: string;
+};
+
 /**
  * 366일 알람 계획은 분 단위 화면 갱신과 분리해 계산해요.
  * 호출부는 앱 데이터나 날짜가 바뀔 때만 이 값을 다시 만들어요.
@@ -288,11 +293,17 @@ export function buildTodayViewModel(input: {
             ? '예정된 근무 알람이 없어요'
             : alarmHealthState.title;
   const nextScheduledAlarm = scheduledAlarms[0];
-  const alarmSummaryLabel = alarmsReady && nextScheduledAlarm
-    ? `${alarmDateLabel(nextScheduledAlarm.alarmAt)} ${alarmTimeLabel(nextScheduledAlarm.alarmAt)} · ${nextScheduledAlarm.shiftName} · ${formatAlarmCountdown(nextScheduledAlarm.alarmAt, now)}`
+  const alarmSummary: TodayAlarmSummary = alarmsReady && nextScheduledAlarm
+    ? {
+        title: alarmStateLabel,
+        description: `${alarmDateLabel(nextScheduledAlarm.alarmAt)} ${alarmTimeLabel(nextScheduledAlarm.alarmAt)} · ${nextScheduledAlarm.shiftName} · ${formatAlarmCountdown(nextScheduledAlarm.alarmAt, now)}`,
+      }
     : alarmHealthState.status === 'ready'
-      ? alarmStateLabel
-      : `${alarmHealthState.title}. ${alarmHealthState.description}`;
+      ? { title: alarmStateLabel }
+      : {
+          title: alarmHealthState.title,
+          description: alarmHealthState.description,
+        };
 
   return {
     today,
@@ -315,7 +326,7 @@ export function buildTodayViewModel(input: {
     scheduledAlarms,
     scheduledAlarmCount,
     alarmStateLabel,
-    alarmSummaryLabel,
+    alarmSummary,
     sleepTimingGuidance: buildSleepTimingGuidance(data, {
       now,
       additionalLimit: compactHome ? 1 : 2,

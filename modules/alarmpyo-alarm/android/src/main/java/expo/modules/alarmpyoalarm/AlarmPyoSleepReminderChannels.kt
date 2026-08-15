@@ -4,10 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 
 internal object AlarmPyoSleepReminderChannels {
   fun ensure(context: Context) {
@@ -43,27 +40,9 @@ internal object AlarmPyoSleepReminderChannels {
   }
 
   fun openSettings(context: Context): Boolean {
-    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    val appNotificationsBlocked =
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !manager.areNotificationsEnabled()
-    val intent = when {
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !appNotificationsBlocked ->
-        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-          putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-          putExtra(Settings.EXTRA_CHANNEL_ID, SLEEP_REMINDER_CHANNEL_ID)
-        }
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
-        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-          putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        }
-      else -> Intent(
-        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        Uri.parse("package:${context.packageName}")
-      )
-    }
-    return runCatching {
-      context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-      true
-    }.getOrDefault(false)
+    return AlarmPyoPermissionSettings.open(
+      context,
+      AlarmPyoPermissionSettingsTarget.SLEEP_NOTIFICATIONS
+    ).opened
   }
 }

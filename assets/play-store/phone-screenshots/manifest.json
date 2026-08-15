@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "release": "V08",
+  "status": "recapture-required",
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "format": "png",
+    "colorMode": "rgb",
+    "alpha": false
+  },
+  "screenshots": [
+    {
+      "order": 1,
+      "captureId": "launch-brand",
+      "sourceFile": "01-brand.webp",
+      "outputFile": "01-brand.png",
+      "altText": "다크 배경에 흰색 알람시계와 달력 마크, 알람표 이름이 표시된 시작 화면"
+    },
+    {
+      "order": 2,
+      "captureId": "today-ready",
+      "sourceFile": "02-today.webp",
+      "outputFile": "02-today.png",
+      "altText": "현재 근무와 남은 시간, 준비된 근무 알람과 수면 참고 일정을 보여주는 오늘 화면"
+    },
+    {
+      "order": 3,
+      "captureId": "timer-running",
+      "sourceFile": "03-timer.webp",
+      "outputFile": "03-timer.png",
+      "altText": "실행 중인 30분 타이머의 남은 시간과 종료 시각, 알람음과 진동 안내를 보여주는 화면"
+    },
+    {
+      "order": 4,
+      "captureId": "settings-home",
+      "sourceFile": "04-settings.webp",
+      "outputFile": "04-settings.png",
+      "altText": "근무표, 알람, 홈 화면 위젯, 데이터와 앱 정보로 이동하는 설정 화면"
+    }
+  ]
+}

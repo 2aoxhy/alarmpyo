@@ -52,17 +52,15 @@ import { resolveAlarmHealthState } from "@/services/alarm-access-summary";
 import {
   getAlarmPyoAlarmStatus,
   openAlarmPyoAlarmPermissionSettings,
-  openAlarmPyoFullScreenPermissionSettings,
-  openAlarmPyoBatterySettings,
-  openAlarmPyoDoNotDisturbSettings,
+  openAlarmPyoPermissionSettings,
   type AlarmPyoAlarmEventType,
   type AlarmPyoAlarmHistoryEvent,
   type AlarmPyoAlarmStatus,
+  type AlarmPyoPermissionSettingsTarget,
 } from "@/services/alarmpyo-alarm-service";
 import {
   getAlarmPyoSleepReminderStatus,
   isSleepReminderNativeSupported,
-  openAlarmPyoSleepReminderSettings,
   type SleepReminderStatus,
 } from "@/services/sleep-reminder-service";
 import { useAppStore, useAppStoreData } from "@/store/app-store";
@@ -361,52 +359,44 @@ export default function AlarmSettingsScreen() {
         "설정을 열지 못했어요",
         "휴대폰 설정에서 알람표의 알람 권한을 확인해 주세요.",
       );
-    } finally {
-      void refreshAlarmState();
     }
-  }, [refreshAlarmState, showDialog]);
+  }, [showDialog]);
 
-  const openDoNotDisturbSettings = useCallback(async () => {
+  const openPermissionTarget = useCallback(async (
+    target: AlarmPyoPermissionSettingsTarget,
+  ) => {
+    const sleepTarget = target === "sleep-notifications";
+    if (sleepTarget ? sleepReminderBusy : alarmBusy) return;
+    const setBusy = sleepTarget ? setSleepReminderBusy : setAlarmBusy;
+    setBusy(true);
     try {
-      const opened = await openAlarmPyoDoNotDisturbSettings();
-      if (!opened) throw new Error('unsupported');
+      const result = await openAlarmPyoPermissionSettings(target);
+      if (!result.opened) throw new Error("unsupported");
     } catch {
-      showDialog(
-        "방해 금지 설정을 열지 못했어요",
-        "휴대폰 설정에서 방해 금지 중 알람 허용 여부를 확인해 주세요.",
-      );
+      const copy = target === "do-not-disturb"
+        ? {
+            title: "방해 금지 설정을 열지 못했어요",
+            message: "휴대폰 설정에서 방해 금지 중 알람 허용 여부를 확인해 주세요.",
+          }
+        : target === "battery-optimization"
+          ? {
+              title: "배터리 설정을 열지 못했어요",
+              message: "휴대폰 설정에서 알람표의 배터리 사용을 제한하지 않음으로 설정해 주세요.",
+            }
+          : target === "sleep-notifications"
+            ? {
+                title: "수면 알림 설정을 열지 못했어요",
+                message: "휴대폰 설정에서 알람표 알림 권한을 확인해 주세요.",
+              }
+            : {
+                title: "권한 설정을 열지 못했어요",
+                message: "휴대폰의 앱 상세 설정에서 알람표 권한을 확인해 주세요.",
+              };
+      showDialog(copy.title, copy.message);
     } finally {
-      void refreshAlarmState();
+      setBusy(false);
     }
-  }, [refreshAlarmState, showDialog]);
-
-  const openFullScreenSettings = useCallback(async () => {
-    try {
-      const opened = await openAlarmPyoFullScreenPermissionSettings();
-      if (!opened) throw new Error('unsupported');
-    } catch {
-      showDialog(
-        '설정을 열지 못했어요',
-        '휴대폰 설정에서 알람표의 전체 화면 알람 권한을 확인해 주세요.',
-      );
-    } finally {
-      void refreshAlarmState();
-    }
-  }, [refreshAlarmState, showDialog]);
-
-  const openBatterySettings = useCallback(async () => {
-    try {
-      const opened = await openAlarmPyoBatterySettings();
-      if (!opened) throw new Error("unsupported");
-    } catch {
-      showDialog(
-        "배터리 설정을 열지 못했어요",
-        "휴대폰 설정에서 알람표의 배터리 사용을 제한하지 않음으로 설정해 주세요.",
-      );
-    } finally {
-      void refreshAlarmState();
-    }
-  }, [refreshAlarmState, showDialog]);
+  }, [alarmBusy, showDialog, sleepReminderBusy]);
 
   const toggleAlarms = async (enabled: boolean) => {
     if (alarmBusy) return;
@@ -453,28 +443,36 @@ export default function AlarmSettingsScreen() {
       return;
     }
     if (accessSummary.action === 'open-sleep-settings') {
-      void openSleepReminderSettings();
+      void openPermissionTarget("sleep-notifications");
       return;
     }
-    setAlarmBusy(true);
-
     if (accessSummary.action === "open-settings") {
+      setAlarmBusy(true);
       void openAlarmSettings().finally(() => setAlarmBusy(false));
       return;
     }
+    if (accessSummary.action === "open-exact-alarm-settings") {
+      void openPermissionTarget("exact-alarm");
+      return;
+    }
+    if (accessSummary.action === "open-notification-settings") {
+      void openPermissionTarget("alarm-notifications");
+      return;
+    }
     if (accessSummary.action === 'open-full-screen-settings') {
-      void openFullScreenSettings().finally(() => setAlarmBusy(false));
+      void openPermissionTarget("full-screen");
       return;
     }
     if (accessSummary.action === "open-dnd-settings") {
-      void openDoNotDisturbSettings().finally(() => setAlarmBusy(false));
+      void openPermissionTarget("do-not-disturb");
       return;
     }
     if (accessSummary.action === "open-battery-settings") {
-      void openBatterySettings().finally(() => setAlarmBusy(false));
+      void openPermissionTarget("battery-optimization");
       return;
     }
     if (accessSummary.action === "resync") {
+      setAlarmBusy(true);
       void resyncAlarms(true)
         .then((synced) => {
           if (!synced) {
@@ -488,6 +486,7 @@ export default function AlarmSettingsScreen() {
         .finally(() => setAlarmBusy(false));
       return;
     }
+    setAlarmBusy(true);
     void refreshAlarmState().finally(() => setAlarmBusy(false));
   };
 
@@ -609,21 +608,6 @@ export default function AlarmSettingsScreen() {
       showDialog(
         "수면 알림 계획을 복구하지 못했어요",
         "잠시 후 다시 시도해 주세요.",
-      );
-    } finally {
-      setSleepReminderBusy(false);
-    }
-  };
-
-  const openSleepReminderSettings = async () => {
-    if (sleepReminderBusy) return;
-    setSleepReminderBusy(true);
-    try {
-      setSleepReminderStatus(await openAlarmPyoSleepReminderSettings());
-    } catch {
-      showDialog(
-        "수면 알림 설정을 열지 못했어요",
-        "휴대폰 설정에서 알람표 알림 권한을 확인해 주세요.",
       );
     } finally {
       setSleepReminderBusy(false);
@@ -793,7 +777,11 @@ export default function AlarmSettingsScreen() {
                 <Card density="compact" style={styles.detailsCard}>
                   <View style={styles.detailBlock}>
                     <AppText variant="label">권한 상태</AppText>
-                    <AlarmPermissionChecklist status={alarmStatus} />
+                    <AlarmPermissionChecklist
+                      disabled={alarmBusy || sleepReminderBusy}
+                      onOpenSettings={(target) => void openPermissionTarget(target)}
+                      status={alarmStatus}
+                    />
                   </View>
                   <MenuDivider inset={false} />
                   <View style={styles.detailBlock}>

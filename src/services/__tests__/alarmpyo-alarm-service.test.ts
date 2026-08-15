@@ -63,6 +63,15 @@ function nativeModule() {
     getStatusAsync: vi.fn(async () => STATUS),
     scheduleTestAlarmAsync: vi.fn(async () => STATUS),
     requestAlarmPermissionsAsync: vi.fn(async () => STATUS),
+    openPermissionSettingsAsync: vi.fn(async (target: string) => ({
+      opened: true,
+      requestedTarget: target,
+      openedTarget:
+        target === 'alarm-notifications' || target === 'sleep-notifications'
+          ? 'app-notifications'
+          : target,
+      fallbackUsed: false,
+    })),
     openAlarmPermissionSettingsAsync: vi.fn(async () => STATUS),
     openFullScreenPermissionSettingsAsync: vi.fn(async () => STATUS),
     openDoNotDisturbSettingsAsync: vi.fn(async () => true),
@@ -267,6 +276,66 @@ describe('ALARMPYO 알람 서비스', () => {
     expect(native.getStatusAsync).not.toHaveBeenCalled();
     expect(native.openFullScreenPermissionSettingsAsync).not.toHaveBeenCalled();
     expect(native.requestAlarmPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('권한별 설정 대상과 실제로 열린 fallback 목적지를 구조화해 반환해요', async () => {
+    const native = nativeModule();
+    native.openPermissionSettingsAsync.mockResolvedValueOnce({
+      opened: true,
+      requestedTarget: 'battery-optimization',
+      openedTarget: 'app-details',
+      fallbackUsed: true,
+    });
+    const service = await loadService(native);
+
+    await expect(
+      service.openAlarmPyoPermissionSettings('battery-optimization'),
+    ).resolves.toEqual({
+      opened: true,
+      requestedTarget: 'battery-optimization',
+      openedTarget: 'app-details',
+      fallbackUsed: true,
+    });
+    expect(native.openPermissionSettingsAsync).toHaveBeenCalledWith(
+      'battery-optimization',
+    );
+    expect(native.openBatterySettingsAsync).not.toHaveBeenCalled();
+  });
+
+  it('구형 네이티브 모듈에서는 기존 권한 설정 함수를 안전하게 사용해요', async () => {
+    const native = nativeModule();
+    delete (native as Partial<typeof native>).openPermissionSettingsAsync;
+    const service = await loadService(native);
+
+    await expect(
+      service.openAlarmPyoPermissionSettings('full-screen'),
+    ).resolves.toMatchObject({
+      opened: true,
+      requestedTarget: 'full-screen',
+      openedTarget: null,
+      fallbackUsed: false,
+    });
+    expect(native.openFullScreenPermissionSettingsAsync).toHaveBeenCalledOnce();
+  });
+
+  it('잘못된 네이티브 설정 이동 결과는 성공으로 오인하지 않아요', async () => {
+    const native = nativeModule();
+    native.openPermissionSettingsAsync.mockResolvedValueOnce({
+      opened: true,
+      requestedTarget: '다른 대상',
+      openedTarget: 'private-oem-screen',
+      fallbackUsed: false,
+    });
+    const service = await loadService(native);
+
+    await expect(
+      service.openAlarmPyoPermissionSettings('alarm-notifications'),
+    ).resolves.toEqual({
+      opened: false,
+      requestedTarget: 'alarm-notifications',
+      openedTarget: null,
+      fallbackUsed: false,
+    });
   });
 
   it('빠르게 바뀐 계획은 마지막 값만 네이티브에 전달해요', async () => {

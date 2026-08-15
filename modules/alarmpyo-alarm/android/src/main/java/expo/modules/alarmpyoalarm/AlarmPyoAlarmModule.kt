@@ -56,6 +56,13 @@ class AlarmPyoAlarmModule : Module() {
       requestPermissions(promise)
     }
 
+    AsyncFunction("openPermissionSettingsAsync") { target: String ->
+      val parsedTarget = requireNotNull(
+        AlarmPyoPermissionSettingsTarget.fromWireValue(target)
+      ) { "권한 설정 대상이 올바르지 않아요." }
+      AlarmPyoPermissionSettings.open(context, parsedTarget).toMap()
+    }
+
     AsyncFunction("openAlarmPermissionSettingsAsync") {
       AlarmPyoAlarmPermissions.openNextRequiredSettings(context)
       status(AlarmPyoAlarmScheduler.reconcile(context))
@@ -67,13 +74,11 @@ class AlarmPyoAlarmModule : Module() {
     }
 
     AsyncFunction("openDoNotDisturbSettingsAsync") {
-      AlarmPyoAlarmPermissions.openDoNotDisturbSettings(context)
-      true
+      AlarmPyoAlarmPermissions.openDoNotDisturbSettings(context).opened
     }
 
     AsyncFunction("openBatterySettingsAsync") {
-      AlarmPyoAlarmPermissions.openBatterySettings(context)
-      true
+      AlarmPyoAlarmPermissions.openBatterySettings(context).opened
     }
 
     AsyncFunction("scheduleTestAlarmAsync") { seconds: Int? ->
@@ -180,9 +185,9 @@ class AlarmPyoAlarmModule : Module() {
       check(AlarmPyoWidgetStore.write(context, snapshotJson)) {
         "위젯 근무 정보를 저장하지 못했어요."
       }
-      if (AlarmPyoShiftWidgetUpdater.isInstalled(context)) {
-        AlarmPyoShiftWidgetUpdater.updateAll(context)
-      }
+      // Android 15+의 생성형 선택기 미리보기도 같은 저장 스냅샷으로 갱신해요.
+      // 설치된 위젯이 없어도 updater가 미리보기를 먼저 갱신한 뒤 안전하게 종료해요.
+      AlarmPyoShiftWidgetUpdater.updateAll(context)
       true
     }
 
