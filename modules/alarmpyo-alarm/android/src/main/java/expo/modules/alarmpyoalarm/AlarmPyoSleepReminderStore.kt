@@ -223,7 +223,7 @@ internal class AlarmPyoSleepReminderStoreEngine(
 
   fun write(snapshot: AlarmPyoSleepReminderSnapshot): AlarmPyoSleepReminderSnapshot {
     val current = requireNotNull(read()) {
-      "수면 시작 알림 저장소가 손상되어 계획을 덮어쓰지 않았어요."
+      "수면 시작 알림 저장소가 손상되어 계획을 덮어쓰지 않았습니다."
     }
     val resetsRollbackEpoch = current.generation >= Long.MAX_VALUE - 1L
     val desired = normalizedSnapshot(
@@ -251,7 +251,7 @@ internal class AlarmPyoSleepReminderStoreEngine(
     snapshot: AlarmPyoSleepReminderSnapshot
   ): AlarmPyoSleepReminderSnapshot {
     check(persistence.readHealth() == AlarmPyoSleepReminderStorageHealth.CORRUPT) {
-      "손상되지 않은 수면 시작 알림 저장소는 재시드하지 않아요."
+      "손상되지 않은 수면 시작 알림 저장소는 재시드하지 않습니다."
     }
     val current = persistence.readCurrent()
     val previous = persistence.readPrevious()
@@ -331,10 +331,10 @@ internal class AlarmPyoSleepReminderStoreEngine(
   ): AlarmPyoSleepReminderSnapshot {
     val normalized = AlarmPyoSleepReminderPolicy.normalize(snapshot.plans)
     require(normalized.size <= MAX_STORED_SLEEP_REMINDERS) {
-      "수면 시작 알림 계획이 너무 많아요."
+      "수면 시작 알림 계획이 너무 많습니다."
     }
     require(normalized.size == snapshot.plans.size) {
-      "중복된 수면 시작 알림이 있어요."
+      "중복된 수면 시작 알림이 있습니다."
     }
     val planIds = normalized.mapTo(hashSetOf(), AlarmPyoSleepReminderPlan::id)
     val scheduledIds = snapshot.scheduledIds.filterTo(linkedSetOf()) { it in planIds }
@@ -482,6 +482,6 @@ internal object AlarmPyoSleepReminderStore {
   }
 
   private fun requireCommitted(committed: Boolean, label: String) {
-    check(committed) { "$label 저장에 실패했어요." }
+    check(committed) { "$label 저장에 실패했습니다." }
   }
 }

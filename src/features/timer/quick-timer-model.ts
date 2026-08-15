@@ -23,8 +23,8 @@ export function getQuickTimerDisplayLabel(
 ): string {
   if (status.state === 'ringing') {
     return status.isRepeat
-      ? '타이머가 다시 울리고 있어요'
-      : '타이머가 울리고 있어요';
+      ? '타이머가 다시 울리고 있습니다'
+      : '타이머가 울리고 있습니다';
   }
   if (status.isRepeat) return '타이머 다시 울림';
   return status.durationMinutes === null
@@ -169,17 +169,17 @@ export function getQuickTimerActionPresentation(
     case 'exact-alarm':
       return {
         title: '정확한 알람 허용 필요',
-        message: '30분·60분 뒤 정확히 울리도록 정확한 알람을 허용해 주세요.',
+        message: '30분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
       };
     case 'notifications':
       return {
         title: '알림 허용 필요',
-        message: '타이머가 울릴 때 알람 화면과 알림을 표시하도록 알림을 허용해 주세요.',
+        message: '타이머가 울릴 때 알람 화면과 알림을 표시하도록 알림을 허용해야 합니다.',
       };
     case 'full-screen':
       return {
         title: '전체 화면 알람 허용 필요',
-        message: '화면이 잠겨 있어도 타이머를 확인하도록 전체 화면 알람을 허용해 주세요.',
+        message: '화면이 잠겨 있어도 타이머를 확인하도록 전체 화면 알람을 허용해야 합니다.',
       };
     case 'none':
       return null;

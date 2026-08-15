@@ -60,13 +60,13 @@ describe('buildWorkRoutinePlan', () => {
         id: 'handover',
         at: at('2026-07-16', 6, 20),
         endAt: at('2026-07-16', 6, 30),
-        instruction: '교대를 마치세요.',
+        instruction: '교대를 마쳐야 합니다.',
       },
       {
         id: 'ready-for-work',
         at: at('2026-07-16', 6, 30),
         endAt: at('2026-07-16', 6, 45),
-        instruction: '교대 후 실제 근무 시작을 준비하세요.',
+        instruction: '교대 후 실제 근무 시작을 준비해야 합니다.',
       },
     ]);
   });
@@ -130,7 +130,7 @@ describe('buildWorkRoutinePlan', () => {
         id: 'dress-and-prepare',
         at: at('2026-07-16', 5, 30),
         endAt: at('2026-07-16', 5, 45),
-        instruction: '복장을 갖추고 출근 준비를 하세요.',
+        instruction: '복장을 갖추고 출근 준비를 해야 합니다.',
       },
     });
     expect(plan?.steps).toEqual([
@@ -138,55 +138,55 @@ describe('buildWorkRoutinePlan', () => {
         id: 'wake-and-shower',
         at: at('2026-07-16', 5, 10),
         endAt: at('2026-07-16', 5, 30),
-        instruction: '기상한 뒤 샤워하고 머리를 말리세요.',
+        instruction: '기상한 뒤 샤워하고 머리를 말려야 합니다.',
       },
       {
         id: 'dress-and-prepare',
         at: at('2026-07-16', 5, 30),
         endAt: at('2026-07-16', 5, 45),
-        instruction: '복장을 갖추고 출근 준비를 하세요.',
+        instruction: '복장을 갖추고 출근 준비를 해야 합니다.',
       },
       {
         id: 'meal-and-water',
         at: at('2026-07-16', 5, 45),
         endAt: at('2026-07-16', 5, 55),
-        instruction: '간단히 먹고 물을 챙기세요.',
+        instruction: '간단히 먹고 물을 챙겨야 합니다.',
       },
       {
         id: 'belongings-check',
         at: at('2026-07-16', 5, 55),
         endAt: at('2026-07-16', 6),
-        instruction: '신분증·휴대폰·출입 관련 준비물을 확인하세요.',
+        instruction: '신분증·휴대폰·출입 관련 준비물을 확인해야 합니다.',
       },
       {
         id: 'depart',
         at: at('2026-07-16', 6),
         endAt: at('2026-07-16', 6, 15),
-        instruction: '회사로 출발하세요.',
+        instruction: '회사로 출발해야 합니다.',
       },
       {
         id: 'arrive-and-change',
         at: at('2026-07-16', 6, 15),
         endAt: at('2026-07-16', 6, 25),
-        instruction: '도착 후 옷을 갈아입고 복장을 정리하세요.',
+        instruction: '도착 후 옷을 갈아입고 복장을 정리해야 합니다.',
       },
       {
         id: 'final-prepare',
         at: at('2026-07-16', 6, 25),
         endAt: at('2026-07-16', 6, 35),
-        instruction: '교대 전 준비를 마무리하세요.',
+        instruction: '교대 전 준비를 마무리해야 합니다.',
       },
       {
         id: 'handover',
         at: at('2026-07-16', 6, 35),
         endAt: at('2026-07-16', 6, 45),
-        instruction: '교대를 마치세요.',
+        instruction: '교대를 마쳐야 합니다.',
       },
       {
         id: 'ready-for-work',
         at: at('2026-07-16', 6, 45),
         endAt: at('2026-07-16', 7),
-        instruction: '교대 후 실제 근무 시작을 준비하세요.',
+        instruction: '교대 후 실제 근무 시작을 준비해야 합니다.',
       },
     ]);
   });
@@ -207,7 +207,7 @@ describe('buildWorkRoutinePlan', () => {
         id: 'meal-or-snack',
         at: at('2026-07-16', 16, 35),
         endAt: at('2026-07-16', 16, 50),
-        instruction: '식사하거나 간단한 간식을 드세요.',
+        instruction: '식사하거나 간단한 간식을 드셔야 합니다.',
       },
     });
     expect(plan?.steps.map((step) => [step.id, step.at, step.endAt])).toEqual([

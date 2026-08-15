@@ -66,7 +66,7 @@ export function DatePickerField({
           value: valid ? value : '',
         })}
         <AppButton
-          accessibilityHint="날짜를 오늘로 바꿔요."
+          accessibilityHint="날짜를 오늘로 변경합니다."
           label="오늘"
           onPress={() => onChange(today)}
           size="compact"
@@ -81,12 +81,12 @@ export function DatePickerField({
         </AppText>
       ) : (
         <AppText color={palette.danger} style={styles.helpText} variant="caption">
-          날짜를 달력에서 선택해 주세요.
+          날짜를 달력에서 선택해야 합니다.
         </AppText>
       )}
 
       <AppButton
-        accessibilityHint="연도-월-일 형식으로 날짜를 직접 입력해요."
+        accessibilityHint="연도-월-일 형식으로 날짜를 직접 입력합니다."
         icon="options-outline"
         label={manualEntryOpen ? '직접 입력 닫기' : '직접 입력'}
         onPress={() => setManualEntryOpen((open) => !open)}

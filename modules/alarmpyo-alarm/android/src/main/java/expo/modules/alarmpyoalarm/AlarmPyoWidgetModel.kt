@@ -139,6 +139,13 @@ internal enum class AlarmPyoWidgetVisual {
   UNKNOWN
 }
 
+internal enum class AlarmPyoWidgetSectionKind {
+  GENERIC,
+  TODAY,
+  NEXT_WORK,
+  NEXT_ALARM
+}
+
 internal data class AlarmPyoWidgetViewState(
   val dateText: String,
   val statusText: String,
@@ -150,7 +157,9 @@ internal data class AlarmPyoWidgetViewState(
   val contentDescription: String,
   val nextRefreshAt: Long?,
   val secondaryLabel: String? = null,
-  val secondaryText: String? = null
+  val secondaryText: String? = null,
+  val bottomSectionKind: AlarmPyoWidgetSectionKind = AlarmPyoWidgetSectionKind.GENERIC,
+  val secondarySectionKind: AlarmPyoWidgetSectionKind = AlarmPyoWidgetSectionKind.GENERIC
 )
 
 private data class ShiftWindow(
@@ -160,6 +169,7 @@ private data class ShiftWindow(
 )
 
 private data class WidgetDisplayBlock(
+  val sectionKind: AlarmPyoWidgetSectionKind,
   val label: String,
   val title: String,
   val detail: String,
@@ -180,7 +190,7 @@ internal object AlarmPyoWidgetFormatter {
       return state(
         dateText = dateText,
         statusText = "일정 갱신 필요",
-        titleText = "근무표를 갱신하세요",
+        titleText = "근무표 갱신 필요",
         scheduleText = "앱을 열면 위젯이 자동으로 갱신됩니다",
         bottomLabel = "AlarmPyo",
         bottomText = "눌러서 앱 열기",
@@ -192,8 +202,8 @@ internal object AlarmPyoWidgetFormatter {
       return state(
         dateText = dateText,
         statusText = "설정 필요",
-        titleText = "근무표를 설정하세요",
-        scheduleText = "앱에서 근무 방식을 먼저 선택하세요",
+        titleText = "근무표 설정 필요",
+        scheduleText = "앱에서 근무 방식을 먼저 선택해야 합니다",
         bottomLabel = "AlarmPyo",
         bottomText = "눌러서 설정하기",
         visual = AlarmPyoWidgetVisual.UNKNOWN,
@@ -213,7 +223,7 @@ internal object AlarmPyoWidgetFormatter {
       today == null -> state(
         dateText = dateText,
         statusText = "일정 갱신 필요",
-        titleText = "근무표를 확인하세요",
+        titleText = "근무표 확인 필요",
         scheduleText = "앱을 열면 위젯이 자동으로 갱신됩니다",
         bottomLabel = "AlarmPyo",
         bottomText = "눌러서 확인하기",
@@ -296,6 +306,7 @@ internal object AlarmPyoWidgetFormatter {
       if (options.todayShift) {
         add(
           WidgetDisplayBlock(
+            sectionKind = AlarmPyoWidgetSectionKind.TODAY,
             label = todayState.dateText,
             title = todayState.titleText,
             detail = todayState.scheduleText,
@@ -320,10 +331,12 @@ internal object AlarmPyoWidgetFormatter {
       scheduleText = primary.detail,
       bottomLabel = secondary?.label.orEmpty(),
       bottomText = secondary?.compactText.orEmpty(),
+      bottomSectionKind = secondary?.sectionKind ?: AlarmPyoWidgetSectionKind.GENERIC,
       visual = primary.visual,
       contentDescription = description,
       secondaryLabel = tertiary?.label,
-      secondaryText = tertiary?.compactText
+      secondaryText = tertiary?.compactText,
+      secondarySectionKind = tertiary?.sectionKind ?: AlarmPyoWidgetSectionKind.GENERIC
     )
   }
 
@@ -334,9 +347,10 @@ internal object AlarmPyoWidgetFormatter {
   ): WidgetDisplayBlock {
     if (nextWork == null) {
       return WidgetDisplayBlock(
+        sectionKind = AlarmPyoWidgetSectionKind.NEXT_WORK,
         label = "다음 근무",
         title = "예정 없음",
-        detail = "근무표를 확인하세요",
+        detail = "근무표 확인 필요",
         compactText = "예정 없음",
         visual = AlarmPyoWidgetVisual.UNKNOWN
       )
@@ -346,6 +360,7 @@ internal object AlarmPyoWidgetFormatter {
     val shift = displayShift(entry)
     val clock = formatClock(entry.startMinutes!!)
     return WidgetDisplayBlock(
+      sectionKind = AlarmPyoWidgetSectionKind.NEXT_WORK,
       label = "다음 근무",
       title = "$day $shift",
       detail = "$clock 시작",
@@ -361,9 +376,10 @@ internal object AlarmPyoWidgetFormatter {
   ): WidgetDisplayBlock {
     if (nextAlarm == null) {
       return WidgetDisplayBlock(
+        sectionKind = AlarmPyoWidgetSectionKind.NEXT_ALARM,
         label = "다음 알람",
         title = "예약 없음",
-        detail = "앱에서 알람을 확인하세요",
+        detail = "앱에서 알람 확인 필요",
         compactText = "예약 없음",
         visual = AlarmPyoWidgetVisual.UNKNOWN
       )
@@ -372,6 +388,7 @@ internal object AlarmPyoWidgetFormatter {
     val clock = formatClockAt(nextAlarm.alarmAt, timeZone)
     val shift = displayAlarmShift(nextAlarm)
     return WidgetDisplayBlock(
+      sectionKind = AlarmPyoWidgetSectionKind.NEXT_ALARM,
       label = "다음 알람",
       title = "$day $clock",
       detail = "$shift 알람",
@@ -451,7 +468,7 @@ internal object AlarmPyoWidgetFormatter {
     titleText = displayShift(entry),
     scheduleText = formatSchedule(entry),
     bottomLabel = "다음 근무",
-    bottomText = nextWork?.let { formatNextWork(it, nowMillis, timeZone) } ?: "일정을 확인하세요",
+    bottomText = nextWork?.let { formatNextWork(it, nowMillis, timeZone) } ?: "일정 확인 필요",
     visual = visualFor(entry),
     nextRefreshAt = nextWork?.startAt?.plus(1_000L)
   )
@@ -548,10 +565,10 @@ internal object AlarmPyoWidgetFormatter {
   }
 
   private fun visualForAlarm(alarm: AlarmPyoWidgetAlarm): AlarmPyoWidgetVisual = when {
+    alarm.shiftTypeId == "exception-training" -> AlarmPyoWidgetVisual.TRAINING
+    alarm.shiftTypeId == "exception-reserve" -> AlarmPyoWidgetVisual.RESERVE
     alarm.shiftTypeId == "night" ||
-      alarm.shiftName.contains("야간") -> AlarmPyoWidgetVisual.NIGHT
-    alarm.shiftName.contains("교육") -> AlarmPyoWidgetVisual.TRAINING
-    alarm.shiftName.contains("예비군") -> AlarmPyoWidgetVisual.RESERVE
+      alarm.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.NIGHT
     else -> AlarmPyoWidgetVisual.DAY
   }
 

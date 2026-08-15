@@ -27,6 +27,7 @@ function run(command, args) {
 
 const npm = resolveNpmInvocation();
 const runNpm = (args) => run(npm.command, [...npm.prefixArgs, ...args]);
+runNpm(['run', 'copy:check']);
 runNpm(['run', 'release:verify:play-privacy-url']);
 runNpm(['run', 'assets:brand:check']);
 runNpm([

@@ -27,7 +27,7 @@ function lunarDateToSolarDateKey(
 ): string {
   const calendar = new KoreanLunarCalendar();
   if (!calendar.setLunarDate(lunarYear, lunarMonth, lunarDay, false)) {
-    throw new RangeError(`${lunarYear}년 음력 공휴일을 계산할 수 없어요.`);
+    throw new RangeError(`${lunarYear}년 음력 공휴일을 계산할 수 없습니다.`);
   }
 
   const solar = calendar.getSolarCalendar();
@@ -162,7 +162,7 @@ export function calculateKoreanHolidayPreset(year: number): CalculatedHolidayPre
     year > KOREAN_HOLIDAY_CALCULATION_END_YEAR
   ) {
     throw new RangeError(
-      `${KOREAN_HOLIDAY_CALCULATION_START_YEAR}~${KOREAN_HOLIDAY_CALCULATION_END_YEAR}년만 계산할 수 있어요.`,
+      `${KOREAN_HOLIDAY_CALCULATION_START_YEAR}~${KOREAN_HOLIDAY_CALCULATION_END_YEAR}년만 계산할 수 있습니다.`,
     );
   }
 

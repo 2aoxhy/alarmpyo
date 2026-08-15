@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
+import { SelectionCard, SelectionPill } from '@/components/selection-controls';
 import { AppText, MenuDivider, MenuGroup } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -62,7 +63,7 @@ export function ShiftSelectionSection({
           accessibilityRole="radiogroup"
           style={[styles.selectionGrid, compact && styles.selectionGridCompact]}>
           <CompactChoice
-            accessibilityLabel={`기본 근무표 적용하기. 이날 적용되는 일정은 다음과 같아요. ${patternShift?.name ?? '일정 없음'}.`}
+            accessibilityLabel={`기본 근무표 적용하기. 이날 적용되는 일정은 다음과 같습니다. ${patternShift?.name ?? '일정 없음'}.`}
             compact={compact}
             icon={
               <AppIcon
@@ -88,10 +89,10 @@ export function ShiftSelectionSection({
                   key={shift.id}
                   accessibilityLabel={`${shift.name}. ${
                     shift.isOff
-                      ? '쉬는 날이에요.'
+                      ? '쉬는 날입니다.'
                       : `${formatMinutes(shift.startMinutes)}부터 ${
                           shift.endsNextDay ? '다음 날 ' : ''
-                        }${formatMinutes(shift.endMinutes)}까지예요.`
+                        }${formatMinutes(shift.endMinutes)}까지입니다.`
                   }`}
                   compact={compact}
                   icon={
@@ -113,7 +114,7 @@ export function ShiftSelectionSection({
 
           {activeSubstitute && activeSubstituteAppearance ? (
             <CompactChoice
-              accessibilityLabel={`${activeSubstitute.name}. 대체근무를 추가해요.`}
+              accessibilityLabel={`${activeSubstitute.name}. 대체근무를 추가합니다.`}
               compact={compact}
               icon={
                 <AnimatedShiftIcon
@@ -132,7 +133,7 @@ export function ShiftSelectionSection({
           ) : null}
 
           <CompactChoice
-            accessibilityLabel="일정 없음. 휴무와 달리 달력에 아무 일정도 표시하지 않아요."
+            accessibilityLabel="일정 없음. 휴무와 달리 달력에 아무 일정도 표시하지 않습니다."
             compact={compact}
             icon={
               <AppIcon
@@ -174,29 +175,17 @@ export function ShiftSelectionSection({
                 const selected = substituteMode === option.value;
                 const color = option.appearance?.accentColor ?? palette.indigo;
                 return (
-                  <Pressable
+                  <SelectionPill
                     key={option.value}
                     accessibilityLabel={`${option.label}근무`}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
+                    label={option.label}
                     onPress={() => {
                       if (!selected) onChooseSubstituteMode(option.value);
                     }}
-                    style={({ pressed }) => [
-                      styles.substituteModeTab,
-                      selected && {
-                        backgroundColor:
-                          option.appearance?.softColor ?? palette.indigoSoft,
-                        borderColor: color,
-                      },
-                      pressed && styles.pressed,
-                    ]}>
-                    <AppText
-                      color={selected ? color : palette.inkMuted}
-                      variant="label">
-                      {option.label}
-                    </AppText>
-                  </Pressable>
+                    selected={selected}
+                    semanticColor={color}
+                    style={styles.substituteModeTab}
+                  />
                 );
               })}
             </View>
@@ -230,39 +219,24 @@ function CompactChoice({
 }: CompactChoiceProps) {
   const styles = useThemedStyles(createStyles);
   return (
-    <Pressable
+    <SelectionCard
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.compactChoice,
-        compact && styles.compactChoiceCompact,
-        selected && {
-          backgroundColor: softColor,
-          borderColor: selectedColor,
-        },
-        pressed && styles.pressed,
-      ]}>
+      selected={selected}
+      semanticColor={selectedColor}
+      style={[styles.compactChoice, compact && styles.compactChoiceCompact]}
+      contentStyle={styles.compactChoiceContent}>
       <View style={[styles.compactChoiceIcon, { backgroundColor: softColor }]}>
         {icon}
       </View>
       <AppText numberOfLines={2} style={styles.compactChoiceLabel} variant="label">
         {label}
       </AppText>
-      {selected ? (
-        <AppIcon
-          accessible={false}
-          color={selectedColor}
-          name="checkmark-circle"
-          size={20}
-        />
-      ) : null}
-    </Pressable>
+    </SelectionCard>
   );
 }
 
-function createStyles(palette: AppPalette, isDark: boolean) {
+function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     sectionGroup: { gap: spacing.small },
     selectionMenu: { gap: spacing.small },
@@ -276,15 +250,13 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     compactChoice: {
       width: '48%',
       minHeight: 54,
+    },
+    compactChoiceContent: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.small,
       paddingHorizontal: spacing.small,
       paddingVertical: spacing.small,
-      borderRadius: radii.medium,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
     },
     compactChoiceCompact: { width: '100%' },
     compactChoiceIcon: {
@@ -306,13 +278,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     substituteModeTab: {
       minHeight: 48,
       flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.small,
-      borderWidth: 1,
-      borderColor: palette.transparent,
       paddingHorizontal: spacing.small,
     },
-    pressed: { opacity: 0.65 },
   });
 }

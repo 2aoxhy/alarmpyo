@@ -31,7 +31,7 @@ export async function requestPreparedAlarmPyoWidgetPin(
   );
   const synchronized = await (dependencies.synchronize ?? syncAlarmPyoWidget)(snapshot);
   if (!synchronized) {
-    throw new Error('위젯 자료를 준비하지 못했어요.');
+    throw new Error('위젯 자료를 준비하지 못했습니다.');
   }
   return (dependencies.requestPin ?? requestAlarmPyoWidgetPin)();
 }

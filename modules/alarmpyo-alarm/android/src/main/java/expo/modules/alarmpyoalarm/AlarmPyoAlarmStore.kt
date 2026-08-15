@@ -182,7 +182,7 @@ internal enum class AlarmPyoAlarmStoreFailureCode {
  */
 internal class AlarmPyoAlarmStoreMutationException(
   val code: AlarmPyoAlarmStoreFailureCode
-) : IllegalStateException("근무 알람 저장소가 손상되어 계획을 변경하지 않았어요.")
+) : IllegalStateException("근무 알람 저장소가 손상되어 계획을 변경하지 않았습니다.")
 
 internal interface AlarmPyoAlarmSnapshotPersistence {
   fun readPrimary(): AlarmPyoAlarmSnapshotEnvelope?
@@ -295,7 +295,7 @@ internal class AlarmPyoAlarmStoreEngine(
     snapshot: AlarmPyoAlarmScheduleSnapshot
   ): AlarmPyoAlarmScheduleSnapshot {
     check(persistence.readHealth() == AlarmPyoAlarmStorageHealth.CORRUPT) {
-      "정상 근무 알람 저장소를 손상 복구 경로로 다시 쓰지 않아요."
+      "정상 근무 알람 저장소를 손상 복구 경로로 다시 쓰지 않습니다."
     }
     val primary = persistence.readPrimary()
     val previous = persistence.readPrevious()
@@ -440,7 +440,7 @@ internal object AlarmPyoAlarmStore {
           false
         }
         check(isStorageMigrationReady(hasLegacyValues, moved)) {
-          "기존 알람 데이터를 기기 보호 저장소로 옮기지 못했어요."
+          "기존 알람 데이터를 기기 보호 저장소로 옮기지 못했습니다."
         }
         values = deviceContext.getSharedPreferences(LEGACY_PREFERENCES_NAME, Context.MODE_PRIVATE)
         requireCommitted(
@@ -853,7 +853,7 @@ internal object AlarmPyoAlarmStore {
   }
 
   internal fun requireCommitted(committed: Boolean, label: String) {
-    check(committed) { "$label 저장에 실패했어요." }
+    check(committed) { "$label 저장에 실패했습니다." }
   }
 
   internal fun isStorageMigrationReady(

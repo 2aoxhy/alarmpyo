@@ -22,12 +22,12 @@ export function parseAppDataImportEnvelope(value: unknown): AppDataImportEnvelop
     value.format !== APP_DATA_BACKUP_FORMAT &&
     value.format !== LEGACY_APP_DATA_BACKUP_FORMAT
   ) {
-    throw new AppDataValidationError('지원하지 않는 백업 파일 형식이에요.');
+    throw new AppDataValidationError('지원하지 않는 백업 파일 형식입니다.');
   }
   if (
     value.formatVersion !== APP_DATA_BACKUP_FORMAT_VERSION
   ) {
-    throw new AppDataValidationError('지원하지 않는 백업 파일 형식이에요.');
+    throw new AppDataValidationError('지원하지 않는 백업 파일 형식입니다.');
   }
   return {
     data: value.data,

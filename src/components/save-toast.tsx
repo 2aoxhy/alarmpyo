@@ -98,7 +98,7 @@ export function SaveToast() {
     <Animated.View
       key={`save-success-${saveSuccessRevision}`}
       accessibilityLiveRegion="polite"
-      accessibilityLabel="저장 완료. 변경 내용을 휴대폰에 저장했어요."
+      accessibilityLabel="저장 완료. 변경 내용을 휴대폰에 저장했습니다."
       style={[
         styles.positioner,
         {
@@ -136,7 +136,7 @@ export function SaveToast() {
           <AppText
             variant="caption"
             color={isDark ? palette.inkMuted : palette.indigoSoft}>
-            변경 내용을 휴대폰에 저장했어요.
+            변경 내용을 휴대폰에 저장했습니다.
           </AppText>
         </View>
       </View>

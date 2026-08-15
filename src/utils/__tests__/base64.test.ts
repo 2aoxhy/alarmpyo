@@ -15,10 +15,10 @@ describe('백업 Base64 변환', () => {
   });
 
   it('비표준 형식과 제한을 넘는 디코딩을 거절해요', () => {
-    expect(() => base64ToBytes('%%%')).toThrow('Base64 형식이 올바르지 않아요.');
-    expect(() => base64ToBytes('Zh==')).toThrow('Base64 형식이 올바르지 않아요.');
+    expect(() => base64ToBytes('%%%')).toThrow('Base64 형식이 올바르지 않습니다.');
+    expect(() => base64ToBytes('Zh==')).toThrow('Base64 형식이 올바르지 않습니다.');
     expect(() => base64ToBytes('Zm9v', 2)).toThrow(
-      'Base64 데이터가 허용된 크기를 넘었어요.',
+      'Base64 데이터가 허용된 크기를 넘었습니다.',
     );
   });
 });

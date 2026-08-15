@@ -221,11 +221,11 @@ internal object AlarmPyoQuickTimerStore {
     check(
       preferences(context, REDUNDANT_PREFERENCES_NAME)
         .edit().putString(KEY_ENVELOPE, encoded).commit()
-    ) { "타이머 보조 저장소를 저장하지 못했어요." }
+    ) { "타이머 보조 저장소를 저장하지 못했습니다." }
     check(
       preferences(context, PRIMARY_PREFERENCES_NAME)
         .edit().putString(KEY_ENVELOPE, encoded).commit()
-    ) { "타이머 기본 저장소를 저장하지 못했어요." }
+    ) { "타이머 기본 저장소를 저장하지 못했습니다." }
     setCommittedGeneration(context, snapshot.generation)
     setHealth(context, AlarmPyoQuickTimerStorageHealth.NORMAL)
     return snapshot
@@ -238,7 +238,7 @@ internal object AlarmPyoQuickTimerStore {
   ): AlarmPyoQuickTimerSnapshot {
     val current = read(context)
     check(current.storageHealth != AlarmPyoQuickTimerStorageHealth.CORRUPT) {
-      "타이머 저장소가 손상되어 명시적인 재설정이 필요해요."
+      "타이머 저장소가 손상되어 명시적인 재설정이 필요합니다."
     }
     return writeAuthoritative(context, transform(requireNotNull(current.snapshot)))
   }
@@ -253,7 +253,7 @@ internal object AlarmPyoQuickTimerStore {
         )?.generation
       }
     val latest = maxOf(candidates.maxOrNull() ?: 0L, committedGeneration(context))
-    check(latest < Long.MAX_VALUE) { "타이머 저장 세대가 허용 범위를 초과했어요." }
+    check(latest < Long.MAX_VALUE) { "타이머 저장 세대가 허용 범위를 초과했습니다." }
     return latest + 1L
   }
 
@@ -267,7 +267,7 @@ internal object AlarmPyoQuickTimerStore {
     val current = meta.getLong(KEY_COMMITTED_GENERATION, 0L)
     if (generation <= current) return
     check(meta.edit().putLong(KEY_COMMITTED_GENERATION, generation).commit()) {
-      "타이머 저장 세대 표식을 저장하지 못했어요."
+      "타이머 저장 세대 표식을 저장하지 못했습니다."
     }
   }
 

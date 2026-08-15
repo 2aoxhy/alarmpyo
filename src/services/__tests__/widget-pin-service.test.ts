@@ -46,7 +46,7 @@ describe('위젯 추가 준비', () => {
         requestPin,
         synchronize: async () => false,
       }),
-    ).rejects.toThrow('위젯 자료를 준비하지 못했어요.');
+    ).rejects.toThrow('위젯 자료를 준비하지 못했습니다.');
     expect(requestPin).not.toHaveBeenCalled();
   });
 });

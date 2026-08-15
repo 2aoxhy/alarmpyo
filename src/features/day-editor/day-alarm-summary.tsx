@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
+import { SelectionPill } from '@/components/selection-controls';
 import { AppText, Card, MenuGroup } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
@@ -109,8 +110,8 @@ export function DayAlarmSummary({
             <AppText variant="label">{currentSummary}</AppText>
             <AppText tone="secondary" variant="caption">
               {notificationsEnabled
-                ? '이 날짜의 알람만 바꿔도 기본 근무표는 그대로 유지돼요.'
-                : '전체 근무 알람이 꺼져 있어요. 설정은 저장해 둘 수 있어요.'}
+                ? '이 날짜의 알람만 바꿔도 기본 근무표는 그대로 유지됩니다.'
+                : '전체 근무 알람이 꺼져 있습니다. 설정은 저장해 둘 수 있습니다.'}
             </AppText>
           </View>
         </View>
@@ -129,7 +130,7 @@ export function DayAlarmSummary({
               이날의 기상 시각
             </AppText>
             <AppText tone="secondary" variant="caption">
-              근무일을 기준으로 전날인지 당일인지 먼저 선택해 주세요.
+              근무일을 기준으로 전날인지 당일인지 먼저 선택해야 합니다.
             </AppText>
 
             <View accessibilityRole="radiogroup" style={styles.dayChoiceRow}>
@@ -137,29 +138,16 @@ export function DayAlarmSummary({
                 const selected = alarmDraft.wakeDayOffset === offset;
                 const label = formatWakeDayLabel(offset);
                 return (
-                  <Pressable
-                    accessibilityLabel={`${label} 기상${selected ? ', 선택됨' : ''}`}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
+                  <SelectionPill
+                    accessibilityLabel={`${label} 기상`}
+                    icon={offset === -1 ? 'shift-night' : 'calendar-outline'}
                     key={offset}
                     onPress={() => chooseWakeDay(offset)}
-                    style={({ pressed }) => [
-                      styles.dayChoice,
-                      selected && styles.dayChoiceSelected,
-                      pressed && styles.pressed,
-                    ]}>
-                    <AppIcon
-                      accessible={false}
-                      color={selected ? appearance.accentColor : palette.inkMuted}
-                      name={offset === -1 ? 'shift-night' : 'calendar-outline'}
-                      size={18}
-                    />
-                    <AppText
-                      color={selected ? appearance.accentColor : palette.inkMuted}
-                      variant="label">
-                      {label}
-                    </AppText>
-                  </Pressable>
+                    selected={selected}
+                    semanticColor={appearance.accentColor}
+                    style={styles.dayChoice}
+                    label={label}
+                  />
                 );
               })}
             </View>
@@ -169,7 +157,7 @@ export function DayAlarmSummary({
                 기상 시각
               </AppText>
               <TextInput
-                accessibilityHint="24시간 형식으로 입력해 주세요. 0510을 입력하면 05:10으로 바뀌어요."
+                accessibilityHint="24시간 형식으로 입력해야 합니다. 0510을 입력하면 05:10으로 바뀝니다."
                 accessibilityLabel={`${formatWakeDayLabel(
                   alarmDraft.wakeDayOffset,
                 )} 기상 시각`}
@@ -222,9 +210,9 @@ export function DayAlarmSummary({
                 {draftResult.valid && draftResult.leadMinutes !== null
                   ? `${formatWakeDayLabel(alarmDraft.wakeDayOffset)} ${normalizeTimeInput(
                       alarmDraft.wakeTime,
-                    )} · 근무 시작 ${formatDuration(draftResult.leadMinutes)} 전이에요.`
+                    )} · 근무 시작 ${formatDuration(draftResult.leadMinutes)} 전입니다.`
                   : draftResult.valid
-                    ? '기상 시각을 지정해 주세요.'
+                    ? '기상 시각을 지정해야 합니다.'
                     : draftResult.message}
               </AppText>
             </View>
@@ -280,24 +268,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       borderTopColor: palette.line,
     },
     dayChoiceRow: { flexDirection: 'row', gap: spacing.small },
-    dayChoice: {
-      minWidth: 48,
-      minHeight: 48,
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.small,
-      paddingHorizontal: spacing.small,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-    },
-    dayChoiceSelected: {
-      borderColor: palette.indigo,
-      backgroundColor: palette.indigoSoft,
-    },
+    dayChoice: { flex: 1 },
     timeField: { gap: spacing.small },
     timeInput: {
       width: '100%',
@@ -327,6 +298,5 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     validationError: { backgroundColor: palette.dangerSoft },
     validationCopy: { flex: 1, minWidth: 0 },
-    pressed: { opacity: 0.68 },
   });
 }

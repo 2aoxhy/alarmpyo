@@ -41,19 +41,19 @@ describe('APK 업데이트 정보', () => {
   it('다른 패키지와 안전하지 않은 주소를 거부합니다', () => {
     expect(() =>
       parseApkReleaseManifest({ ...VALID_MANIFEST, packageName: 'other.app' }),
-    ).toThrow('앱 업데이트 정보가 올바르지 않아요.');
+    ).toThrow('앱 업데이트 정보가 올바르지 않습니다.');
     expect(() =>
       parseApkReleaseManifest({ ...VALID_MANIFEST, apkUrl: 'http://example.com/app.apk' }),
-    ).toThrow('앱 업데이트 정보가 올바르지 않아요.');
+    ).toThrow('앱 업데이트 정보가 올바르지 않습니다.');
   });
 
   it('잘못된 해시와 비정상 파일 크기를 거부합니다', () => {
     expect(() =>
       parseApkReleaseManifest({ ...VALID_MANIFEST, sha256: 'abc' }),
-    ).toThrow('앱 업데이트 정보가 올바르지 않아요.');
+    ).toThrow('앱 업데이트 정보가 올바르지 않습니다.');
     expect(() =>
       parseApkReleaseManifest({ ...VALID_MANIFEST, sizeBytes: 100 }),
-    ).toThrow('앱 업데이트 정보가 올바르지 않아요.');
+    ).toThrow('앱 업데이트 정보가 올바르지 않습니다.');
   });
 
   it('APK 크기를 읽기 쉽게 표시합니다', () => {
@@ -86,7 +86,7 @@ describe('APK 업데이트 정보', () => {
         ...VALID_MANIFEST,
         apkMirrors: ['http://example.com/ALARMPYO.apk'],
       }),
-    ).toThrow('앱 업데이트 정보가 올바르지 않아요.');
+    ).toThrow('앱 업데이트 정보가 올바르지 않습니다.');
   });
 
   it('배포 정보 주소의 중복과 안전하지 않은 주소를 정리합니다', () => {

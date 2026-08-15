@@ -211,7 +211,7 @@ function migrateShiftTypes(
 
   const substitute = migrated.find((shift) => shift.id === 'substitute');
   if (substitute?.isOff) {
-    throw new AppDataValidationError('대체근무에는 근무 시간과 알람 설정이 필요해요.');
+    throw new AppDataValidationError('대체근무에는 근무 시간과 알람 설정이 필요합니다.');
   }
   const substituteTargetId = legacySubstituteTargetId(migrated);
   const substituteDay =
@@ -234,7 +234,7 @@ function migrateShiftTypes(
       : createDefaultWorkShift('substitute-night');
   const finalLength = migrated.length + (substitute ? 1 : 2);
   if (finalLength > MAX_SHIFT_TYPES) {
-    throw new AppDataValidationError('대체근무를 추가할 공간이 부족해요.');
+    throw new AppDataValidationError('대체근무를 추가할 공간이 부족합니다.');
   }
   if (substitute) {
     return migrated.flatMap((shift) =>
@@ -285,7 +285,7 @@ function migrateV20EveningShift(
     return { shiftTypes, renamedLegacyEveningId: null };
   }
   if (shiftTypes.length >= MAX_SHIFT_TYPES) {
-    throw new AppDataValidationError('오후 근무를 추가할 공간이 부족해요.');
+    throw new AppDataValidationError('오후 근무를 추가할 공간이 부족합니다.');
   }
 
   // v19까지 `evening`은 예약 ID가 아니었으므로 사용자가 만든 근무가 이 ID를
@@ -674,7 +674,7 @@ export function pruneInvalidDayAlarmOverrides(data: AppData): AppData {
  */
 export function clearScheduleOverridesFrom(data: AppData, dateKey: string): AppData {
   if (!isValidDateKey(dateKey)) {
-    throw new AppDataValidationError('직접 변경 일정을 정리할 기준 날짜가 올바르지 않아요.');
+    throw new AppDataValidationError('직접 변경 일정을 정리할 기준 날짜가 올바르지 않습니다.');
   }
 
   const overrides = Object.fromEntries(
@@ -760,17 +760,17 @@ function parseShiftType(
   }
 
   if (!isOff && (startMinutes === null || endMinutes === null)) {
-    throw new AppDataValidationError(`${index + 1}번째 근무의 시작·종료 시간이 필요해요.`);
+    throw new AppDataValidationError(`${index + 1}번째 근무의 시작·종료 시간이 필요합니다.`);
   }
   if (!isOff && startMinutes === endMinutes) {
-    throw new AppDataValidationError(`${index + 1}번째 근무의 시작·종료 시간은 달라야 해요.`);
+    throw new AppDataValidationError(`${index + 1}번째 근무의 시작·종료 시간은 달라야 합니다.`);
   }
 
   const inferredEndsNextDay =
     !isOff && startMinutes !== null && endMinutes !== null && endMinutes < startMinutes;
   if (!legacy && !isOff && storedEndsNextDay !== inferredEndsNextDay) {
     throw new AppDataValidationError(
-      `${index + 1}번째 근무의 다음 날 종료 설정이 시간과 맞지 않아요.`,
+      `${index + 1}번째 근무의 다음 날 종료 설정이 시간과 맞지 않습니다.`,
     );
   }
   if (
@@ -782,7 +782,7 @@ function parseShiftType(
       storedAlarmEnabled ||
       storedAlarmMinutesBefore !== 0)
   ) {
-    throw new AppDataValidationError(`${index + 1}번째 휴무 설정이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${index + 1}번째 휴무 설정이 올바르지 않습니다.`);
   }
 
   return {
@@ -809,7 +809,7 @@ function parseShiftTypes(
   repairState: AppDataRepairState,
 ): ShiftType[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > maximumCount) {
-    throw new AppDataValidationError('근무 종류 목록이 올바르지 않아요.');
+    throw new AppDataValidationError('근무 종류 목록이 올바르지 않습니다.');
   }
 
   const shiftTypes = value.map((item, index) =>
@@ -817,29 +817,29 @@ function parseShiftTypes(
   );
   const ids = new Set<string>();
   for (const shift of shiftTypes) {
-    if (ids.has(shift.id)) throw new AppDataValidationError('근무 종류 ID가 중복되어 있어요.');
+    if (ids.has(shift.id)) throw new AppDataValidationError('근무 종류 ID가 중복되어 있습니다.');
     ids.add(shift.id);
   }
   const day = shiftTypes.find((shift) => shift.id === 'day');
   const night = shiftTypes.find((shift) => shift.id === 'night');
   const off = shiftTypes.find((shift) => shift.id === 'off');
   if (!day || !night || !off || day.isOff || night.isOff || !off.isOff) {
-    throw new AppDataValidationError('주간·야간·휴무 기본 근무 종류가 필요해요.');
+    throw new AppDataValidationError('주간·야간·휴무 기본 근무 종류가 필요합니다.');
   }
   const substitute = shiftTypes.find((shift) => shift.id === 'substitute');
   if (substituteSchema === 'legacy' && (!substitute || substitute.isOff)) {
-    throw new AppDataValidationError('대체근무 기본 근무 종류가 필요해요.');
+    throw new AppDataValidationError('대체근무 기본 근무 종류가 필요합니다.');
   }
   const substituteDay = shiftTypes.find((shift) => shift.id === 'substitute-day');
   const substituteNight = shiftTypes.find((shift) => shift.id === 'substitute-night');
   if (substituteSchema !== 'split' && (substituteDay || substituteNight)) {
-    throw new AppDataValidationError('이 데이터 버전의 대체근무 ID가 올바르지 않아요.');
+    throw new AppDataValidationError('이 데이터 버전의 대체근무 ID가 올바르지 않습니다.');
   }
   if (
     substituteSchema === 'split' &&
     (substitute || !substituteDay || !substituteNight || substituteDay.isOff || substituteNight.isOff)
   ) {
-    throw new AppDataValidationError('주간·야간 대체근무 기본 근무 종류가 필요해요.');
+    throw new AppDataValidationError('주간·야간 대체근무 기본 근무 종류가 필요합니다.');
   }
   return shiftTypes;
 }
@@ -854,13 +854,13 @@ function parsePattern(
     item.shiftTypeIds.length === 0 ||
     item.shiftTypeIds.length > MAX_PATTERN_LENGTH
   ) {
-    throw new AppDataValidationError('근무 순서가 올바르지 않아요.');
+    throw new AppDataValidationError('근무 순서가 올바르지 않습니다.');
   }
 
   const shiftTypeIds = item.shiftTypeIds.map((id, index) => {
     const parsedId = requiredString(id, `${index + 1}번째 근무 ID`, 100);
     if (!knownShiftIds.has(parsedId)) {
-      throw new AppDataValidationError('근무 순서에 알 수 없는 근무 종류가 있어요.');
+      throw new AppDataValidationError('근무 순서에 알 수 없는 근무 종류가 있습니다.');
     }
     return parsedId;
   });
@@ -895,14 +895,14 @@ function parseOverrides(
   const source = legacy ? optionalLegacyRecord(value, '변경한 날짜') : record(value, '변경한 날짜');
   const entries = Object.entries(source);
   if (entries.length > MAX_DATED_ITEMS) {
-    throw new AppDataValidationError('변경한 날짜가 너무 많아요.');
+    throw new AppDataValidationError('변경한 날짜가 너무 많습니다.');
   }
 
   const overrides: Record<string, string | null> = {};
   for (const [key, shiftId] of entries) {
     dateKey(key, '변경한 근무');
     if (shiftId !== null && (typeof shiftId !== 'string' || !knownShiftIds.has(shiftId))) {
-      throw new AppDataValidationError(`${key}에 알 수 없는 근무 종류가 있어요.`);
+      throw new AppDataValidationError(`${key}에 알 수 없는 근무 종류가 있습니다.`);
     }
     overrides[key] = shiftId;
   }
@@ -916,7 +916,7 @@ function parseTimeOverrides(
   const source = record(value, '날짜별 근무 시간');
   const entries = Object.entries(source);
   if (entries.length > MAX_DATED_ITEMS) {
-    throw new AppDataValidationError('시간을 바꾼 날짜가 너무 많아요.');
+    throw new AppDataValidationError('시간을 바꾼 날짜가 너무 많습니다.');
   }
 
   const timeOverrides: Record<string, DayTimeOverride> = {};
@@ -925,16 +925,16 @@ function parseTimeOverrides(
     const item = record(rawOverride, `${key} 근무 시간`);
     const shiftTypeId = requiredString(item.shiftTypeId, `${key} 근무 종류`, 100);
     if (!knownShiftIds.has(shiftTypeId)) {
-      throw new AppDataValidationError(`${key}에 알 수 없는 근무 종류가 있어요.`);
+      throw new AppDataValidationError(`${key}에 알 수 없는 근무 종류가 있습니다.`);
     }
     const startMinutes = integerInRange(item.startMinutes, `${key} 시작 시각`, 0, 1439);
     const endMinutes = integerInRange(item.endMinutes, `${key} 종료 시각`, 0, 1439);
     if (startMinutes === endMinutes) {
-      throw new AppDataValidationError(`${key}의 시작과 종료 시각은 달라야 해요.`);
+      throw new AppDataValidationError(`${key}의 시작과 종료 시각은 달라야 합니다.`);
     }
     const endsNextDay = requiredBoolean(item.endsNextDay, `${key} 익일 종료 여부`);
     if (endsNextDay !== (endMinutes < startMinutes)) {
-      throw new AppDataValidationError(`${key}의 익일 종료 여부가 근무 시간과 맞지 않아요.`);
+      throw new AppDataValidationError(`${key}의 익일 종료 여부가 근무 시간과 맞지 않습니다.`);
     }
     timeOverrides[key] = { shiftTypeId, startMinutes, endMinutes, endsNextDay };
   }
@@ -948,7 +948,7 @@ function parseDayExceptions(
   const source = record(value, '예외 일정');
   const entries = Object.entries(source);
   if (entries.length > MAX_DATED_ITEMS) {
-    throw new AppDataValidationError('예외 일정이 너무 많아요.');
+    throw new AppDataValidationError('예외 일정이 너무 많습니다.');
   }
 
   const knownTypes = new Set<string>(DAY_EXCEPTION_TYPES);
@@ -964,7 +964,7 @@ function parseDayExceptions(
       continue;
     }
     if (typeof rawType !== 'string' || !knownTypes.has(rawType)) {
-      throw new AppDataValidationError(`${key}의 예외 일정 종류가 올바르지 않아요.`);
+      throw new AppDataValidationError(`${key}의 예외 일정 종류가 올바르지 않습니다.`);
     }
     dayExceptions[key] = rawType as DayExceptionType;
   }
@@ -975,7 +975,7 @@ function parseAlarmOverrides(value: unknown): Record<string, DayAlarmOverride> {
   const source = record(value, '날짜별 알람');
   const entries = Object.entries(source);
   if (entries.length > MAX_DATED_ITEMS) {
-    throw new AppDataValidationError('알람을 바꾼 날짜가 너무 많아요.');
+    throw new AppDataValidationError('알람을 바꾼 날짜가 너무 많습니다.');
   }
 
   const alarmOverrides: Record<string, DayAlarmOverride> = {};
@@ -987,7 +987,7 @@ function parseAlarmOverrides(value: unknown): Record<string, DayAlarmOverride> {
       continue;
     }
     if (item.mode !== 'wake-time') {
-      throw new AppDataValidationError(`${key}의 알람 방식이 올바르지 않아요.`);
+      throw new AppDataValidationError(`${key}의 알람 방식이 올바르지 않습니다.`);
     }
     const wakeMinutes = integerInRange(
       item.wakeMinutes,
@@ -1002,7 +1002,7 @@ function parseAlarmOverrides(value: unknown): Record<string, DayAlarmOverride> {
       0,
     );
     if (wakeDayOffset !== -1 && wakeDayOffset !== 0) {
-      throw new AppDataValidationError(`${key}의 기상 날짜가 올바르지 않아요.`);
+      throw new AppDataValidationError(`${key}의 기상 날짜가 올바르지 않습니다.`);
     }
     alarmOverrides[key] = { mode: 'wake-time', wakeMinutes, wakeDayOffset };
   }
@@ -1012,13 +1012,13 @@ function parseAlarmOverrides(value: unknown): Record<string, DayAlarmOverride> {
 function parseNotes(value: unknown, legacy: boolean): Record<string, string> {
   const source = legacy ? optionalLegacyRecord(value, '메모') : record(value, '메모');
   const entries = Object.entries(source);
-  if (entries.length > MAX_DATED_ITEMS) throw new AppDataValidationError('메모가 너무 많아요.');
+  if (entries.length > MAX_DATED_ITEMS) throw new AppDataValidationError('메모가 너무 많습니다.');
 
   const notes: Record<string, string> = {};
   for (const [key, note] of entries) {
     dateKey(key, '메모');
     if (typeof note !== 'string' || note.length > 100_000) {
-      throw new AppDataValidationError(`${key}의 메모가 올바르지 않아요.`);
+      throw new AppDataValidationError(`${key}의 메모가 올바르지 않습니다.`);
     }
     notes[key] = note;
   }
@@ -1039,7 +1039,7 @@ function legacyIsoDate(value: unknown, fallback: null, label: string): string | 
 
 function parseThemeMode(value: unknown, label: string): ThemeMode {
   if (value !== 'system' && value !== 'light' && value !== 'dark') {
-    throw new AppDataValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value;
 }
@@ -1071,7 +1071,7 @@ function parseWorkRoutineTiming(
   };
   if (!isValidWorkRoutineTiming(timing)) {
     throw new AppDataValidationError(
-      `${label}은 5분 단위로 출발, 도착, 교대 완료 순서에 맞춰 설정해 주세요.`,
+      `${label}은 5분 단위로 출발, 도착, 교대 완료 순서에 맞춰 설정해야 합니다.`,
     );
   }
   return timing;
@@ -1106,7 +1106,7 @@ function parseWidgetDisplayOptions(
     nextAlarm: requiredBoolean(item.nextAlarm, '다음 알람 표시 여부'),
   };
   if (!options.todayShift && !options.nextShift && !options.nextAlarm) {
-    throw new AppDataValidationError('위젯에는 한 가지 이상의 정보를 표시해 주세요.');
+    throw new AppDataValidationError('위젯에는 한 가지 이상의 정보를 표시해야 합니다.');
   }
   return options;
 }
@@ -1178,7 +1178,7 @@ export function validateAndMigrateAppData(
     source.version !== 19 &&
     source.version !== APP_DATA_VERSION
   ) {
-    throw new AppDataValidationError('지원하지 않는 근무표 데이터 버전이에요.');
+    throw new AppDataValidationError('지원하지 않는 근무표 데이터 버전입니다.');
   }
 
   const sourceVersion: AppDataVersion = source.version;
@@ -1207,7 +1207,7 @@ export function validateAndMigrateAppData(
     sourceVersion >= 20 &&
     !parsedShiftTypes.some((shift) => shift.id === 'evening' && !shift.isOff)
   ) {
-    throw new AppDataValidationError('오후 기본 근무 종류가 필요해요.');
+    throw new AppDataValidationError('오후 기본 근무 종류가 필요합니다.');
   }
   const sourceShiftIds = new Set(parsedShiftTypes.map((shift) => shift.id));
   const parsedPatternResult = parsePattern(source.pattern, sourceShiftIds);
@@ -1251,7 +1251,7 @@ export function validateAndMigrateAppData(
     presetId !== 'three-team-two-shift' &&
     !migratedLegacyEveningPattern
   ) {
-    throw new AppDataValidationError('이전 데이터 버전은 3조 2교대 근무 방식만 지원해요.');
+    throw new AppDataValidationError('이전 데이터 버전은 3조 2교대 근무 방식만 지원합니다.');
   }
   if (
     sourceVersion >= 5 &&
@@ -1260,7 +1260,7 @@ export function validateAndMigrateAppData(
     presetId !== 'weekday' &&
     !migratedLegacyEveningPattern
   ) {
-    throw new AppDataValidationError('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+    throw new AppDataValidationError('지원하는 근무 방식은 3조 2교대 또는 주간 고정입니다.');
   }
   if (
     sourceVersion >= 20 &&
@@ -1269,7 +1269,7 @@ export function validateAndMigrateAppData(
         !isValidLegacyEveningCompatibilityPattern(normalizedShiftTypeIds)
       : !normalizedShiftTypeIds.every(isBaseWorkShiftId))
   ) {
-    throw new AppDataValidationError('기타 근무 순서는 1~42일이며 주간·오후·야간·휴무만 사용할 수 있어요.');
+    throw new AppDataValidationError('기타 근무 순서는 1~42일이며 주간·오후·야간·휴무만 사용할 수 있습니다.');
   }
   const patternKind = presetId === 'weekday' ? 'weekday' : 'rotation';
   const pattern: RotationPattern = {
@@ -1378,7 +1378,7 @@ function assertAppDataJsonByteSize(raw: string): void {
     getCheckedAppDataContentsByteSize(raw);
   } catch (error) {
     throw new AppDataValidationError(
-      error instanceof Error ? error.message : '근무표 데이터가 너무 커요.',
+      error instanceof Error ? error.message : '근무표 데이터가 너무 큽니다.',
     );
   }
 }
@@ -1388,7 +1388,7 @@ function assertBackupJsonByteSize(raw: string): void {
     getCheckedBackupContentsByteSize(raw);
   } catch (error) {
     throw new AppDataValidationError(
-      error instanceof Error ? error.message : '백업 파일이 너무 커요.',
+      error instanceof Error ? error.message : '백업 파일이 너무 큽니다.',
     );
   }
 }
@@ -1399,7 +1399,7 @@ export function parseAppDataJson(raw: string): ParsedAppData {
   try {
     parsed = JSON.parse(stripOptionalUtf8Bom(raw)) as unknown;
   } catch {
-    throw new AppDataValidationError('근무표 데이터의 JSON 형식이 올바르지 않아요.');
+    throw new AppDataValidationError('근무표 데이터의 JSON 형식이 올바르지 않습니다.');
   }
   return validateAndMigrateAppData(parsed, { repairOversizedAlarmMinutes: true });
 }
@@ -1413,7 +1413,7 @@ export function tryParseAppDataJson(raw: string): AppDataParseResult {
       error:
         error instanceof AppDataValidationError
           ? error
-          : new AppDataValidationError('근무표 데이터를 확인하지 못했어요.'),
+          : new AppDataValidationError('근무표 데이터를 확인하지 못했습니다.'),
     };
   }
 }
@@ -1452,7 +1452,7 @@ export function previewAppDataImport(raw: string): AppDataImportPreview {
   try {
     parsedJson = JSON.parse(stripOptionalUtf8Bom(raw)) as unknown;
   } catch {
-    throw new AppDataValidationError('백업 파일의 JSON 형식이 올바르지 않아요.');
+    throw new AppDataValidationError('백업 파일의 JSON 형식이 올바르지 않습니다.');
   }
 
   const envelope = parseAppDataImportEnvelope(parsedJson);

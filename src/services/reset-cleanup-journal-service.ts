@@ -105,7 +105,7 @@ export async function prepareResetCleanupJournal(
   storage: ResetCleanupStorage = AsyncStorage,
 ): Promise<void> {
   if (targetSnapshot.length === 0) {
-    throw new Error('초기화 정리 대상을 확인하지 못했어요.');
+    throw new Error('초기화 정리 대상을 확인하지 못했습니다.');
   }
   const setupDraftBeforeReset = await storage.getItem(SETUP_DRAFT_STORAGE_KEY);
   await writeResetCleanupJournal(

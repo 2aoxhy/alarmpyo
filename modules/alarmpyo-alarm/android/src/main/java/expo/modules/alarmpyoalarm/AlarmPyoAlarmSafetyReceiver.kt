@@ -18,7 +18,7 @@ class AlarmPyoAlarmSafetyReceiver : BroadcastReceiver() {
           AlarmPyoAlarmSafetyScheduler.planKeyFrom(intent)
         )
       } catch (error: Throwable) {
-        Log.e(TAG, "알람 안전 점검을 완료하지 못했어요.", error)
+        Log.e(TAG, "알람 안전 점검을 완료하지 못했습니다.", error)
         runCatching { AlarmPyoAlarmSafetyScheduler.rearm(appContext, force = true) }
       } finally {
         pendingResult.finish()

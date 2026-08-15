@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { useAppActive } from '@/hooks/use-app-active';
+import { useAppLifecycle } from '@/hooks/use-app-active';
 import { resolveShiftFromAppData } from '@/services/app-data-service';
 import { isAlarmPyoWidgetInstalled, syncAlarmPyoWidget } from '@/services/alarmpyo-alarm-service';
 import { buildAlarmPyoWidgetSnapshot } from '@/services/widget-planner';
+import { getScheduleProjectionTimeZoneSignature } from '@/services/schedule-projection-cache';
 import {
-  createInstalledWidgetSnapshot,
+  createWidgetSnapshotPreflightCoordinator,
   createWidgetSyncCoordinator,
   syncWidgetWithRetry,
+  type WidgetSnapshotPreflightCoordinator,
   type WidgetSyncCoordinator,
 } from '@/services/widget-sync-policy';
 import { getWidgetScheduleSignature } from '@/services/widget-schedule-signature';
@@ -23,11 +25,17 @@ import { toDateKey } from '@/utils/date';
  */
 export function AlarmPyoWidgetSyncBridge() {
   const { data, ready } = useAppStoreData();
-  const appActive = useAppActive();
+  const appLifecycle = useAppLifecycle();
   const latestDataRef = useRef(data);
   const widgetSyncCoordinatorRef = useRef<WidgetSyncCoordinator | null>(null);
+  const snapshotPreflightCoordinatorRef =
+    useRef<WidgetSnapshotPreflightCoordinator | null>(null);
   if (widgetSyncCoordinatorRef.current === null) {
     widgetSyncCoordinatorRef.current = createWidgetSyncCoordinator();
+  }
+  if (snapshotPreflightCoordinatorRef.current === null) {
+    snapshotPreflightCoordinatorRef.current =
+      createWidgetSnapshotPreflightCoordinator();
   }
   const widgetScheduleSignature = useMemo(
     () => getWidgetScheduleSignature(data),
@@ -39,7 +47,7 @@ export function AlarmPyoWidgetSyncBridge() {
   }, [data]);
 
   useEffect(() => {
-    if (!ready || !appActive || Platform.OS !== 'android') return;
+    if (!ready || !appLifecycle.active || Platform.OS !== 'android') return;
     let cancelled = false;
     const snapshotData = latestDataRef.current;
 
@@ -48,35 +56,42 @@ export function AlarmPyoWidgetSyncBridge() {
       // JSON 직렬화를 하지 않아요. 앱으로 돌아오면 다시 확인하므로 새로 설치한
       // 위젯은 기존 근무 데이터가 바뀌지 않았어도 즉시 스냅샷을 받아요.
       const now = new Date();
+      const generatedDateKey = toDateKey(now);
       const supportsGeneratedPreview =
         typeof Platform.Version === 'number' && Platform.Version >= 35;
-      const snapshot = await createInstalledWidgetSnapshot(
-        isAlarmPyoWidgetInstalled,
-        () =>
-          buildAlarmPyoWidgetSnapshot(
-            snapshotData,
-            (dateKey) => resolveShiftFromAppData(snapshotData, dateKey),
-            { now },
-        ),
-        () => cancelled,
-        supportsGeneratedPreview,
-      );
+      const installed = await isAlarmPyoWidgetInstalled();
       if (cancelled) return;
-      if (!snapshot) {
-        widgetSyncCoordinatorRef.current?.reset();
-        return;
+      const preflight = {
+        installed,
+        supportsGeneratedPreview,
+        scheduleSignature: widgetScheduleSignature,
+        generatedDateKey,
+        timeZoneSignature: getScheduleProjectionTimeZoneSignature(now),
+        nowMs: now.getTime(),
+      };
+      if (!snapshotPreflightCoordinatorRef.current?.shouldBuild(preflight)) return;
+      let completed = false;
+      try {
+        const snapshot = buildAlarmPyoWidgetSnapshot(
+          snapshotData,
+          (dateKey) => resolveShiftFromAppData(snapshotData, dateKey),
+          { now },
+        );
+        // 앱을 다시 사용할 때 하루에 한 번 장기 계산 범위를 앞으로 옮기고,
+        // 표시 옵션·다음 알람·근무 항목 중 하나라도 바뀌면 즉시 갱신합니다.
+        const result = await syncWidgetWithRetry(
+          async () =>
+            widgetSyncCoordinatorRef.current?.sync(
+              snapshot,
+              generatedDateKey,
+              syncAlarmPyoWidget,
+            ) ?? 'failed',
+          () => cancelled,
+        );
+        completed = result === 'synced' || result === 'skipped';
+      } finally {
+        snapshotPreflightCoordinatorRef.current?.complete(preflight, completed);
       }
-      // 앱을 다시 사용할 때 하루에 한 번 장기 계산 범위를 앞으로 옮기고,
-      // 표시 옵션·다음 알람·근무 항목 중 하나라도 바뀌면 즉시 갱신해요.
-      await syncWidgetWithRetry(
-        async () =>
-          widgetSyncCoordinatorRef.current?.sync(
-            snapshot,
-            toDateKey(now),
-            syncAlarmPyoWidget,
-          ) ?? 'failed',
-        () => cancelled,
-      );
     })().catch(() => {
       // 위젯은 부가 기능이므로 저장과 알람의 성공 상태에는 영향을 주지 않습니다.
       if (!cancelled) widgetSyncCoordinatorRef.current?.reset();
@@ -85,7 +100,12 @@ export function AlarmPyoWidgetSyncBridge() {
     return () => {
       cancelled = true;
     };
-  }, [appActive, ready, widgetScheduleSignature]);
+  }, [
+    appLifecycle.active,
+    appLifecycle.transitionId,
+    ready,
+    widgetScheduleSignature,
+  ]);
 
   return null;
 }

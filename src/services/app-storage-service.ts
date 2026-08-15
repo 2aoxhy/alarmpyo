@@ -101,7 +101,7 @@ export const MAX_PENDING_RESTORE_DOCUMENT_BYTES =
 function getCheckedPendingRestoreDocumentByteSize(contents: string): number {
   const size = getUtf8ByteLength(contents);
   if (size > MAX_PENDING_RESTORE_DOCUMENT_BYTES) {
-    throw new Error('대기 중인 복원 백업 문서가 너무 커요.');
+    throw new Error('대기 중인 복원 백업 문서가 너무 큽니다.');
   }
   return size;
 }
@@ -275,7 +275,7 @@ export function createLatestStorageValueCoordinator(
       while (handledRevision < revision) await ensureDrain();
 
       if (persistedValue === null) {
-        throw new Error('저장 완료 상태를 확인하지 못했어요.');
+        throw new Error('저장 완료 상태를 확인하지 못했습니다.');
       }
       return { persistedValue, wrote: before !== persistedValue || force };
     },
@@ -393,7 +393,7 @@ export async function loadAppDataFromStorage(
     return {
       ok: false,
       reason: 'io',
-      error: '근무표를 불러오지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+      error: '근무표를 불러오지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
       corruptBackupKey: null,
     };
   }
@@ -412,7 +412,7 @@ export async function loadAppDataFromStorage(
       return {
         ok: false,
         reason: 'io',
-        error: '저장된 근무표 상태를 확인하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+        error: '저장된 근무표 상태를 확인하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
         corruptBackupKey: null,
       };
     }
@@ -442,7 +442,7 @@ export async function loadAppDataFromStorage(
       return {
         ok: false,
         reason: 'recovery-required',
-        error: '저장된 근무표 본문은 없지만 최근 안전 백업이 남아 있어요. 복구하거나 새 근무표로 시작해 주세요.',
+        error: '저장된 근무표 본문은 없지만 최근 안전 백업이 남아 있습니다. 복구하거나 새 근무표로 시작해야 합니다.',
         corruptBackupKey: null,
         recovery,
       };
@@ -458,7 +458,7 @@ export async function loadAppDataFromStorage(
   } catch (error) {
     parsed = {
       ok: false,
-      error: error instanceof Error ? error : new Error('근무표 데이터가 너무 커요.'),
+      error: error instanceof Error ? error : new Error('근무표 데이터가 너무 큽니다.'),
     };
   }
   if (parsed.ok) {
@@ -482,14 +482,14 @@ export async function loadAppDataFromStorage(
       return {
         ok: false,
         reason: 'corrupt',
-        error: `${parsed.error.message} 손상된 원본은 별도 복구 파일에 보관했어요.`,
+        error: `${parsed.error.message} 손상된 원본은 별도 복구 파일에 보관했습니다.`,
         corruptBackupKey: independentLocation,
       };
     }
     return {
       ok: false,
       reason: 'corrupt',
-      error: `${parsed.error.message} 기존 저장 자료는 덮어쓰지 않았어요.`,
+      error: `${parsed.error.message} 기존 저장 자료는 덮어쓰지 않았습니다.`,
       corruptBackupKey: null,
     };
   }
@@ -497,7 +497,7 @@ export async function loadAppDataFromStorage(
   return {
     ok: false,
     reason: 'corrupt',
-    error: `${parsed.error.message} 손상된 원본은 복구용으로 따로 보관했어요.`,
+    error: `${parsed.error.message} 손상된 원본은 복구용으로 따로 보관했습니다.`,
     corruptBackupKey: backupKey,
   };
 }
@@ -517,7 +517,7 @@ export async function readAutomaticBackup(storage: StorageAdapter): Promise<stri
   try {
     return await storage.getItem(APP_DATA_AUTOMATIC_BACKUP_KEY);
   } catch {
-    throw new Error('최근 안전 백업을 불러오지 못했어요.');
+    throw new Error('최근 안전 백업을 불러오지 못했습니다.');
   }
 }
 
@@ -645,7 +645,7 @@ export async function readLastKnownGoodBackup(storage: StorageAdapter): Promise<
   try {
     return await storage.getItem(APP_DATA_LAST_KNOWN_GOOD_KEY);
   } catch {
-    throw new Error('최근 정상 저장본을 불러오지 못했어요.');
+    throw new Error('최근 정상 저장본을 불러오지 못했습니다.');
   }
 }
 
@@ -804,7 +804,7 @@ export async function readPendingRestoreBackup(
   try {
     pendingRaw = await storage.getItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
   } catch {
-    throw new Error('대기 중인 복원 전 백업을 확인하지 못했어요.');
+    throw new Error('대기 중인 복원 전 백업을 확인하지 못했습니다.');
   }
   const pending = parsePendingRestoreBackup(pendingRaw);
   if (pending === null) return null;

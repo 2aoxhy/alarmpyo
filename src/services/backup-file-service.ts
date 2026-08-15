@@ -39,13 +39,13 @@ async function cleanupPreviousBackupExports() {
   const fileNames = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory).catch(() => []);
   await Promise.all(
     fileNames
-      .filter((fileName) =>
+      .filter((protocolFile) =>
         /^AlarmPyo-(?:암호화-)?백업-\d{4}-\d{2}-\d{2}-\d{4}\.(?:json|alarmpyo)$/.test(
-          fileName,
+          protocolFile,
         ),
       )
-      .map((fileName) =>
-        FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${fileName}`, {
+      .map((protocolFile) =>
+        FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${protocolFile}`, {
           idempotent: true,
         }).catch(() => undefined),
       ),
@@ -57,10 +57,10 @@ export async function exportBackupFile(
   options: BackupFileExportOptions = {},
 ): Promise<BackupFileExportResult> {
   if (!FileSystem.cacheDirectory) {
-    throw new Error('백업 파일을 만들 수 있는 저장 공간이 없어요.');
+    throw new Error('백업 파일을 만들 수 있는 저장 공간이 없습니다.');
   }
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('이 휴대폰에서는 파일 공유를 사용할 수 없어요.');
+    throw new Error('이 휴대폰에서는 파일 공유를 사용할 수 없습니다.');
   }
 
   const encrypted = options.encrypted === true;
@@ -77,7 +77,7 @@ export async function exportBackupFile(
   try {
     const fileInfo = await FileSystem.getInfoAsync(uri).catch(() => null);
     if (!fileInfo?.exists || typeof fileInfo.size !== 'number') {
-      throw new Error('만든 백업 파일의 크기를 확인할 수 없어요.');
+      throw new Error('만든 백업 파일의 크기를 확인할 수 없습니다.');
     }
     if (encrypted) {
       assertEncryptedBackupFileByteSize(fileInfo.size);
@@ -85,7 +85,7 @@ export async function exportBackupFile(
       assertBackupFileByteSize(fileInfo.size);
     }
     if (fileInfo.size !== expectedByteSize) {
-      throw new Error('백업 파일을 정확히 만들지 못했어요. 다시 시도해 주세요.');
+      throw new Error('백업 파일을 정확히 만들지 못했습니다. 다시 시도해야 합니다.');
     }
     await Sharing.shareAsync(uri, {
       dialogTitle: encrypted ? '알람표 암호화 백업 파일 저장' : '알람표 백업 파일 저장',
@@ -110,7 +110,7 @@ export async function pickBackupFile() {
   if (result.canceled) return null;
 
   const asset = result.assets[0];
-  if (!asset) throw new Error('선택한 파일을 읽을 수 없어요.');
+  if (!asset) throw new Error('선택한 파일을 읽을 수 없습니다.');
   let encryptedContents = false;
   try {
     if (asset.size !== undefined) {
@@ -120,7 +120,7 @@ export async function pickBackupFile() {
     // 확장자나 문서 공급자의 형식 정보는 신뢰하지 않고 캐시의 실제 크기를 확인해요.
     const fileInfo = await FileSystem.getInfoAsync(asset.uri).catch(() => null);
     if (!fileInfo?.exists || typeof fileInfo.size !== 'number') {
-      throw new Error('선택한 파일의 크기를 확인할 수 없어요.');
+      throw new Error('선택한 파일의 크기를 확인할 수 없습니다.');
     }
     // 내용을 읽기 전에는 6MB 절대 상한만 적용해 과도한 메모리 사용을 막아요.
     assertBackupImportFileByteSize(fileInfo.size);
@@ -133,7 +133,7 @@ export async function pickBackupFile() {
       ? getCheckedEncryptedBackupContentsByteSize(contents)
       : getCheckedBackupContentsByteSize(contents);
     if (decodedByteSize !== fileInfo.size) {
-      throw new Error('백업 파일의 UTF-8 내용을 정확히 읽지 못했어요.');
+      throw new Error('백업 파일의 UTF-8 내용을 정확히 읽지 못했습니다.');
     }
 
     return {

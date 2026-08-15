@@ -295,7 +295,7 @@ describe('initial setup flow', () => {
           issues: [{ code: 'work-overlap', sequenceIndex: 0, shiftTypeId: 'day' }],
         },
       }),
-    ).toThrow('서로 겹치는 근무 시간을 먼저 수정해 주세요.');
+    ).toThrow('서로 겹치는 근무 시간을 먼저 수정해야 합니다.');
 
     const payload = buildInitialSetupPayload({
       activePosition: 0,

@@ -144,7 +144,7 @@ export function applySetupPresetSuggestions({
 }
 
 /**
- * 회사별 시간이 크게 다르므로 프리셋의 첫 선택 때만 보여줄 대표 예시예요.
+ * 회사별 시간이 크게 다르므로 프리셋의 첫 선택 때만 보여주는 대표 예시입니다.
  * 호출 화면은 복원한 초안이나 사용자가 편집한 값을 이 제안으로 덮어쓰면 안 됩니다.
  */
 export function getSuggestedWorkTimesForPreset(
@@ -360,7 +360,7 @@ export function buildInitialSetupPayload(
   input: BuildInitialSetupPayloadInput,
 ): InitialSetupPayload {
   if (input.safetyResult && !input.safetyResult.canSave) {
-    throw new RangeError('서로 겹치는 근무 시간을 먼저 수정해 주세요.');
+    throw new RangeError('서로 겹치는 근무 시간을 먼저 수정해야 합니다.');
   }
   const presetId =
     input.presetId ??

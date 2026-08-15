@@ -1,10 +1,11 @@
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
+import { SelectionCard } from '@/components/selection-controls';
 import { AppText, Card } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import {
   DAY_SHIFT_END_MINUTES,
   NIGHT_SHIFT_END_MINUTES,
@@ -42,12 +43,12 @@ import {
 function getWakeRoutineNote(minutes: number): string {
   const difference = minutes - ROUTINE_ALARM_LEAD_MINUTES;
   if (difference === 0) {
-    return '등록한 출근 루틴의 기상 시각과 일치해요.';
+    return '등록한 출근 루틴의 기상 시각과 일치합니다.';
   }
   if (difference > 0) {
-    return `기본 출근 루틴보다 ${formatDuration(difference)} 일찍 울려요.`;
+    return `기본 출근 루틴보다 ${formatDuration(difference)} 일찍 울립니다.`;
   }
-  return `기본 출근 루틴보다 준비 시간이 ${formatDuration(Math.abs(difference))} 짧아요.`;
+  return `기본 출근 루틴보다 준비 시간이 ${formatDuration(Math.abs(difference))} 짧습니다.`;
 }
 
 export function ShiftTimingEditor({
@@ -99,9 +100,9 @@ export function ShiftTimingEditor({
 
   const timeErrorMessage =
     startMinutes === null || endMinutes === null
-      ? '06:45 형식으로 입력해 주세요.'
+      ? '06:45 형식으로 입력해야 합니다.'
       : !duration
-        ? '시작과 종료 시간은 다르게 입력해 주세요.'
+        ? '시작과 종료 시간은 다르게 입력해야 합니다.'
         : undefined;
 
   const renderWakeSettings = () => (
@@ -112,7 +113,7 @@ export function ShiftTimingEditor({
           void Haptics.selectionAsync();
           onChange({ alarmEnabled });
         }}
-        subtitle="설정한 기상 시각을 수면 가이드와 출근 루틴에도 사용해요."
+        subtitle="설정한 기상 시각을 수면 가이드와 출근 루틴에도 사용합니다."
         title="기상 알람 울리기"
         value={draft.alarmEnabled}
       />
@@ -122,7 +123,7 @@ export function ShiftTimingEditor({
           기상 시간
         </AppText>
         <AppText tone="secondary" variant="caption">
-          실제 일어날 시각을 선택해요.
+          실제 일어날 시각을 선택합니다.
         </AppText>
         <View accessibilityRole="radiogroup" style={styles.alarmOptions}>
           {ALARM_OPTIONS.map((minutes) => {
@@ -134,47 +135,41 @@ export function ShiftTimingEditor({
                     calculateAlarmMinutes(startMinutes, minutes),
                   );
             return (
-              <Pressable
+              <SelectionCard
                 key={minutes}
                 accessibilityLabel={`${optionTime ?? '기상 시각 확인 필요'}, 근무 시작 ${formatDuration(minutes)} 전 기상`}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
                 onPress={() => {
                   void Haptics.selectionAsync();
                   onChange({ alarmMinutesBefore: minutes });
                 }}
-                style={({ pressed }) => [
+                selected={selected}
+                semanticColor={appearance.accentColor}
+                style={[
                   styles.alarmOption,
                   compact && styles.alarmOptionCompact,
-                  selected && {
-                    backgroundColor: appearance.softColor,
-                    borderColor: appearance.accentColor,
-                  },
-                  pressed && styles.pressed,
-                ]}>
+                ]}
+                contentStyle={styles.alarmOptionContent}>
                 <View style={styles.alarmOptionCopy}>
                   <AppText
-                    color={selected ? appearance.accentColor : palette.ink}
+                    color={palette.ink}
                     style={styles.alarmOptionTime}
                     variant="label">
                     {optionTime ?? '--:--'}
                   </AppText>
                   <AppText
-                    color={
-                      selected ? appearance.accentColor : palette.inkMuted
-                    }
+                    color={palette.inkMuted}
                     style={styles.alarmOptionLabel}
                     variant="caption">
                     {formatAlarmOption(minutes)}
                   </AppText>
                 </View>
-              </Pressable>
+              </SelectionCard>
             );
           })}
         </View>
         {alarmTime ? (
           <StatusBanner
-            message={`${getWakeRoutineNote(draft.alarmMinutesBefore)}${!draft.alarmEnabled ? ' 알람을 꺼도 이 기상 시각은 유지돼요.' : ''}`}
+            message={`${getWakeRoutineNote(draft.alarmMinutesBefore)}${!draft.alarmEnabled ? ' 알람을 꺼도 이 기상 시각은 유지됩니다.' : ''}`}
             title={`${alarmTime} 기상 · 근무 시작 ${formatDuration(draft.alarmMinutesBefore)} 전`}
             tone={hasShortWakeLead ? 'warning' : 'info'}
           />
@@ -228,10 +223,10 @@ export function ShiftTimingEditor({
           </AppText>
           <AppText tone="secondary" variant="caption">
             {visibleSection === 'time'
-              ? '근무 시간을 설정해요.'
+              ? '근무 시간을 설정합니다.'
               : visibleSection === 'wake'
-                ? '기상 알람과 시각을 설정해요.'
-                : '근무 시간과 기상 시각을 설정해요.'}
+                ? '기상 알람과 시각을 설정합니다.'
+                : '근무 시간과 기상 시각을 설정합니다.'}
           </AppText>
         </View>
       </View>
@@ -244,11 +239,11 @@ export function ShiftTimingEditor({
         <>
           <View style={[styles.timeRow, compact && styles.timeRowCompact]}>
             <AppField
-          accessibilityHint="24시간 형식으로 입력해 주세요."
+          accessibilityHint="24시간 형식으로 입력해야 합니다."
           accessibilityLabel={`${shift.name} 시작 시간`}
           autoCorrect={false}
           containerStyle={styles.timeField}
-          errorText={startMinutes === null ? '06:45 형식으로 입력해 주세요.' : undefined}
+          errorText={startMinutes === null ? '06:45 형식으로 입력해야 합니다.' : undefined}
           inputMode="numeric"
           inputStyle={[
             styles.timeInput,
@@ -272,11 +267,11 @@ export function ShiftTimingEditor({
           value={draft.start}
             />
             <AppField
-          accessibilityHint="24시간 형식으로 입력해 주세요."
+          accessibilityHint="24시간 형식으로 입력해야 합니다."
           accessibilityLabel={`${shift.name} 종료 시간`}
           autoCorrect={false}
           containerStyle={styles.timeField}
-          errorText={endMinutes === null ? '17:45 형식으로 입력해 주세요.' : undefined}
+          errorText={endMinutes === null ? '17:45 형식으로 입력해야 합니다.' : undefined}
           inputMode="numeric"
           inputStyle={[
             styles.timeInput,
@@ -308,8 +303,8 @@ export function ShiftTimingEditor({
           <StatusBanner
             message={
               duration
-                ? `${draft.start}부터 ${duration.endsNextDay ? '다음 날 ' : ''}${draft.end}까지예요.`
-                : (timeErrorMessage ?? '시간을 확인해 주세요.')
+                ? `${draft.start}부터 ${duration.endsNextDay ? '다음 날 ' : ''}${draft.end}까지입니다.`
+                : (timeErrorMessage ?? '시간을 확인해야 합니다.')
             }
             title={
               duration
@@ -387,14 +382,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 62,
       flexBasis: '30%',
       flexGrow: 1,
+    },
+    alarmOptionContent: {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: spacing.small,
       paddingVertical: spacing.small,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      borderRadius: radii.pill,
-      backgroundColor: palette.surface,
     },
     alarmOptionCompact: {
       minHeight: 66,
@@ -410,9 +403,6 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     alarmOptionLabel: {
       textAlign: 'center',
-    },
-    pressed: {
-      opacity: 0.68,
     },
   });
 }

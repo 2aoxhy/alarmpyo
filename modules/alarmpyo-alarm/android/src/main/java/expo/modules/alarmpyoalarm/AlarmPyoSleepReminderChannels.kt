@@ -16,7 +16,7 @@ internal object AlarmPyoSleepReminderChannels {
         "수면 시작 알림",
         NotificationManager.IMPORTANCE_DEFAULT
       ).apply {
-        description = "교대 근무에 맞춘 권장 취침 시각을 알려줘요."
+        description = "교대 근무에 맞춘 권장 취침 시각을 알려줍니다."
         setShowBadge(false)
         lockscreenVisibility = Notification.VISIBILITY_PRIVATE
         setBypassDnd(false)

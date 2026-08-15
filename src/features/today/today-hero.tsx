@@ -105,7 +105,7 @@ export function TodayHero({
             </AppText>
           </View>
           <Pressable
-            accessibilityHint="선택한 날짜의 근무와 시간을 수정해요."
+            accessibilityHint="선택한 날짜의 근무와 시간을 수정합니다."
             accessibilityLabel={`${formatKoreanDate(editorDateKey)} 일정 수정하기`}
             accessibilityRole="button"
             hitSlop={8}

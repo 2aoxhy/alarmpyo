@@ -7,6 +7,7 @@ import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { getCurrentAppUpdateLabel } from '@/constants/app-release';
+import { updateCopy } from '@/content/update-copy';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { openGooglePlayListing } from '@/services/app-distribution';
@@ -26,8 +27,8 @@ export default function PlayAppUpdateScreen() {
       await openGooglePlayListing();
     } catch {
       showDialog(
-        'Google Play를 열지 못했어요',
-        '인터넷 연결과 Google Play 사용 가능 여부를 확인한 뒤 다시 시도해 주세요.',
+        'Google Play를 열지 못했습니다',
+        '인터넷 연결과 Google Play 사용 가능 여부를 확인한 뒤 다시 시도해야 합니다.',
       );
     } finally {
       setBusy(false);
@@ -57,16 +58,16 @@ export default function PlayAppUpdateScreen() {
             </View>
             <View style={styles.copy}>
               <AppText accessibilityRole="header" variant="heading">
-                Google Play에서 업데이트해요
+                {updateCopy.playTitle.text}
               </AppText>
               <AppText tone="secondary" variant="caption">
-                새 버전은 Google Play가 안전하게 설치하고 관리해요.
+                {updateCopy.playManaged.text}
               </AppText>
             </View>
           </View>
           <AppButton
             icon="download-outline"
-            label="Google Play 열기"
+            label={updateCopy.updateInPlay.text}
             loading={busy}
             onPress={() => void openPlayUpdate()}
             size="compact"

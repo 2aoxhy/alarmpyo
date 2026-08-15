@@ -8,6 +8,7 @@ import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { getCurrentAppUpdateLabel } from '@/constants/app-release';
+import { updateCopy } from '@/content/update-copy';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
@@ -96,10 +97,10 @@ export default function AppUpdateScreen() {
           setDownloadedApkUri(null);
           setManualStatus('apk-available');
           showDialog(
-            '설치 화면을 열지 못했어요',
+            '설치 화면을 열지 못했습니다',
             error instanceof Error
               ? error.message
-              : '앱 설치 파일을 다시 내려받은 뒤 시도해 주세요.',
+              : '앱 설치 파일을 다시 내려받은 뒤 시도해야 합니다.',
           );
         } finally {
           permissionResumeBusy.current = false;
@@ -116,8 +117,8 @@ export default function AppUpdateScreen() {
   const restartWithUpdate = async () => {
     if (updateBlocked) {
       showDialog(
-        '작업이 끝난 뒤 다시 시작해 주세요',
-        '저장 작업이 끝나면 업데이트를 적용할 수 있어요.',
+        '작업이 끝난 뒤 다시 시작해야 합니다',
+        '저장 작업이 끝나면 업데이트를 적용할 수 있습니다.',
       );
       return;
     }
@@ -128,8 +129,8 @@ export default function AppUpdateScreen() {
       setManualStatus('error');
       setBusy(false);
       showDialog(
-        '업데이트를 적용하지 못했어요',
-        '앱을 완전히 종료한 뒤 다시 실행해 주세요.',
+        '업데이트를 적용하지 못했습니다',
+        '앱을 완전히 종료한 뒤 다시 실행해야 합니다.',
       );
     }
   };
@@ -141,8 +142,8 @@ export default function AppUpdateScreen() {
       await openGooglePlayListing();
     } catch {
       showDialog(
-        'Google Play를 열지 못했어요',
-        '인터넷 연결과 Google Play 사용 가능 여부를 확인한 뒤 다시 시도해 주세요.',
+        'Google Play를 열지 못했습니다',
+        '인터넷 연결과 Google Play 사용 가능 여부를 확인한 뒤 다시 시도해야 합니다.',
       );
     } finally {
       if (mounted.current) setBusy(false);
@@ -162,18 +163,18 @@ export default function AppUpdateScreen() {
       );
       if (result.permissionRequired) {
         showDialog(
-          '앱 설치 권한이 필요해요',
-          '이 출처의 앱 설치를 허용한 뒤 알람표로 돌아오면 설치 화면을 다시 열어요.',
+          '앱 설치 권한이 필요합니다',
+          '이 출처의 앱 설치를 허용한 뒤 알람표로 돌아오면 설치 화면을 다시 엽니다.',
         );
       }
     } catch (error) {
       setDownloadedApkUri(null);
       setManualStatus('apk-available');
       showDialog(
-        '설치 화면을 열지 못했어요',
+        '설치 화면을 열지 못했습니다',
         error instanceof Error
           ? error.message
-          : '앱 설치 파일을 다시 내려받은 뒤 시도해 주세요.',
+          : '앱 설치 파일을 다시 내려받은 뒤 시도해야 합니다.',
       );
     } finally {
       setBusy(false);
@@ -209,8 +210,8 @@ export default function AppUpdateScreen() {
       );
       if (result.permissionRequired) {
         showDialog(
-          '앱 설치 권한이 필요해요',
-          '이 출처의 앱 설치를 허용한 뒤 알람표로 돌아오면 설치 화면을 다시 열어요.',
+          '앱 설치 권한이 필요합니다',
+          '이 출처의 앱 설치를 허용한 뒤 알람표로 돌아오면 설치 화면을 다시 엽니다.',
         );
       }
     } catch (error) {
@@ -218,10 +219,10 @@ export default function AppUpdateScreen() {
       setDownloadedApkUri(null);
       setManualStatus('error');
       showDialog(
-        '앱 설치 파일을 준비하지 못했어요',
+        '앱 설치 파일을 준비하지 못했습니다',
         error instanceof Error
           ? error.message
-          : '인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
+          : '인터넷 연결을 확인한 뒤 다시 시도해야 합니다.',
       );
     } finally {
       if (operationAbort.current === controller) operationAbort.current = null;
@@ -294,19 +295,30 @@ export default function AppUpdateScreen() {
 
       setManualStatus('ready');
       showDialog(
-        '업데이트 준비를 마쳤어요',
-        '저장된 근무표를 유지한 채 앱을 다시 시작해 업데이트를 적용해요.',
+        '업데이트 준비를 마쳤습니다',
+        '저장된 근무표를 유지한 채 앱을 다시 시작해 업데이트를 적용합니다.',
         [
-          { text: '나중에', style: 'cancel' },
-          { text: '다시 시작하기', onPress: () => void restartWithUpdate() },
+          {
+            text: '나중에',
+            actionId: 'cancel',
+            icon: 'close',
+            style: 'cancel',
+          },
+          {
+            text: '다시 시작하기',
+            actionId: 'retry',
+            icon: 'refresh-outline',
+            onPress: () => void restartWithUpdate(),
+          },
         ],
+        { tone: 'success' },
       );
     } catch {
       if (controller.signal.aborted || !mounted.current) return;
       setManualStatus('error');
       showDialog(
-        '업데이트를 확인하지 못했어요',
-        '인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
+        updateCopy.checkFailedTitle.text,
+        '인터넷 연결을 확인한 뒤 다시 시도해야 합니다.',
       );
     } finally {
       if (operationAbort.current === controller) operationAbort.current = null;
@@ -323,45 +335,45 @@ export default function AppUpdateScreen() {
         ? 'checking'
         : manualStatus;
   const title = !supported
-    ? '안드로이드 앱에서 확인할 수 있어요'
+    ? '안드로이드 앱에서 확인할 수 있습니다'
     : status === 'apk-available'
       ? `새 버전 ${apkUpdate?.release?.versionName ?? ''}`.trim()
       : status === 'apk-permission'
-        ? '앱 설치 권한이 필요해요'
+        ? '앱 설치 권한이 필요합니다'
         : status === 'apk-installing'
-          ? '앱 설치 화면을 열었어요'
+          ? '앱 설치 화면을 열었습니다'
           : status === 'ready'
-            ? '업데이트 적용 준비를 마쳤어요'
+            ? '업데이트 적용 준비를 마쳤습니다'
             : status === 'checking'
-              ? '업데이트를 확인하고 있어요'
+              ? '업데이트를 확인하고 있습니다'
               : status === 'downloading' || status === 'apk-downloading'
-                ? '업데이트를 다운로드하고 있어요'
+                ? '업데이트를 다운로드하고 있습니다'
                 : status === 'error'
-                  ? '업데이트를 다시 확인해 주세요'
+                  ? '업데이트를 다시 확인해야 합니다'
                   : status === 'check-warning'
-                    ? '설치 파일 서버를 확인하지 못했어요'
+                    ? '설치 파일 서버를 확인하지 못했습니다'
                   : status === 'current'
-                    ? '최신 상태예요'
+                      ? '최신 상태입니다'
                     : '앱 업데이트 확인';
   const subtitle = !supported
-    ? '설치된 안드로이드 앱에서 업데이트를 확인해 주세요.'
+    ? '설치된 안드로이드 앱에서 업데이트를 확인해야 합니다.'
     : status === 'apk-available' && apkUpdate?.release
-      ? `${formatApkSize(apkUpdate.release.sizeBytes)} · 파일을 검증한 뒤 안드로이드 설치 화면을 열어요.${apkUpdate.manifestFromCache ? ' 저장된 배포 정보로 확인했어요.' : ''}`
+      ? `${formatApkSize(apkUpdate.release.sizeBytes)} · 파일을 검증한 뒤 안드로이드 설치 화면을 엽니다.${apkUpdate.manifestFromCache ? ' 저장된 배포 정보로 확인했습니다.' : ''}`
       : status === 'apk-permission'
-        ? '이 출처의 앱 설치를 허용한 뒤 설치 화면을 다시 열어요.'
+        ? '이 출처의 앱 설치를 허용한 뒤 설치 화면을 다시 엽니다.'
         : status === 'apk-installing'
-          ? '안드로이드 설치 화면에서 설치를 승인해 주세요.'
+          ? '안드로이드 설치 화면에서 설치를 승인해야 합니다.'
           : status === 'ready'
-            ? '다시 시작하면 새 업데이트를 바로 적용해요.'
+            ? '다시 시작하면 새 업데이트를 바로 적용합니다.'
             : status === 'apk-downloading'
-              ? `업데이트 파일 ${Math.round(apkProgress * 100)}% · 중단해도 이어받을 수 있어요.`
+              ? `업데이트 파일 ${Math.round(apkProgress * 100)}% · 중단해도 이어받을 수 있습니다.`
               : status === 'downloading'
                 ? `업데이트 다운로드 ${Math.round((updateInfo.downloadProgress ?? 0) * 100)}%`
                 : status === 'error'
-                  ? '인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
+                  ? '인터넷 연결을 확인한 뒤 다시 시도해야 합니다.'
                   : status === 'check-warning'
-                    ? '현재 앱은 계속 사용할 수 있어요. 인터넷 연결 후 다시 확인해 주세요.'
-                  : '근무표 데이터는 그대로 유지하고 필요한 파일만 받아요.';
+                    ? '현재 앱은 계속 사용할 수 있습니다. 인터넷 연결 후 다시 확인해야 합니다.'
+                    : '근무표 데이터는 그대로 유지하고 필요한 파일만 받습니다.';
   const buttonLabel = status === 'ready'
     ? '업데이트 적용 후 다시 시작하기'
     : status === 'apk-available'
@@ -421,16 +433,16 @@ export default function AppUpdateScreen() {
               </View>
               <View style={styles.copy}>
                 <AppText accessibilityRole="header" variant="heading">
-                  Google Play에서 업데이트해요
+                  {updateCopy.playTitle.text}
                 </AppText>
                 <AppText tone="secondary" variant="caption">
-                  새 버전은 Google Play가 안전하게 설치하고 관리해요.
+                  {updateCopy.playManaged.text}
                 </AppText>
               </View>
             </View>
             <AppButton
               icon="download-outline"
-              label="Google Play 열기"
+              label={updateCopy.updateInPlay.text}
               loading={busy}
               onPress={() => void openPlayUpdate()}
               size="compact"

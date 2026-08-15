@@ -1,4 +1,5 @@
 import type { AppData } from '../models/app-data';
+import { withoutAlarmRuntimeState } from '../services/app-data-service';
 import { getAlarmScheduleSignature } from '../services/alarm-schedule-signature';
 import { getSleepReminderScheduleSignature } from '../services/sleep-reminder-planner';
 import {
@@ -55,6 +56,65 @@ export function shouldSkipAutomaticSaveForAppliedCanonicalSnapshot<TSnapshot>(
   return (
     appliedCanonicalSnapshot !== null &&
     Object.is(currentSnapshot, appliedCanonicalSnapshot)
+  );
+}
+
+/**
+ * 자동 저장의 dirty 판정에서 네이티브 예약 조회로만 바뀌는 런타임 메타데이터는
+ * 제외합니다. 사용자가 바꿀 수 있는 자료는 모두 포함하므로 명시 저장 직후의
+ * 동일 자료만 후속 debounce에서 건너뜁니다.
+ */
+export function getAutomaticSaveContentSignature(data: AppData): string {
+  return JSON.stringify(withoutAlarmRuntimeState(data));
+}
+
+export function shouldFlushAutomaticSave(
+  currentSignature: string,
+  persistedSignature: string | null,
+): boolean {
+  return persistedSignature === null || currentSignature !== persistedSignature;
+}
+
+export function getSleepReminderProjectionKey(now: Date): string {
+  if (Number.isNaN(now.getTime())) {
+    throw new RangeError('수면 알림 계산 기준 시각이 올바르지 않습니다.');
+  }
+  let timeZone = '';
+  try {
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  } catch {
+    // IANA 시간대를 제공하지 않는 구형 런타임은 offset으로 구분합니다.
+  }
+  const horizonEnd = new Date(now);
+  horizonEnd.setDate(horizonEnd.getDate() + 14);
+  return [
+    now.getFullYear(),
+    now.getMonth() + 1,
+    now.getDate(),
+    timeZone,
+    now.getTimezoneOffset(),
+    horizonEnd.getTimezoneOffset(),
+  ].join('|');
+}
+
+export function shouldSkipEquivalentExplicitSave({
+  currentSnapshot,
+  nextSnapshot,
+  forceAlarmSync,
+  hasPersistenceCallback,
+  hasPendingSaveRetry,
+}: {
+  currentSnapshot: string;
+  nextSnapshot: string;
+  forceAlarmSync: boolean;
+  hasPersistenceCallback: boolean;
+  hasPendingSaveRetry: boolean;
+}): boolean {
+  return (
+    currentSnapshot === nextSnapshot &&
+    !forceAlarmSync &&
+    !hasPersistenceCallback &&
+    !hasPendingSaveRetry
   );
 }
 
@@ -192,17 +252,4 @@ export function shouldSyncSleepRemindersAfterReplacement({
     lastSyncedSignature !== nextSignature ||
     failedSignature === nextSignature
   );
-}
-
-export function getSleepReminderSyncModeForAppState(
-  previousState: string,
-  nextState: string,
-): 'force' | null {
-  if (nextState === 'active') {
-    return previousState === 'active' ? null : 'force';
-  }
-  // 백그라운드 전환은 Provider의 저장 flush가 같은 canonical snapshot을
-  // 영속화한 뒤 수면 계획까지 동기화해요. 여기서 별도 동기화를 예약하면
-  // 저장 실패 뒤에도 네이티브 계획만 앞서갈 수 있어요.
-  return null;
 }

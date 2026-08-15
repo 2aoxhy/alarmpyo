@@ -115,8 +115,12 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
 
     expect(textSizes.length).toBeGreaterThan(0);
     expect(Math.min(...textSizes)).toBeGreaterThanOrEqual(12);
-    expect(providerSource).toContain('"다음 근무" -> "다음"');
-    expect(providerSource).toContain('"다음 알람" -> "알람"');
+    expect(providerSource).toContain(
+      'AlarmPyoWidgetSectionKind.NEXT_WORK -> "다음"',
+    );
+    expect(providerSource).toContain(
+      'AlarmPyoWidgetSectionKind.NEXT_ALARM -> "알람"',
+    );
     expect(providerSource).toContain('context.resources.configuration.fontScale');
     expect(providerSource).toContain('fontScale >= 1.8f');
     expect(providerSource).not.toMatch(/if \(hasTertiary\) (?:9|10|11)f/);

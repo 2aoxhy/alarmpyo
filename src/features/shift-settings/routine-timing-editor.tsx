@@ -86,8 +86,8 @@ export function RoutineTimingEditor({
           <StatusBanner
             message={
               valid
-                ? '근무 시작을 기준으로 출근 준비 시간을 계산해요.'
-                : '기상 시각은 출발보다 빨라야 해요.'
+                ? '근무 시작을 기준으로 출근 준비 시간을 계산합니다.'
+                : '기상 시각은 출발보다 빨라야 합니다.'
             }
             tone={valid ? 'success' : 'danger'}
           />

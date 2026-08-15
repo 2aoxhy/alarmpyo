@@ -169,9 +169,9 @@ describe('buildScheduleShareText', () => {
   });
 
   it('빈 선택과 올바르지 않은 날짜를 명확하게 거부해요', () => {
-    expect(() => buildScheduleShareText([])).toThrow('공유할 일정을 한 개 이상 선택해 주세요.');
+    expect(() => buildScheduleShareText([])).toThrow('공유할 일정을 한 개 이상 선택해야 합니다.');
     expect(() => buildScheduleShareText([day('2026-02-30', null)])).toThrow(
-      '공유할 일정에 올바르지 않은 날짜가 있어요.',
+      '공유할 일정에 올바르지 않은 날짜가 있습니다.',
     );
   });
 });

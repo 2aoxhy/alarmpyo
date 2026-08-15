@@ -77,12 +77,12 @@ describe('핵심 화면 탐색 계약', () => {
     const dataSettings = source('src/app/data-settings.tsx');
     for (const title of [
       '근무 설정 공유',
-      '백업 및 복구',
       '고급 관리',
       '위험 작업',
     ]) {
       expect(dataSettings).toContain(`title="${title}"`);
     }
+    expect(dataSettings).toContain('title={dataCopy.backupSection.text}');
   });
 
   it('접힌 고급 백업은 처음 펼칠 때만 조회하고 데이터 화면은 액션만 구독해요', () => {
@@ -103,7 +103,7 @@ describe('핵심 화면 탐색 계약', () => {
 
     expect(dataSettings).toContain('resetAllDataDetailed');
     expect(dataSettings).toContain("result.status === 'partial'");
-    expect(dataSettings).toContain('초기화 후 확인이 필요해요');
+    expect(dataSettings).toContain('초기화 후 확인이 필요합니다');
     expect(dataSettings).toContain('휴대폰 밖에 저장한 백업 파일은 지우지 않으며');
   });
 
@@ -147,11 +147,11 @@ describe('핵심 화면 탐색 계약', () => {
     const calendar = source('src/app/(tabs)/calendar.tsx');
     const monthCard = source('src/features/calendar/calendar-month-card.tsx');
 
-    expect(monthCard).toContain('좌우로 밀어 토요일까지 확인하세요');
+    expect(monthCard).toContain('좌우로 밀어 토요일까지 확인해야 합니다');
     expect(monthCard).toContain('showsHorizontalScrollIndicator');
     expect(monthCard).not.toContain('accessibilityLiveRegion="polite"');
-    expect(calendar).toContain('`${formatMonthTitle(next.year, next.month)}로 이동했어요.`');
-    expect(calendar).toContain("'오늘 날짜를 강조했어요.'");
+    expect(calendar).toContain('`${formatMonthTitle(next.year, next.month)}로 이동하고 오늘 날짜를 강조했습니다.`');
+    expect(calendar).toContain("'오늘 날짜를 강조했습니다.'");
   });
 
   it('홈 화면 위젯 설정은 조작할 수 없는 테마 안내를 반복하지 않아요', () => {
@@ -217,7 +217,7 @@ describe('핵심 화면 탐색 계약', () => {
     expect(routine).toBeGreaterThan(time);
     expect(playUpdate).toContain('accessibilityRole="header"');
     expect(playUpdate).not.toContain(
-      'accessibilityLabel="Google Play에서 업데이트해요.',
+      'accessibilityLabel="Google Play에서 업데이트합니다.',
     );
   });
 
@@ -229,7 +229,7 @@ describe('핵심 화면 탐색 계약', () => {
 
     expect(timingEditor).toContain("label: '교대 완료'");
     expect(timingEditor).toContain('교대 완료`}');
-    expect(routinePanel).toContain('까지 교대를 마치는 일정이에요.');
+    expect(routinePanel).toContain('까지 교대를 마치는 일정입니다.');
     expect(routinePanel).not.toContain('교대에 맞춘 일정이에요.');
   });
 
@@ -237,14 +237,14 @@ describe('핵심 화면 탐색 계약', () => {
     const sleepCard = source('src/components/sleep-timing-card.tsx');
     expect(sleepCard).toContain('수면 참고 일정');
     expect(sleepCard).toContain(
-      '건강 상태를 판단하는 의료 안내가 아니에요.',
+      '건강 상태를 판단하는 의료 안내가 아닙니다.',
     );
   });
 
   it('비안드로이드에서는 위젯 지원 범위를 분명히 알려요', () => {
     const displaySettings = source('src/app/display-settings.tsx');
     expect(displaySettings).toContain(
-      '홈 화면 위젯은 안드로이드에서만 지원해요.',
+      '홈 화면 위젯은 안드로이드에서만 지원합니다.',
     );
     expect(displaySettings).toContain('disabled={!androidWidgetSupported}');
   });
@@ -288,7 +288,7 @@ describe('핵심 화면 탐색 계약', () => {
     expect(alarmSettings).toContain('setSleepReminderEnabled');
     expect(sleepReminderToggle).toContain('title="수면 시작 알림"');
     expect(sleepReminderToggle).toContain(
-      '참고 취침 시각에 일반 알림으로 알려요.',
+      '참고 취침 시각에 일반 알림으로 알립니다.',
     );
   });
 
@@ -311,7 +311,7 @@ describe('핵심 화면 탐색 계약', () => {
     const today = source('src/app/(tabs)/index.tsx');
     const settings = source('src/components/settings-home.tsx');
 
-    expect(today).toContain('getAlarmPyoSleepReminderStatus');
+    expect(today).toContain('useAlarmRuntimeStatus');
     expect(today).toContain('data.settings.sleepReminderEnabled');
     expect(today).toContain('sleepReminderStatusError');
     expect(settings).not.toContain('getAlarmPyoSleepReminderStatus');

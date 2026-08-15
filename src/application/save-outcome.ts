@@ -166,7 +166,7 @@ export function resolveVisibleSaveOutcome({
         saveOutcome,
         'alarm-sync-failed',
         alarmSyncError?.trim() ||
-          '변경 내용은 저장됐어요. 알람만 근무표에 맞춰 다시 예약해 주세요.',
+          '변경 내용은 저장되었습니다. 알람만 근무표에 맞춰 다시 예약해야 합니다.',
       )
     : saveOutcome;
   return outcome && outcome.status !== 'success' ? outcome : null;

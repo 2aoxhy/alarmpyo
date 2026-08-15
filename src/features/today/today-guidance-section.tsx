@@ -52,9 +52,9 @@ export function TodayGuidanceSection({
 
       <Card style={[styles.alarmCard, hasAlarmIssue && styles.alarmIssueCard]}>
         <Pressable
-          accessibilityHint="알람 상태와 예약 내용을 확인해요."
+          accessibilityHint="알람 상태와 예약 내용을 확인합니다."
           accessibilityLabel={`근무 알람. ${alarmAccessibilitySummary}${
-            alarmHasDateOverride ? '. 이날만 설정한 알람이에요' : ''
+            alarmHasDateOverride ? '. 이날만 설정한 알람입니다' : ''
           }`}
           accessibilityRole="button"
           onPress={() => router.push('/alarm-settings')}

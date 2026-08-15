@@ -10,6 +10,7 @@ import {
   resolveEffectiveDayFromAppData,
 } from './app-data-service';
 import { buildAlarmPyoAlarmPlan } from './alarm-planner';
+import { getCachedFutureAlarmProjection } from './schedule-projection-cache';
 
 // 위젯은 한 번 설치하면 오래 열지 않을 수 있어 오늘부터 윤년 1년치를 보관해요.
 // 자정을 넘긴 야간 근무 확인용 전날 한 건은 이 범위와 별도로 포함해요.
@@ -51,7 +52,7 @@ export type BuildAlarmPyoWidgetSnapshotOptions = {
 
 function assertHorizonDays(value: number): void {
   if (!Number.isInteger(value) || value < 1 || value > 366) {
-    throw new RangeError('위젯 계산 일수는 1일부터 366일까지의 정수여야 해요.');
+    throw new RangeError('위젯 계산 일수는 1일부터 366일까지의 정수여야 합니다.');
   }
 }
 
@@ -115,7 +116,7 @@ export function buildAlarmPyoWidgetSnapshot(
 ): AlarmPyoWidgetSnapshot {
   const now = options.now ?? new Date();
   if (Number.isNaN(now.getTime())) {
-    throw new RangeError('위젯 계산 기준 시각이 올바르지 않아요.');
+    throw new RangeError('위젯 계산 기준 시각이 올바르지 않습니다.');
   }
 
   const horizonDays = options.horizonDays ?? WIDGET_PLAN_HORIZON_DAYS;
@@ -133,19 +134,22 @@ export function buildAlarmPyoWidgetSnapshot(
         : preferredFirstDateKey;
   const includesPreviousDay = firstDateKey < todayDateKey;
   const entryCount = horizonDays + (includesPreviousDay ? 1 : 0);
+  const alarmPlans = data.settings.widgetDisplayOptions.nextAlarm
+    ? horizonDays === WIDGET_PLAN_HORIZON_DAYS
+      ? getCachedFutureAlarmProjection(data, resolveShift, now)
+      : buildAlarmPyoAlarmPlan(data, resolveShift, { now, horizonDays })
+    : [];
 
   return {
     version: 2,
     generatedAt: now.getTime(),
     setupCompleted: data.settings.setupCompleted,
     displayOptions: { ...data.settings.widgetDisplayOptions },
-    alarms: data.settings.widgetDisplayOptions.nextAlarm
-      ? buildAlarmPyoAlarmPlan(data, resolveShift, { now }).map((alarm) => ({
-          alarmAt: alarm.alarmAt,
-          shiftTypeId: alarm.shiftTypeId,
-          shiftName: alarm.shiftName,
-        }))
-      : [],
+    alarms: alarmPlans.map((alarm) => ({
+      alarmAt: alarm.alarmAt,
+      shiftTypeId: alarm.shiftTypeId,
+      shiftName: alarm.shiftName,
+    })),
     entries: Array.from({ length: entryCount }, (_, offset) => {
       const dateKey = addDays(firstDateKey, offset);
       return toWidgetEntry(data, dateKey, resolveShift(dateKey));

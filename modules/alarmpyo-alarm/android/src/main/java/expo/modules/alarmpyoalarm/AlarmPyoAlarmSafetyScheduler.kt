@@ -84,7 +84,7 @@ internal object AlarmPyoAlarmSafetyScheduler {
         previous.copy(nextCheckAt = target.checkAt, armedPlanKey = target.planKey)
       )
     }.onFailure { error ->
-      Log.e(TAG, "알람 안전 점검을 예약하지 못했어요.", error)
+      Log.e(TAG, "알람 안전 점검을 예약하지 못했습니다.", error)
       runCatching {
         AlarmPyoAlarmSafetyStore.write(
           appContext,
@@ -148,7 +148,7 @@ internal object AlarmPyoAlarmSafetyScheduler {
       AlarmPyoAlarmSafetyChannels.cancel(appContext)
     } else if (shouldNotify) {
       notified = runCatching { AlarmPyoAlarmSafetyChannels.notify(appContext, issueCodes) }
-        .onFailure { error -> Log.e(TAG, "알람 안전 점검 알림을 표시하지 못했어요.", error) }
+        .onFailure { error -> Log.e(TAG, "알람 안전 점검 알림을 표시하지 못했습니다.", error) }
         .isSuccess
     }
     AlarmPyoAlarmSafetyStore.write(
@@ -207,7 +207,7 @@ internal object AlarmPyoAlarmSafetyChannels {
         "AlarmPyo 알람 안전 점검",
         NotificationManager.IMPORTANCE_DEFAULT
       ).apply {
-        description = "근무 알람에 영향을 주는 휴대폰 설정을 알려줘요."
+        description = "근무 알람에 영향을 주는 휴대폰 설정을 알려줍니다."
         setBypassDnd(false)
         setShowBadge(false)
         lockscreenVisibility = Notification.VISIBILITY_PRIVATE
@@ -253,7 +253,7 @@ internal object AlarmPyoAlarmSafetyChannels {
       NOTIFICATION_ID,
       builder
         .setSmallIcon(R.drawable.alarmpyo_ic_alarm)
-        .setContentTitle("근무 알람 설정을 확인해 주세요")
+        .setContentTitle("근무 알람 설정 확인 필요")
         .setContentText(labels.joinToString(" · "))
         .setStyle(Notification.BigTextStyle().bigText(labels.joinToString(" · ")))
         .setCategory(Notification.CATEGORY_ERROR)

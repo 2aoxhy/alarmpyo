@@ -15,7 +15,7 @@ export function isRecord(value: unknown): value is UnknownRecord {
 
 export function record(value: unknown, label: string): UnknownRecord {
   if (!isRecord(value)) {
-    throw new AppDataValidationError(`${label} 형식이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 형식이 올바르지 않습니다.`);
   }
   return value;
 }
@@ -30,14 +30,14 @@ export function requiredString(
     value.trim().length === 0 ||
     value.length > maxLength
   ) {
-    throw new AppDataValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value;
 }
 
 export function requiredBoolean(value: unknown, label: string): boolean {
   if (typeof value !== 'boolean') {
-    throw new AppDataValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value;
 }
@@ -53,7 +53,7 @@ export function integerInRange(
     (value as number) < minimum ||
     (value as number) > maximum
   ) {
-    throw new AppDataValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value as number;
 }
@@ -65,7 +65,7 @@ export function nullableMinutes(value: unknown, label: string): number | null {
 
 export function dateKey(value: unknown, label: string): string {
   if (typeof value !== 'string' || !isValidDateKey(value)) {
-    throw new AppDataValidationError(`${label} 날짜가 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 날짜가 올바르지 않습니다.`);
   }
   return value;
 }
@@ -73,7 +73,7 @@ export function dateKey(value: unknown, label: string): string {
 export function nullableIsoDate(value: unknown, label: string): string | null {
   if (value === null) return null;
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
-    throw new AppDataValidationError(`${label} 날짜가 올바르지 않아요.`);
+    throw new AppDataValidationError(`${label} 날짜가 올바르지 않습니다.`);
   }
   return value;
 }

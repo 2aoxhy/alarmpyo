@@ -463,7 +463,7 @@ describe('ALARMPYO 알람 계획 계산', () => {
     expect(plan).toHaveLength(1);
     expect(plan[0]).toMatchObject({
       dateKey: '2026-07-12',
-      shiftTypeId: 'day',
+      shiftTypeId: 'exception-training',
       shiftName: '교육',
       alarmAt: new Date(2026, 6, 12, 5, 0).getTime(),
       startMinutes: 7 * 60,
@@ -504,7 +504,7 @@ describe('ALARMPYO 알람 계획 계산', () => {
     expect(exceptionPlans).toEqual([
       expect.objectContaining({
         dateKey: '2026-07-13',
-        shiftTypeId: 'day',
+        shiftTypeId: 'exception-training',
         shiftName: '교육',
         startMinutes: 7 * 60,
         alarmMinutesBefore: 60,
@@ -512,7 +512,7 @@ describe('ALARMPYO 알람 계획 계산', () => {
       }),
       expect.objectContaining({
         dateKey: '2026-07-15',
-        shiftTypeId: 'day',
+        shiftTypeId: 'exception-reserve',
         shiftName: '예비군',
         startMinutes: 7 * 60,
         alarmMinutesBefore: 60,
@@ -586,7 +586,7 @@ describe('ALARMPYO 알람 계획 계산', () => {
           now: new Date(2026, 6, 11, 0, 0),
           horizonDays: 1,
         }),
-      ).toThrow('준비 시간이 올바르지 않아요');
+      ).toThrow('준비 시간이 올바르지 않습니다');
     }
   });
 });

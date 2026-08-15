@@ -66,7 +66,7 @@ export function ShiftTimeEditor({
             이 날짜의 근무 시간
           </AppText>
           <AppText tone="secondary" variant="caption">
-            이날만 적용되며 알람도 자동으로 다시 계산돼요.
+            이날만 적용되며 알람도 자동으로 다시 계산됩니다.
           </AppText>
         </View>
         {!usesDefaultTime ? (
@@ -87,7 +87,7 @@ export function ShiftTimeEditor({
             시작 시간
           </AppText>
           <TextInput
-            accessibilityHint="24시간 형식으로 입력해 주세요."
+            accessibilityHint="24시간 형식으로 입력해야 합니다."
             accessibilityLabel={`${selectedShift.name} 시작 시간`}
             autoCorrect={false}
             keyboardType="numbers-and-punctuation"
@@ -125,7 +125,7 @@ export function ShiftTimeEditor({
             종료 시간
           </AppText>
           <TextInput
-            accessibilityHint="24시간 형식으로 입력해 주세요."
+            accessibilityHint="24시간 형식으로 입력해야 합니다."
             accessibilityLabel={`${selectedShift.name} 종료 시간`}
             autoCorrect={false}
             keyboardType="numbers-and-punctuation"
@@ -175,10 +175,10 @@ export function ShiftTimeEditor({
             {selectedDuration
               ? `${startTime}부터 ${
                   selectedDuration.endsNextDay ? '다음 날 ' : ''
-                }${endTime}까지예요.`
+                }${endTime}까지입니다.`
               : parsedStartMinutes !== null && parsedEndMinutes !== null
-                ? '시작과 종료 시간은 같을 수 없어요.'
-                : '06:45 형식으로 정확히 입력해 주세요.'}
+                ? '시작과 종료 시간은 같을 수 없습니다.'
+                : '06:45 형식으로 정확히 입력해야 합니다.'}
           </AppText>
         </View>
       </View>

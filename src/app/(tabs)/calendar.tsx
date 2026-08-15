@@ -206,13 +206,13 @@ export default function CalendarScreen() {
     setSelectionArmed(true);
     void Haptics.selectionAsync();
     AccessibilityInfo.announceForAccessibility(
-      '일정 선택을 시작했어요. 날짜를 누르거나 손가락을 끌어 선택하세요.',
+      '일정 선택을 시작했습니다. 날짜를 누르거나 손가락을 끌어 선택해야 합니다.',
     );
   }, []);
 
   const cancelDateSelection = useCallback(() => {
     clearDateSelection();
-    AccessibilityInfo.announceForAccessibility('일정 선택을 취소했어요.');
+    AccessibilityInfo.announceForAccessibility('일정 선택을 취소했습니다.');
   }, [clearDateSelection]);
 
   useEffect(() => {
@@ -221,15 +221,15 @@ export default function CalendarScreen() {
     selectionAnnouncementRef.current = null;
     if (pending.began) {
       AccessibilityInfo.announceForAccessibility(
-        `${formatKoreanDate(pending.dateKey)}부터 일정 선택을 시작했어요. 다른 날짜를 누르거나 손가락을 끌어 추가할 수 있어요.`,
+        `${formatKoreanDate(pending.dateKey)}부터 일정 선택을 시작했습니다. 다른 날짜를 누르거나 손가락을 끌어 추가할 수 있습니다.`,
       );
       return;
     }
     const selected = selectedDateKeySet.has(pending.dateKey);
     AccessibilityInfo.announceForAccessibility(
       selected
-        ? `${formatKoreanDate(pending.dateKey)}을 선택했어요. ${selectedDateKeys.length}일 선택했어요.`
-        : `${formatKoreanDate(pending.dateKey)} 선택을 해제했어요. ${selectedDateKeys.length}일 선택했어요.`,
+        ? `${formatKoreanDate(pending.dateKey)}을 선택했습니다. 선택한 날짜는 ${selectedDateKeys.length}일입니다.`
+        : `${formatKoreanDate(pending.dateKey)} 선택을 해제했습니다. 선택한 날짜는 ${selectedDateKeys.length}일입니다.`,
     );
   }, [selectedDateKeySet, selectedDateKeys.length]);
 
@@ -237,7 +237,7 @@ export default function CalendarScreen() {
     if (!screenActive || !selectionMode || Platform.OS === 'web') return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       clearDateSelection();
-      AccessibilityInfo.announceForAccessibility('일정 선택을 취소했어요.');
+      AccessibilityInfo.announceForAccessibility('일정 선택을 취소했습니다.');
       return true;
     });
     return () => subscription.remove();
@@ -249,7 +249,7 @@ export default function CalendarScreen() {
       clearDateSelection();
       setVisibleMonth(next);
       AccessibilityInfo.announceForAccessibility(
-        `${formatMonthTitle(next.year, next.month)}로 이동했어요.`,
+        `${formatMonthTitle(next.year, next.month)}로 이동했습니다.`,
       );
       return next;
     },
@@ -266,8 +266,8 @@ export default function CalendarScreen() {
     setTodayBlinkRequest((request) => request + 1);
     AccessibilityInfo.announceForAccessibility(
       monthChanged
-        ? `${formatMonthTitle(next.year, next.month)}로 이동하고 오늘 날짜를 강조했어요.`
-        : '오늘 날짜를 강조했어요.',
+        ? `${formatMonthTitle(next.year, next.month)}로 이동하고 오늘 날짜를 강조했습니다.`
+        : '오늘 날짜를 강조했습니다.',
     );
   };
 
@@ -384,7 +384,7 @@ export default function CalendarScreen() {
     calendarDragSessionRef.current = null;
     if (session.currentDateKey !== session.anchorDateKey) {
       AccessibilityInfo.announceForAccessibility(
-        `${selectedDateKeysRef.current.length}일을 선택했어요.`,
+        `${selectedDateKeysRef.current.length}일을 선택했습니다.`,
       );
     }
 
@@ -404,14 +404,12 @@ export default function CalendarScreen() {
           { dialogTitle: '알람표 근무 일정 공유하기' },
         );
         AccessibilityInfo.announceForAccessibility(
-          '공유 화면을 닫았어요. 선택한 일정은 유지했어요.',
+          '공유 화면을 닫았습니다. 선택한 일정은 유지했습니다.',
         );
-      } catch (error) {
+      } catch {
         showDialog(
-          '일정을 공유하지 못했어요',
-          error instanceof Error && /[가-힣]/.test(error.message)
-            ? error.message
-            : '공유할 앱을 확인한 뒤 다시 시도하세요.',
+          '일정을 공유하지 못했습니다',
+          '공유할 앱을 확인한 뒤 다시 시도해야 합니다.',
         );
       }
     },
@@ -425,19 +423,27 @@ export default function CalendarScreen() {
       );
       showDialog(
         `${selectedDateKeys.length}일 일정 공유하기`,
-        `아래 내용으로 공유해요. 개인 메모는 포함하지 않았어요.\n\n${message}`,
+        `아래 내용으로 공유합니다. 개인 메모는 포함하지 않았습니다.\n\n${message}`,
         [
-          { text: '뒤로 가기', style: 'cancel' },
+          {
+            text: '뒤로 가기',
+            actionId: 'back',
+            icon: 'chevron-back',
+            style: 'cancel',
+          },
           {
             text: '일정 공유하기',
+            actionId: 'confirm',
+            icon: 'share-outline',
             onPress: () => void shareSelectedSchedules(message),
           },
         ],
+        { tone: 'neutral' },
       );
     } catch (error) {
       showDialog(
-        '공유할 일정을 확인하세요',
-        error instanceof Error ? error.message : '일정을 다시 선택하세요.',
+        '공유할 일정을 확인해야 합니다',
+        error instanceof Error ? error.message : '일정을 다시 선택해야 합니다.',
       );
     }
   }, [getEffectiveDay, selectedDateKeys, shareSelectedSchedules, showDialog]);
@@ -450,8 +456,8 @@ export default function CalendarScreen() {
         const saved = await saveDays(selectedDateKeys, change);
         if (!saved) {
           showDialog(
-            '일정을 변경하지 못했어요',
-            '날짜와 휴대폰 저장 공간을 확인한 뒤 다시 시도하세요.',
+            '일정을 변경하지 못했습니다',
+            '날짜와 휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
           );
           return;
         }
@@ -461,7 +467,7 @@ export default function CalendarScreen() {
           Haptics.NotificationFeedbackType.Success,
         );
         AccessibilityInfo.announceForAccessibility(
-          `${count}일 일정을 변경했어요. 적용 내용은 ${label}이에요.`,
+          `${count}일 일정을 변경했습니다. 적용 내용은 ${label}입니다.`,
         );
       } finally {
         setBulkSaving(false);
@@ -478,12 +484,19 @@ export default function CalendarScreen() {
 
   const openBulkShiftDialog = useCallback(() => {
     showDialog(
-      '근무를 선택하세요',
-      `${selectedDateKeys.length}일의 날짜별 시간 변경과 예외 일정을 정리하고, 개인 메모는 유지해요.`,
+      '근무를 선택해야 합니다',
+      `${selectedDateKeys.length}일의 날짜별 시간 변경과 예외 일정을 정리하고, 개인 메모는 유지합니다.`,
       [
-        { text: '뒤로 가기', style: 'cancel' },
+        {
+          text: '뒤로 가기',
+          actionId: 'back',
+          icon: 'chevron-back',
+          style: 'cancel',
+        },
         {
           text: '주간으로 변경하기',
+          actionId: 'confirm',
+          icon: 'shift-day',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'day' },
@@ -492,6 +505,8 @@ export default function CalendarScreen() {
         },
         {
           text: '야간으로 변경하기',
+          actionId: 'confirm',
+          icon: 'shift-night',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'night' },
@@ -500,6 +515,8 @@ export default function CalendarScreen() {
         },
         {
           text: '주간 대체근무로 변경하기',
+          actionId: 'confirm',
+          icon: 'shift-substitute',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'substitute-day' },
@@ -508,6 +525,8 @@ export default function CalendarScreen() {
         },
         {
           text: '야간 대체근무로 변경하기',
+          actionId: 'confirm',
+          icon: 'shift-substitute',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'substitute-night' },
@@ -516,6 +535,8 @@ export default function CalendarScreen() {
         },
         {
           text: '휴무로 변경하기',
+          actionId: 'confirm',
+          icon: 'shift-off',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'off' },
@@ -523,6 +544,7 @@ export default function CalendarScreen() {
             ),
         },
       ],
+      { tone: 'neutral' },
     );
   }, [
     applySelectedDateChange,
@@ -532,12 +554,19 @@ export default function CalendarScreen() {
 
   const openBulkExceptionDialog = useCallback(() => {
     showDialog(
-      '예외 일정을 선택하세요',
-      `${selectedDateKeys.length}일의 기본 근무와 개인 메모는 유지해요. 교육과 예비군은 주간 알람을 사용해요.`,
+      '예외 일정을 선택해야 합니다',
+      `${selectedDateKeys.length}일의 기본 근무와 개인 메모는 유지합니다. 교육과 예비군은 주간 알람을 사용합니다.`,
       [
-        { text: '뒤로 가기', style: 'cancel' },
+        {
+          text: '뒤로 가기',
+          actionId: 'back',
+          icon: 'chevron-back',
+          style: 'cancel',
+        },
         {
           text: '연차로 변경하기',
+          actionId: 'confirm',
+          icon: 'calendar-outline',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'exception', dayException: 'leave' },
@@ -546,6 +575,8 @@ export default function CalendarScreen() {
         },
         {
           text: '교육으로 변경하기',
+          actionId: 'confirm',
+          icon: 'book-outline',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'exception', dayException: 'training' },
@@ -554,6 +585,8 @@ export default function CalendarScreen() {
         },
         {
           text: '예비군으로 변경하기',
+          actionId: 'confirm',
+          icon: 'shield-outline',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'exception', dayException: 'reserve' },
@@ -562,6 +595,8 @@ export default function CalendarScreen() {
         },
         {
           text: '예외 일정 해제하기',
+          actionId: 'confirm',
+          icon: 'close',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'exception', dayException: null },
@@ -569,6 +604,7 @@ export default function CalendarScreen() {
             ),
         },
       ],
+      { tone: 'neutral' },
     );
   }, [
     applySelectedDateChange,
@@ -578,12 +614,19 @@ export default function CalendarScreen() {
 
   const confirmBulkPatternRestore = useCallback(() => {
     showDialog(
-      '기본 근무표로 되돌릴까요?',
-      `${selectedDateKeys.length}일의 직접 변경한 근무·시간·예외 일정만 정리해요. 개인 메모는 유지해요.`,
+      '기본 근무표로 되돌리시겠습니까?',
+      `${selectedDateKeys.length}일의 직접 변경한 근무·시간·예외 일정만 정리합니다. 개인 메모는 유지합니다.`,
       [
-        { text: '뒤로 가기', style: 'cancel' },
+        {
+          text: '뒤로 가기',
+          actionId: 'back',
+          icon: 'chevron-back',
+          style: 'cancel',
+        },
         {
           text: '기본 근무표로 되돌리기',
+          actionId: 'delete',
+          icon: 'trash-outline',
           style: 'destructive',
           onPress: () =>
             void applySelectedDateChange(
@@ -592,6 +635,7 @@ export default function CalendarScreen() {
             ),
         },
       ],
+      { tone: 'danger' },
     );
   }, [
     applySelectedDateChange,
@@ -603,16 +647,34 @@ export default function CalendarScreen() {
     if (selectedDateKeys.length === 0) return;
     showDialog(
       `${selectedDateKeys.length}일 일정 변경하기`,
-      '선택한 날짜를 한 번에 변경해요.',
+      '선택한 날짜를 한 번에 변경합니다.',
       [
-        { text: '뒤로 가기', style: 'cancel' },
-        { text: '근무 지정하기', onPress: openBulkShiftDialog },
-        { text: '예외 일정 지정하기', onPress: openBulkExceptionDialog },
+        {
+          text: '뒤로 가기',
+          actionId: 'back',
+          icon: 'chevron-back',
+          style: 'cancel',
+        },
+        {
+          text: '근무 지정하기',
+          actionId: 'confirm',
+          icon: 'repeat-outline',
+          onPress: openBulkShiftDialog,
+        },
+        {
+          text: '예외 일정 지정하기',
+          actionId: 'confirm',
+          icon: 'calendar-outline',
+          onPress: openBulkExceptionDialog,
+        },
         {
           text: '기본 근무표로 되돌리기',
+          actionId: 'delete',
+          icon: 'trash-outline',
           onPress: confirmBulkPatternRestore,
         },
       ],
+      { tone: 'neutral' },
     );
   }, [
     confirmBulkPatternRestore,

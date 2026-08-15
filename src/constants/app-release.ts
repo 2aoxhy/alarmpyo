@@ -13,5 +13,5 @@ export function getCurrentAppUpdateLabel(): string {
   const date = formatAppUpdateDate(Updates.createdAt);
   return date
     ? `${release} · 최근 업데이트 : ${date}`
-    : `${release} · 현재 설치본을 사용하고 있어요`;
+    : `${release} · 현재 설치본을 사용 중입니다`;
 }

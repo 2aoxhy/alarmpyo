@@ -98,7 +98,7 @@ const SUPPORTED_EFFECTIVE_SHIFT_IDS = new Set([
 
 function assertNonNegativeInteger(value: number, label: string): void {
   if (!Number.isInteger(value) || value < 0) {
-    throw new RangeError(`${label}은(는) 0 이상의 정수여야 해요.`);
+    throw new RangeError(`${label}은(는) 0 이상의 정수여야 합니다.`);
   }
 }
 
@@ -193,7 +193,7 @@ export function analyzeActualAppDataScheduleSafety(
 ): ActualAppDataScheduleSafetyResult {
   const now = options.now ?? new Date();
   if (Number.isNaN(now.getTime())) {
-    throw new RangeError('일정 안전 계산 기준 시각이 올바르지 않아요.');
+    throw new RangeError('일정 안전 계산 기준 시각이 올바르지 않습니다.');
   }
 
   const requestedPastDays = options.pastDays ?? MIN_PAST_DAYS;

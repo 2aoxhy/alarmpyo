@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,18 +13,14 @@ import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { useAlarmRuntimeStatus } from '@/hooks/use-alarm-runtime-status';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
-  getAlarmPyoAlarmStatus,
-  type AlarmPyoAlarmStatus,
-} from '@/services/alarmpyo-alarm-service';
-import {
-  getAlarmPyoSleepReminderStatus,
   isSleepReminderNativeSupported,
-  type SleepReminderStatus,
 } from '@/services/sleep-reminder-service';
+import { getSleepReminderScheduleSignature } from '@/services/sleep-reminder-planner';
 import {
   buildTodayAlarmPlanSummary,
   buildTodayViewModel,
@@ -46,86 +42,45 @@ export default function TodayScreen() {
     alarmAutoCheckState,
     alarmSyncStatus,
     sleepReminderSyncStatus,
+    sleepReminderSyncRevision,
   } = useAppStoreStatus();
-  const [alarmStatus, setAlarmStatus] = useState<AlarmPyoAlarmStatus | null>(null);
-  const [alarmStatusError, setAlarmStatusError] = useState(false);
-  const [sleepReminderStatus, setSleepReminderStatus] =
-    useState<SleepReminderStatus | null>(null);
-  const [sleepReminderStatusError, setSleepReminderStatusError] = useState(false);
-  const alarmStatusRequestRef = useRef(0);
   const sleepReminderSupported =
     Platform.OS === 'android' && isSleepReminderNativeSupported();
+  const runtimeStatus = useAlarmRuntimeStatus({
+    enabled: ready && screenActive,
+    includeSleepReminder:
+      data.settings.sleepReminderEnabled && sleepReminderSupported,
+    revisionKey: [
+      data.settings.lastNotificationSyncAt ?? '',
+      data.settings.sleepReminderEnabled
+        ? `${getSleepReminderScheduleSignature(data)}:${sleepReminderSyncRevision}`
+        : 'sleep-disabled',
+    ].join(':'),
+  });
+  const alarmStatus = runtimeStatus.alarmStatus;
+  const alarmStatusError = runtimeStatus.alarmStatusError;
+  const sleepReminderStatus = data.settings.sleepReminderEnabled
+    ? runtimeStatus.sleepReminderStatus
+    : null;
+  const sleepReminderStatusError = data.settings.sleepReminderEnabled
+    ? runtimeStatus.sleepReminderStatusError
+    : false;
   const alarmPlanSummary = useMemo(
     () =>
       buildTodayAlarmPlanSummary({
         data,
-        // 같은 날의 분 갱신으로 366일 계획을 다시 만들지 않도록 자정 기준을 사용해요.
+        // 같은 날의 분 갱신으로 366일 계획을 다시 만들지 않도록 자정 기준을 사용합니다.
         now: parseDateKey(today),
         resolveShift: getShiftForDate,
       }),
     [data, getShiftForDate, today],
   );
 
-  const refreshAlarmStatus = useCallback(async () => {
-    const request = alarmStatusRequestRef.current + 1;
-    alarmStatusRequestRef.current = request;
-    if (Platform.OS !== 'android') {
-      setAlarmStatus(null);
-      setAlarmStatusError(false);
-      return;
-    }
-
-    try {
-      const status = await getAlarmPyoAlarmStatus();
-      if (request !== alarmStatusRequestRef.current) return;
-      setAlarmStatus(status);
-      setAlarmStatusError(false);
-    } catch {
-      if (request !== alarmStatusRequestRef.current) return;
-      setAlarmStatus(null);
-      setAlarmStatusError(true);
-    }
-  }, []);
-
-  const refreshSleepReminderStatus = useCallback(async () => {
-    if (!data.settings.sleepReminderEnabled || !sleepReminderSupported) {
-      setSleepReminderStatus(null);
-      setSleepReminderStatusError(false);
-      return;
-    }
-    try {
-      setSleepReminderStatus(await getAlarmPyoSleepReminderStatus());
-      setSleepReminderStatusError(false);
-    } catch {
-      setSleepReminderStatus(null);
-      setSleepReminderStatusError(true);
-    }
-  }, [data.settings.sleepReminderEnabled, sleepReminderSupported]);
-
-  useEffect(() => {
-    if (!ready || !screenActive) return;
-    const timeout = setTimeout(() => {
-      void refreshAlarmStatus();
-      void refreshSleepReminderStatus();
-    }, 0);
-    return () => {
-      clearTimeout(timeout);
-      // 화면을 벗어난 뒤 도착한 응답이 다음 활성 상태를 덮지 않게 해요.
-      alarmStatusRequestRef.current += 1;
-    };
-  }, [
-    data.settings.lastNotificationSyncAt,
-    ready,
-    refreshAlarmStatus,
-    refreshSleepReminderStatus,
-    screenActive,
-  ]);
-
   if (!ready) {
     return (
       <Screen contentStyle={styles.loading} scroll={false}>
         <ActivityIndicator color={palette.mintDark} size="large" />
-        <AppText tone="secondary">근무표를 불러오고 있어요.</AppText>
+        <AppText tone="secondary">근무표를 불러오고 있습니다.</AppText>
       </Screen>
     );
   }

@@ -207,7 +207,7 @@ export function CalendarMonthCard({
           <>
             <View
               accessible
-              accessibilityLabel="날짜 영역을 좌우로 밀어 토요일까지 확인해요."
+              accessibilityLabel="날짜 영역을 좌우로 밀어 토요일까지 확인합니다."
               style={styles.horizontalScrollHint}>
               <AppIcon
                 accessible={false}
@@ -216,12 +216,12 @@ export function CalendarMonthCard({
                 size={17}
               />
               <AppText tone="secondary" variant="caption">
-                좌우로 밀어 토요일까지 확인하세요
+                좌우로 밀어 토요일까지 확인해야 합니다
               </AppText>
             </View>
             <View style={styles.horizontalScrollFrame}>
               <ScrollView
-                accessibilityHint="좌우로 밀어 가려진 토요일까지 확인해요."
+                accessibilityHint="좌우로 밀어 가려진 토요일까지 확인합니다."
                 accessibilityLabel="월간 달력 날짜 영역"
                 directionalLockEnabled
                 horizontal
@@ -321,8 +321,8 @@ function CalendarMonthHeader({
         accessible
         accessibilityHint={
           supportsSwipeGesture
-            ? '달력을 왼쪽이나 오른쪽으로 밀어 월을 이동할 수 있어요.'
-            : '화살표로 월을 이동하고 날짜 영역을 좌우로 밀어 일주일을 확인할 수 있어요.'
+            ? '달력을 왼쪽이나 오른쪽으로 밀어 월을 이동할 수 있습니다.'
+            : '화살표로 월을 이동하고 날짜 영역을 좌우로 밀어 일주일을 확인할 수 있습니다.'
         }
         accessibilityLabel={`${monthTitle}, ${monthlyWorkdayCount}일 근무 예정`}
         style={styles.monthCopy}>

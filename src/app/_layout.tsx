@@ -12,15 +12,16 @@ import { AppButton, AppText } from '@/components/ui-kit';
 import { AppDialogProvider, useAppDialog } from '@/components/app-dialog';
 import {
   LaunchTransitionOverlay,
+  resolveFrozenLaunchFontMode,
   resolveLaunchFontMode,
-  type LaunchFontMode,
+  type FrozenLaunchFontMode,
 } from '@/components/launch-transition-overlay';
 import { SaveErrorBanner } from '@/components/save-error-banner';
 import { SaveToast } from '@/components/save-toast';
 import { AlarmPyoWidgetSyncBridge } from '@/components/alarmpyo-widget-sync-bridge';
 import type { AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
-import { useAppActive } from '@/hooks/use-app-active';
+import { useAppLifecycle } from '@/hooks/use-app-active';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotionStatus } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -54,6 +55,7 @@ function RootLayoutContent() {
     fontsLoaded,
     Boolean(fontError) || fontLoadTimedOut,
   );
+  const launchReadyFontMode = resolveFrozenLaunchFontMode(null, launchFontMode);
 
   useEffect(() => {
     if (fontsLoaded || fontError) return;
@@ -65,7 +67,7 @@ function RootLayoutContent() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppStoreProvider>
         <AppBootstrap
-          launchFontMode={launchFontMode}
+          launchFontMode={launchReadyFontMode}
           reduceMotion={!reduceMotionStatus.known || reduceMotionStatus.enabled}
         />
       </AppStoreProvider>
@@ -104,10 +106,10 @@ class RootErrorBoundary extends Component<
       <SafeAreaView style={bootstrapStyles.errorBoundary}>
         <StatusBar style="light" />
         <Text accessibilityRole="header" style={bootstrapStyles.errorTitle}>
-          앱 화면을 불러오지 못했어요
+          앱 화면을 불러오지 못했습니다
         </Text>
         <Text style={bootstrapStyles.errorDescription}>
-          저장된 근무표는 그대로예요. 앱을 다시 시작해 주세요.
+          저장된 근무표는 그대로 유지됩니다. 앱을 다시 시작해야 합니다.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -119,7 +121,7 @@ class RootErrorBoundary extends Component<
             pressed && bootstrapStyles.errorButtonPressed,
           ]}>
           <Text style={bootstrapStyles.errorButtonLabel}>
-            {this.state.restarting ? '다시 시작하는 중' : '앱 다시 시작하기'}
+            {this.state.restarting ? '다시 시작하는 중' : '앱 다시 시작'}
           </Text>
         </Pressable>
       </SafeAreaView>
@@ -131,26 +133,36 @@ function AppBootstrap({
   launchFontMode,
   reduceMotion,
 }: {
-  launchFontMode: LaunchFontMode;
+  launchFontMode: FrozenLaunchFontMode;
   reduceMotion: boolean;
 }) {
   const { loadError } = useAppStoreStatus();
   const { ready } = useAppStoreData();
-  const bootstrapReady = launchFontMode !== 'pending' && (ready || Boolean(loadError));
+  const bootstrapReady = ready || Boolean(loadError);
+  const [visibleLaunchFontMode] = useState(launchFontMode);
   const [hasRevealed, setHasRevealed] = useState(false);
   const [launchSurfaceReady, setLaunchSurfaceReady] = useState(false);
   const [launchVisible, setLaunchVisible] = useState(true);
+  const nativeSplashHideRequested = useRef(false);
   const handleLaunchReady = useCallback(() => setLaunchSurfaceReady(true), []);
   const finishLaunch = useCallback(() => setLaunchVisible(false), []);
 
   useEffect(() => {
-    if (hasRevealed || !launchSurfaceReady) return;
+    if (
+      hasRevealed ||
+      nativeSplashHideRequested.current ||
+      !bootstrapReady ||
+      !launchSurfaceReady
+    ) {
+      return;
+    }
+    nativeSplashHideRequested.current = true;
     const hideSplash =
       Platform.OS === 'web' ? Promise.resolve() : SplashScreen.hideAsync();
     void hideSplash
       .catch(() => undefined)
       .finally(() => setHasRevealed(true));
-  }, [hasRevealed, launchSurfaceReady]);
+  }, [bootstrapReady, hasRevealed, launchSurfaceReady]);
 
   return (
     <View style={bootstrapStyles.root}>
@@ -165,7 +177,7 @@ function AppBootstrap({
         <>
           <StatusBar animated style="light" />
           <LaunchTransitionOverlay
-            fontMode={launchFontMode}
+            fontMode={visibleLaunchFontMode}
             onFinished={finishLaunch}
             onReady={handleLaunchReady}
             ready={bootstrapReady && hasRevealed}
@@ -195,8 +207,8 @@ function AppShell() {
   } = useAppStore();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
-  const appActive = useAppActive();
-  const wasAppActive = useRef(appActive);
+  const appLifecycle = useAppLifecycle();
+  const lastAlarmLifecycleTransitionRef = useRef(appLifecycle.transitionId);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [automaticBackupResult, setAutomaticBackupResult] = useState<{
     loadError: string;
@@ -231,18 +243,34 @@ function AppShell() {
   }, [data.settings.setupCompleted, loadError, ready, rootNavigationState?.key, segments]);
 
   useEffect(() => {
-    const becameActive = appActive && !wasAppActive.current;
-    wasAppActive.current = appActive;
-    if (!becameActive || !ready || Platform.OS === 'web') return;
+    if (!ready) {
+      lastAlarmLifecycleTransitionRef.current = appLifecycle.transitionId;
+      return;
+    }
+    if (
+      !appLifecycle.active ||
+      appLifecycle.transitionId <= lastAlarmLifecycleTransitionRef.current ||
+      Platform.OS === 'web'
+    ) {
+      return;
+    }
+    lastAlarmLifecycleTransitionRef.current = appLifecycle.transitionId;
     void resyncAlarms();
-  }, [appActive, ready, resyncAlarms]);
+  }, [appLifecycle.active, appLifecycle.transitionId, ready, resyncAlarms]);
 
   const restoreFromLoadError = async () => {
     if (recoveryBusy) return;
     setRecoveryBusy(true);
     try {
       const success = await restoreRecoveryBackup();
-      if (!success) showDialog('복구하지 못했어요', '안전 백업을 읽을 수 없어요.');
+      if (!success) {
+        showDialog(
+          '복구하지 못했습니다',
+          '안전 백업을 읽을 수 없습니다.',
+          undefined,
+          { tone: 'danger' },
+        );
+      }
     } finally {
       setRecoveryBusy(false);
     }
@@ -260,25 +288,35 @@ function AppShell() {
 
   const confirmFreshStart = () => {
     showDialog(
-      '새 근무표로 시작할까요?',
+      '새 근무표로 시작하시겠습니까?',
       recoveryRequired
-        ? '남아 있는 안전 백업은 자동으로 적용하지 않고 첫 근무일부터 다시 설정해요.'
-        : '불러오지 못한 원본은 복구용으로 따로 보관하고 오늘 근무 위치부터 다시 설정해요.',
+        ? '남아 있는 안전 백업은 자동으로 적용하지 않고 첫 근무일부터 다시 설정합니다.'
+        : '불러오지 못한 원본은 복구용으로 따로 보관하고 오늘 근무 위치부터 다시 설정합니다.',
       [
-        { text: '뒤로 가기', style: 'cancel' },
+        { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
-          text: '새로 시작하기',
+          text: '새로 시작',
+          actionId: 'delete',
+          icon: 'trash-outline',
           style: 'destructive',
           onPress: () => {
             setRecoveryBusy(true);
             void startFreshAfterLoadError()
               .then((success) => {
-                if (!success) showDialog('시작하지 못했어요', '저장 공간을 확인한 뒤 다시 시도해 주세요.');
+                if (!success) {
+                  showDialog(
+                    '시작하지 못했습니다',
+                    '저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+                    undefined,
+                    { tone: 'danger' },
+                  );
+                }
               })
               .finally(() => setRecoveryBusy(false));
           },
         },
       ],
+      { tone: 'warning' },
     );
   };
 
@@ -288,12 +326,12 @@ function AppShell() {
         <StatusBar animated style="light" />
         <View style={styles.errorCard}>
           <AppText accessibilityRole="header" variant="title">
-            {recoveryRequired ? '안전 백업을 찾았어요' : '근무표를 불러오지 못했어요'}
+            {recoveryRequired ? '안전 백업을 찾았습니다' : '근무표를 불러오지 못했습니다'}
           </AppText>
           <AppText tone="secondary">{loadError}</AppText>
           {corruptBackupKey ? (
             <AppText variant="caption" tone="secondary">
-              불러오지 못한 원본은 복구용으로 따로 보관했어요.
+              불러오지 못한 원본은 복구용으로 따로 보관했습니다.
             </AppText>
           ) : null}
           <AppButton
@@ -304,7 +342,7 @@ function AppShell() {
           {hasAutomaticBackup ? (
             <AppButton
               disabled={recoveryBusy}
-              label="최근 안전 백업 복구하기"
+              label="최근 안전 백업 복구"
               onPress={() => void restoreFromLoadError()}
               variant="secondary"
             />
@@ -312,7 +350,7 @@ function AppShell() {
           {corruptBackupKey || recoveryRequired ? (
             <AppButton
               disabled={recoveryBusy}
-              label="새 근무표로 시작하기"
+              label="새 근무표로 시작"
               onPress={confirmFreshStart}
               variant="danger"
             />

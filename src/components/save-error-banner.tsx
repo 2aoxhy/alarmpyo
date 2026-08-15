@@ -255,7 +255,7 @@ export function SaveErrorBanner() {
             <AppText variant="caption" color={toneColor} style={styles.message}>
               {presentation.message}
               {additionalIssueCount > 0
-                ? `\n외 ${additionalIssueCount}건의 작업도 다시 확인해 주세요.`
+                ? `\n외 ${additionalIssueCount}건의 작업도 다시 확인해야 합니다.`
                 : ''}
             </AppText>
             {retryActions.map((action) => {
@@ -278,7 +278,7 @@ export function SaveErrorBanner() {
         ) : (
           <View style={styles.collapsedRow}>
             <Pressable
-              accessibilityHint="오류 내용과 해결 버튼을 펼쳐요."
+              accessibilityHint="오류 내용과 해결 버튼을 펼칩니다."
               accessibilityLabel={`${visibleTitle}. 자세히 보기`}
               accessibilityRole="button"
               onBlur={collapsedSummaryFocus.onBlur}

@@ -110,8 +110,8 @@ describe("알람 설정 화면 상태", () => {
         status: { storageHealth: "recovered" },
       }),
     ).toEqual({
-      message: "직전 정상 계획으로 복구하고 예약 상태를 다시 확인했어요.",
-      title: "수면 알림 계획을 복구했어요",
+      message: "직전 정상 계획으로 복구하고 예약 상태를 다시 확인했습니다.",
+      title: "수면 알림 계획을 복구했습니다",
       tone: "success",
     });
     expect(

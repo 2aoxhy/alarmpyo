@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  FlatList,
   Platform,
-  Pressable,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
+import { SelectionCard, SelectionPill } from '@/components/selection-controls';
 import {
   AnimatedShiftIcon,
   getShiftIconKind,
@@ -56,14 +57,20 @@ export function SetupHero({ step }: { step: SetupScreenStep }) {
           처음 설정 · {step}/3
         </AppText>
         <AppText variant="caption" tone="secondary">
-          회사 순서와 시간을 확인해 내 근무표를 만들어요.
+          회사 순서와 시간을 확인하여 내 근무표를 만듭니다.
         </AppText>
       </View>
     </View>
   );
 }
 
-export function SetupProgress({ step }: { step: SetupScreenStep }) {
+export function SetupProgress({
+  compact = false,
+  step,
+}: {
+  compact?: boolean;
+  step: SetupScreenStep;
+}) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
@@ -73,18 +80,25 @@ export function SetupProgress({ step }: { step: SetupScreenStep }) {
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 1, max: 3, now: step }}
       style={styles.progress}>
+      {compact ? (
+        <AppText variant="caption" tone="secondary" style={styles.compactProgressLabel}>
+          {(['근무 방식', '순서·시간', '적용 시작일'] as const)[step - 1]} · {step}/3
+        </AppText>
+      ) : null}
       {(['근무 방식', '순서·시간', '적용 시작일'] as const).map((label, index) => {
         const value = (index + 1) as SetupScreenStep;
         const active = value <= step;
         return (
           <View key={label} style={styles.progressItem}>
             <View style={[styles.progressLine, active && styles.progressLineActive]} />
-            <AppText
-              variant="caption"
-              color={value === step ? palette.indigoDark : palette.inkMuted}
-              style={styles.progressLabel}>
-              {label}
-            </AppText>
+            {!compact ? (
+              <AppText
+                variant="caption"
+                color={value === step ? palette.indigoDark : palette.inkMuted}
+                style={styles.progressLabel}>
+                {label}
+              </AppText>
+            ) : null}
           </View>
         );
       })}
@@ -112,10 +126,10 @@ export function WorkModeStep({
     <View style={styles.stepSection}>
       <View style={styles.sectionCopy}>
         <AppText accessibilityRole="header" variant="heading" style={styles.centerText}>
-          근무 방식을 선택해요
+          근무 방식을 선택합니다
         </AppText>
         <AppText variant="body" tone="secondary" style={styles.centerText}>
-          회사에서 사용하는 반복 근무표를 선택해요.
+          회사에서 사용하는 반복 근무표를 선택합니다.
         </AppText>
       </View>
       <View
@@ -138,30 +152,25 @@ export function WorkModeStep({
       </View>
       {categoryId === 'two-shift' || categoryId === 'three-shift' ? (
         <View style={styles.teamChoiceSection}>
-          <AppText variant="label">조 수를 선택해요</AppText>
+          <AppText variant="label">조 수를 선택합니다</AppText>
           <View accessibilityRole="radiogroup" style={styles.teamChoices}>
             {WORK_PATTERN_CATEGORIES.find((category) => category.id === categoryId)?.presetIds.map(
               (candidateId) => {
                 const preset = getWorkPatternPreset(candidateId);
                 return (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: presetId === candidateId }}
+                  <SelectionPill
                     key={candidateId}
                     onPress={() => onSelect(candidateId)}
-                    style={({ pressed }) => [
-                      styles.teamChoice,
-                      presetId === candidateId && styles.teamChoiceSelected,
-                      pressed && styles.pressed,
-                    ]}>
-                    <AppText variant="label">{preset.shortName.replace(/\s*\d교대$/, '')}</AppText>
-                  </Pressable>
+                    selected={presetId === candidateId}
+                    label={preset.shortName.replace(/\s*\d교대$/, '')}
+                    style={styles.teamChoice}
+                  />
                 );
               },
             )}
           </View>
           <AppText variant="caption" tone="secondary">
-            선택 후 다음 화면에서 회사의 실제 순서와 시간을 확인해요.
+            선택 후 다음 화면에서 회사의 실제 순서와 시간을 확인합니다.
           </AppText>
         </View>
       ) : null}
@@ -193,17 +202,12 @@ function ModeOption({
   const styles = useThemedStyles(createStyles);
 
   return (
-    <Pressable
+    <SelectionCard
       accessibilityLabel={`${label}. ${description}`}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.modeOption,
-        style,
-        selected && styles.modeOptionSelected,
-        pressed && styles.pressed,
-      ]}>
+      selected={selected}
+      contentStyle={styles.modeOptionContent}
+      style={[styles.modeOption, style]}>
       <View style={[styles.modeIcon, { backgroundColor: iconBackground }]}>
         <AppIcon accessible={false} color={iconColor} name={icon} size={24} />
       </View>
@@ -218,10 +222,7 @@ function ModeOption({
           {description}
         </AppText>
       </View>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected ? <View style={styles.radioCenter} /> : null}
-      </View>
-    </Pressable>
+    </SelectionCard>
   );
 }
 
@@ -248,21 +249,16 @@ export function RotationPositionPicker({
         const shift = shiftTypes.find((item) => item.id === option.shiftTypeId);
         const appearance = shift ? getShiftAppearance(shift, palette, isDark) : null;
         return (
-          <Pressable
+          <SelectionCard
             accessibilityLabel={option.label}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected }}
-            hitSlop={4}
             key={option.label}
             onPress={() => onSelect(index)}
-            style={({ pressed }) => [
+            selected={selected}
+            semanticColor={appearance?.accentColor ?? palette.mint}
+            contentStyle={styles.positionOptionContent}
+            style={[
               styles.positionOption,
               compact && styles.positionOptionCompact,
-              selected && {
-                backgroundColor: appearance?.softColor ?? palette.mintSoft,
-                borderColor: appearance?.accentColor ?? palette.mint,
-              },
-              pressed && styles.pressed,
             ]}>
             {shift ? (
               <AnimatedShiftIcon
@@ -273,16 +269,14 @@ export function RotationPositionPicker({
               />
             ) : null}
             <View style={styles.positionCopy}>
-              <AppText
-                variant="label"
-                color={selected ? appearance?.accentColor ?? palette.mintDark : palette.ink}>
+              <AppText variant="label" color={palette.ink}>
                 {option.shortName}
               </AppText>
               <AppText variant="caption" tone="secondary">
                 {option.detail}
               </AppText>
             </View>
-          </Pressable>
+          </SelectionCard>
         );
       })}
     </View>
@@ -319,37 +313,52 @@ export function PatternSequenceEditor({
     onChange(sequence.map((id, itemIndex) => (itemIndex === index ? next : id)));
   };
 
+  const renderSequenceItem = ({ item: id, index }: { item: BaseWorkShiftId; index: number }) => {
+    const shift = {
+      id,
+      isOff: id === 'off',
+      color: palette.ink,
+      softColor: palette.surfaceSoft,
+    };
+    const appearance = getShiftAppearance(shift, palette, isDark);
+    return (
+      <SelectionPill
+        accessibilityHint="누르면 주간, 오후, 야간, 휴무 순서로 변경됩니다."
+        accessibilityLabel={`${index + 1}/${sequence.length}, ${SEQUENCE_LABELS[id]}`}
+        accessibilityRole="button"
+        key={`sequence-slot-${index}`}
+        label={`${index + 1}일 ${SEQUENCE_LABELS[id]}`}
+        onPress={() => rotate(index)}
+        selected
+        semanticColor={appearance.accentColor}
+        showCheck={false}
+        style={styles.sequenceItem}
+      />
+    );
+  };
+
   return (
     <View style={styles.sequenceEditor}>
-      <View accessibilityRole="list" style={styles.sequenceGrid}>
-        {sequence.map((id, index) => {
-          const shift = {
-            id,
-            isOff: id === 'off',
-            color: palette.ink,
-            softColor: palette.surfaceSoft,
-          };
-          const appearance = getShiftAppearance(shift, palette, isDark);
-          return (
-            <Pressable
-              accessibilityHint="누르면 주간, 오후, 야간, 휴무 순서로 바뀌어요."
-              accessibilityLabel={`${index + 1}일차 ${SEQUENCE_LABELS[id]}`}
-              accessibilityRole="button"
-              key={`sequence-slot-${index}`}
-              onPress={() => rotate(index)}
-              style={({ pressed }) => [
-                styles.sequenceItem,
-                { borderColor: appearance.accentColor, backgroundColor: appearance.softColor },
-                pressed && styles.pressed,
-              ]}>
-              <AppText variant="caption" tone="secondary">
-                {index + 1}일
-              </AppText>
-              <AppText variant="label">{SEQUENCE_LABELS[id]}</AppText>
-            </Pressable>
-          );
-        })}
-      </View>
+      {sequence.length > 8 ? (
+        <FlatList
+          accessibilityLabel={`${sequence.length}일 근무 순서`}
+          data={sequence}
+          horizontal
+          initialNumToRender={8}
+          keyExtractor={(_, index) => `sequence-slot-${index}`}
+          maxToRenderPerBatch={8}
+          removeClippedSubviews={Platform.OS === 'android'}
+          renderItem={renderSequenceItem}
+          showsHorizontalScrollIndicator={false}
+          style={styles.sequenceList}
+          contentContainerStyle={styles.sequenceListContent}
+          windowSize={3}
+        />
+      ) : (
+        <View accessibilityRole="list" style={styles.sequenceGrid}>
+          {sequence.map((id, index) => renderSequenceItem({ item: id, index }))}
+        </View>
+      )}
       <View style={styles.sequenceActions}>
         <AppButton
           disabled={sequence.length <= CUSTOM_PATTERN_MIN_DAYS}
@@ -367,7 +376,7 @@ export function PatternSequenceEditor({
         />
       </View>
       <AppText variant="caption" tone="tertiary">
-        각 날짜를 누르면 주간 → 오후 → 야간 → 휴무로 바뀌어요.
+        각 날짜를 누르면 주간 → 오후 → 야간 → 휴무 순서로 변경됩니다.
       </AppText>
     </View>
   );
@@ -382,6 +391,8 @@ export function WorkTimeEditor({
   eveningDuration,
   eveningEnd,
   eveningStart,
+  focusRequest = 0,
+  focusShiftTypeId = null,
   nightColor,
   nightDuration,
   nightEnd,
@@ -395,6 +406,7 @@ export function WorkTimeEditor({
   showDay = true,
   showEvening = false,
   showNight = true,
+  stackTimeInputs = false,
 }: {
   dayColor: string;
   dayDuration: ReturnType<typeof calculateShiftDuration>;
@@ -404,6 +416,8 @@ export function WorkTimeEditor({
   eveningDuration: ReturnType<typeof calculateShiftDuration>;
   eveningEnd: string;
   eveningStart: string;
+  focusRequest?: number;
+  focusShiftTypeId?: 'day' | 'evening' | 'night' | null;
   nightColor: string;
   nightDuration: ReturnType<typeof calculateShiftDuration>;
   nightEnd: string;
@@ -417,6 +431,7 @@ export function WorkTimeEditor({
   showDay?: boolean;
   showEvening?: boolean;
   showNight?: boolean;
+  stackTimeInputs?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
 
@@ -427,10 +442,13 @@ export function WorkTimeEditor({
           color={dayColor}
           duration={dayDuration}
           end={dayEnd}
+          focusRequest={focusRequest}
           label="주간"
           onChangeEnd={onChangeDayEnd}
           onChangeStart={onChangeDayStart}
           shiftId="day"
+          shouldFocus={focusShiftTypeId === 'day'}
+          stackInputs={stackTimeInputs}
           start={dayStart}
         />
       ) : null}
@@ -441,10 +459,13 @@ export function WorkTimeEditor({
             color={eveningColor}
             duration={eveningDuration}
             end={eveningEnd}
+            focusRequest={focusRequest}
             label="오후"
             onChangeEnd={onChangeEveningEnd}
             onChangeStart={onChangeEveningStart}
             shiftId="evening"
+            shouldFocus={focusShiftTypeId === 'evening'}
+            stackInputs={stackTimeInputs}
             start={eveningStart}
           />
         </>
@@ -456,10 +477,13 @@ export function WorkTimeEditor({
             color={nightColor}
             duration={nightDuration}
             end={nightEnd}
+            focusRequest={focusRequest}
             label="야간"
             onChangeEnd={onChangeNightEnd}
             onChangeStart={onChangeNightStart}
             shiftId="night"
+            shouldFocus={focusShiftTypeId === 'night'}
+            stackInputs={stackTimeInputs}
             start={nightStart}
           />
         </>
@@ -472,24 +496,50 @@ function TimeInputRow({
   color,
   duration,
   end,
+  focusRequest,
   label,
   onChangeEnd,
   onChangeStart,
   shiftId,
+  shouldFocus,
+  stackInputs,
   start,
 }: {
   color: string;
   duration: ReturnType<typeof calculateShiftDuration>;
   end: string;
+  focusRequest: number;
   label: string;
   onChangeEnd: (value: string) => void;
   onChangeStart: (value: string) => void;
   shiftId: 'day' | 'evening' | 'night';
+  shouldFocus: boolean;
+  stackInputs: boolean;
   start: string;
 }) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [focusedField, setFocusedField] = useState<'start' | 'end' | null>(null);
+  const startInputRef = useRef<TextInput>(null);
+  const endInputRef = useRef<TextInput>(null);
+  const lastFocusRequestRef = useRef(0);
+
+  useEffect(() => {
+    if (!shouldFocus || focusRequest <= 0 || lastFocusRequestRef.current === focusRequest) {
+      return;
+    }
+    lastFocusRequestRef.current = focusRequest;
+    const timeout = setTimeout(() => {
+      const target =
+        parseTimeInput(start) === null
+          ? startInputRef
+          : parseTimeInput(end) === null
+            ? endInputRef
+            : startInputRef;
+      target.current?.focus();
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [end, focusRequest, shouldFocus, start]);
 
   return (
     <View style={styles.timeRow}>
@@ -509,10 +559,10 @@ function TimeInputRow({
           style={styles.durationText}>
           {duration
             ? `${duration.endsNextDay ? '다음 날 종료 · ' : ''}${formatDuration(duration.durationMinutes)}`
-            : '시간을 확인해 주세요.'}
+            : '시간을 확인해야 합니다.'}
         </AppText>
       </View>
-      <View style={styles.timeControls}>
+      <View style={[styles.timeControls, stackInputs && styles.timeControlsStacked]}>
         <TextInput
           accessibilityLabel={`${label} 시작 시간`}
           autoCorrect={false}
@@ -526,6 +576,7 @@ function TimeInputRow({
           onFocus={() => setFocusedField('start')}
           placeholder="06:45"
           placeholderTextColor={palette.inkSoft}
+          ref={startInputRef}
           selectTextOnFocus
           selectionColor={palette.indigo}
           style={[
@@ -549,6 +600,7 @@ function TimeInputRow({
           onFocus={() => setFocusedField('end')}
           placeholder="17:45"
           placeholderTextColor={palette.inkSoft}
+          ref={endInputRef}
           selectTextOnFocus
           selectionColor={palette.indigo}
           style={[
@@ -639,7 +691,7 @@ export function SetupPreview({
           미리 보기
         </AppText>
         <AppText variant="caption" tone="secondary">
-          일정 적용 시작일부터 이어지는 일정이에요.
+          일정 적용 시작일부터 이어지는 일정입니다.
         </AppText>
       </View>
       <View style={styles.previewGrid}>
@@ -702,7 +754,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       backgroundColor: palette.surfaceSoft,
     },
     heroCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
-    progress: { flexDirection: 'row', gap: spacing.small },
+    progress: { position: 'relative', flexDirection: 'row', gap: spacing.small },
     progressItem: { flex: 1, gap: spacing.tiny },
     progressLine: {
       height: 4,
@@ -711,6 +763,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     progressLineActive: { backgroundColor: palette.indigo },
     progressLabel: { textAlign: 'center' },
+    compactProgressLabel: { position: 'absolute', right: 0, top: -24 },
     stepSection: { gap: spacing.large },
     sectionCopy: { minWidth: 0, gap: spacing.tiny },
     centerText: { textAlign: 'center' },
@@ -721,13 +774,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 72,
       flexBasis: '46%',
       flexGrow: 1,
+    },
+    modeOptionContent: {
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.small,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      borderRadius: radii.large,
-      backgroundColor: palette.surface,
       padding: spacing.medium,
     },
     modeOptionStacked: {
@@ -735,10 +787,6 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flexBasis: 'auto',
       flexDirection: 'row',
       justifyContent: 'flex-start',
-    },
-    modeOptionSelected: {
-      borderColor: palette.indigo,
-      backgroundColor: palette.indigoSoft,
     },
     modeIcon: {
       width: 44,
@@ -761,34 +809,6 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minWidth: 88,
       minHeight: 48,
       flexGrow: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-      paddingHorizontal: spacing.medium,
-    },
-    teamChoiceSelected: {
-      borderColor: palette.indigo,
-      backgroundColor: palette.indigoSoft,
-    },
-    radio: {
-      width: 22,
-      height: 22,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: palette.controlLine,
-      borderRadius: 11,
-    },
-    radioSelected: { borderColor: palette.indigo },
-    radioCenter: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: palette.indigo,
     },
     pressed: { opacity: 0.72 },
     positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
@@ -797,14 +817,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 72,
       flexBasis: '30%',
       flexGrow: 1,
+    },
+    positionOptionContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.small,
-      borderWidth: 1.5,
-      borderColor: palette.controlLine,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surface,
       paddingHorizontal: spacing.small,
       paddingVertical: spacing.small,
     },
@@ -812,16 +830,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     positionCopy: { minWidth: 0, gap: 1 },
     sequenceEditor: { gap: spacing.small },
     sequenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+    sequenceList: { marginHorizontal: -spacing.tiny },
+    sequenceListContent: { gap: spacing.small, paddingHorizontal: spacing.tiny },
     sequenceItem: {
       minWidth: 76,
       minHeight: 56,
       flexGrow: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-      borderWidth: 1.5,
-      borderRadius: radii.medium,
-      padding: spacing.small,
     },
     sequenceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     workTimes: { gap: spacing.medium },
@@ -836,6 +850,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     timeLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
     durationText: { flexShrink: 1, textAlign: 'right' },
     timeControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
+    timeControlsStacked: { flexDirection: 'column', alignItems: 'stretch' },
     timeInput: {
       minWidth: 84,
       minHeight: 52,

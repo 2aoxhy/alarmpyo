@@ -77,12 +77,12 @@ export function resolveDayAlarmDraft(
     return { valid: true, override: { mode: 'disabled' }, leadMinutes: null };
   }
   if (shiftStartMinutes === null) {
-    return { valid: false, message: '근무 시작 시간을 먼저 확인해 주세요.' };
+    return { valid: false, message: '근무 시작 시간을 먼저 확인해야 합니다.' };
   }
 
   const wakeMinutes = parseTimeInput(draft.wakeTime);
   if (wakeMinutes === null) {
-    return { valid: false, message: '기상 시각을 05:10 형식으로 입력해 주세요.' };
+    return { valid: false, message: '기상 시각을 05:10 형식으로 입력해야 합니다.' };
   }
   const leadMinutes = calculateWakeLeadMinutes(
     shiftStartMinutes,
@@ -92,7 +92,7 @@ export function resolveDayAlarmDraft(
   if (leadMinutes === null) {
     return {
       valid: false,
-      message: '기상 시각은 근무 시작 전 24시간 안으로 지정해 주세요.',
+      message: '기상 시각은 근무 시작 전 24시간 안으로 지정해야 합니다.',
     };
   }
 

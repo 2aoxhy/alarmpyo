@@ -15,14 +15,14 @@ export const ENCRYPTED_BACKUP_FILE_SIZE_LABEL = '6MB';
 export const MAX_BACKUP_IMPORT_FILE_BYTES = MAX_ENCRYPTED_BACKUP_FILE_BYTES;
 export const BACKUP_IMPORT_FILE_SIZE_LABEL = ENCRYPTED_BACKUP_FILE_SIZE_LABEL;
 export const ENCRYPTED_BACKUP_ACCESS_ERROR_MESSAGE =
-  '비밀번호가 맞지 않거나 백업 파일이 손상됐어요.';
+  '비밀번호가 맞지 않거나 백업 파일이 손상됐습니다.';
 
 export function assertAppDataByteSize(size: number): void {
   if (!Number.isInteger(size) || size < 0) {
-    throw new Error('근무표 데이터 크기를 확인할 수 없어요.');
+    throw new Error('근무표 데이터 크기를 확인할 수 없습니다.');
   }
   if (size > MAX_APP_DATA_BYTES) {
-    throw new Error(`근무표 데이터는 ${APP_DATA_SIZE_LABEL} 이하여야 해요.`);
+    throw new Error(`근무표 데이터는 ${APP_DATA_SIZE_LABEL} 이하여야 합니다.`);
   }
 }
 
@@ -34,10 +34,10 @@ export function getCheckedAppDataContentsByteSize(contents: string): number {
 
 export function assertBackupFileByteSize(size: number): void {
   if (!Number.isInteger(size) || size < 0) {
-    throw new Error('백업 파일의 크기를 확인할 수 없어요.');
+    throw new Error('백업 파일의 크기를 확인할 수 없습니다.');
   }
   if (size > MAX_BACKUP_FILE_BYTES) {
-    throw new Error(`백업 파일은 ${BACKUP_FILE_SIZE_LABEL} 이하여야 해요.`);
+    throw new Error(`백업 파일은 ${BACKUP_FILE_SIZE_LABEL} 이하여야 합니다.`);
   }
 }
 
@@ -49,11 +49,11 @@ export function getCheckedBackupContentsByteSize(contents: string): number {
 
 export function assertEncryptedBackupFileByteSize(size: number): void {
   if (!Number.isInteger(size) || size < 0) {
-    throw new Error('암호화 백업 파일의 크기를 확인할 수 없어요.');
+    throw new Error('암호화 백업 파일의 크기를 확인할 수 없습니다.');
   }
   if (size > MAX_ENCRYPTED_BACKUP_FILE_BYTES) {
     throw new Error(
-      `암호화 백업 파일은 ${ENCRYPTED_BACKUP_FILE_SIZE_LABEL} 이하여야 해요.`,
+      `암호화 백업 파일은 ${ENCRYPTED_BACKUP_FILE_SIZE_LABEL} 이하여야 합니다.`,
     );
   }
 }
@@ -66,11 +66,11 @@ export function getCheckedEncryptedBackupContentsByteSize(contents: string): num
 
 export function assertBackupImportFileByteSize(size: number): void {
   if (!Number.isInteger(size) || size < 0) {
-    throw new Error('가져올 백업 파일의 크기를 확인할 수 없어요.');
+    throw new Error('가져올 백업 파일의 크기를 확인할 수 없습니다.');
   }
   if (size > MAX_BACKUP_IMPORT_FILE_BYTES) {
     throw new Error(
-      `가져올 백업 파일은 ${BACKUP_IMPORT_FILE_SIZE_LABEL} 이하여야 해요.`,
+      `가져올 백업 파일은 ${BACKUP_IMPORT_FILE_SIZE_LABEL} 이하여야 합니다.`,
     );
   }
 }

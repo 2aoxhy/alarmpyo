@@ -124,7 +124,7 @@ describe('Play 휴대전화 스크린샷 준비', () => {
           expectedWidth: 1080,
           inputPath,
         }),
-      ).rejects.toThrow('작은 원본을 확대하지 않아요');
+      ).rejects.toThrow('작은 원본을 확대하지 않습니다');
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

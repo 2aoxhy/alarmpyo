@@ -189,7 +189,7 @@ export async function openAlarmPyoBatterySettings(): Promise<boolean> {
 }
 
 export async function scheduleAlarmPyoTestAlarm(_seconds = 5): Promise<void> {
-  throw new Error('웹에서는 알람표 알람을 사용할 수 없어요.');
+  throw new Error('웹에서는 알람표 알람을 사용할 수 없습니다.');
 }
 
 export async function cancelAllAlarmPyoAlarms(): Promise<AlarmPyoAlarmStatus> {

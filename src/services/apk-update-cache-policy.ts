@@ -10,7 +10,7 @@ export function getApkUpdateCacheFileNames(
   versionCode: number,
 ): ApkUpdateCacheFileNames {
   if (!Number.isSafeInteger(versionCode) || versionCode <= 0) {
-    throw new RangeError('APK 캐시 버전 정보가 올바르지 않아요.');
+    throw new RangeError('APK 캐시 버전 정보가 올바르지 않습니다.');
   }
   return {
     completed: `AlarmPyo_${versionCode}.apk`,

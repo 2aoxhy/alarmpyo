@@ -54,8 +54,8 @@ export function CalendarHolidayNotice({ status, visibleYear }: HolidayNoticeProp
         </AppText>
         <AppText tone="secondary" variant="caption">
           {status.source === 'calculated'
-            ? '반복 법정공휴일과 대체공휴일을 자동 계산해요. 선거일·임시공휴일은 공식 발표 후 반영해요.'
-            : `자동 계산은 ${status.supportedStartYear}~${status.supportedEndYear}년을 지원해요. ${visibleYear}년은 공휴일 이름과 공휴일에 따른 급여일 조정을 확정하지 않아요.`}
+            ? '반복 법정공휴일과 대체공휴일을 자동 계산합니다. 선거일·임시공휴일은 공식 발표 후 반영합니다.'
+            : `자동 계산은 ${status.supportedStartYear}~${status.supportedEndYear}년을 지원합니다. ${visibleYear}년은 공휴일 이름과 공휴일에 따른 급여일 조정을 확정하지 않습니다.`}
         </AppText>
       </View>
     </Card>
@@ -88,7 +88,7 @@ export function CalendarLargeTextStatusSummary({
             공휴일·급여일 안내
           </AppText>
           <AppText tone="secondary" variant="caption">
-            큰 글자에서는 달력 칸의 자세한 표시를 아래에서 확인해요.
+            큰 글자에서는 달력 칸의 자세한 표시를 아래에서 확인합니다.
           </AppText>
         </View>
       </View>
@@ -144,7 +144,7 @@ export function CalendarMenuSections({
         elementRef={triggerRef}
         icon="ellipse-outline"
         onPress={onOpenLegend}
-        subtitle="근무·급여·예외 일정 표시를 확인해요."
+        subtitle="근무·급여·예외 일정 표시를 확인합니다."
         title="표시 안내"
         trailing={
           <AppText variant="label" color={palette.indigoDark}>

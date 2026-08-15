@@ -23,7 +23,7 @@ const MAX_APK_MIRRORS = 4;
 function parseApkMirrors(value: unknown, primaryUrl: string): string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > MAX_APK_MIRRORS) {
-    throw new Error('앱 업데이트 정보가 올바르지 않아요.');
+    throw new Error('앱 업데이트 정보가 올바르지 않습니다.');
   }
   const mirrors: string[] = [];
   for (const candidate of value) {
@@ -32,7 +32,7 @@ function parseApkMirrors(value: unknown, primaryUrl: string): string[] {
       candidate.length > 2_048 ||
       !isHttpsUrl(candidate)
     ) {
-      throw new Error('앱 업데이트 정보가 올바르지 않아요.');
+      throw new Error('앱 업데이트 정보가 올바르지 않습니다.');
     }
     if (candidate !== primaryUrl && !mirrors.includes(candidate)) {
       mirrors.push(candidate);
@@ -74,7 +74,7 @@ export function collectHttpsUrlCandidates(
 }
 
 export function parseApkReleaseManifest(value: unknown): ApkReleaseManifest {
-  if (!isRecord(value)) throw new Error('앱 업데이트 정보가 올바르지 않아요.');
+  if (!isRecord(value)) throw new Error('앱 업데이트 정보가 올바르지 않습니다.');
   const notes = Array.isArray(value.notes)
     ? value.notes.filter(
         (note): note is string =>
@@ -101,7 +101,7 @@ export function parseApkReleaseManifest(value: unknown): ApkReleaseManifest {
     value.publishedAt.trim().length === 0 ||
     !Number.isFinite(Date.parse(value.publishedAt))
   ) {
-    throw new Error('앱 업데이트 정보가 올바르지 않아요.');
+    throw new Error('앱 업데이트 정보가 올바르지 않습니다.');
   }
   const apkUrl = value.apkUrl as string;
   const apkMirrors = parseApkMirrors(value.apkMirrors, apkUrl);
@@ -112,7 +112,7 @@ export function parseApkReleaseManifest(value: unknown): ApkReleaseManifest {
     (typeof artifactExpiresAt !== 'string' ||
       !Number.isFinite(Date.parse(artifactExpiresAt)))
   ) {
-    throw new Error('앱 업데이트 정보가 올바르지 않아요.');
+    throw new Error('앱 업데이트 정보가 올바르지 않습니다.');
   }
   return {
     schemaVersion: 1,

@@ -1,5 +1,73 @@
 import type { AlarmPyoWidgetSnapshot } from './widget-planner';
 
+export const GENERATED_WIDGET_PREVIEW_REFRESH_MS = 30 * 60 * 1_000;
+
+export type WidgetSnapshotPreflightInput = {
+  installed: boolean;
+  supportsGeneratedPreview: boolean;
+  scheduleSignature: string;
+  generatedDateKey: string;
+  timeZoneSignature: string;
+  nowMs: number;
+};
+
+export type WidgetSnapshotPreflightCoordinator = {
+  shouldBuild: (input: WidgetSnapshotPreflightInput) => boolean;
+  complete: (input: WidgetSnapshotPreflightInput, succeeded: boolean) => void;
+  reset: () => void;
+};
+
+function createWidgetPreflightKey(
+  input: WidgetSnapshotPreflightInput,
+): string {
+  return JSON.stringify({
+    installed: input.installed,
+    supportsGeneratedPreview: input.supportsGeneratedPreview,
+    scheduleSignature: input.scheduleSignature,
+    generatedDateKey: input.generatedDateKey,
+    timeZoneSignature: input.timeZoneSignature,
+  });
+}
+
+/**
+ * 비용이 큰 366일 스냅샷을 만들기 전에 설치 상태와 일정 서명만 비교합니다.
+ * 설치된 위젯은 변경 즉시 갱신하고, 미설치 Android 15+ 미리보기는 같은
+ * 실행 중 최대 30분에 한 번만 다시 생성합니다.
+ */
+export function createWidgetSnapshotPreflightCoordinator(): WidgetSnapshotPreflightCoordinator {
+  let completedKey: string | null = null;
+  let completedAt = 0;
+  let pendingKey: string | null = null;
+
+  return {
+    shouldBuild(input) {
+      if (!input.installed && !input.supportsGeneratedPreview) return false;
+      const key = createWidgetPreflightKey(input);
+      if (pendingKey === key) return false;
+      const sameCompletedValue = completedKey === key;
+      const generatedPreviewExpired =
+        !input.installed &&
+        input.supportsGeneratedPreview &&
+        input.nowMs - completedAt >= GENERATED_WIDGET_PREVIEW_REFRESH_MS;
+      if (sameCompletedValue && !generatedPreviewExpired) return false;
+      pendingKey = key;
+      return true;
+    },
+    complete(input, succeeded) {
+      const key = createWidgetPreflightKey(input);
+      if (pendingKey === key) pendingKey = null;
+      if (!succeeded) return;
+      completedKey = key;
+      completedAt = input.nowMs;
+    },
+    reset() {
+      completedKey = null;
+      completedAt = 0;
+      pendingKey = null;
+    },
+  };
+}
+
 /**
  * 위젯 설치 여부를 먼저 확인한 뒤에만 비용이 큰 스냅샷 계산을 실행해요.
  * Android 15+ 생성형 선택기 미리보기에는 설치 전에도 명시적으로 계산할 수 있어요.

@@ -28,6 +28,7 @@ import {
 import {
   resolveAppButtonIcon,
   resolveAppButtonLabel,
+  type AppButtonActionId,
 } from '@/components/app-button-policy';
 import { AppIcon, type AppIconName } from '@/components/app-icon';
 import {
@@ -206,6 +207,7 @@ export function Card({
 type ButtonProps = {
   label: string;
   onPress: () => void;
+  actionId?: AppButtonActionId;
   icon?: AppIconName;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'destructive';
   disabled?: boolean;
@@ -220,6 +222,7 @@ type ButtonProps = {
 export function AppButton({
   label,
   onPress,
+  actionId,
   icon,
   variant = 'primary',
   disabled = false,
@@ -236,7 +239,7 @@ export function AppButton({
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
   const visibleLabel = resolveAppButtonLabel(label);
-  const visibleIcon = resolveAppButtonIcon(visibleLabel, icon);
+  const visibleIcon = resolveAppButtonIcon(actionId, icon);
   const blocked = disabled || loading;
   const buttonStyle = {
     primary: styles.buttonPrimary,

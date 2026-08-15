@@ -63,7 +63,7 @@ internal object AlarmPyoAlarmSafetyStore {
         .putString(KEY_LAST_CHECKED_PLAN_KEY, state.lastCheckedPlanKey)
         .putString(KEY_LAST_NOTIFIED_KEY, state.lastNotifiedKey)
         .commit()
-    ) { "알람 안전 점검 상태를 저장하지 못했어요." }
+    ) { "알람 안전 점검 상태를 저장하지 못했습니다." }
   }
 
   private fun preferences(context: Context) =

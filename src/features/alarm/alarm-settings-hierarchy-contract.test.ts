@@ -41,7 +41,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
   it('부가 기능은 하나의 알람 관리 펼침 영역에 모아요', () => {
     const managementBody = alarmSettings.indexOf('{managementOpen ? (');
     const sound = alarmSettings.indexOf('<AlarmSoundSettings />');
-    const testAlarm = alarmSettings.indexOf('label="시험 알람 울리기"');
+    const testAlarm = alarmSettings.indexOf('label={alarmCopy.testAlarm.text}');
     const permissions = alarmSettings.indexOf(
       '<AlarmPermissionChecklist',
     );
@@ -95,10 +95,10 @@ describe('알람 설정 화면 정보 구조 계약', () => {
 
   it('Android 강제 종료 상태의 알람 한계를 미리 안내해요', () => {
     expect(alarmSettings).toContain(
-      '강제 종료 상태에서는 알람을 보장할 수 없어요',
+      '강제 종료 상태에서는 알람을 보장할 수 없습니다',
     );
     expect(alarmSettings).toContain(
-      '앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없어요.',
+      '앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없습니다.',
     );
   });
 });

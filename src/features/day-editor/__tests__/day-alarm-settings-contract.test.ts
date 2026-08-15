@@ -9,6 +9,10 @@ const dayAlarmComponent = readFileSync(
   resolve(process.cwd(), 'src/features/day-editor/day-alarm-summary.tsx'),
   'utf8',
 );
+const selectionControls = readFileSync(
+  resolve(process.cwd(), 'src/components/selection-controls.tsx'),
+  'utf8',
+);
 const dayEditor = readFileSync(
   resolve(process.cwd(), 'src/app/day/[date].tsx'),
   'utf8',
@@ -24,7 +28,8 @@ describe('하루 알람 설정 UI 계약', () => {
 
   it('전날과 당일을 라디오 선택으로 명확하게 구분해요', () => {
     expect(dayAlarmComponent).toContain('accessibilityRole="radiogroup"');
-    expect(dayAlarmComponent).toContain('accessibilityRole="radio"');
+    expect(dayAlarmComponent).toContain('<SelectionPill');
+    expect(selectionControls).toContain("accessibilityRole = 'radio'");
     expect(dayAlarmComponent).toContain('formatWakeDayLabel');
   });
 

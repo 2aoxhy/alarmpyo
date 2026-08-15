@@ -31,10 +31,10 @@ internal data class AlarmPyoAlarmRestoreResult(
   val completed: Boolean = expectedCount == scheduledCount
 ) {
   init {
-    require(expectedCount >= 0) { "복원 예정 알람 수는 0개 이상이어야 해요." }
-    require(scheduledCount >= 0) { "실제 예약 알람 수는 0개 이상이어야 해요." }
+    require(expectedCount >= 0) { "복원 예정 알람 수는 0개 이상이어야 합니다." }
+    require(scheduledCount >= 0) { "실제 예약 알람 수는 0개 이상이어야 합니다." }
     require(scheduledCount <= expectedCount) {
-      "실제 예약 알람 수는 복원 예정 알람 수보다 많을 수 없어요."
+      "실제 예약 알람 수는 복원 예정 알람 수보다 많을 수 없습니다."
     }
   }
 
@@ -229,12 +229,12 @@ internal object AlarmPyoAlarmRestoreStateStore {
         .putBoolean(KEY_WORK_ATTEMPTED, state.workAttempted)
         .putLong(KEY_JOURNAL_ID, state.journalId)
         .commit()
-    ) { "알람 복원 상태를 저장하지 못했어요." }
+    ) { "알람 복원 상태를 저장하지 못했습니다." }
   }
 
   fun clear(context: Context) {
     check(preferences(context).edit().clear().commit()) {
-      "알람 복원 상태를 초기화하지 못했어요."
+      "알람 복원 상태를 초기화하지 못했습니다."
     }
   }
 

@@ -45,7 +45,7 @@ export function DatePickerField({
     <View style={styles.container}>
       <View style={styles.primaryRow}>
         <Pressable
-          accessibilityHint="달력에서 날짜를 선택해요."
+          accessibilityHint="달력에서 날짜를 선택합니다."
           accessibilityLabel={pickerAccessibilityLabel}
           accessibilityRole="button"
           onPress={() => {
@@ -63,12 +63,12 @@ export function DatePickerField({
             numberOfLines={2}
             style={styles.pickerLabel}
             variant="label">
-            {valid ? formatKoreanDate(value, true) : '날짜를 선택해 주세요'}
+            {valid ? formatKoreanDate(value, true) : '날짜를 선택해야 합니다'}
           </AppText>
           <AppIcon color={palette.inkSoft} name="chevron-forward" size={18} />
         </Pressable>
         <AppButton
-          accessibilityHint="날짜를 오늘로 바꿔요."
+          accessibilityHint="날짜를 오늘로 변경합니다."
           label="오늘"
           onPress={() => onChange(today)}
           size="compact"
@@ -78,7 +78,7 @@ export function DatePickerField({
       </View>
 
       <AppButton
-        accessibilityHint="연도-월-일 형식으로 날짜를 직접 입력해요."
+        accessibilityHint="연도-월-일 형식으로 날짜를 직접 입력합니다."
         icon="options-outline"
         label={manualEntryOpen ? '직접 입력 닫기' : '직접 입력'}
         onPress={() => setManualEntryOpen((open) => !open)}
@@ -105,7 +105,7 @@ export function DatePickerField({
 
       {!valid ? (
         <AppText color={palette.danger} style={styles.helpText} variant="caption">
-          날짜를 달력에서 선택하거나 연도-월-일 형식으로 입력해 주세요.
+          날짜를 달력에서 선택하거나 연도-월-일 형식으로 입력해야 합니다.
         </AppText>
       ) : null}
 

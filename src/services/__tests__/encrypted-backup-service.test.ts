@@ -119,7 +119,7 @@ describe('암호화 전체 백업', () => {
 
   it('새 암호화 백업은 12자 이상 비밀번호만 받아요', () => {
     expect(() => assertNewBackupPassword('열한글자비밀번호입력')).toThrow(
-      '비밀번호는 12자 이상 입력해 주세요.',
+      '비밀번호는 12자 이상 입력해야 합니다.',
     );
     expect(() => assertNewBackupPassword('열두글자이상비밀번호입력')).not.toThrow();
   });
@@ -138,7 +138,7 @@ describe('암호화 전체 백업', () => {
   it('평문 제한을 넘는 백업은 난수나 키를 만들기 전에 거절해요', async () => {
     await expect(
       encryptBackupContents('a'.repeat(MAX_BACKUP_FILE_BYTES + 1), password),
-    ).rejects.toThrow('백업 파일은 4MB 이하여야 해요.');
+    ).rejects.toThrow('백업 파일은 4MB 이하여야 합니다.');
     expect(getRandomBytesAsync).not.toHaveBeenCalled();
   });
 

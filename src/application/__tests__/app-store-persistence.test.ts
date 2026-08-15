@@ -11,16 +11,89 @@ import {
   applyCanonicalSnapshotIfSourceIsCurrent,
   createDataReplacementResult,
   getResetAllDataResult,
-  getSleepReminderSyncModeForAppState,
+  getAutomaticSaveContentSignature,
+  getSleepReminderProjectionKey,
   persistLatestCanonicalSnapshotAndSyncSleep,
   shouldClearSleepReminderSaveError,
   shouldSkipAutomaticSaveForAppliedCanonicalSnapshot,
+  shouldSkipEquivalentExplicitSave,
+  shouldFlushAutomaticSave,
   shouldSyncAlarmsAfterReplacement,
   shouldSyncSleepRemindersAfterReplacement,
   withDeviceBackupResult,
 } from '../app-store-persistence';
 
 describe('app-store-persistence', () => {
+  it('수면 알림 계획 키에 날짜와 시간대 변화를 포함합니다', () => {
+    const morning = new Date(2026, 7, 15, 8);
+    const evening = new Date(2026, 7, 15, 20);
+    const nextDay = new Date(2026, 7, 16, 8);
+
+    expect(getSleepReminderProjectionKey(morning)).toBe(
+      getSleepReminderProjectionKey(evening),
+    );
+    expect(getSleepReminderProjectionKey(morning)).not.toBe(
+      getSleepReminderProjectionKey(nextDay),
+    );
+  });
+
+  it('동일한 명시적 저장은 후속 복구 작업이 없을 때만 생략합니다', () => {
+    const base = {
+      currentSnapshot: '{"same":true}',
+      nextSnapshot: '{"same":true}',
+      forceAlarmSync: false,
+      hasPersistenceCallback: false,
+      hasPendingSaveRetry: false,
+    };
+    expect(shouldSkipEquivalentExplicitSave(base)).toBe(true);
+    expect(shouldSkipEquivalentExplicitSave({
+      ...base,
+      forceAlarmSync: true,
+    })).toBe(false);
+    expect(shouldSkipEquivalentExplicitSave({
+      ...base,
+      hasPersistenceCallback: true,
+    })).toBe(false);
+    expect(shouldSkipEquivalentExplicitSave({
+      ...base,
+      hasPendingSaveRetry: true,
+    })).toBe(false);
+    expect(shouldSkipEquivalentExplicitSave({
+      ...base,
+      nextSnapshot: '{"same":false}',
+    })).toBe(false);
+  });
+
+  it('명시 저장과 같은 사용자 자료는 런타임 알람 메타데이터가 달라도 다시 저장하지 않습니다', () => {
+    const persisted = createDefaultAppData('2026-08-15');
+    const runtimeOnly = {
+      ...persisted,
+      settings: {
+        ...persisted.settings,
+        scheduledNotificationCount: 3,
+        lastNotificationSyncAt: '2026-08-15T01:00:00.000Z',
+      },
+    };
+    const persistedSignature = getAutomaticSaveContentSignature(persisted);
+
+    expect(getAutomaticSaveContentSignature(runtimeOnly)).toBe(persistedSignature);
+    expect(shouldFlushAutomaticSave(persistedSignature, persistedSignature)).toBe(false);
+    expect(shouldFlushAutomaticSave(persistedSignature, null)).toBe(true);
+  });
+
+  it('메모처럼 사용자가 바꾼 자료는 자동 저장 dirty 상태로 판정합니다', () => {
+    const persisted = createDefaultAppData('2026-08-15');
+    const changed = {
+      ...persisted,
+      notes: { '2026-08-15': '인수인계' },
+    };
+
+    expect(shouldFlushAutomaticSave(
+      getAutomaticSaveContentSignature(changed),
+      getAutomaticSaveContentSignature(persisted),
+    )).toBe(true);
+  });
+
   it('본문 저장과 후속 처리 결과를 구분해요', () => {
     expect(
       createDataReplacementResult({
@@ -210,18 +283,11 @@ describe('app-store-persistence', () => {
     ).toBe(true);
   });
 
-  it('백그라운드 전환은 저장 flush에 맡기고 복귀만 강제 재검증해요', () => {
-    expect(getSleepReminderSyncModeForAppState('active', 'inactive')).toBeNull();
-    expect(getSleepReminderSyncModeForAppState('inactive', 'background')).toBeNull();
-    expect(getSleepReminderSyncModeForAppState('background', 'active')).toBe('force');
-    expect(getSleepReminderSyncModeForAppState('active', 'active')).toBeNull();
-  });
 
-  it('Provider는 수면 signature effect로 저장 전 네이티브 동기화를 시작하지 않아요', () => {
+  it('Provider는 저장 전 수면 동기화를 시작하지 않고 변경된 자료만 자동 저장합니다', () => {
     expect(providerSource).not.toContain('sleepReminderScheduleSignature');
-    expect(providerSource).toContain(
-      '최초 로드·복구\n    // 계획만 즉시 확인해',
-    );
+    expect(providerSource).toContain('lastPersistedAutomaticSaveSignatureRef');
+    expect(providerSource).toContain('shouldFlushAutomaticSave(');
     expect(providerSource).toContain(
       'void flushAutomaticSave(automaticSaveGenerationRef.current);',
     );
@@ -497,8 +563,6 @@ describe('app-store-persistence', () => {
         force: false,
       }),
     ).toBe(true);
-    expect(getSleepReminderSyncModeForAppState('background', 'active')).toBe('force');
-
     const foregroundRetrySucceeded = await syncSleepReminders();
     expect(foregroundRetrySucceeded).toBe(true);
     expect(events).toEqual(['persisted', 'sleep:1', 'sleep:2']);

@@ -32,10 +32,10 @@ export type PayrollCalendarEntry = {
 
 function assertSalaryMonth(year: number, month: number): void {
   if (!Number.isInteger(year) || year < 1900 || year > 2200) {
-    throw new RangeError('급여 연도가 올바르지 않아요.');
+    throw new RangeError('급여 연도가 올바르지 않습니다.');
   }
   if (!Number.isInteger(month) || month < 0 || month > 11) {
-    throw new RangeError('급여 월이 올바르지 않아요.');
+    throw new RangeError('급여 월이 올바르지 않습니다.');
   }
 }
 
@@ -60,14 +60,14 @@ function formatMonthDay(dateKey: string): string {
 /** 기준 지급일이 휴일이면 직전 평일까지 거슬러 올라가요. */
 export function resolvePayrollBusinessDay(dateKey: string): string {
   if (!isValidDateKey(dateKey)) {
-    throw new RangeError('급여 지급일이 올바르지 않아요.');
+    throw new RangeError('급여 지급일이 올바르지 않습니다.');
   }
 
   let paydayDateKey = dateKey;
   while (true) {
     const year = Number(paydayDateKey.slice(0, 4));
     if (!getKoreanHolidayDataStatus(year).available) {
-      throw new RangeError(`${year}년 공휴일 자료가 없어 지급일을 계산할 수 없어요.`);
+      throw new RangeError(`${year}년 공휴일 자료가 없어 지급일을 계산할 수 없습니다.`);
     }
     if (!isPaydayHoliday(paydayDateKey)) break;
     paydayDateKey = addDays(paydayDateKey, -1);
@@ -108,7 +108,7 @@ export function getPayrollSchedule(year: number, month: number): PayrollSchedule
 /** 근무한 날짜가 어느 달 급여에 포함되는지 계산해요. */
 export function getPayrollScheduleForWorkDate(dateKey: string): PayrollSchedule {
   if (!isValidDateKey(dateKey)) {
-    throw new RangeError('근무 날짜가 올바르지 않아요.');
+    throw new RangeError('근무 날짜가 올바르지 않습니다.');
   }
 
   const workDate = parseDateKey(dateKey);
@@ -129,13 +129,13 @@ export function getPayrollCalendarEntry(
 ): PayrollCalendarEntry {
   const schedule = getPayrollSchedule(year, month);
   const adjustedCopy = schedule.paydayAdjusted
-    ? `, ${formatMonthDay(schedule.regularPaydayDateKey)}이 휴일이라 앞당겨졌어요`
+    ? `, ${formatMonthDay(schedule.regularPaydayDateKey)}이 휴일이라 앞당겨졌습니다`
     : '';
   const estimateCopy =
     schedule.paydayCalculation === 'calculated-standard'
-      ? ', 반복 법정공휴일을 반영한 예상일이에요'
+      ? ', 반복 법정공휴일을 반영한 예상일입니다'
       : schedule.paydayCalculation === 'weekend-only-estimate'
-        ? ', 공휴일 자료가 없어 주말만 반영한 예상일이에요'
+        ? ', 공휴일 자료가 없어 주말만 반영한 예상일입니다'
         : '';
 
   return {

@@ -107,7 +107,7 @@ internal object AlarmPyoPlanRefreshReminder {
       editor.remove(KEY_NOTIFIED_EXPIRY_AT)
         .remove(KEY_LAST_BLOCKED_ATTEMPT_AT)
     }
-    check(editor.commit()) { "알람 계획 갱신 안내를 저장하지 못했어요." }
+    check(editor.commit()) { "알람 계획 갱신 안내를 저장하지 못했습니다." }
     restore(appContext)
   }
 
@@ -172,7 +172,7 @@ internal object AlarmPyoPlanRefreshReminder {
       preferences(appContext).edit()
         .putLong(KEY_NOTIFIED_EXPIRY_AT, coverage.plannedThroughAt)
         .commit()
-    ) { "알람 계획 갱신 안내 상태를 저장하지 못했어요." }
+    ) { "알람 계획 갱신 안내 상태를 저장하지 못했습니다." }
     cancelPendingIntent(appContext)
     return coverage.copy(refreshReminderPending = false)
   }
@@ -181,7 +181,7 @@ internal object AlarmPyoPlanRefreshReminder {
   fun clear(context: Context) {
     cancelPendingIntent(context)
     check(preferences(context).edit().clear().commit()) {
-      "알람 계획 갱신 안내를 정리하지 못했어요."
+      "알람 계획 갱신 안내를 정리하지 못했습니다."
     }
   }
 
@@ -219,11 +219,11 @@ internal object AlarmPyoPlanRefreshReminder {
     }
     builder
       .setSmallIcon(R.drawable.alarmpyo_ic_alarm)
-      .setContentTitle("근무 알람 계획을 갱신하세요")
-      .setContentText("AlarmPyo를 열면 다음 근무 알람이 자동으로 이어져요.")
+      .setContentTitle("근무 알람 계획 갱신 필요")
+      .setContentText("AlarmPyo를 열면 다음 근무 알람이 자동으로 이어집니다.")
       .setStyle(
         Notification.BigTextStyle()
-          .bigText("AlarmPyo를 한 번 열면 저장된 근무표에 맞춰 다음 알람을 자동으로 이어서 예약해요.")
+          .bigText("AlarmPyo를 한 번 열면 저장된 근무표에 맞춰 다음 알람을 자동으로 이어서 예약합니다.")
       )
       .setCategory(Notification.CATEGORY_REMINDER)
       .setAutoCancel(true)
@@ -258,7 +258,7 @@ internal object AlarmPyoPlanRefreshReminder {
       preferences(appContext).edit()
         .putLong(KEY_LAST_BLOCKED_ATTEMPT_AT, attemptedAt)
         .commit()
-    ) { "알람 계획 갱신 재점검 시각을 저장하지 못했어요." }
+    ) { "알람 계획 갱신 재점검 시각을 저장하지 못했습니다." }
     restore(appContext)
   }
 
@@ -270,7 +270,7 @@ internal object AlarmPyoPlanRefreshReminder {
         "알람 계획 갱신 안내",
         NotificationManager.IMPORTANCE_DEFAULT
       ).apply {
-        description = "근무 알람 계획이 끝나기 전에 AlarmPyo 실행을 안내해요."
+        description = "근무 알람 계획이 끝나기 전에 AlarmPyo 실행을 안내합니다."
         setShowBadge(false)
         lockscreenVisibility = Notification.VISIBILITY_PRIVATE
       }

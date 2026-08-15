@@ -71,7 +71,7 @@ describe('저장 상태 안내 문구', () => {
     });
     expect(getSaveOutcomePresentation(outcome)).toEqual({
       kind: 'error',
-      title: '변경 내용을 저장하지 못했어요',
+      title: '변경 내용을 저장하지 못했습니다',
       message: '변경 내용을 저장하지 못했어요. 저장 공간을 확인해 주세요.',
     });
   });
@@ -99,7 +99,7 @@ describe('저장 상태 안내 문구', () => {
     expect(outcome).toMatchObject({ status: 'failure', retryAction: null });
     expect(getSaveOutcomePresentation(outcome)).toEqual({
       kind: 'error',
-      title: '근무 시간과 순서를 확인해 주세요',
+      title: '근무 시간과 순서를 확인해야 합니다',
       message: '이전 근무와 시간이 겹쳐 저장하지 못했어요.',
     });
   });

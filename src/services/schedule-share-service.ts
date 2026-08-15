@@ -27,7 +27,7 @@ function normalizeSelectedDays(
 
   for (const day of days) {
     if (!isValidDateKey(day.dateKey)) {
-      throw new TypeError('공유할 일정에 올바르지 않은 날짜가 있어요.');
+      throw new TypeError('공유할 일정에 올바르지 않은 날짜가 있습니다.');
     }
     // 같은 날짜가 다시 들어오면 가장 최근에 계산한 일정으로 교체해요.
     daysByDate.set(day.dateKey, day);
@@ -129,7 +129,7 @@ export function buildScheduleShareText(
 ): string {
   const selectedDays = normalizeSelectedDays(days);
   if (selectedDays.length === 0) {
-    throw new RangeError('공유할 일정을 한 개 이상 선택해 주세요.');
+    throw new RangeError('공유할 일정을 한 개 이상 선택해야 합니다.');
   }
 
   const years = new Set(selectedDays.map((day) => day.dateKey.slice(0, 4)));

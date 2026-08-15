@@ -260,7 +260,7 @@ internal object AlarmPyoShiftWidgetUpdater {
     views.setTextViewText(
       R.id.alarmpyo_widget_bottom_value,
       if (minimumHeight || (hasTertiary && !largeText)) {
-        compactWidgetLine(state.bottomLabel, state.bottomText)
+        compactWidgetLine(state.bottomSectionKind, state.bottomLabel, state.bottomText)
       } else {
         state.bottomText
       }
@@ -297,7 +297,11 @@ internal object AlarmPyoShiftWidgetUpdater {
     views.setTextViewText(
       R.id.alarmpyo_widget_secondary_value,
       if (hasTertiary) {
-        compactWidgetLine(state.secondaryLabel.orEmpty(), state.secondaryText.orEmpty())
+        compactWidgetLine(
+          state.secondarySectionKind,
+          state.secondaryLabel.orEmpty(),
+          state.secondaryText.orEmpty()
+        )
       } else {
         state.secondaryText.orEmpty()
       }
@@ -332,10 +336,14 @@ internal object AlarmPyoShiftWidgetUpdater {
   private fun compactDateText(dateText: String): String =
     dateText.substringAfter("년 ", dateText)
 
-  private fun compactWidgetLine(label: String, text: String): String {
-    val compactLabel = when (label) {
-      "다음 근무" -> "다음"
-      "다음 알람" -> "알람"
+  private fun compactWidgetLine(
+    sectionKind: AlarmPyoWidgetSectionKind,
+    label: String,
+    text: String
+  ): String {
+    val compactLabel = when (sectionKind) {
+      AlarmPyoWidgetSectionKind.NEXT_WORK -> "다음"
+      AlarmPyoWidgetSectionKind.NEXT_ALARM -> "알람"
       else -> label
     }
     return if (compactLabel.isBlank()) text else "$compactLabel · $text"

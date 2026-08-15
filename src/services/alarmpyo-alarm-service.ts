@@ -418,7 +418,7 @@ function normalizeAlarmSafetyStatus(value: unknown): AlarmPyoAlarmSafetyStatus |
 
 function normalizeStatus(value: unknown): AlarmPyoAlarmStatus {
   if (!isRecord(value)) {
-    throw new TypeError('알람 상태 응답의 형식이 올바르지 않아요.');
+    throw new TypeError('알람 상태 응답의 형식이 올바르지 않습니다.');
   }
 
   const scheduledAlarms = Array.isArray(value.scheduledAlarms)
@@ -492,8 +492,8 @@ function normalizeStatus(value: unknown): AlarmPyoAlarmStatus {
     scheduledAlarms,
     scheduledCount: nativeCount,
     lastRestoreResult: normalizeAlarmRestoreResult(value.lastRestoreResult),
-    // 이전 APK 응답에는 위젯 상태가 없어요. 선택 기능인 위젯을 설치하지 않은
-    // 상태로 처리하면 OTA 전환 중에도 잘못된 경고를 표시하지 않아요.
+    // 이전 APK 응답에는 위젯 상태가 없습니다. 선택 기능인 위젯을 설치하지 않은
+    // 상태로 처리하면 OTA 전환 중에도 잘못된 경고를 표시하지 않습니다.
     widgetInstalled: value.widgetInstalled === true,
     widgetSnapshotGeneratedAt:
       typeof value.widgetSnapshotGeneratedAt === 'number' &&
@@ -588,11 +588,11 @@ export async function syncAlarmPyoAlarms(
       metadataSnapshot.safetyThroughAt <= metadataSnapshot.refreshRecommendedAt
     )
   ) {
-    throw new RangeError('알람 안전 계획 메타데이터가 올바르지 않아요.');
+    throw new RangeError('알람 안전 계획 메타데이터가 올바르지 않습니다.');
   }
 
   return enqueueNativeMutation(async () => {
-    // 빠르게 연속 변경된 근무표는 마지막 계획만 네이티브 계층에 전달해요.
+    // 빠르게 연속 변경된 근무표는 마지막 계획만 네이티브 계층에 전달합니다.
     if (generation !== latestSyncGeneration) return getAlarmPyoAlarmStatus();
     const metadataCapableModule = nativeModule as typeof nativeModule & {
       syncAlarmsWithMetadataAsync?: (
@@ -682,7 +682,7 @@ export async function openAlarmPyoPermissionSettings(
 
 export async function openAlarmPyoAlarmPermissionSettings(): Promise<boolean> {
   if (!nativeModule) return false;
-  // 구형 호출 계약은 네이티브 계층이 정확한 알람 → 알림 → 전체 화면 순서로 처리해요.
+  // 구형 호출 계약은 네이티브 계층이 정확한 알람 → 알림 → 전체 화면 순서로 처리합니다.
   invalidateStatusCache();
   await nativeModule.openAlarmPermissionSettingsAsync();
   invalidateStatusCache();
@@ -703,9 +703,9 @@ export async function openAlarmPyoBatterySettings(): Promise<boolean> {
 
 export async function scheduleAlarmPyoTestAlarm(seconds = 5): Promise<void> {
   if (!Number.isInteger(seconds) || seconds < 5 || seconds > 60) {
-    throw new RangeError('시험 알람 대기 시간은 5초 이상 60초 이하의 정수여야 해요.');
+    throw new RangeError('시험 알람 대기 시간은 5초 이상 60초 이하의 정수여야 합니다.');
   }
-  if (!nativeModule) throw new Error('이 기기에서는 알람표 알람을 사용할 수 없어요.');
+  if (!nativeModule) throw new Error('이 기기에서는 알람표 알람을 사용할 수 없습니다.');
   invalidateStatusCache();
   await enqueueNativeMutation(() => nativeModule.scheduleTestAlarmAsync(seconds));
   invalidateStatusCache();
@@ -722,7 +722,7 @@ export async function cancelAllAlarmPyoAlarms(): Promise<AlarmPyoAlarmStatus> {
   });
 }
 
-/** 새 네이티브 런타임의 모든 알람 상태를 한 트랜잭션으로 초기화해요. */
+/** 새 네이티브 런타임의 모든 알람 상태를 한 트랜잭션으로 초기화합니다. */
 export async function resetAlarmPyoRuntime(): Promise<AlarmPyoAlarmRuntimeResetResult | null> {
   if (!nativeModule?.resetAlarmRuntimeAsync) return null;
   latestSyncGeneration += 1;
@@ -733,7 +733,7 @@ export async function resetAlarmPyoRuntime(): Promise<AlarmPyoAlarmRuntimeResetR
     );
     invalidateStatusCache();
     if (result === null) {
-      throw new Error('네이티브 알람 초기화 결과를 확인하지 못했어요.');
+      throw new Error('네이티브 알람 초기화 결과를 확인하지 못했습니다.');
     }
     return result;
   });
@@ -749,8 +749,8 @@ export async function syncAlarmPyoWidget(snapshot: AlarmPyoWidgetSnapshot): Prom
 }
 
 /**
- * 위젯 스냅샷을 만들기 전에 사용하는 가벼운 설치 여부 조회예요.
- * 전용 설치 여부 함수가 없으면 상태 응답으로 안전하게 확인해요.
+ * 위젯 스냅샷을 만들기 전에 사용하는 가벼운 설치 여부 조회입니다.
+ * 전용 설치 여부 함수가 없으면 상태 응답으로 안전하게 확인합니다.
  */
 export async function isAlarmPyoWidgetInstalled(): Promise<boolean> {
   if (!nativeModule) return false;

@@ -22,8 +22,8 @@ export function resolveSleepReminderStorageNotice({
 }): SleepReminderStorageNotice | null {
   if (status?.storageHealth === "recovered") {
     return {
-      message: "직전 정상 계획으로 복구하고 예약 상태를 다시 확인했어요.",
-      title: "수면 알림 계획을 복구했어요",
+      message: "직전 정상 계획으로 복구하고 예약 상태를 다시 확인했습니다.",
+      title: "수면 알림 계획을 복구했습니다",
       tone: "success",
     };
   }
@@ -33,23 +33,23 @@ export function resolveSleepReminderStorageNotice({
     return {
       actionLabel: "복구 다시 시도하기",
       message:
-        "기존 예약은 임의로 지우지 않았어요. 현재 일정으로 복구를 다시 시도해 주세요.",
-      title: "수면 알림 계획을 복구하지 못했어요",
+        "기존 예약은 임의로 지우지 않았습니다. 현재 일정으로 복구를 다시 시도해야 합니다.",
+      title: "수면 알림 계획을 복구하지 못했습니다",
       tone: "danger",
     };
   }
   return {
     actionLabel: "수면 알림을 켜고 복구하기",
     message:
-      "기존 예약은 임의로 지우지 않았어요. 수면 시작 알림을 켜면 현재 일정으로 복구를 시도해요.",
-    title: "수면 알림 계획을 복구하지 못했어요",
+      "기존 예약은 임의로 지우지 않았습니다. 수면 시작 알림을 켜면 현재 일정으로 복구를 시도합니다.",
+    title: "수면 알림 계획을 복구하지 못했습니다",
     tone: "danger",
   };
 }
 
 /**
- * 자동 점검 오류는 예약 내용이 실제로 어긋난 동안에만 화면에 남겨요.
- * 앱 복귀 과정에서 이미 복구된 예약을 이전 오류 상태가 계속 가리지 않게 해요.
+ * 자동 점검 오류는 예약 내용이 실제로 어긋난 동안에만 화면에 남깁니다.
+ * 앱 복귀 과정에서 이미 복구된 예약을 이전 오류 상태가 계속 가리지 않게 합니다.
  */
 export function resolveVisibleAlarmAutoCheckStatus({
   alarmStatus,
@@ -98,10 +98,10 @@ export function resolveAlarmScheduleEmptyCopy({
   plannedAlarmCount: number;
 }): string {
   if (!notificationsEnabled) {
-    return "근무 알람을 켜면 다음 근무부터 자동으로 예약해요.";
+    return "근무 알람을 켜면 다음 근무부터 자동으로 예약합니다.";
   }
   if (plannedAlarmCount === 0) {
-    return "예정된 근무가 생기면 알람을 자동으로 예약해요.";
+    return "예정된 근무가 생기면 알람을 자동으로 예약합니다.";
   }
-  return "알람 권한을 확인하거나 근무표에 맞춰 다시 예약해 주세요.";
+  return "알람 권한을 확인하거나 근무표에 맞춰 다시 예약해야 합니다.";
 }

@@ -48,7 +48,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
 
     // 비동기 작업을 시작하기 전에 DP 저장소의 저널과 2분 watchdog을 동기로 확정해요.
     val transaction = runCatching { prepareTransaction(appContext, action) }
-      .onFailure { error -> Log.e(TAG, "알람 복원 저널을 준비하지 못했어요.", error) }
+      .onFailure { error -> Log.e(TAG, "알람 복원 저널을 준비하지 못했습니다.", error) }
       .getOrNull() ?: return
     val pendingResult = goAsync()
     EXECUTOR.execute {
@@ -59,7 +59,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
         performTransaction(appContext, transaction)
       } catch (error: Throwable) {
         // 완료 상태를 쓰기 전에 실패하면 이미 준비한 watchdog이 같은 저널을 다시 실행해요.
-        Log.e(TAG, "알람 복원 작업을 완료하지 못했어요.", error)
+        Log.e(TAG, "알람 복원 작업을 완료하지 못했습니다.", error)
       } finally {
         pendingResult.finish()
       }
@@ -161,7 +161,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
             recalculateLocalTimes = state.recalculateLocalTimes
           )
         }.onFailure { error ->
-          Log.e(TAG, "근무 알람을 복원하지 못했어요.", error)
+          Log.e(TAG, "근무 알람을 복원하지 못했습니다.", error)
         }.getOrNull()
       } else {
         null
@@ -174,7 +174,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
             recalculateLocalTimes = state.recalculateLocalTimes
           )
         }.onFailure { error ->
-          Log.e(TAG, "수면 시작 알림을 복원하지 못했어요.", error)
+          Log.e(TAG, "수면 시작 알림을 복원하지 못했습니다.", error)
         }.isSuccess
       } else {
         true
@@ -182,7 +182,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
 
       val widgetCompleted = if (state.widgetPending) {
         runCatching { AlarmPyoShiftWidgetUpdater.updateAll(context) }
-          .onFailure { error -> Log.e(TAG, "위젯을 새로 고치지 못했어요.", error) }
+          .onFailure { error -> Log.e(TAG, "위젯을 새로 고치지 못했습니다.", error) }
           .isSuccess
       } else {
         true
@@ -190,7 +190,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
 
       val quickTimerCompleted = if (state.quickTimerPending) {
         runCatching { AlarmPyoQuickTimerScheduler.restore(context) }
-          .onFailure { error -> Log.e(TAG, "빠른 타이머를 복원하지 못했어요.", error) }
+          .onFailure { error -> Log.e(TAG, "빠른 타이머를 복원하지 못했습니다.", error) }
           .getOrDefault(false)
       } else {
         true
@@ -246,7 +246,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
             .commit()
         }
       }.onFailure { error ->
-        Log.w(TAG, "제거된 활동 알림 정보를 정리하지 못했어요.", error)
+        Log.w(TAG, "제거된 활동 알림 정보를 정리하지 못했습니다.", error)
       }
     }
 
@@ -260,7 +260,7 @@ class AlarmPyoAlarmRestoreReceiver : BroadcastReceiver() {
           manager.set(AlarmManager.RTC_WAKEUP, triggerAt, operation)
         }
       }.onFailure { error ->
-        Log.e(TAG, "알람 복원 watchdog을 예약하지 못했어요.", error)
+        Log.e(TAG, "알람 복원 watchdog을 예약하지 못했습니다.", error)
       }
     }
 

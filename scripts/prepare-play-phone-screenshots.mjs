@@ -25,12 +25,12 @@ export function parsePlayPhoneScreenshotArguments(argv) {
     } else if (argument.startsWith('--source-dir=')) {
       sourceDirectory = argument.slice('--source-dir='.length);
     } else {
-      throw new Error(`지원하지 않는 인자예요: ${argument}`);
+      throw new Error(`지원하지 않는 인자입니다: ${argument}`);
     }
   }
   if (!sourceDirectory) {
     throw new Error(
-      '--source-dir로 V08 Play 설치본에서 다시 촬영한 WebP 4장의 폴더를 지정해 주세요.',
+      '--source-dir로 V10 Play 설치본에서 다시 촬영한 WebP 4장의 폴더를 지정해야 합니다.',
     );
   }
   return { sourceDirectory: resolve(sourceDirectory) };
@@ -50,7 +50,7 @@ export async function convertWebpToOpaquePng({
   });
   const metadata = await image.metadata();
   if (metadata.format !== 'webp') {
-    throw new Error(`${inputPath}: 원본은 WebP여야 해요.`);
+    throw new Error(`${inputPath}: 원본은 WebP여야 합니다.`);
   }
   if (
     !metadata.width ||
@@ -59,11 +59,11 @@ export async function convertWebpToOpaquePng({
     metadata.height < expectedHeight
   ) {
     throw new Error(
-      `${inputPath}: 최소 ${expectedWidth}×${expectedHeight} 실기기 원본이 필요해요. 현재 ${metadata.width ?? '?'}×${metadata.height ?? '?'}이며 작은 원본을 확대하지 않아요.`,
+      `${inputPath}: 최소 ${expectedWidth}×${expectedHeight} 실기기 원본이 필요합니다. 현재 ${metadata.width ?? '?'}×${metadata.height ?? '?'}이며 작은 원본을 확대하지 않습니다.`,
     );
   }
   if ((metadata.pages ?? 1) !== 1) {
-    throw new Error(`${inputPath}: 움직이는 WebP는 스크린샷으로 사용할 수 없어요.`);
+    throw new Error(`${inputPath}: 움직이는 WebP는 스크린샷으로 사용할 수 없습니다.`);
   }
 
   const needsContain =
@@ -119,7 +119,7 @@ export async function preparePlayPhoneScreenshots({ sourceDirectory }) {
         metadata.width !== manifest.target.width ||
         metadata.height !== manifest.target.height
       ) {
-        throw new Error(`${stagingPath}: manifest 목표 크기와 달라요.`);
+        throw new Error(`${stagingPath}: manifest 목표 크기와 다릅니다.`);
       }
       prepared.push({
         outputFile: screenshot.outputFile,
@@ -153,7 +153,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         console.log(`${screenshot.outputFile}: SHA-256 ${screenshot.sha256}`);
       }
       console.log(
-        'V08 실기기 스크린샷 4장을 불투명 RGB PNG로 준비했어요. Play 등록 전 엄격 검사를 실행해 주세요.',
+        'V10 실기기 스크린샷 4장을 불투명 RGB PNG로 준비했습니다. Play 등록 전 엄격 검사를 실행해야 합니다.',
       );
     })
     .catch((error) => {

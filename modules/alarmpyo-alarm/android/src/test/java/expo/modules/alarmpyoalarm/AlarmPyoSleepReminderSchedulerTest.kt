@@ -77,7 +77,7 @@ class AlarmPyoSleepReminderSchedulerTest {
     }
 
     assertEquals(
-      "수면 시작 알림 저장소가 손상됐지만 확인할 계획이 없어 빈 계획으로 덮어쓰지 않았어요.",
+      "수면 시작 알림 저장소가 손상됐지만 확인할 계획이 없어 빈 계획으로 덮어쓰지 않았습니다.",
       error.message
     )
   }
@@ -111,7 +111,7 @@ class AlarmPyoSleepReminderSchedulerTest {
     assertEquals(partial, persisted)
     assertSame(firstFailure, error.cause)
     assertEquals(listOf(secondFailure), error.suppressed.toList())
-    assertEquals("수면 시작 알림 2개를 예약하지 못해 다시 시도해요.", error.message)
+    assertEquals("수면 시작 알림 2개를 예약하지 못해 다시 시도합니다.", error.message)
   }
 
   @Test

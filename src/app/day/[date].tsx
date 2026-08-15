@@ -224,10 +224,10 @@ export default function DayEditorScreen() {
       ? `${startTime || '--:--'}~${endTime || '--:--'} · ${
           usesDefaultTime ? '기본 시간' : '이날만 변경'
         }`
-      : '현재 일정에는 근무 시간이 없어요.';
+      : '현재 일정에는 근무 시간이 없습니다.';
   const alarmSettingsSummary =
     !alarmSourceShift || alarmSourceShift.isOff
-      ? '현재 일정에는 근무 알람이 없어요.'
+      ? '현재 일정에는 근무 알람이 없습니다.'
       : !alarmDraftResult.valid
         ? '기상 시각 확인 필요'
         : formatDayAlarmOverrideSummary(
@@ -250,12 +250,19 @@ export default function DayEditorScreen() {
         if (!hasChanges || allowNavigation.current) return;
         event.preventDefault();
         showDialog(
-          '저장하지 않고 나갈까요?',
-          '선택한 근무, 예외 일정, 변경한 시간과 작성한 메모가 사라져요.',
+          '저장하지 않고 나가시겠습니까?',
+          '선택한 근무, 예외 일정, 변경한 시간과 작성한 메모가 사라집니다.',
           [
-            { text: '계속 편집하기', style: 'cancel' },
+            {
+              text: '계속 편집하기',
+              actionId: 'cancel',
+              icon: 'close',
+              style: 'cancel',
+            },
             {
               text: '저장하지 않고 나가기',
+              actionId: 'delete',
+              icon: 'trash-outline',
               style: 'destructive',
               onPress: () => {
                 allowNavigation.current = true;
@@ -263,6 +270,7 @@ export default function DayEditorScreen() {
               },
             },
           ],
+          { tone: 'danger' },
         );
       }),
     [hasChanges, navigation, saving, showDialog],
@@ -293,10 +301,10 @@ export default function DayEditorScreen() {
           <AppIcon color={palette.danger} name="calendar-outline" size={30} />
         </View>
         <AppText accessibilityRole="header" variant="title">
-          날짜를 열 수 없어요
+          날짜를 열 수 없습니다
         </AppText>
         <AppText tone="secondary" style={styles.invalidDateText}>
-          달력에서 날짜를 다시 선택해 주세요.
+          달력에서 날짜를 다시 선택해야 합니다.
         </AppText>
       </Screen>
     );
@@ -317,11 +325,11 @@ export default function DayEditorScreen() {
           <AppIcon color={palette.indigo} name="calendar-outline" size={30} />
         </View>
         <AppText accessibilityRole="header" variant="title">
-          일정 적용 시작일 이전이에요
+          일정 적용 시작일 이전입니다
         </AppText>
         <AppText tone="secondary" style={styles.invalidDateText}>
-          {formatKoreanDate(scheduleStartDate, true)}부터 일정이 시작돼요. 이전 날짜에는
-          근무와 알람을 만들지 않아요.
+          {formatKoreanDate(scheduleStartDate, true)}부터 일정이 시작됩니다. 이전 날짜에는
+          근무와 알람을 만들지 않습니다.
         </AppText>
       </Screen>
     );
@@ -394,15 +402,15 @@ export default function DayEditorScreen() {
       setAdditionalSettingsExpanded(true);
       setAdditionalPanel('time');
       showDialog(
-        '근무 시간을 확인해 주세요',
-        '시작과 종료 시간을 06:45 형식으로 입력하고 서로 다르게 지정해 주세요.',
+        '근무 시간을 확인해야 합니다',
+        '시작과 종료 시간을 06:45 형식으로 입력하고 서로 다르게 지정해야 합니다.',
       );
       return;
     }
     if (alarmSourceShift && !alarmSourceShift.isOff && !alarmDraftResult.valid) {
       setAdditionalSettingsExpanded(true);
       setAdditionalPanel('alarm');
-      showDialog('기상 시각을 확인해 주세요', alarmDraftResult.message);
+      showDialog('기상 시각을 확인해야 합니다', alarmDraftResult.message);
       return;
     }
     setSaving(true);
@@ -431,8 +439,8 @@ export default function DayEditorScreen() {
       );
       if (!saved) {
         showDialog(
-          '일정을 저장하지 못했어요',
-          '휴대폰 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+          '일정을 저장하지 못했습니다',
+          '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
         );
         return;
       }
@@ -452,8 +460,8 @@ export default function DayEditorScreen() {
         <AppButton
           accessibilityHint={
             dayException === null && !timeIsValid
-              ? '특별 일정·시간·알람·메모에서 근무 시간을 확인해 주세요.'
-              : '이 날짜의 변경 내용을 저장해요.'
+              ? '특별 일정·시간·알람·메모에서 근무 시간을 확인해야 합니다.'
+              : '이 날짜의 변경 내용을 저장합니다.'
           }
           disabled={saving || !hasChanges}
           icon="checkmark"

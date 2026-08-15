@@ -76,13 +76,13 @@ export function assertNewBackupPassword(password: string): void {
   const normalized = normalizePassword(password);
   const characterCount = Array.from(normalized).length;
   if (characterCount < MINIMUM_PASSWORD_CHARACTERS) {
-    throw new Error('비밀번호는 12자 이상 입력해 주세요.');
+    throw new Error('비밀번호는 12자 이상 입력해야 합니다.');
   }
   if (characterCount > MAXIMUM_PASSWORD_CHARACTERS) {
-    throw new Error('비밀번호는 128자 이하로 입력해 주세요.');
+    throw new Error('비밀번호는 128자 이하로 입력해야 합니다.');
   }
   if (utf8ToBytes(normalized).length > MAXIMUM_PASSWORD_BYTES) {
-    throw new Error('비밀번호가 너무 길어요. 더 짧게 입력해 주세요.');
+    throw new Error('비밀번호가 너무 깁니다. 더 짧게 입력해야 합니다.');
   }
 }
 
@@ -156,7 +156,7 @@ export async function decryptBackupContents(
     getCheckedEncryptedBackupContentsByteSize(encryptedContents);
     const envelope = parseEnvelope(encryptedContents);
     const normalizedPassword = normalizePassword(password);
-    if (normalizedPassword.length === 0) throw new Error('비밀번호가 비어 있어요.');
+    if (normalizedPassword.length === 0) throw new Error('비밀번호가 비어 있습니다.');
 
     const salt = base64ToBytes(envelope.kdf.salt, KDF_SALT_BYTES);
     const nonce = base64ToBytes(envelope.cipher.nonce, CIPHER_NONCE_BYTES);
@@ -169,7 +169,7 @@ export async function decryptBackupContents(
       nonce.length !== CIPHER_NONCE_BYTES ||
       ciphertext.length !== envelope.plaintextBytes + AUTH_TAG_BYTES
     ) {
-      throw new Error('암호화 길이가 올바르지 않아요.');
+      throw new Error('암호화 길이가 올바르지 않습니다.');
     }
 
     const additionalData = utf8ToBytes(
@@ -192,12 +192,12 @@ export async function decryptBackupContents(
       );
       try {
         if (plaintext.length !== envelope.plaintextBytes) {
-          throw new Error('복호화한 백업의 크기가 올바르지 않아요.');
+          throw new Error('복호화한 백업의 크기가 올바르지 않습니다.');
         }
         const contents = bytesToUtf8(plaintext);
         getCheckedBackupContentsByteSize(contents);
         if (utf8ToBytes(contents).length !== plaintext.length) {
-          throw new Error('복호화한 백업의 UTF-8 형식이 올바르지 않아요.');
+          throw new Error('복호화한 백업의 UTF-8 형식이 올바르지 않습니다.');
         }
         return contents;
       } finally {
@@ -246,7 +246,7 @@ function parseEnvelope(raw: string): EncryptedBackupEnvelope {
     typeof value.cipher.nonce !== 'string' ||
     typeof value.cipher.ciphertext !== 'string'
   ) {
-    throw new Error('암호화 백업 형식이 올바르지 않아요.');
+    throw new Error('암호화 백업 형식이 올바르지 않습니다.');
   }
   if (
     getBase64DecodedByteLength(value.kdf.salt) !== KDF_SALT_BYTES ||
@@ -254,7 +254,7 @@ function parseEnvelope(raw: string): EncryptedBackupEnvelope {
     getBase64DecodedByteLength(value.cipher.ciphertext) !==
       (value.plaintextBytes as number) + AUTH_TAG_BYTES
   ) {
-    throw new Error('암호화 백업의 길이가 올바르지 않아요.');
+    throw new Error('암호화 백업의 길이가 올바르지 않습니다.');
   }
   return value as EncryptedBackupEnvelope;
 }
@@ -263,7 +263,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array
   const passwordBytes = utf8ToBytes(normalizePassword(password));
   if (passwordBytes.length === 0 || passwordBytes.length > MAXIMUM_PASSWORD_BYTES) {
     passwordBytes.fill(0);
-    throw new Error('비밀번호 길이가 올바르지 않아요.');
+    throw new Error('비밀번호 길이가 올바르지 않습니다.');
   }
   try {
     return await scryptAsync(passwordBytes, salt, {
@@ -284,7 +284,7 @@ function normalizePassword(password: string): string {
 }
 
 function copyExactBytes(bytes: Uint8Array, length: number): Uint8Array {
-  if (bytes.length !== length) throw new Error('암호화 입력 길이가 올바르지 않아요.');
+  if (bytes.length !== length) throw new Error('암호화 입력 길이가 올바르지 않습니다.');
   return Uint8Array.from(bytes);
 }
 

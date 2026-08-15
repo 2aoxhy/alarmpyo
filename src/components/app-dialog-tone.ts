@@ -1,8 +1,24 @@
-const FAILURE_WORDS = /실패|못했|오류|필요|문제/;
-const SUCCESS_WORDS =
-  /완료|저장했어요|가져왔어요|복구했어요|만들었어요|초기화했어요|적용했어요|마쳤어요|준비됐어요|준비했어요|했습니다/;
+import type { AppIconName } from '@/components/app-icon';
 
-/** 실패 제목을 성공 색상으로 오인하지 않으면서 해요체 완료 문구도 인식해요. */
-export function isSuccessDialogTitle(title: string): boolean {
-  return !FAILURE_WORDS.test(title) && SUCCESS_WORDS.test(title);
+export type AppDialogTone = 'neutral' | 'success' | 'warning' | 'danger';
+
+type AppDialogPresentation = Readonly<{
+  icon: AppIconName;
+  paletteRole: 'indigo' | 'mintDark' | 'amber' | 'danger';
+}>;
+
+const DIALOG_PRESENTATIONS: Readonly<
+  Record<AppDialogTone, AppDialogPresentation>
+> = {
+  neutral: { icon: 'alert-circle-outline', paletteRole: 'indigo' },
+  success: { icon: 'checkmark-circle', paletteRole: 'mintDark' },
+  warning: { icon: 'alert-circle-outline', paletteRole: 'amber' },
+  danger: { icon: 'alert-circle-outline', paletteRole: 'danger' },
+};
+
+/** 대화상자 표현은 제목 문구가 아니라 호출자가 지정한 의미를 따릅니다. */
+export function resolveAppDialogPresentation(
+  tone: AppDialogTone,
+): AppDialogPresentation {
+  return DIALOG_PRESENTATIONS[tone];
 }

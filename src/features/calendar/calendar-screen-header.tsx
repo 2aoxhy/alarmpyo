@@ -25,8 +25,8 @@ export function CalendarScreenHeader({
         <AppButton
           accessibilityHint={
             selectionMode
-              ? '선택한 날짜를 모두 해제하고 일반 달력으로 돌아가요.'
-              : '날짜를 누르거나 손가락을 끌어 여러 일정을 선택해요.'
+              ? '선택한 날짜를 모두 해제하고 일반 달력으로 돌아갑니다.'
+              : '날짜를 누르거나 손가락을 끌어 여러 일정을 선택합니다.'
           }
           accessibilityLabel={selectionMode ? '일정 선택 취소하기' : '일정 선택 시작하기'}
           icon={selectionMode ? 'close' : 'checkmark-circle'}
@@ -36,7 +36,7 @@ export function CalendarScreenHeader({
           variant="secondary"
         />
         <AppButton
-          accessibilityHint="오늘이 있는 달로 이동해요."
+          accessibilityHint="오늘이 있는 달로 이동합니다."
           accessibilityLabel="오늘 날짜로 이동하기"
           icon="today-outline"
           label="오늘로 이동하기"

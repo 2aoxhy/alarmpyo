@@ -420,7 +420,7 @@ class AlarmPyoAlarmActivity : Activity() {
     val finalRepeat = newPlan.isSingleRepeat()
     snoozeButton.visibility = if (finalRepeat) View.GONE else View.VISIBLE
     actionHintText.text = if (finalRepeat) {
-      "이번 알람은 마지막 재알람입니다. 알람 끄기를 눌러 종료하세요."
+      "이번 알람은 마지막 재알람입니다. 알람 끄기를 눌러 종료합니다."
     } else {
       "알람을 끄거나 잠시 뒤 다시 울릴 수 있습니다."
     }

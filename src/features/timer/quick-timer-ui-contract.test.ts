@@ -12,6 +12,7 @@ function source(path: string): string {
 describe('빠른 타이머 화면 계약', () => {
   const tabs = source('src/app/(tabs)/_layout.tsx');
   const timer = source('src/app/(tabs)/timer.tsx');
+  const countdown = source('src/features/timer/quick-timer-countdown.tsx');
   const settings = source('src/components/settings-home.tsx');
 
   it('하단 메뉴를 오늘·달력·타이머·설정 순서로 표시해요', () => {
@@ -30,8 +31,8 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('30분·60분만 제공하고 실행 중에는 교체 확인을 거쳐요', () => {
     expect(timer).toContain('QUICK_TIMER_DURATIONS.map');
-    expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있어요.');
-    expect(timer).toContain('실행 중인 타이머를 바꿀까요?');
+    expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
+    expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
     expect(timer).toContain('현재 타이머를 취소하고');
   });
 
@@ -40,10 +41,10 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('monotonic: performance.now()');
     expect(timer).toContain('createQuickTimerCountdownAnchor(');
     expect(timer).toContain('nextStatus.remainingMillis');
-    expect(timer).toContain('getQuickTimerRemainingMillis(');
-    expect(timer).not.toContain('status.fireAt -');
-    expect(timer).not.toContain('accessibilityLiveRegion="polite"');
-    expect(timer).toContain('getQuickTimerRemainingLabel(remainingMillis)');
+    expect(countdown).toContain('getQuickTimerRemainingMillis(');
+    expect(countdown).not.toContain('status.fireAt -');
+    expect(countdown).not.toContain('accessibilityLiveRegion="polite"');
+    expect(countdown).toContain('getQuickTimerRemainingLabel(remainingMillis)');
   });
 
   it('권한 조치가 필요하면 기존 활성 타이머를 새 예약 성공으로 오인하지 않아요', () => {
@@ -70,12 +71,12 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('5분 재알람은 원래 타이머 길이 대신 재알람 상태로 읽어요', () => {
     expect(timer).toContain('getQuickTimerDisplayLabel(status)');
-    expect(timer).toContain('accessibilityLabel={`${activeTimerLabel}.');
+    expect(countdown).toContain('accessibilityLabel={`${label}.');
   });
 
   it('지원하지 않는 플랫폼과 권한 문제를 명시적으로 안내해요', () => {
     expect(timer).toContain('지원되는 Android 설치본');
-    expect(timer).toContain('알람 설정 확인하기');
+    expect(timer).toContain('actionLabel={alarmCopy.openSettings.text}');
     expect(timer).toContain('알람음·진동');
     expect(settings).toContain('소리·진동·권한');
   });
@@ -84,7 +85,7 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('shouldStackQuickTimerPresets(width, fontScale)');
     expect(timer).toContain('styles.presetButtonsStacked');
     expect(timer).toContain('minHeight: 64');
-    expect(timer).toContain('maxFontSizeMultiplier={2}');
+    expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
   });
 });

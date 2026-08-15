@@ -12,21 +12,20 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { alarmCopy } from '@/content/alarm-copy';
 import { StatusBanner } from '@/design-system';
 import {
   createQuickTimerCountdownAnchor,
-  formatQuickTimerCountdown,
   formatQuickTimerTarget,
   getQuickTimerActionPresentation,
   getQuickTimerDisplayLabel,
-  getQuickTimerRemainingLabel,
-  getQuickTimerRemainingMillis,
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
   resolveQuickTimerCountdownSize,
   shouldStackQuickTimerPresets,
   type QuickTimerCountdownAnchor,
 } from '@/features/timer/quick-timer-model';
+import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -42,6 +41,10 @@ import {
 const FIRE_SETTLE_POLL_INTERVAL_MS = 750;
 const FIRE_SETTLE_MAX_ATTEMPTS = 8;
 
+function getQuickTimerObservationKey(status: QuickTimerStatus): string {
+  return [status.startedAt, status.fireAt, status.isRepeat, status.state].join(':');
+}
+
 export default function TimerScreen() {
   const { showDialog } = useAppDialog();
   const { palette } = useAppTheme();
@@ -53,10 +56,8 @@ export default function TimerScreen() {
   const [status, setStatus] = useState<QuickTimerStatus | null>(null);
   const [countdownAnchor, setCountdownAnchor] =
     useState<QuickTimerCountdownAnchor | null>(null);
-  const [clock, setClock] = useState(() => ({
-    monotonic: performance.now(),
-    wall: Date.now(),
-  }));
+  const [expiredObservationKey, setExpiredObservationKey] =
+    useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<'schedule' | 'cancel' | 'refresh' | null>(
     null,
@@ -76,7 +77,10 @@ export default function TimerScreen() {
       createQuickTimerCountdownAnchor(nextStatus, nextClock.monotonic),
     );
     setStatus(nextStatus);
-    setClock(nextClock);
+    const nextObservationKey = getQuickTimerObservationKey(nextStatus);
+    setExpiredObservationKey((current) =>
+      current === null || current === nextObservationKey ? current : null,
+    );
     return nextClock;
   }, []);
 
@@ -97,15 +101,17 @@ export default function TimerScreen() {
       const nextStatus = await getQuickTimerStatus();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
+      return nextStatus;
     } catch {
       if (mountedRef.current) {
         setLoadError(true);
         if (announceFailure) {
           void AccessibilityInfo.announceForAccessibility(
-            '타이머 상태를 확인하지 못했어요.',
+            '타이머 상태를 확인하지 못했습니다.',
           );
         }
       }
+      return null;
     } finally {
       if (mountedRef.current) {
         hasLoadedRef.current = true;
@@ -120,38 +126,19 @@ export default function TimerScreen() {
     void refreshStatus(!hasLoadedRef.current);
   }, [refreshStatus, screenActive]);
 
-  useEffect(() => {
-    if (!screenActive || !status?.active || status.fireAt <= 0) return;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const tick = () => {
-      const current = {
-        monotonic: performance.now(),
-        wall: Date.now(),
-      };
-      setClock(current);
-      const nextSecond = 1_000 - (current.monotonic % 1_000) + 20;
-      timeout = setTimeout(tick, nextSecond);
-    };
-    tick();
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [screenActive, status?.active, status?.fireAt]);
-
-  const remainingMillis = countdownAnchor
-    ? getQuickTimerRemainingMillis(
-        countdownAnchor,
-        clock.monotonic,
-      )
-    : 0;
-  const targetAt = getQuickTimerTargetAt(remainingMillis, clock.wall);
+  const statusObservationKey = status
+    ? getQuickTimerObservationKey(status)
+    : null;
+  const statusActive = status?.active === true;
+  const statusFireAt = status?.fireAt ?? 0;
 
   useEffect(() => {
     if (
       !screenActive ||
-      !status?.active ||
-      status.fireAt <= 0 ||
-      remainingMillis > 0
+      !statusActive ||
+      statusFireAt <= 0 ||
+      expiredObservationKey === null ||
+      statusObservationKey !== expiredObservationKey
     ) {
       return;
     }
@@ -161,8 +148,11 @@ export default function TimerScreen() {
     const pollSettledStatus = async () => {
       if (cancelled) return;
       attempts += 1;
-      await refreshStatus();
-      if (!cancelled && attempts < FIRE_SETTLE_MAX_ATTEMPTS) {
+      const nextStatus = await refreshStatus();
+      const stillWaiting =
+        nextStatus?.active === true &&
+        getQuickTimerObservationKey(nextStatus) === expiredObservationKey;
+      if (!cancelled && stillWaiting && attempts < FIRE_SETTLE_MAX_ATTEMPTS) {
         timeout = setTimeout(
           () => void pollSettledStatus(),
           FIRE_SETTLE_POLL_INTERVAL_MS,
@@ -174,7 +164,18 @@ export default function TimerScreen() {
       cancelled = true;
       if (timeout) clearTimeout(timeout);
     };
-  }, [refreshStatus, remainingMillis, screenActive, status?.active, status?.fireAt]);
+  }, [
+    expiredObservationKey,
+    refreshStatus,
+    screenActive,
+    statusActive,
+    statusFireAt,
+    statusObservationKey,
+  ]);
+
+  const handleCountdownExpired = useCallback((observationKey: string) => {
+    setExpiredObservationKey(observationKey);
+  }, []);
 
   const actionPresentation = useMemo(
     () => getQuickTimerActionPresentation(status?.requiredAction ?? 'none'),
@@ -195,24 +196,24 @@ export default function TimerScreen() {
       if (!mountedRef.current) return;
       const observedClock = observeStatus(nextStatus);
       if (nextStatus.state === 'action-required') {
-        announce('타이머를 시작하려면 알람 설정을 확인해 주세요.');
+        announce('타이머를 시작하려면 알람 설정을 확인해야 합니다.');
       } else if (nextStatus.state === 'error') {
         setLoadError(true);
-        announce('타이머를 준비하지 못했어요. 다시 확인해 주세요.');
+        announce('타이머를 준비하지 못했습니다. 다시 확인해야 합니다.');
       } else if (isQuickTimerScheduleConfirmed(nextStatus, durationMinutes)) {
         const target = formatQuickTimerTarget(
           getQuickTimerTargetAt(nextStatus.remainingMillis, observedClock.wall),
           observedClock.wall,
         );
-        announce(`${durationMinutes}분 타이머를 시작했어요. ${target}에 울려요.`);
+        announce(`${durationMinutes}분 타이머를 시작했습니다. ${target}에 울립니다.`);
       } else {
         setLoadError(true);
-        announce('타이머 설정 결과를 확인하지 못했어요. 다시 시도해 주세요.');
+        announce('타이머 설정 결과를 확인하지 못했습니다. 다시 시도해야 합니다.');
       }
     } catch {
       if (mountedRef.current) {
         setLoadError(true);
-        announce('타이머를 준비하지 못했어요. 다시 확인해 주세요.');
+        announce('타이머를 준비하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
       if (mountedRef.current) {
@@ -235,15 +236,18 @@ export default function TimerScreen() {
       currentWallClock,
     );
     showDialog(
-      '실행 중인 타이머를 바꿀까요?',
-      `현재 타이머를 취소하고 ${durationMinutes}분 타이머를 시작해요. ${target}에 울릴 예정이에요.`,
+      '실행 중인 타이머를 변경하시겠습니까?',
+      `현재 타이머를 취소하고 ${durationMinutes}분 타이머를 시작합니다. ${target}에 울릴 예정입니다.`,
       [
-        { text: '그대로 두기', style: 'cancel' },
+        { text: '유지', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
-          text: `${durationMinutes}분으로 바꾸기`,
+          text: `${durationMinutes}분으로 변경`,
+          actionId: 'confirm',
+          icon: 'checkmark',
           onPress: () => void startTimer(durationMinutes),
         },
       ],
+      { tone: 'warning' },
     );
   };
 
@@ -257,14 +261,14 @@ export default function TimerScreen() {
       observeStatus(nextStatus);
       if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
         setLoadError(true);
-        announce('타이머를 취소하지 못했어요. 다시 확인해 주세요.');
+        announce('타이머를 취소하지 못했습니다. 다시 확인해야 합니다.');
       } else {
-        announce('타이머를 취소했어요.');
+        announce('타이머를 취소했습니다.');
       }
     } catch {
       if (mountedRef.current) {
         setLoadError(true);
-        announce('타이머를 취소하지 못했어요. 다시 확인해 주세요.');
+        announce('타이머를 취소하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
       if (mountedRef.current) setBusyAction(null);
@@ -297,14 +301,14 @@ export default function TimerScreen() {
           타이머
         </AppText>
         <AppText tone="secondary" style={styles.centerText}>
-          지금부터 30분 또는 60분 뒤에 알람음·진동으로 알려드려요.
+          지금부터 30분 또는 60분 뒤에 알람음·진동으로 알립니다.
         </AppText>
       </View>
 
       {loading && status === null ? (
         <Card style={styles.loadingCard}>
           <ActivityIndicator color={palette.indigoDark} size="small" />
-          <AppText tone="secondary">타이머 상태를 확인하고 있어요.</AppText>
+          <AppText tone="secondary">타이머 상태를 확인하고 있습니다.</AppText>
         </Card>
       ) : null}
 
@@ -312,26 +316,26 @@ export default function TimerScreen() {
         <StatusBanner
           announceChanges={false}
           icon="alert-circle-outline"
-          message="타이머 알람은 지원되는 Android 설치본에서 사용할 수 있어요."
-          title="이 기기에서는 타이머를 사용할 수 없어요"
+          message="타이머 알람은 지원되는 Android 설치본에서 사용할 수 있습니다."
+          title="이 기기에서는 타이머를 사용할 수 없습니다"
           tone="neutral"
         />
       ) : null}
 
       {loadError || status?.state === 'error' || status?.storageHealth === 'corrupt' ? (
         <StatusBanner
-          actionLabel="다시 확인하기"
+          actionLabel="다시 확인"
           icon="alert-circle-outline"
-          message="타이머 상태를 확인하지 못했어요. 기존 근무 알람은 그대로 유지돼요."
+          message="타이머 상태를 확인하지 못했습니다. 기존 근무 알람은 그대로 유지됩니다."
           onAction={retry}
-          title="타이머를 준비하지 못했어요"
+          title="타이머를 준비하지 못했습니다"
           tone="danger"
         />
       ) : null}
 
       {supported && status.state === 'action-required' && actionPresentation ? (
         <StatusBanner
-          actionLabel="알람 설정 확인하기"
+          actionLabel={alarmCopy.openSettings.text}
           icon="alert-circle-outline"
           message={actionPresentation.message}
           onAction={() => router.push('/alarm-settings')}
@@ -342,32 +346,18 @@ export default function TimerScreen() {
 
       {active ? (
         <Card style={styles.activeCard}>
-          <View
-            accessible
-            accessibilityLabel={`${activeTimerLabel}. ${formatQuickTimerTarget(
-              targetAt,
-              clock.wall,
-            )}에 울려요. ${getQuickTimerRemainingLabel(remainingMillis)}`}>
-            <AppText tone="secondary" style={styles.centerText} variant="label">
-              {activeTimerLabel}
-            </AppText>
-            <AppText
-              maxFontSizeMultiplier={2}
-              numberOfLines={1}
-              style={[
-                styles.countdown,
-                {
-                  fontSize: countdownFontSize,
-                  lineHeight: Math.ceil(countdownFontSize * 1.22),
-                },
-              ]}
-              variant="display">
-              {formatQuickTimerCountdown(remainingMillis)}
-            </AppText>
-            <AppText tone="secondary" style={styles.centerText} variant="body">
-              {formatQuickTimerTarget(targetAt, clock.wall)}에 울려요
-            </AppText>
-          </View>
+          {countdownAnchor ? (
+            <QuickTimerCountdown
+              active={active}
+              anchor={countdownAnchor}
+              countdownFontSize={countdownFontSize}
+              key={statusObservationKey ?? undefined}
+              label={activeTimerLabel}
+              observationKey={statusObservationKey ?? ''}
+              onExpired={handleCountdownExpired}
+              screenActive={screenActive}
+            />
+          ) : null}
           <AppButton
             disabled={busyAction !== null}
             icon="close"
@@ -379,13 +369,13 @@ export default function TimerScreen() {
           {!ringing && status.state !== 'action-required' ? (
             <View style={styles.changeSection}>
               <AppText tone="secondary" style={styles.centerText} variant="caption">
-                다른 시간으로 바꾸기
+                다른 시간으로 변경
               </AppText>
               <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
                 {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
                   <AppButton
-                    accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 바꿔요.`}
-                    accessibilityLabel={`${durationMinutes}분 타이머로 바꾸기`}
+                    accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 변경합니다.`}
+                    accessibilityLabel={`${durationMinutes}분 타이머로 변경`}
                     disabled={busyAction !== null}
                     icon="timer-outline"
                     key={durationMinutes}
@@ -404,16 +394,16 @@ export default function TimerScreen() {
         <Card style={styles.idleCard}>
           <View style={styles.idleCopy}>
             <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              얼마나 뒤에 알려드릴까요?
+              알림 시간을 선택하십시오
             </AppText>
             <AppText tone="secondary" style={styles.centerText} variant="body">
-              한 번에 하나의 타이머만 실행할 수 있어요.
+              한 번에 하나의 타이머만 실행할 수 있습니다.
             </AppText>
           </View>
           <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
             {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
               <AppButton
-                accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울려요.`}
+                accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울립니다.`}
                 accessibilityLabel={`${durationMinutes}분 타이머 시작`}
                 disabled={busyAction !== null || status.state === 'action-required'}
                 icon="timer-outline"
@@ -434,7 +424,7 @@ export default function TimerScreen() {
           <View style={styles.infoCopy}>
             <AppText variant="label">알람음·진동</AppText>
             <AppText tone="secondary" variant="caption">
-              화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용해요.
+              화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용합니다.
             </AppText>
           </View>
         </Card>
@@ -472,13 +462,6 @@ function createStyles(palette: AppPalette) {
       paddingTop: spacing.small,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: palette.line,
-    },
-    countdown: {
-      width: '100%',
-      color: palette.ink,
-      fontVariant: ['tabular-nums'],
-      textAlign: 'center',
-      paddingVertical: spacing.medium,
     },
     idleCard: { gap: spacing.large },
     idleCopy: { gap: spacing.small },

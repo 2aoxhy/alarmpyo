@@ -1,4 +1,4 @@
-import { router, Stack, useFocusEffect } from "expo-router";
+import { router, Stack } from "expo-router";
 import {
   createContext,
   type PropsWithChildren,
@@ -7,12 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import {
-  AppState,
-  Platform,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { useAppDialog } from "@/components/app-dialog";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
@@ -30,6 +25,7 @@ import {
   Screen,
 } from "@/components/ui-kit";
 import { radii, spacing, type AppPalette } from "@/constants/app-theme";
+import { alarmCopy } from "@/content/alarm-copy";
 import { DisclosureRow, StatusBanner, ToggleRow } from "@/design-system";
 import { AlarmPermissionChecklist } from "@/features/alarm/alarm-permission-checklist";
 import { AlarmSoundSettings } from "@/features/alarm/alarm-sound-settings";
@@ -40,17 +36,17 @@ import {
   resolveVisibleAlarmAutoCheckStatus,
 } from "@/features/alarm/alarm-settings-view-model";
 import { formatWakeTimeSummary } from "@/features/shift-settings/shift-settings-model";
+import { useAlarmRuntimeStatus } from "@/hooks/use-alarm-runtime-status";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useNow } from "@/hooks/use-now";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
 import {
-  buildAlarmPyoAlarmPlan,
   resolveAlarmPyoAlarmShift,
 } from "@/services/alarm-planner";
 import { resolveAlarmHealthState } from "@/services/alarm-access-summary";
+import { getCachedFutureAlarmProjection } from "@/services/schedule-projection-cache";
 import {
-  getAlarmPyoAlarmStatus,
   openAlarmPyoAlarmPermissionSettings,
   openAlarmPyoPermissionSettings,
   type AlarmPyoAlarmEventType,
@@ -58,11 +54,8 @@ import {
   type AlarmPyoAlarmStatus,
   type AlarmPyoPermissionSettingsTarget,
 } from "@/services/alarmpyo-alarm-service";
-import {
-  getAlarmPyoSleepReminderStatus,
-  isSleepReminderNativeSupported,
-  type SleepReminderStatus,
-} from "@/services/sleep-reminder-service";
+import { isSleepReminderNativeSupported } from "@/services/sleep-reminder-service";
+import { getSleepReminderScheduleSignature } from "@/services/sleep-reminder-planner";
 import { useAppStore, useAppStoreData } from "@/store/app-store";
 import { formatAlarmCountdown } from "@/utils/date";
 import { getDayExceptionAppearance } from "@/utils/day-exception-appearance";
@@ -115,23 +108,23 @@ function alarmHistoryIcon(type: AlarmPyoAlarmEventType): AppIconName {
 function alarmHistoryLabel(event: AlarmPyoAlarmHistoryEvent): string {
   switch (event.type) {
     case "playback_confirmed":
-      return "알람이 울렸어요";
+      return "알람이 울렸습니다";
     case "dismissed":
-      return "알람을 껐어요";
+      return "알람을 껐습니다";
     case "snoozed":
-      return "5분 뒤 다시 울리도록 했어요";
+      return "5분 뒤 다시 울리도록 설정했습니다";
     case "auto_repeat_scheduled":
-      return event.isTest ? "시험 재알람을 예약했어요" : "재알람을 예약했어요";
+      return event.isTest ? "시험 재알람을 예약했습니다" : "재알람을 예약했습니다";
     case "auto_repeat_started":
-      return event.isTest ? "시험 재알람이 울렸어요" : "재알람이 울렸어요";
+      return event.isTest ? "시험 재알람이 울렸습니다" : "재알람이 울렸습니다";
     case "playback_failed":
-      return "알람 소리를 재생하지 못했어요";
+      return "알람 소리를 재생하지 못했습니다";
     case "retry_started":
-      return `${Math.max(1, event.deliveryAttempt)}차 재생을 다시 시도했어요`;
+      return `${Math.max(1, event.deliveryAttempt)}차 재생을 다시 시도했습니다`;
     case "retry_scheduled":
-      return "알람 재시도를 예약했어요";
+      return "알람 재시도를 예약했습니다";
     case "retry_exhausted":
-      return "알람 재시도를 마쳤어요";
+      return "알람 재시도를 마쳤습니다";
   }
 }
 
@@ -147,27 +140,27 @@ function alarmHistoryDetail(event: AlarmPyoAlarmHistoryEvent): string {
       hour: "numeric",
       minute: "2-digit",
     });
-    return `${shiftName} · ${nextTime}에 다시 울려요`;
+    return `${shiftName} · ${nextTime}에 다시 울립니다`;
   }
   switch (event.type) {
     case "playback_confirmed":
-      return `${shiftName} · 소리가 정상적으로 시작됐어요`;
+      return `${shiftName} · 소리가 정상적으로 시작되었습니다`;
     case "dismissed":
-      return `${shiftName} · 알람을 직접 껐어요`;
+      return `${shiftName} · 알람을 직접 껐습니다`;
     case "snoozed":
-      return `${shiftName} · 5분 뒤 한 번 더 울려요`;
+      return `${shiftName} · 5분 뒤 한 번 더 울립니다`;
     case "auto_repeat_scheduled":
-      return `${shiftName} · 끄지 않으면 5분 뒤 한 번 더 울려요`;
+      return `${shiftName} · 끄지 않으면 5분 뒤 한 번 더 울립니다`;
     case "auto_repeat_started":
-      return `${shiftName} · 마지막 재알람이 시작됐어요`;
+      return `${shiftName} · 마지막 재알람이 시작되었습니다`;
     case "playback_failed":
-      return `${shiftName} · 대체 알람음까지 재생하지 못했어요`;
+      return `${shiftName} · 대체 알람음까지 재생하지 못했습니다`;
     case "retry_started":
-      return `${shiftName} · 알람 재생을 다시 시도했어요`;
+      return `${shiftName} · 알람 재생을 다시 시도했습니다`;
     case "retry_scheduled":
-      return `${shiftName} · 알람 재시도를 준비했어요`;
+      return `${shiftName} · 알람 재시도를 준비했습니다`;
     case "retry_exhausted":
-      return `${shiftName} · 다시 시도했지만 소리를 재생하지 못했어요`;
+      return `${shiftName} · 다시 시도했지만 소리를 재생하지 못했습니다`;
   }
 }
 
@@ -193,14 +186,14 @@ function formatAlarmAutoCheckTime(value: string | null): string | null {
 }
 
 function formatAlarmPlanCoverage(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '아직 유효 기간 정보가 없어요.';
+  if (!Number.isFinite(value) || value <= 0) return '아직 유효 기간 정보가 없습니다.';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '유효 기간 정보를 확인하지 못했어요.';
+  if (Number.isNaN(date.getTime())) return '유효 기간 정보를 확인하지 못했습니다.';
   return `${date.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  })}까지 자동 예약 계획을 보관해요.`;
+  })}까지 자동 예약 계획을 보관합니다.`;
 }
 
 export default function AlarmSettingsScreen() {
@@ -216,17 +209,13 @@ export default function AlarmSettingsScreen() {
     sendTestAlarm,
     setSleepReminderEnabled,
     sleepReminderSyncStatus,
+    sleepReminderSyncRevision,
   } = useAppStore();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const screenActive = useScreenActive();
-  const [alarmStatus, setAlarmStatus] = useState<AlarmPyoAlarmStatus | null>(null);
-  const [alarmStatusError, setAlarmStatusError] = useState(false);
   const [alarmBusy, setAlarmBusy] = useState(false);
   const [sleepReminderBusy, setSleepReminderBusy] = useState(false);
-  const [sleepReminderStatus, setSleepReminderStatus] =
-    useState<SleepReminderStatus | null>(null);
-  const [sleepReminderStatusError, setSleepReminderStatusError] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
@@ -234,54 +223,28 @@ export default function AlarmSettingsScreen() {
   const sleepReminderSupported =
     alarmPlatformSupported && isSleepReminderNativeSupported();
   const alarmSyncVersion = data.settings.lastNotificationSyncAt;
-
-  const refreshAlarmState = useCallback(async () => {
-    if (!alarmPlatformSupported) {
-      setAlarmStatus(null);
-      setAlarmStatusError(false);
-      return;
-    }
-    try {
-      setAlarmStatus(await getAlarmPyoAlarmStatus());
-      setAlarmStatusError(false);
-    } catch {
-      setAlarmStatus(null);
-      setAlarmStatusError(true);
-    }
-  }, [alarmPlatformSupported]);
-
-  const refreshSleepReminderState = useCallback(async () => {
-    if (!sleepReminderSupported) {
-      setSleepReminderStatus(null);
-      setSleepReminderStatusError(false);
-      return;
-    }
-    try {
-      setSleepReminderStatus(await getAlarmPyoSleepReminderStatus());
-      setSleepReminderStatusError(false);
-    } catch {
-      setSleepReminderStatus(null);
-      setSleepReminderStatusError(true);
-    }
-  }, [sleepReminderSupported]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void alarmSyncVersion;
-      void refreshAlarmState();
-      void refreshSleepReminderState();
-      const subscription = AppState.addEventListener("change", (state) => {
-        if (state === "active") {
-          void refreshAlarmState();
-          void refreshSleepReminderState();
-        }
-      });
-      return () => subscription.remove();
-    }, [alarmSyncVersion, refreshAlarmState, refreshSleepReminderState]),
-  );
+  const runtimeStatus = useAlarmRuntimeStatus({
+    enabled: screenActive,
+    includeSleepReminder:
+      sleepReminderSupported && data.settings.sleepReminderEnabled,
+    revisionKey: [
+      alarmSyncVersion ?? "",
+      data.settings.sleepReminderEnabled
+        ? `${getSleepReminderScheduleSignature(data)}:${sleepReminderSyncRevision}`
+        : "sleep-disabled",
+    ].join(":"),
+  });
+  const alarmStatus = runtimeStatus.alarmStatus;
+  const alarmStatusError = runtimeStatus.alarmStatusError;
+  const sleepReminderStatus = data.settings.sleepReminderEnabled
+    ? runtimeStatus.sleepReminderStatus
+    : null;
+  const sleepReminderStatusError = data.settings.sleepReminderEnabled
+    ? runtimeStatus.sleepReminderStatusError
+    : false;
 
   const plannedAlarms = useMemo(
-    () => buildAlarmPyoAlarmPlan(data, getShiftForDate),
+    () => getCachedFutureAlarmProjection(data, getShiftForDate),
     [data, getShiftForDate],
   );
   const totalPlannedAlarmCount = plannedAlarms.length;
@@ -326,7 +289,7 @@ export default function AlarmSettingsScreen() {
       ? formatAlarmAutoCheckTime(alarmAutoCheckState.checkedAt)
       : null;
   const accessDescription = alarmAutoCheckTime
-    ? `${accessSummary.description} ${alarmAutoCheckTime}에 점검했어요.`
+    ? `${accessSummary.description} ${alarmAutoCheckTime}에 점검했습니다.`
     : accessSummary.description;
   const accessIcon: AppIconName =
     accessSummary.tone === "ready"
@@ -356,8 +319,10 @@ export default function AlarmSettingsScreen() {
       await openAlarmPyoAlarmPermissionSettings();
     } catch {
       showDialog(
-        "설정을 열지 못했어요",
-        "휴대폰 설정에서 알람표의 알람 권한을 확인해 주세요.",
+        "설정을 열지 못했습니다",
+        "휴대폰 설정에서 알람표의 알람 권한을 확인해야 합니다.",
+        undefined,
+        { tone: "danger" },
       );
     }
   }, [showDialog]);
@@ -375,24 +340,24 @@ export default function AlarmSettingsScreen() {
     } catch {
       const copy = target === "do-not-disturb"
         ? {
-            title: "방해 금지 설정을 열지 못했어요",
-            message: "휴대폰 설정에서 방해 금지 중 알람 허용 여부를 확인해 주세요.",
+            title: "방해 금지 설정을 열지 못했습니다",
+            message: "휴대폰 설정에서 방해 금지 중 알람 허용 여부를 확인해야 합니다.",
           }
         : target === "battery-optimization"
           ? {
-              title: "배터리 설정을 열지 못했어요",
-              message: "휴대폰 설정에서 알람표의 배터리 사용을 제한하지 않음으로 설정해 주세요.",
+              title: "배터리 설정을 열지 못했습니다",
+              message: "휴대폰 설정에서 알람표의 배터리 사용을 제한하지 않음으로 설정해야 합니다.",
             }
           : target === "sleep-notifications"
             ? {
-                title: "수면 알림 설정을 열지 못했어요",
-                message: "휴대폰 설정에서 알람표 알림 권한을 확인해 주세요.",
+                title: "수면 알림 설정을 열지 못했습니다",
+                message: "휴대폰 설정에서 알람표 알림 권한을 확인해야 합니다.",
               }
             : {
-                title: "권한 설정을 열지 못했어요",
-                message: "휴대폰의 앱 상세 설정에서 알람표 권한을 확인해 주세요.",
+                title: "권한 설정을 열지 못했습니다",
+                message: "휴대폰의 앱 상세 설정에서 알람표 권한을 확인해야 합니다.",
               };
-      showDialog(copy.title, copy.message);
+      showDialog(copy.title, copy.message, undefined, { tone: "danger" });
     } finally {
       setBusy(false);
     }
@@ -402,8 +367,8 @@ export default function AlarmSettingsScreen() {
     if (alarmBusy) return;
     if (enabled && !alarmPlatformSupported) {
       showDialog(
-        "안드로이드에서 사용할 수 있어요",
-        "근무 알람은 안드로이드 휴대폰에서 사용할 수 있어요.",
+        "Android에서 사용할 수 있습니다",
+        "근무 알람은 Android 휴대폰에서 사용할 수 있습니다.",
       );
       return;
     }
@@ -413,21 +378,25 @@ export default function AlarmSettingsScreen() {
         const disabled = await disableAlarms();
         if (!disabled) {
           showDialog(
-            "알람을 끄지 못했어요",
-            "예약된 알람을 취소하지 못했어요. 잠시 후 다시 시도해 주세요.",
+            "알람을 끄지 못했습니다",
+            "예약된 알람을 취소하지 못했습니다. 잠시 후 다시 시도해야 합니다.",
+            undefined,
+            { tone: "danger" },
           );
         }
       } else {
-        // 권한 설정 화면에서 돌아오면 상태 카드가 다음 필요한 조치 하나를 안내해요.
+        // 권한 설정 화면에서 돌아오면 상태 카드가 다음 필요한 조치 하나를 안내합니다.
         await enableAlarms();
       }
     } catch {
       showDialog(
-        enabled ? "알람을 켜지 못했어요" : "알람을 끄지 못했어요",
-        "잠시 후 다시 시도해 주세요.",
+        enabled ? "알람을 켜지 못했습니다" : "알람을 끄지 못했습니다",
+        "잠시 후 다시 시도해야 합니다.",
+        undefined,
+        { tone: "danger" },
       );
     } finally {
-      await refreshAlarmState();
+      await runtimeStatus.refresh(true);
       setAlarmBusy(false);
     }
   };
@@ -477,24 +446,26 @@ export default function AlarmSettingsScreen() {
         .then((synced) => {
           if (!synced) {
             showDialog(
-              "알람을 다시 예약하지 못했어요",
-              "알람 권한을 확인한 뒤 다시 시도해 주세요.",
+              "알람을 다시 예약하지 못했습니다",
+              "알람 권한을 확인한 뒤 다시 시도해야 합니다.",
+              undefined,
+              { tone: "danger" },
             );
           }
-          return refreshAlarmState();
+          return runtimeStatus.refresh(true);
         })
         .finally(() => setAlarmBusy(false));
       return;
     }
     setAlarmBusy(true);
-    void refreshAlarmState().finally(() => setAlarmBusy(false));
+    void runtimeStatus.refresh(true).finally(() => setAlarmBusy(false));
   };
 
   const testAlarm = async () => {
     if (!alarmPlatformSupported) {
       showDialog(
-        "안드로이드에서 시험할 수 있어요",
-        "실제 알람 화면과 소리는 안드로이드 휴대폰에서 확인할 수 있어요.",
+        "Android에서 시험할 수 있습니다",
+        "실제 알람 화면과 소리는 Android 휴대폰에서 확인할 수 있습니다.",
       );
       return;
     }
@@ -503,30 +474,37 @@ export default function AlarmSettingsScreen() {
       const success = await sendTestAlarm();
       if (success) {
         showDialog(
-          "시험 알람을 예약했어요",
-          "5초 뒤 전체 화면으로 시험 알람이 울려요.",
+          "시험 알람을 예약했습니다",
+          "5초 뒤 전체 화면으로 시험 알람이 울립니다.",
+          undefined,
+          { tone: "success" },
         );
       } else {
         showDialog(
-          "시험 알람을 예약하지 못했어요",
-          "알람 권한을 확인한 뒤 다시 시험해 주세요.",
+          "시험 알람을 예약하지 못했습니다",
+          "알람 권한을 확인한 뒤 다시 시험해야 합니다.",
           [
-            { text: "뒤로 가기", style: "cancel" },
+            { text: "취소", actionId: "cancel", icon: "close", style: "cancel" },
             {
-              text: "알람 권한 설정하기",
+              text: "알람 권한 설정",
+              actionId: "open-settings",
+              icon: "settings-outline",
               onPress: () => void openAlarmSettings(),
             },
           ],
+          { tone: "warning" },
         );
       }
     } catch {
       showDialog(
-        "시험 알람을 예약하지 못했어요",
-        "잠시 후 다시 시도해 주세요.",
+        "시험 알람을 예약하지 못했습니다",
+        "잠시 후 다시 시도해야 합니다.",
+        undefined,
+        { tone: "danger" },
       );
     } finally {
       setTestBusy(false);
-      void refreshAlarmState();
+      void runtimeStatus.refresh(true);
     }
   };
 
@@ -537,20 +515,23 @@ export default function AlarmSettingsScreen() {
       const saved = await setSleepReminderEnabled(enabled);
       if (!saved) {
         showDialog(
-          "수면 시작 알림을 저장하지 못했어요",
-          "저장 공간을 확인한 뒤 다시 시도해 주세요.",
+          "수면 시작 알림을 저장하지 못했습니다",
+          "저장 공간을 확인한 뒤 다시 시도해야 합니다.",
+          undefined,
+          { tone: "danger" },
         );
       } else if (alarmPlatformSupported) {
-        const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
-        if (status !== null) setSleepReminderStatus(status);
+        const status = (await runtimeStatus.refresh(true)).sleepReminderStatus;
         if (status?.storageHealth === "corrupt") {
           showDialog(
             enabled
-              ? "수면 알림 계획을 아직 복구하지 못했어요"
-              : "설정은 껐지만 확인이 필요해요",
+              ? "수면 알림 계획을 아직 복구하지 못했습니다"
+              : "설정은 껐지만 확인이 필요합니다",
             enabled
-              ? "기존 예약은 임의로 지우지 않았어요. 현재 일정에 예정된 수면 알림이 생기면 복구를 다시 시도해 주세요."
-              : "수면 시작 알림 설정은 껐지만 이전 예약을 안전하게 확인하거나 지우지 못했어요. 알람 화면에서 복구를 다시 시도해 주세요.",
+              ? "기존 예약은 임의로 지우지 않았습니다. 현재 일정에 예정된 수면 알림이 생기면 복구를 다시 시도해야 합니다."
+              : "수면 시작 알림 설정은 껐지만 이전 예약을 안전하게 확인하거나 지우지 못했습니다. 알람 화면에서 복구를 다시 시도해야 합니다.",
+            undefined,
+            { tone: "warning" },
           );
         } else if (
           enabled &&
@@ -558,15 +539,19 @@ export default function AlarmSettingsScreen() {
           !status.notificationsAllowed
         ) {
           showDialog(
-            "수면 시작 알림을 켰어요",
-            "일반 알림 권한을 허용하면 권장 취침 시각에 알려요.",
+            "수면 시작 알림을 켰습니다",
+            "일반 알림 권한을 허용하면 권장 취침 시각에 알립니다.",
+            undefined,
+            { tone: "success" },
           );
         }
       }
     } catch {
       showDialog(
-        "수면 시작 알림을 저장하지 못했어요",
-        "잠시 후 다시 시도해 주세요.",
+        "수면 시작 알림을 저장하지 못했습니다",
+        "잠시 후 다시 시도해야 합니다.",
+        undefined,
+        { tone: "danger" },
       );
     } finally {
       setSleepReminderBusy(false);
@@ -580,34 +565,43 @@ export default function AlarmSettingsScreen() {
       const saved = await setSleepReminderEnabled(true);
       if (!saved) {
         showDialog(
-          "복구 설정을 저장하지 못했어요",
-          "저장 공간을 확인한 뒤 다시 시도해 주세요.",
+          "복구 설정을 저장하지 못했습니다",
+          "저장 공간을 확인한 뒤 다시 시도해야 합니다.",
+          undefined,
+          { tone: "danger" },
         );
         return;
       }
 
-      const status = await getAlarmPyoSleepReminderStatus().catch(() => null);
-      if (status !== null) setSleepReminderStatus(status);
+      const status = (await runtimeStatus.refresh(true)).sleepReminderStatus;
       if (!status?.supported) {
         showDialog(
-          "복구 상태를 확인하지 못했어요",
-          "앱을 다시 연 뒤 알람 화면에서 상태를 확인해 주세요.",
+          "복구 상태를 확인하지 못했습니다",
+          "앱을 다시 연 뒤 알람 화면에서 상태를 확인해야 합니다.",
+          undefined,
+          { tone: "danger" },
         );
       } else if (status.storageHealth === "corrupt") {
         showDialog(
-          "아직 복구하지 못했어요",
-          "현재 일정에 예정된 수면 알림이 없어 손상된 계획을 안전하게 바꾸지 않았어요. 다음 근무 일정이 생긴 뒤 다시 시도해 주세요.",
+          "아직 복구하지 못했습니다",
+          "현재 일정에 예정된 수면 알림이 없어 손상된 계획을 안전하게 변경하지 않았습니다. 다음 근무 일정이 생긴 뒤 다시 시도해야 합니다.",
+          undefined,
+          { tone: "warning" },
         );
       } else {
         showDialog(
-          "수면 알림 계획을 복구했어요",
-          "현재 일정과 예약 상태를 다시 확인했어요.",
+          "수면 알림 계획을 복구했습니다",
+          "현재 일정과 예약 상태를 다시 확인했습니다.",
+          undefined,
+          { tone: "success" },
         );
       }
     } catch {
       showDialog(
-        "수면 알림 계획을 복구하지 못했어요",
-        "잠시 후 다시 시도해 주세요.",
+        "수면 알림 계획을 복구하지 못했습니다",
+        "잠시 후 다시 시도해야 합니다.",
+        undefined,
+        { tone: "danger" },
       );
     } finally {
       setSleepReminderBusy(false);
@@ -629,8 +623,8 @@ export default function AlarmSettingsScreen() {
             title="근무 알람"
             subtitle={
               data.settings.notificationsEnabled
-                ? "다음 근무에 맞춰 자동으로 예약해요."
-                : "켜면 다음 근무부터 자동으로 예약해요."
+                ? "다음 근무에 맞춰 자동으로 예약합니다."
+                : "켜면 다음 근무부터 자동으로 예약합니다."
             }
             value={data.settings.notificationsEnabled}
           />
@@ -644,7 +638,7 @@ export default function AlarmSettingsScreen() {
           />
           {accessSummary.action !== "none" && accessSummary.actionLabel ? (
             <AppButton
-              accessibilityHint="휴대폰의 알람 상태를 준비해요."
+              accessibilityHint="휴대폰의 알람 상태를 준비합니다."
               icon={
                 accessSummary.action === "resync" ||
                 accessSummary.action === "retry" ||
@@ -736,8 +730,8 @@ export default function AlarmSettingsScreen() {
               {alarmPlatformSupported && data.settings.notificationsEnabled ? (
                 <StatusBanner
                   icon="alert-circle-outline"
-                  message="휴대폰 설정에서 알람표를 강제 종료하면 앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없어요."
-                  title="강제 종료 상태에서는 알람을 보장할 수 없어요"
+                  message="휴대폰 설정에서 알람표를 강제 종료하면 앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없습니다."
+                  title="강제 종료 상태에서는 알람을 보장할 수 없습니다"
                   tone="warning"
                 />
               ) : null}
@@ -757,15 +751,15 @@ export default function AlarmSettingsScreen() {
                     <AppText variant="heading">알람 작동 확인</AppText>
                     <AppText tone="secondary" variant="caption">
                       {accessSummary.canTest
-                        ? "5초 뒤 전체 화면과 소리를 확인해요."
-                        : "위 안내에 따라 알람 권한을 먼저 준비해 주세요."}
+                        ? "5초 뒤 전체 화면과 소리를 확인합니다."
+                        : "위 안내에 따라 알람 권한을 먼저 준비해야 합니다."}
                     </AppText>
                   </View>
                 </View>
                 <AppButton
                   disabled={!accessSummary.canTest || alarmBusy}
                   icon="alarm-outline"
-                  label="시험 알람 울리기"
+                  label={alarmCopy.testAlarm.text}
                   loading={testBusy}
                   onPress={() => void testAlarm()}
                   style={styles.fullWidthButton}
@@ -807,7 +801,7 @@ export default function AlarmSettingsScreen() {
                         style={styles.detailEmptyCopy}
                         variant="caption"
                       >
-                        아직 저장된 알람 기록이 없어요.
+                        아직 저장된 알람 기록이 없습니다.
                       </AppText>
                     )}
                   </View>
@@ -848,8 +842,8 @@ function NextAlarmDisclosureRow({
         hasDateOverride ? " · 이날만 설정" : ""
       }`
     : scheduledCount > 0
-      ? `${scheduledCount}개가 예약되어 있어요.`
-      : "예약된 알람이 없어요.";
+      ? `${scheduledCount}개가 예약되어 있습니다.`
+      : "예약된 알람이 없습니다.";
 
   return (
     <ListRow
@@ -878,14 +872,16 @@ function AlarmRow({
     data.alarmOverrides[alarm.dateKey]?.mode === "wake-time";
   const substituteAlarm = alarm.shiftTypeId === "substitute";
   const storedException = data.dayExceptions[alarm.dateKey];
+  const alarmException =
+    alarm.shiftTypeId === "exception-training"
+      ? "training"
+      : alarm.shiftTypeId === "exception-reserve"
+        ? "reserve"
+        : null;
   const dayAlarmException =
     storedException && usesDayAlarmForException(storedException)
       ? storedException
-      : alarm.shiftName === "교육"
-        ? "training"
-        : alarm.shiftName === "예비군"
-          ? "reserve"
-          : null;
+      : alarmException;
   const exceptionAppearance = dayAlarmException
     ? getDayExceptionAppearance(dayAlarmException, palette)
     : null;

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import {
@@ -10,6 +10,7 @@ import { AppText } from '@/components/ui-kit';
 import { StatusBadge } from '@/components/status-badge';
 import type { AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import type { EffectiveDay } from '@/services/app-data-service';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import type { CalendarLayout } from '@/utils/calendar-layout';
@@ -78,6 +79,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   todayBlink,
   weekdayIndex,
 }: Props) {
+  const cellFocus = useWebFocusVisible();
   const shift = effectiveDay.shift;
   const shiftAppearance = shift
     ? getShiftAppearance(shift, palette, isDark)
@@ -114,10 +116,10 @@ export const CalendarDayCell = memo(function CalendarDayCell({
     <Pressable
       accessibilityHint={
         scheduleDate && selectionMode
-          ? '선택 목록에 추가하거나 선택을 해제해요.'
+          ? '선택 목록에 추가하거나 선택을 해제합니다.'
           : scheduleDate
-            ? '짧게 누르면 하루 일정을 편집해요. 길게 누르면 변경하거나 공유할 날짜를 선택해요.'
-            : '일정 적용 시작일 이후 날짜만 편집할 수 있어요.'
+            ? '짧게 누르면 하루 일정을 편집합니다. 길게 누르면 변경하거나 공유할 날짜를 선택합니다.'
+            : '일정 적용 시작일 이후 날짜만 편집할 수 있습니다.'
       }
       accessibilityLabel={`${formatKoreanDate(cell.dateKey, true)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday.accessibilityLabel}` : ''}${payrollEntry ? `, ${payrollEntry.accessibilityLabel}` : ''}, ${scheduleDate ? shift?.name ?? '일정 없음' : '일정 적용 시작일 이전 날짜'}${dayExceptionLabel ? `, 예외 일정 ${dayExceptionLabel}` : ''}${hasNote ? ', 메모 있음' : ''}${hasOverride ? ', 직접 변경한 날' : ''}`}
       accessibilityRole="button"
@@ -129,6 +131,8 @@ export const CalendarDayCell = memo(function CalendarDayCell({
       }
       delayLongPress={360}
       disabled={!scheduleDate}
+      onBlur={cellFocus.onBlur}
+      onFocus={cellFocus.onFocus}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'longpress') {
           onBeginSelection(cell.dateKey);
@@ -147,6 +151,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           styles.selectedCellWrapperJoinedLeft,
         (selectionSegment === 'start' || selectionSegment === 'middle') &&
           styles.selectedCellWrapperJoinedRight,
+        cellFocus.focusVisible && scheduleDate && styles.cellFocusVisible,
         pressed &&
           (isSelected ? styles.selectedCellPressed : styles.cellPressed),
       ]}>
@@ -163,6 +168,23 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           selectionSegment === 'end' && styles.selectedCellEnd,
           isToday && { opacity: todayBlink },
         ]}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.dayIndicatorRow}>
+          {isSelected ? (
+            <View style={styles.selectedCheck}>
+              <AppIcon
+                accessible={false}
+                color={palette.canvas}
+                name="checkmark"
+                size={10}
+                strokeWidth={2.6}
+              />
+            </View>
+          ) : <View style={styles.indicatorPlaceholder} />}
+          {hasNote ? <View style={styles.noteDot} /> : null}
+        </View>
         <View style={styles.dayHeader}>
           <View
             style={[
@@ -172,7 +194,6 @@ export const CalendarDayCell = memo(function CalendarDayCell({
                 minWidth: calendarLayout.dayBadgeSize,
               },
               isToday && styles.todayDayNumber,
-              isSelected && !isToday && styles.selectedDayNumber,
             ]}>
             <AppText
               color={
@@ -196,7 +217,6 @@ export const CalendarDayCell = memo(function CalendarDayCell({
               {cell.day}
             </AppText>
           </View>
-          {hasNote ? <View style={styles.noteDot} /> : null}
         </View>
 
         {simplified ? (
@@ -433,7 +453,7 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       borderBottomWidth: 2,
       borderLeftWidth: 0,
       borderRightWidth: 0,
-      borderColor: palette.controlLine,
+      borderColor: palette.selectionBorder,
       borderRadius: 0,
     },
     selectedCellSingle: {
@@ -459,6 +479,14 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    dayIndicatorRow: {
+      width: '100%',
+      height: 16,
+      paddingHorizontal: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     dayNumber: {
       paddingHorizontal: 3,
       paddingVertical: 1,
@@ -473,11 +501,18 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       fontVariant: ['tabular-nums'],
     },
     todayDayNumber: { backgroundColor: palette.mint },
-    selectedDayNumber: { backgroundColor: palette.indigo },
+    selectedCheck: {
+      width: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.selectionBorder,
+      backgroundColor: palette.white,
+    },
+    indicatorPlaceholder: { width: 16, height: 16 },
     noteDot: {
-      position: 'absolute',
-      right: 3,
-      top: 2,
       width: 5,
       height: 5,
       borderRadius: 3,
@@ -560,5 +595,15 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
     },
     cellPressed: { opacity: 0.74 },
     selectedCellPressed: { opacity: 0.82 },
+    cellFocusVisible:
+      Platform.OS === 'web'
+        ? {
+            zIndex: 3,
+            outlineColor: palette.focus,
+            outlineOffset: -2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
   });
 }

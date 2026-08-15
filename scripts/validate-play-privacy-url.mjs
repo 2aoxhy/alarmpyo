@@ -194,6 +194,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     )
     .catch((error) => {
       console.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
+      // Allow the built-in fetch implementation to close its Windows handles
+      // before Node exits. A synchronous exit can trigger a libuv assertion
+      // after the intended validation error has already been reported.
+      process.exitCode = 1;
     });
 }

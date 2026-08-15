@@ -42,8 +42,8 @@ export function CalendarSelectionPanel({
           <AppText variant="heading">{selectedCount}일 선택</AppText>
           <AppText tone="secondary" variant="caption">
             {compact
-              ? '날짜를 눌러 선택하거나 해제해요.'
-              : '다른 날짜를 누르거나 손가락을 끌어 추가하고, 다시 눌러 해제해요.'}
+              ? '날짜를 눌러 선택하거나 해제합니다.'
+              : '다른 날짜를 누르거나 손가락을 끌어 추가하고, 다시 눌러 해제합니다.'}
           </AppText>
         </View>
         <Pressable

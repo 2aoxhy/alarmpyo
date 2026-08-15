@@ -64,7 +64,7 @@ describe('앱 데이터 가져오기 봉투', () => {
         format: 'unknown',
         formatVersion: 1,
       }),
-    ).toThrow('지원하지 않는 백업 파일 형식이에요.');
+    ).toThrow('지원하지 않는 백업 파일 형식입니다.');
     expect(() =>
       parseAppDataImportEnvelope({
         format: APP_DATA_BACKUP_FORMAT,
@@ -72,6 +72,6 @@ describe('앱 데이터 가져오기 봉투', () => {
         exportedAt: '잘못된 날짜',
         data: {},
       }),
-    ).toThrow('백업 생성일 날짜가 올바르지 않아요.');
+    ).toThrow('백업 생성일 날짜가 올바르지 않습니다.');
   });
 });

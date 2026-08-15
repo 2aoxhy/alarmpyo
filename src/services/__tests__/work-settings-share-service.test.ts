@@ -279,7 +279,7 @@ describe('근무 설정 공유 파일', () => {
     pattern.shiftTypeIds = ['day', 'night'];
 
     expect(() => previewWorkSettingsImport(JSON.stringify(legacy))).toThrow(
-      '지원하는 근무 방식이 아니에요',
+      '지원하는 근무 방식이 아닙니다',
     );
   });
 
@@ -350,7 +350,7 @@ describe('근무 설정 공유 파일', () => {
     const wrongFormat = exportedDocument();
     wrongFormat.format = 'alarmpyo-backup';
     expect(() => previewWorkSettingsImport(JSON.stringify(wrongFormat))).toThrow(
-      '알람표 근무 설정 파일이 아니에요',
+      '알람표 근무 설정 파일이 아닙니다',
     );
 
     const wrongVersion = exportedDocument();
@@ -365,14 +365,14 @@ describe('근무 설정 공유 파일', () => {
     const pattern = workSettingsOf(wrongPattern).pattern as Record<string, unknown>;
     pattern.shiftTypeIds = ['off'];
     expect(() => previewWorkSettingsImport(JSON.stringify(wrongPattern))).toThrow(
-      '지원하는 근무 방식이 아니에요',
+      '지원하는 근무 방식이 아닙니다',
     );
 
     const wrongTime = exportedDocument();
     const shifts = workSettingsOf(wrongTime).shiftTypes as Record<string, unknown>[];
     shifts[0].startMinutes = 1440;
     expect(() => previewWorkSettingsImport(JSON.stringify(wrongTime))).toThrow(
-      '시작 시간 값이 올바르지 않아요',
+      '시작 시간 값이 올바르지 않습니다',
     );
   });
 
@@ -389,13 +389,13 @@ describe('근무 설정 공유 파일', () => {
 
     shifts[0].alarmMinutesBefore = 7 * 24 * 60 + 1;
     expect(() => previewWorkSettingsImport(JSON.stringify(legacyAlarmLead))).toThrow(
-      '알람 선행 시간 값이 올바르지 않아요',
+      '알람 선행 시간 값이 올바르지 않습니다',
     );
   });
 
   it('256KB를 넘는 입력은 JSON 해석 전에 거부합니다', () => {
     const oversized = ' '.repeat(MAX_WORK_SETTINGS_SHARE_BYTES + 1);
-    expect(() => previewWorkSettingsImport(oversized)).toThrow('256KB 이하여야 해요');
+    expect(() => previewWorkSettingsImport(oversized)).toThrow('256KB 이하여야 합니다');
   });
 
   it('적용 직전에 변조된 미리보기를 다시 검증합니다', () => {
@@ -419,7 +419,7 @@ describe('근무 설정 공유 파일', () => {
     );
 
     expect(() => applyWorkSettingsPreview(current, preview)).toThrow(
-      '기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 해요',
+      '기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 합니다',
     );
   });
 

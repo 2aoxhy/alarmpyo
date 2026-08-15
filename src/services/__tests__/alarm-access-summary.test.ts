@@ -49,7 +49,7 @@ describe('알람 권한 안내', () => {
     expect(result).toMatchObject({
       action: 'none',
       canTest: false,
-      title: '알람을 사용하지 않아요',
+      title: '알람을 사용하지 않습니다',
     });
   });
 
@@ -63,24 +63,24 @@ describe('알람 권한 안내', () => {
     ).toMatchObject({
       action: 'open-exact-alarm-settings',
       actionLabel: '정확한 알람 설정 열기',
-      title: '정확한 알람을 허용해 주세요',
+      title: '정확한 알람을 허용해야 합니다',
     });
 
     expect(summary({ fullScreenAllowed: false, notificationsAllowed: false })).toMatchObject({
       action: 'open-notification-settings',
       actionLabel: '알림 설정 열기',
-      title: '알람 알림을 허용해 주세요',
+      title: '알람 알림을 허용해야 합니다',
     });
     expect(summary({ notificationsAllowed: false })).toMatchObject({
       action: 'open-notification-settings',
       actionLabel: '알림 설정 열기',
-      title: '알람 알림을 허용해 주세요',
+      title: '알람 알림을 허용해야 합니다',
     });
     expect(summary({ fullScreenAllowed: false })).toMatchObject({
       action: 'open-full-screen-settings',
       actionLabel: '전체 화면 알람 설정하기',
       canTest: false,
-      title: '전체 화면 알람을 허용해 주세요',
+      title: '전체 화면 알람을 허용해야 합니다',
     });
   });
 
@@ -93,7 +93,7 @@ describe('알람 권한 안내', () => {
     })).toMatchObject({
       action: 'open-notification-settings',
       canTest: false,
-      title: '예약은 유지되고 알림 전달만 차단됐어요',
+      title: '예약은 유지되고 알림 전달만 차단되었습니다',
     });
   });
 
@@ -119,8 +119,8 @@ describe('알람 권한 안내', () => {
       totalPlannedAlarmCount: 3,
     });
 
-    expect(result.description).toContain('알림 권한을 허용해 주세요.');
-    expect(result.description).toContain('알람 예약도 함께 확인이 필요했어요.');
+    expect(result.description).toContain('알림 권한을 허용해야 합니다.');
+    expect(result.description).toContain('알람 예약도 함께 확인이 필요했습니다.');
   });
 
   it('알람 저장소가 손상되면 권한 안내보다 근무표 기반 복구를 먼저 제공해요', () => {
@@ -131,7 +131,7 @@ describe('알람 권한 안내', () => {
     })).toMatchObject({
       action: 'resync',
       actionLabel: '알람 저장 정보 복구하기',
-      title: '알람 저장 정보를 복구해야 해요',
+      title: '알람 저장 정보를 복구해야 합니다',
     });
   });
 
@@ -147,7 +147,7 @@ describe('알람 권한 안내', () => {
     ).toMatchObject({
       action: 'open-full-screen-settings',
       canTest: false,
-      title: '전체 화면 알람을 허용해 주세요',
+      title: '전체 화면 알람을 허용해야 합니다',
     });
 
     expect(
@@ -162,7 +162,7 @@ describe('알람 권한 안내', () => {
     ).toMatchObject({
       action: 'open-full-screen-settings',
       canTest: false,
-      title: '전체 화면 알람을 허용해 주세요',
+      title: '전체 화면 알람을 허용해야 합니다',
     });
   });
 
@@ -194,7 +194,7 @@ describe('알람 권한 안내', () => {
       action: 'resync',
       actionLabel: '다시 예약하기',
       canTest: true,
-      title: '알람을 다시 예약해야 해요',
+      title: '알람을 다시 예약해야 합니다',
     });
   });
 
@@ -202,7 +202,7 @@ describe('알람 권한 안내', () => {
     expect(summary()).toMatchObject({
       action: 'none',
       canTest: true,
-      title: '알람이 준비됐어요',
+      title: '알람이 준비되었습니다',
       tone: 'ready',
     });
   });
@@ -221,7 +221,7 @@ describe('알람 권한 안내', () => {
       title: '자동 점검 완료',
       tone: 'ready',
     });
-    expect(result.description).toContain('누락되면 앱을 열 때 자동으로 복구해요');
+    expect(result.description).toContain('누락되면 앱을 열 때 자동으로 복구합니다');
   });
 
   it('누락된 알람을 자동 복구한 경우 결과를 한 번에 알려 줘요', () => {
@@ -233,7 +233,7 @@ describe('알람 권한 안내', () => {
       platformSupported: true,
     })).toMatchObject({
       action: 'none',
-      title: '누락된 알람을 복구했어요',
+      title: '누락된 알람을 복구했습니다',
       tone: 'ready',
     });
   });
@@ -248,7 +248,7 @@ describe('알람 권한 안내', () => {
     })).toMatchObject({
       action: 'resync',
       actionLabel: '다시 점검하기',
-      title: '자동 점검을 마치지 못했어요',
+      title: '자동 점검을 마치지 못했습니다',
       tone: 'warning',
     });
   });
@@ -264,7 +264,7 @@ describe('알람 권한 안내', () => {
 
     expect(result).toMatchObject({
       action: 'open-exact-alarm-settings',
-      title: '정확한 알람을 허용해 주세요',
+      title: '정확한 알람을 허용해야 합니다',
     });
   });
 
@@ -272,7 +272,7 @@ describe('알람 권한 안내', () => {
     expect(summary({ alarmVolume: 0 })).toMatchObject({
       action: 'none',
       canTest: true,
-      title: '알람 음량이 0이에요',
+      title: '알람 음량이 0입니다',
       tone: 'warning',
     });
   });
@@ -296,8 +296,8 @@ describe('알람 권한 안내', () => {
       action: 'open-battery-settings',
       actionLabel: '배터리 설정 열기',
       canTest: true,
-      description: '배터리 최적화 앱 목록에서 알람표를 찾아 제한 없음으로 설정해 주세요.',
-      title: '배터리 사용 제한을 확인해 주세요',
+      description: '배터리 최적화 앱 목록에서 알람표를 찾아 제한 없음으로 설정해야 합니다.',
+      title: '배터리 사용 제한을 확인해야 합니다',
       tone: 'warning',
     });
   });
@@ -318,7 +318,7 @@ describe('알람 권한 안내', () => {
 
     expect(result).toMatchObject({
       action: 'resync',
-      title: '알람 예약이 근무표와 맞지 않아요',
+      title: '알람 예약이 근무표와 맞지 않습니다',
     });
   });
 
@@ -333,7 +333,7 @@ describe('알람 권한 안내', () => {
     ).toMatchObject({
       action: 'resync',
       actionLabel: '다음 알람 이어서 예약하기',
-      title: '알람 계획을 갱신할 시기예요',
+      title: '알람 계획을 갱신할 시기입니다',
     });
   });
 
@@ -348,7 +348,7 @@ describe('알람 권한 안내', () => {
     ).toMatchObject({
       action: 'resync',
       actionLabel: '다음 알람 다시 예약하기',
-      title: '알람 계획이 만료됐어요',
+      title: '알람 계획이 만료되었습니다',
       tone: 'warning',
     });
   });
@@ -367,11 +367,11 @@ describe('알람 권한 안내', () => {
       action: 'resync',
       actionLabel: '근무표에 맞춰 다시 예약하기',
       canTest: true,
-      title: '알람 예약이 근무표와 맞지 않아요',
+      title: '알람 예약이 근무표와 맞지 않습니다',
       tone: 'warning',
     });
     expect(result.description).toBe(
-      '다음 알람 3개 중 1개가 예약됐어요. 근무표에 맞춰 다시 예약해 주세요.',
+      '다음 알람 3개 중 1개가 예약되었습니다. 근무표에 맞춰 다시 예약해야 합니다.',
     );
   });
 
@@ -387,7 +387,7 @@ describe('알람 권한 안내', () => {
 
     expect(result).toMatchObject({
       action: 'none',
-      title: '알람이 준비됐어요',
+      title: '알람이 준비되었습니다',
       tone: 'ready',
     });
   });
@@ -405,7 +405,7 @@ describe('알람 권한 안내', () => {
     expect(result).toMatchObject({
       action: 'resync',
       description:
-        '다음 알람 3개 중 2개가 예약됐어요. 근무표에 맞춰 다시 예약해 주세요.',
+        '다음 알람 3개 중 2개가 예약되었습니다. 근무표에 맞춰 다시 예약해야 합니다.',
       tone: 'warning',
     });
   });
@@ -469,7 +469,7 @@ describe('통합 알람 상태', () => {
       platformSupported: true,
     })).toMatchObject({
       issueCode: 'alarm-plan-expiry',
-      title: '알람 계획이 만료됐어요',
+      title: '알람 계획이 만료되었습니다',
     });
   });
 

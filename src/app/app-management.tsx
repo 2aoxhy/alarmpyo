@@ -22,14 +22,14 @@ export default function AppManagementScreen() {
       <Stack.Screen options={{ title: '데이터·앱 정보' }} />
       <Screen contentStyle={styles.screen}>
         <AppText tone="secondary" style={styles.centerText}>
-          자주 바꾸지 않는 관리 항목을 모았어요.
+          자주 바꾸지 않는 관리 항목을 모았습니다.
         </AppText>
 
         <MenuGroup centered title="관리">
           <ListRow
             icon="download-outline"
             onPress={() => router.push('/data-settings')}
-            subtitle="근무 설정 공유와 백업·복구를 관리해요"
+            subtitle="근무 설정 공유와 백업·복구를 관리합니다"
             title="데이터 관리"
           />
           <MenuDivider />
@@ -38,8 +38,8 @@ export default function AppManagementScreen() {
             onPress={() => router.push('/app-update')}
             subtitle={
               playDistribution
-                ? 'Google Play에서 최신 버전을 확인해요'
-                : '새 앱 설치 파일을 확인하고 안전하게 설치해요'
+                ? 'Google Play에서 최신 버전을 확인합니다'
+                : '새 앱 설치 파일을 확인하고 안전하게 설치합니다'
             }
             title={playDistribution ? 'Google Play 업데이트' : '앱 업데이트'}
           />
@@ -47,7 +47,7 @@ export default function AppManagementScreen() {
           <ListRow
             icon="shield-outline"
             onPress={() => router.push('/privacy' as Href)}
-            subtitle="저장·권한·데이터 처리 기준을 확인해요"
+            subtitle="저장·권한·데이터 처리 기준을 확인합니다"
             title="개인정보 처리방침"
           />
         </MenuGroup>

@@ -25,7 +25,7 @@ export function AlarmPermissionChecklist({
   if (!status) {
     return (
       <AppText tone="secondary" variant="caption">
-        휴대폰의 알람 권한 상태를 확인하고 있어요.
+        휴대폰의 알람 권한 상태를 확인하고 있습니다.
       </AppText>
     );
   }
@@ -54,7 +54,7 @@ export function AlarmPermissionChecklist({
     {
       label: "배터리 사용 제한",
       ready: status.batteryOptimizationIgnored,
-      readyCopy: "제한되어 있지 않아요",
+      readyCopy: "제한되어 있지 않습니다",
       target: "battery-optimization",
     },
   ];
@@ -63,13 +63,13 @@ export function AlarmPermissionChecklist({
     <View style={styles.list}>
       {items.map((item) => {
         const copy = item.ready
-          ? (item.readyCopy ?? "허용되어 있어요")
-          : "확인이 필요해요";
+          ? (item.readyCopy ?? "허용되어 있습니다")
+          : "확인이 필요합니다";
         const color = item.ready ? palette.mintDark : palette.danger;
         return (
           <Pressable
             accessible
-            accessibilityHint={`${item.label}에 해당하는 휴대폰 설정 화면을 열어요.`}
+            accessibilityHint={`${item.label}에 해당하는 휴대폰 설정 화면을 엽니다.`}
             accessibilityLabel={`${item.label}. ${copy}. 설정 열기`}
             accessibilityRole="button"
             accessibilityState={{ disabled }}

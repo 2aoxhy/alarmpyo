@@ -89,7 +89,7 @@ describe('웹 백업 파일 처리', () => {
       }),
     })));
 
-    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 해요');
+    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 합니다');
     expect(text).not.toHaveBeenCalled();
   });
 
@@ -105,7 +105,7 @@ describe('웹 백업 파일 처리', () => {
       }],
     });
 
-    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 해요');
+    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 합니다');
     expect(text).not.toHaveBeenCalled();
   });
 
@@ -172,6 +172,6 @@ describe('웹 백업 파일 처리', () => {
       ],
     });
 
-    await expect(pickBackupFile()).rejects.toThrow('4MB 이하여야 해요');
+    await expect(pickBackupFile()).rejects.toThrow('4MB 이하여야 합니다');
   });
 });

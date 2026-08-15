@@ -18,9 +18,9 @@ async function cleanupPreviousWorkSettingsExports() {
   const fileNames = await FileSystem.readDirectoryAsync(FileSystem.cacheDirectory).catch(() => []);
   await Promise.all(
     fileNames
-      .filter((fileName) => /^AlarmPyo-근무설정-\d{4}-\d{2}-\d{2}\.json$/.test(fileName))
-      .map((fileName) =>
-        FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${fileName}`, {
+      .filter((protocolFile) => /^AlarmPyo-근무설정-\d{4}-\d{2}-\d{2}\.json$/.test(protocolFile))
+      .map((protocolFile) =>
+        FileSystem.deleteAsync(`${FileSystem.cacheDirectory}${protocolFile}`, {
           idempotent: true,
         }).catch(() => undefined),
       ),
@@ -29,10 +29,10 @@ async function cleanupPreviousWorkSettingsExports() {
 
 export async function shareWorkSettingsFile(contents: string) {
   if (!FileSystem.cacheDirectory) {
-    throw new Error('근무 설정 파일을 만들 수 있는 저장 공간이 없어요.');
+    throw new Error('근무 설정 파일을 만들 수 있는 저장 공간이 없습니다.');
   }
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('이 휴대폰에서는 파일 공유를 사용할 수 없어요.');
+    throw new Error('이 휴대폰에서는 파일 공유를 사용할 수 없습니다.');
   }
 
   await cleanupPreviousWorkSettingsExports();
@@ -44,7 +44,7 @@ export async function shareWorkSettingsFile(contents: string) {
   try {
     const fileInfo = await FileSystem.getInfoAsync(uri);
     if (!fileInfo.exists || typeof fileInfo.size !== 'number' || fileInfo.size > MAX_WORK_SETTINGS_SHARE_BYTES) {
-      throw new Error('근무 설정 파일은 256KB 이하여야 해요.');
+      throw new Error('근무 설정 파일은 256KB 이하여야 합니다.');
     }
     await Sharing.shareAsync(uri, {
       dialogTitle: '알람표 근무 설정 공유',
@@ -67,17 +67,17 @@ export async function pickWorkSettingsFile() {
   if (result.canceled) return null;
 
   const asset = result.assets[0];
-  if (!asset) throw new Error('선택한 파일을 읽을 수 없어요.');
+  if (!asset) throw new Error('선택한 파일을 읽을 수 없습니다.');
   try {
     if (asset.size !== undefined && asset.size > MAX_WORK_SETTINGS_SHARE_BYTES) {
-      throw new Error('근무 설정 파일은 256KB 이하여야 해요.');
+      throw new Error('근무 설정 파일은 256KB 이하여야 합니다.');
     }
     const fileInfo = await FileSystem.getInfoAsync(asset.uri).catch(() => null);
     if (!fileInfo?.exists || typeof fileInfo.size !== 'number') {
-      throw new Error('선택한 파일의 크기를 확인할 수 없어요.');
+      throw new Error('선택한 파일의 크기를 확인할 수 없습니다.');
     }
     if (fileInfo.size > MAX_WORK_SETTINGS_SHARE_BYTES) {
-      throw new Error('근무 설정 파일은 256KB 이하여야 해요.');
+      throw new Error('근무 설정 파일은 256KB 이하여야 합니다.');
     }
     return {
       fileName: asset.name,

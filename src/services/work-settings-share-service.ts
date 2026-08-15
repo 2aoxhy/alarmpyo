@@ -105,7 +105,7 @@ function isRecord(value: unknown): value is UnknownRecord {
 
 function record(value: unknown, label: string): UnknownRecord {
   if (!isRecord(value)) {
-    throw new WorkSettingsShareValidationError(`${label} 형식이 올바르지 않아요.`);
+    throw new WorkSettingsShareValidationError(`${label} 형식이 올바르지 않습니다.`);
   }
   return value;
 }
@@ -118,7 +118,7 @@ function exactKeys(value: UnknownRecord, expected: readonly string[], label: str
     actual.some((key) => !expectedSet.has(key))
   ) {
     throw new WorkSettingsShareValidationError(
-      `${label}에 허용되지 않는 항목이 있거나 필요한 항목이 없어요.`,
+      `${label}에 허용되지 않는 항목이 있거나 필요한 항목이 없습니다.`,
     );
   }
 }
@@ -134,21 +134,21 @@ function legacyWorkSettingsKeys(
     Object.keys(value).some((key) => !allowedSet.has(key))
   ) {
     throw new WorkSettingsShareValidationError(
-      '공유 근무 설정에 허용되지 않는 항목이 있거나 필요한 항목이 없어요.',
+      '공유 근무 설정에 허용되지 않는 항목이 있거나 필요한 항목이 없습니다.',
     );
   }
 }
 
 function requiredBoolean(value: unknown, label: string): boolean {
   if (typeof value !== 'boolean') {
-    throw new WorkSettingsShareValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new WorkSettingsShareValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value;
 }
 
 function integerInRange(value: unknown, label: string, minimum: number, maximum: number) {
   if (!Number.isInteger(value) || (value as number) < minimum || (value as number) > maximum) {
-    throw new WorkSettingsShareValidationError(`${label} 값이 올바르지 않아요.`);
+    throw new WorkSettingsShareValidationError(`${label} 값이 올바르지 않습니다.`);
   }
   return value as number;
 }
@@ -175,7 +175,7 @@ function parseShiftSettings(value: unknown, index: number): SharedShiftSettings 
   );
 
   if (typeof item.id !== 'string' || !SHARED_SHIFT_IDS.includes(item.id as SharedShiftId)) {
-    throw new WorkSettingsShareValidationError(`${index + 1}번째 근무 ID가 올바르지 않아요.`);
+    throw new WorkSettingsShareValidationError(`${index + 1}번째 근무 ID가 올바르지 않습니다.`);
   }
 
   const id = item.id as SharedShiftId;
@@ -205,14 +205,14 @@ function parseShiftSettings(value: unknown, index: number): SharedShiftSettings 
       alarmEnabled ||
       alarmMinutesBefore !== 0
     ) {
-      throw new WorkSettingsShareValidationError('휴무 설정이 올바르지 않아요.');
+      throw new WorkSettingsShareValidationError('휴무 설정이 올바르지 않습니다.');
     }
   } else {
     if (isOff || startMinutes === null || endMinutes === null || startMinutes === endMinutes) {
-      throw new WorkSettingsShareValidationError(`${id} 근무 시간이 올바르지 않아요.`);
+      throw new WorkSettingsShareValidationError(`${id} 근무 시간이 올바르지 않습니다.`);
     }
     if (endsNextDay !== (endMinutes < startMinutes)) {
-      throw new WorkSettingsShareValidationError(`${id} 종료일 설정이 근무 시간과 맞지 않아요.`);
+      throw new WorkSettingsShareValidationError(`${id} 종료일 설정이 근무 시간과 맞지 않습니다.`);
     }
   }
 
@@ -240,20 +240,20 @@ function parsePattern(
     '근무 방식',
   );
   if (typeof item.name !== 'string') {
-    throw new WorkSettingsShareValidationError('근무 방식 이름이 올바르지 않아요.');
+    throw new WorkSettingsShareValidationError('근무 방식 이름이 올바르지 않습니다.');
   }
   if (typeof item.anchorDate !== 'string' || !isValidDateKey(item.anchorDate)) {
-    throw new WorkSettingsShareValidationError('기준 날짜가 올바르지 않아요.');
+    throw new WorkSettingsShareValidationError('기준 날짜가 올바르지 않습니다.');
   }
   const scheduleStartDate =
     formatVersion === 1
       ? item.anchorDate
       : item.scheduleStartDate;
   if (typeof scheduleStartDate !== 'string' || !isValidDateKey(scheduleStartDate)) {
-    throw new WorkSettingsShareValidationError('첫 근무일이 올바르지 않아요.');
+    throw new WorkSettingsShareValidationError('첫 근무일이 올바르지 않습니다.');
   }
   if (!Array.isArray(item.shiftTypeIds) || item.shiftTypeIds.some((id) => typeof id !== 'string')) {
-    throw new WorkSettingsShareValidationError('근무 반복 순서가 올바르지 않아요.');
+    throw new WorkSettingsShareValidationError('근무 반복 순서가 올바르지 않습니다.');
   }
   const shiftTypeIds = [...item.shiftTypeIds] as string[];
   const presetId = getWorkPatternPresetId(shiftTypeIds);
@@ -267,7 +267,7 @@ function parsePattern(
     (formatVersion < WORK_SETTINGS_SHARE_FORMAT_VERSION && !legacyPatternValid) ||
     (formatVersion === WORK_SETTINGS_SHARE_FORMAT_VERSION && !currentPatternValid)
   ) {
-    throw new WorkSettingsShareValidationError('알람표에서 지원하는 근무 방식이 아니에요.');
+    throw new WorkSettingsShareValidationError('알람표에서 지원하는 근무 방식이 아닙니다.');
   }
   const normalizedKind = presetId === 'weekday' ? 'weekday' : 'rotation';
   const pattern =
@@ -294,7 +294,7 @@ function validateDocument(value: unknown): WorkSettingsSharePreview {
   exactKeys(root, ['format', 'formatVersion', 'workSettings'], '근무 설정 파일');
   const legacyFormat = root.format === LEGACY_WORK_SETTINGS_SHARE_FORMAT;
   if (root.format !== WORK_SETTINGS_SHARE_FORMAT && !legacyFormat) {
-    throw new WorkSettingsShareValidationError('알람표 근무 설정 파일이 아니에요.');
+    throw new WorkSettingsShareValidationError('알람표 근무 설정 파일이 아닙니다.');
   }
   const currentVersion = root.formatVersion === WORK_SETTINGS_SHARE_FORMAT_VERSION;
   // V04는 현재 계보 ID로 v6를 내보냈어요. v7 승격 후에도 실제
@@ -307,7 +307,7 @@ function validateDocument(value: unknown): WorkSettingsSharePreview {
     (legacyFormat && !legacyVersion) ||
     (!legacyFormat && !currentVersion && !previousCurrentVersion)
   ) {
-    throw new WorkSettingsShareValidationError('지원하지 않는 근무 설정 파일 버전이에요.');
+    throw new WorkSettingsShareValidationError('지원하지 않는 근무 설정 파일 버전입니다.');
   }
   const formatVersion = root.formatVersion as WorkSettingsShareFormatVersion;
 
@@ -334,7 +334,7 @@ function validateDocument(value: unknown): WorkSettingsSharePreview {
       ? SHARED_SHIFT_IDS
       : LEGACY_SHARED_SHIFT_IDS;
   if (!Array.isArray(workSettings.shiftTypes) || workSettings.shiftTypes.length !== expectedShiftIds.length) {
-    throw new WorkSettingsShareValidationError('공유할 근무 종류가 모두 들어 있지 않아요.');
+    throw new WorkSettingsShareValidationError('공유할 근무 종류가 모두 들어 있지 않습니다.');
   }
   const parsedShiftTypes = workSettings.shiftTypes.map(parseShiftSettings);
   const shiftTypes =
@@ -354,7 +354,7 @@ function validateDocument(value: unknown): WorkSettingsSharePreview {
     SHARED_SHIFT_IDS.some((id) => !byId.has(id)) ||
     expectedShiftIds.some((id) => !parsedShiftTypes.some((shift) => shift.id === id))
   ) {
-    throw new WorkSettingsShareValidationError('공유 근무 종류가 중복됐거나 누락됐어요.');
+    throw new WorkSettingsShareValidationError('공유 근무 종류가 중복됐거나 누락됐습니다.');
   }
 
   const document: WorkSettingsShareDocument = {
@@ -396,7 +396,7 @@ function sharedShiftFromShiftType(
 function sharedShiftFromAppData(data: AppData, id: SharedShiftId): SharedShiftSettings {
   const shift = data.shiftTypes.find((item) => item.id === id);
   if (!shift) {
-    throw new WorkSettingsShareValidationError(`${id} 근무 설정을 찾을 수 없어요.`);
+    throw new WorkSettingsShareValidationError(`${id} 근무 설정을 찾을 수 없습니다.`);
   }
   return sharedShiftFromShiftType({ ...shift, id });
 }
@@ -419,20 +419,20 @@ export function exportWorkSettingsToJson(data: AppData): string {
   const normalizedDocument = validateDocument(document).document;
   const contents = JSON.stringify(normalizedDocument, null, 2);
   if (getUtf8ByteLength(contents) > MAX_WORK_SETTINGS_SHARE_BYTES) {
-    throw new WorkSettingsShareValidationError('근무 설정 파일이 허용 크기를 넘었어요.');
+    throw new WorkSettingsShareValidationError('근무 설정 파일이 허용 크기를 넘었습니다.');
   }
   return contents;
 }
 
 export function previewWorkSettingsImport(raw: string): WorkSettingsSharePreview {
   if (getUtf8ByteLength(raw) > MAX_WORK_SETTINGS_SHARE_BYTES) {
-    throw new WorkSettingsShareValidationError('근무 설정 파일은 256KB 이하여야 해요.');
+    throw new WorkSettingsShareValidationError('근무 설정 파일은 256KB 이하여야 합니다.');
   }
   let value: unknown;
   try {
     value = JSON.parse(stripOptionalUtf8Bom(raw));
   } catch {
-    throw new WorkSettingsShareValidationError('근무 설정 파일을 읽을 수 없어요.');
+    throw new WorkSettingsShareValidationError('근무 설정 파일을 읽을 수 없습니다.');
   }
   return validateDocument(value);
 }
@@ -474,7 +474,7 @@ export function applyWorkSettingsPreview(
     );
   if (!routinesCompatible) {
     throw new WorkSettingsShareValidationError(
-      '공유된 기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 해요.',
+      '공유된 기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 합니다.',
     );
   }
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="alarmpyo_widget_name">알람표 근무 현황</string>
-    <string name="alarmpyo_widget_description">오늘 근무와 시간, 다음 근무를 표시해요.</string>
+  <string name="alarmpyo_widget_description">오늘 근무와 시간, 다음 근무를 표시합니다.</string>
     <string name="alarmpyo_widget_preview_date">오늘 일정</string>
     <string name="alarmpyo_widget_preview_title">근무 현황</string>
     <string name="alarmpyo_widget_preview_schedule">설정한 근무 시간</string>

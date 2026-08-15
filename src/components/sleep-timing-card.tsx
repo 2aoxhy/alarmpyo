@@ -93,29 +93,29 @@ function formatCollapsedSleepAction(
   action: CollapsedSleepAction,
   now: Date,
 ): string {
-  if (action.kind === 'continue') return '지금은 수면을 이어가세요.';
+  if (action.kind === 'continue') return '지금은 수면을 이어가야 합니다.';
   if (action.kind === 'prepare-nap') {
     return action.at <= now.getTime()
-      ? '지금부터 보충 수면을 준비하세요.'
-      : `${formatShortDateTime(action.at, now)}부터 보충 수면을 준비하세요.`;
+      ? '지금부터 보충 수면을 준비해야 합니다.'
+      : `${formatShortDateTime(action.at, now)}부터 보충 수면을 준비해야 합니다.`;
   }
-  return `참고 취침 시각은 ${formatShortDateTime(action.at, now)}까지예요.`;
+  return `참고 취침 시각은 ${formatShortDateTime(action.at, now)}까지입니다.`;
 }
 
 function getReferenceNote(window: SleepTimingWindow): string {
   if (window.kind === 'pre-night-nap') {
-    return '90분 보충 수면을 주수면과 함께 활용하는 일정 참고용이에요.';
+    return '90분 보충 수면을 주수면과 함께 활용하는 일정 참고용입니다.';
   }
   if (window.kind === 'post-night' && getDurationMinutes(window) < 7 * 60) {
-    return '퇴근 뒤 이동·정리 1시간 15분과 짧은 회복 수면을 반영한 예시예요. 당일 밤의 전환 수면도 함께 확인하세요.';
+    return '퇴근 뒤 이동·정리 1시간 15분과 짧은 회복 수면을 반영한 예시입니다. 당일 밤의 전환 수면도 함께 확인해야 합니다.';
   }
   if (window.kind === 'post-night') {
-    return '퇴근 뒤 이동·정리 1시간 15분을 반영한 일정이에요. 실제 귀가 시간에 맞춰 조정하세요.';
+    return '퇴근 뒤 이동·정리 1시간 15분을 반영한 일정입니다. 실제 귀가 시간에 맞춰 조정해야 합니다.';
   }
   if (window.kind === 'off-transition') {
-    return '마지막 야간 뒤 짧게 쉬고 이른 밤 수면으로 돌아가는 전환 예시예요.';
+    return '마지막 야간 뒤 짧게 쉬고 이른 밤 수면으로 돌아가는 전환 예시입니다.';
   }
-  return '7시간 이상을 확보하는 일정 참고용이에요. 개인 상태에 따라 조정하세요.';
+  return '7시간 이상을 확보하는 일정 참고용입니다. 개인 상태에 따라 조정해야 합니다.';
 }
 
 function getCoreTimingLine(window: SleepTimingWindow, now: Date): string {
@@ -196,7 +196,7 @@ function TransitionPanel({
     1,
     Math.ceil((transition.endAt - now.getTime()) / 60_000),
   );
-  const accessibilityLabel = `현재 야간 전환 시간이에요. ${formatNaturalDateTime(transition.startAt)}부터 ${formatNaturalDateTime(transition.endAt)}까지예요. 보충 수면 준비까지 ${formatDuration(remainingMinutes)} 남았어요. ${transition.guidance}`;
+  const accessibilityLabel = `현재 야간 전환 시간입니다. ${formatNaturalDateTime(transition.startAt)}부터 ${formatNaturalDateTime(transition.endAt)}까지입니다. 보충 수면 준비까지 ${formatDuration(remainingMinutes)} 남았습니다. ${transition.guidance}`;
 
   return (
     <View
@@ -210,7 +210,7 @@ function TransitionPanel({
           </View>
           <View style={styles.transitionCopy}>
             <AppText variant="label" color={palette.amber}>
-              지금은 야간 전환 시간이에요
+              지금은 야간 전환 시간입니다
             </AppText>
             <AppText variant="caption" tone="secondary">
               {formatShortTimeRange(transition.startAt, transition.endAt, now)}
@@ -224,7 +224,7 @@ function TransitionPanel({
         </View>
       </View>
       <AppText variant="caption" tone="primary">
-        {transition.guidance} {formatShortDateTime(transition.endAt, now)}부터 보충 수면을 준비하세요.
+        {transition.guidance} {formatShortDateTime(transition.endAt, now)}부터 보충 수면을 준비해야 합니다.
       </AppText>
     </View>
   );
@@ -270,12 +270,12 @@ export function SleepTimingCard({
           </AppText>
           <AppText variant="caption" tone="secondary">
             {guidance.transitionMode
-              ? '근무 전환에 맞춘 취침·기상·보충 수면 일정 참고예요.'
+              ? '근무 전환에 맞춘 취침·기상·보충 수면 일정 참고입니다.'
               : guidance.transition
-              ? '주수면과 보충 수면 사이도 빠짐없이 안내해요.'
+              ? '주수면과 보충 수면 사이도 빠짐없이 안내합니다.'
               : isRegularSleep
               ? '야간 회복과 휴무 전환까지 고려한 참고 시간'
-              : '저장한 기상 시각과 출근 루틴에 맞춘 일정 참고예요.'}
+              : '저장한 기상 시각과 출근 루틴에 맞춘 일정 참고입니다.'}
           </AppText>
         </View>
       </View>
@@ -300,7 +300,7 @@ export function SleepTimingCard({
           size={17}
         />
         <AppText tone="secondary" style={styles.referenceNoticeCopy} variant="caption">
-          생활 리듬을 위한 참고 정보예요. 건강 상태를 판단하는 의료 안내가 아니에요.
+          생활 리듬을 위한 참고 정보입니다. 건강 상태를 판단하는 의료 안내가 아닙니다.
         </AppText>
       </View>
 
@@ -308,13 +308,13 @@ export function SleepTimingCard({
         <View accessible accessibilityLiveRegion="polite" style={styles.fallbackNotice}>
           <AppIcon accessible={false} color={palette.amber} name="alert-circle-outline" size={18} />
           <AppText variant="caption" tone="primary" style={styles.fallbackNoticeCopy}>
-            기상 기준을 확인할 수 없어 저장한 출근 루틴과 근무 시작 {formatDuration(ROUTINE_ALARM_LEAD_MINUTES)} 전을 기준으로 계산했어요.
+            기상 기준을 확인할 수 없어 저장한 출근 루틴과 근무 시작 {formatDuration(ROUTINE_ALARM_LEAD_MINUTES)} 전을 기준으로 계산했습니다.
           </AppText>
         </View>
       ) : null}
 
       <Pressable
-        accessibilityHint={expanded ? '수면 세부 일정을 접어요.' : '수면 세부 일정을 펼쳐요.'}
+        accessibilityHint={expanded ? '수면 세부 일정을 접습니다.' : '수면 세부 일정을 펼칩니다.'}
         accessibilityLabel={expanded ? '수면 세부 일정 접기' : '수면 세부 일정 보기'}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
@@ -357,7 +357,7 @@ export function SleepTimingCard({
             <AppIcon accessible={false} color={palette.blue} name="checkmark-circle" size={20} />
             <View style={styles.guidanceNoteCopy}>
               <AppText variant="caption" tone="secondary">
-                {getReferenceNote(guidance.primary)} 개인 상태에 맞게 조정하세요.
+                {getReferenceNote(guidance.primary)} 개인 상태에 맞게 조정해야 합니다.
               </AppText>
             </View>
           </View>

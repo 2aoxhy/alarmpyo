@@ -61,22 +61,22 @@ const DAY_PREP_STEP_TEMPLATES: readonly RoutineStepTemplate[] = [
   {
     id: 'wake-and-shower',
     weight: 20,
-    instruction: '기상한 뒤 샤워하고 머리를 말리세요.',
+    instruction: '기상한 뒤 샤워하고 머리를 말려야 합니다.',
   },
   {
     id: 'dress-and-prepare',
     weight: 15,
-    instruction: '복장을 갖추고 출근 준비를 하세요.',
+    instruction: '복장을 갖추고 출근 준비를 해야 합니다.',
   },
   {
     id: 'meal-and-water',
     weight: 10,
-    instruction: '간단히 먹고 물을 챙기세요.',
+    instruction: '간단히 먹고 물을 챙겨야 합니다.',
   },
   {
     id: 'belongings-check',
     weight: 5,
-    instruction: '신분증·휴대폰·출입 관련 준비물을 확인하세요.',
+    instruction: '신분증·휴대폰·출입 관련 준비물을 확인해야 합니다.',
   },
 ];
 
@@ -84,17 +84,17 @@ const NIGHT_PREP_STEP_TEMPLATES: readonly RoutineStepTemplate[] = [
   {
     id: 'wake-and-prepare',
     weight: 25,
-    instruction: '기상한 뒤 샤워하고 출근 준비를 하세요.',
+    instruction: '기상한 뒤 샤워하고 출근 준비를 해야 합니다.',
   },
   {
     id: 'meal-or-snack',
     weight: 15,
-    instruction: '식사하거나 간단한 간식을 드세요.',
+    instruction: '식사하거나 간단한 간식을 드셔야 합니다.',
   },
   {
     id: 'belongings-check',
     weight: 10,
-    instruction: '준비물을 확인하세요.',
+    instruction: '준비물을 확인해야 합니다.',
   },
 ];
 
@@ -233,31 +233,31 @@ export function buildWorkRoutinePlan(
       id: 'depart',
       at: departAt,
       endAt: arriveAt,
-      instruction: '회사로 출발하세요.',
+      instruction: '회사로 출발해야 합니다.',
     },
     {
       id: 'arrive-and-change',
       at: arriveAt,
       endAt: arrivalChangeEnd,
-      instruction: '도착 후 옷을 갈아입고 복장을 정리하세요.',
+      instruction: '도착 후 옷을 갈아입고 복장을 정리해야 합니다.',
     },
     {
       id: 'final-prepare',
       at: arrivalChangeEnd,
       endAt: handoverStartAt,
-      instruction: '교대 전 준비를 마무리하세요.',
+      instruction: '교대 전 준비를 마무리해야 합니다.',
     },
     {
       id: 'handover',
       at: handoverStartAt,
       endAt: handoverAt,
-      instruction: '교대를 마치세요.',
+      instruction: '교대를 마쳐야 합니다.',
     },
     {
       id: 'ready-for-work',
       at: handoverAt,
       endAt: workStartAt,
-      instruction: '교대 후 실제 근무 시작을 준비하세요.',
+      instruction: '교대 후 실제 근무 시작을 준비해야 합니다.',
     },
   ];
   const steps: WorkRoutineStep[] = [

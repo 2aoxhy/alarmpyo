@@ -79,7 +79,7 @@ describe('급여 산정기간', () => {
       adjusted: true,
       confirmed: true,
     });
-    expect(weekend.accessibilityLabel).toContain('2월 21일이 휴일이라 앞당겨졌어요');
+    expect(weekend.accessibilityLabel).toContain('2월 21일이 휴일이라 앞당겨졌습니다');
 
     const holiday = getPayrollCalendarEntriesForMonth(2021, 8);
     expect(Object.keys(holiday)).toEqual(['2021-09-17']);
@@ -96,7 +96,7 @@ describe('급여 산정기간', () => {
       adjusted: true,
       confirmed: false,
       accessibilityLabel:
-        '2028년 5월 월급날, 5월 21일이 휴일이라 앞당겨졌어요, 반복 법정공휴일을 반영한 예상일이에요',
+        '2028년 5월 월급날, 5월 21일이 휴일이라 앞당겨졌습니다, 반복 법정공휴일을 반영한 예상일입니다',
     });
   });
 
@@ -117,7 +117,7 @@ describe('급여 산정기간', () => {
     });
     expect(resolvePayrollBusinessDay('2028-05-21')).toBe('2028-05-19');
     expect(() => resolvePayrollBusinessDay('2018-01-01')).toThrow(
-      '2017년 공휴일 자료가 없어 지급일을 계산할 수 없어요.',
+      '2017년 공휴일 자료가 없어 지급일을 계산할 수 없습니다.',
     );
   });
 

@@ -183,12 +183,19 @@ export default function ShiftSettingsScreen() {
         if (!hasUnsavedChanges || allowNavigation.current) return;
         event.preventDefault();
         showDialog(
-          '저장하지 않고 나갈까요?',
-          '입력한 근무 시간과 근무 알람 설정이 사라져요.',
+          '저장하지 않고 나가시겠습니까?',
+          '입력한 근무 시간과 근무 알람 설정이 사라집니다.',
           [
-            { text: '계속 설정하기', style: 'cancel' },
+            {
+              text: '계속 설정하기',
+              actionId: 'cancel',
+              icon: 'close',
+              style: 'cancel',
+            },
             {
               text: '저장하지 않고 나가기',
+              actionId: 'delete',
+              icon: 'trash-outline',
               style: 'destructive',
               onPress: () => {
                 allowNavigation.current = true;
@@ -196,6 +203,7 @@ export default function ShiftSettingsScreen() {
               },
             },
           ],
+          { tone: 'danger' },
         );
       }),
     [hasUnsavedChanges, navigation, saving, showDialog],
@@ -244,16 +252,16 @@ export default function ShiftSettingsScreen() {
       );
       focusDraft(firstInvalidDraft.id);
       showDialog(
-        '시간을 확인해 주세요',
-        `${invalidShift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해 주세요.`,
+        '시간을 확인해야 합니다',
+        `${invalidShift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
       );
       return;
     }
     if (invalidRoutineIssue) {
       focusDraft(invalidRoutineIssue.draftId, 'routine');
       showDialog(
-        '출근 루틴을 확인해 주세요',
-        '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해 주세요.',
+        '출근 루틴을 확인해야 합니다',
+        '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해야 합니다.',
       );
       return;
     }
@@ -271,8 +279,8 @@ export default function ShiftSettingsScreen() {
       if (!shift || startMinutes === null || endMinutes === null) {
         focusDraft(draft.id);
         showDialog(
-          '시간을 확인해 주세요',
-          `${shift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해 주세요.`,
+          '시간을 확인해야 합니다',
+          `${shift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
         );
         return;
       }
@@ -280,8 +288,8 @@ export default function ShiftSettingsScreen() {
       if (!duration) {
         focusDraft(draft.id);
         showDialog(
-          `${shift.name} 시간을 확인해 주세요`,
-          '시작과 종료 시간을 다르게 입력해 주세요.',
+          `${shift.name} 시간을 확인해야 합니다`,
+          '시작과 종료 시간을 다르게 입력해야 합니다.',
         );
         return;
       }
@@ -294,8 +302,8 @@ export default function ShiftSettingsScreen() {
         await createBackup();
       } catch {
         showDialog(
-          '안전 백업을 만들지 못했어요',
-          '기존 근무 설정을 보호하기 위해 변경 내용을 저장하지 않았어요.',
+          '안전 백업을 만들지 못했습니다',
+          '기존 근무 설정을 보호하기 위해 변경 내용을 저장하지 않았습니다.',
         );
         return;
       }
@@ -318,8 +326,8 @@ export default function ShiftSettingsScreen() {
       );
       if (!saved) {
         showDialog(
-          '근무 설정을 저장하지 못했어요',
-          '휴대폰 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+          '근무 설정을 저장하지 못했습니다',
+          '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
         );
         return;
       }
@@ -351,7 +359,7 @@ export default function ShiftSettingsScreen() {
     accessibilityLabel: `${section.label} 근무 설정${
       hasInvalidDraftForSection(drafts, section.value) ||
       invalidRoutineSection === section.value
-        ? '. 시간 확인이 필요해요.'
+        ? '. 시간을 확인해야 합니다.'
         : ''
     }`,
   }));
@@ -399,7 +407,7 @@ export default function ShiftSettingsScreen() {
         }>
         <View style={styles.intro}>
           <AppText tone="secondary" style={styles.centerText} variant="body">
-            현재 설정을 확인하고 필요한 항목만 열어 수정하세요.
+            현재 설정을 확인하고 필요한 항목만 열어 수정해야 합니다.
           </AppText>
         </View>
 
@@ -576,8 +584,8 @@ export default function ShiftSettingsScreen() {
 
               {editorSection === 'substitute' && !weekdayFixed ? (
                 <StatusBanner
-                  message="교대근무의 대체 근무는 주간·오후·야간 루틴을 사용해요."
-                  title="별도 루틴이 필요하지 않아요"
+                  message="교대근무의 대체 근무는 주간·오후·야간 루틴을 사용합니다."
+                  title="별도 루틴이 필요하지 않습니다"
                   tone="info"
                 />
               ) : null}
@@ -587,7 +595,7 @@ export default function ShiftSettingsScreen() {
           {hasInvalidDrafts ? (
             <StatusBanner
               actionLabel="확인하기"
-              message="근무 시간 또는 출근 루틴을 확인해 주세요."
+              message="근무 시간 또는 출근 루틴을 확인해야 합니다."
               onAction={openFirstInvalidSetting}
               title="설정 확인 필요"
               tone="danger"

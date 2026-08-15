@@ -23,10 +23,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  DEFAULT_APP_DIALOG_BUTTONS,
+  DEFAULT_APP_DIALOG_OPTIONS,
+  type AppDialogButton,
+  type AppDialogOptions,
+} from '@/components/app-dialog-contract';
 import { AppIcon } from '@/components/app-icon';
-import { isSuccessDialogTitle } from '@/components/app-dialog-tone';
+import {
+  resolveAppDialogPresentation,
+} from '@/components/app-dialog-tone';
 import { AppButton, AppText } from '@/components/ui-kit';
 import { colorWithAlpha, type AppPalette } from '@/constants/app-theme';
+import { commonCopy } from '@/content/common-copy';
 import {
   motion as motionToken,
   radius,
@@ -37,60 +46,62 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
-export type AppDialogButton = {
-  text: string;
-  onPress?: () => void;
-  style?: 'default' | 'cancel' | 'destructive';
-};
-
-export type AppDialogOptions = {
-  cancelable?: boolean;
-  onDismiss?: () => void;
-};
+export type { AppDialogButton, AppDialogOptions } from '@/components/app-dialog-contract';
 
 type AppDialogRequest = {
   title: string;
   message?: string;
   buttons: AppDialogButton[];
-  options?: AppDialogOptions;
+  options: AppDialogOptions;
+};
+
+type ShowAppDialog = {
+  (
+    title: string,
+    message?: string,
+    buttons?: undefined,
+    options?: AppDialogOptions,
+  ): void;
+  (
+    title: string,
+    message: string | undefined,
+    buttons: AppDialogButton[],
+    options: AppDialogOptions,
+  ): void;
 };
 
 type AppDialogContextValue = {
-  showDialog: (
-    title: string,
-    message?: string,
-    buttons?: AppDialogButton[],
-    options?: AppDialogOptions,
-  ) => void;
+  showDialog: ShowAppDialog;
 };
 
 const AppDialogContext = createContext<AppDialogContextValue | null>(null);
 const DIALOG_ENTER_DURATION = motionToken.standard;
 const DIALOG_EXIT_DURATION = motionToken.fast;
-
 export function AppDialogProvider({ children }: PropsWithChildren) {
   const [request, setRequest] = useState<AppDialogRequest | null>(null);
   const requestRef = useRef<AppDialogRequest | null>(null);
 
-  const showDialog = useCallback<AppDialogContextValue['showDialog']>(
+  const showDialog = useCallback(
     (title, message, buttons, options) => {
-      const nextRequest = {
+      const nextRequest: AppDialogRequest = {
         title,
         message,
-        buttons: buttons?.length ? buttons : [{ text: '확인하기' }],
-        options,
+        buttons: buttons?.length
+          ? buttons
+          : [...DEFAULT_APP_DIALOG_BUTTONS],
+        options: options ?? DEFAULT_APP_DIALOG_OPTIONS,
       };
       requestRef.current = nextRequest;
       setRequest(nextRequest);
     },
     [],
-  );
+  ) as ShowAppDialog;
 
   const dismiss = useCallback((target: AppDialogRequest) => {
     if (requestRef.current !== target) return;
     requestRef.current = null;
     setRequest(null);
-    target.options?.onDismiss?.();
+    target.options.onDismiss?.();
   }, []);
 
   const choose = useCallback((target: AppDialogRequest, button: AppDialogButton) => {
@@ -112,7 +123,7 @@ export function AppDialogProvider({ children }: PropsWithChildren) {
 
 export function useAppDialog() {
   const value = useContext(AppDialogContext);
-  if (!value) throw new Error('앱 팝업 제공자가 준비되지 않았어요.');
+  if (!value) throw new Error(commonCopy.providerUnavailable.text);
   return value;
 }
 
@@ -135,13 +146,9 @@ function AppDialogHost({
   const titleRef = useRef<React.ElementRef<typeof AppText>>(null);
   const useNativeDriver = Platform.OS !== 'web';
   const buttons = request?.buttons ?? [];
-  const hasDestructiveAction = buttons.some((button) => button.style === 'destructive');
-  const indicatesSuccess = request ? isSuccessDialogTitle(request.title) : false;
-  const tone = hasDestructiveAction
-    ? palette.danger
-    : indicatesSuccess
-      ? palette.mintDark
-      : palette.indigo;
+  const dialogTone = request?.options.tone ?? DEFAULT_APP_DIALOG_OPTIONS.tone;
+  const presentation = resolveAppDialogPresentation(dialogTone);
+  const tone = palette[presentation.paletteRole];
   const compactHeight = height < 500;
   const stackActions =
     buttons.length > 2 ||
@@ -214,7 +221,7 @@ function AppDialogHost({
       animationType="none"
       navigationBarTranslucent
       onRequestClose={() => {
-        if (request && request.options?.cancelable !== false) {
+        if (request && request.options.cancelable !== false) {
           closeWithAnimation(() => dismiss(request));
         }
       }}
@@ -235,10 +242,10 @@ function AppDialogHost({
             paddingBottom: Math.max(insets.bottom, space.md),
           },
         ]}>
-        {request?.options?.cancelable === false ? null : (
+        {request?.options.cancelable === false ? null : (
           <Pressable
             accessibilityElementsHidden
-            accessibilityLabel="팝업 닫기"
+            accessibilityLabel={commonCopy.closeDialogLabel.text}
             accessibilityRole="button"
             accessible={false}
             importantForAccessibility="no-hide-descendants"
@@ -287,7 +294,7 @@ function AppDialogHost({
                   <AppIcon
                     accessible={false}
                     color={tone}
-                    name={indicatesSuccess ? 'checkmark-circle' : 'alert-circle-outline'}
+                    name={presentation.icon}
                     size={26}
                   />
                 </View>
@@ -310,6 +317,8 @@ function AppDialogHost({
                 {buttons.map((button, index) => (
                   <AppButton
                     key={`${button.text}-${index}`}
+                    actionId={button.actionId}
+                    icon={button.icon}
                     label={button.text}
                     onPress={() => closeWithAnimation(() => choose(request, button))}
                     style={stackActions ? styles.stackedAction : styles.action}

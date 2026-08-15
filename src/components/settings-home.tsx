@@ -9,6 +9,7 @@ import {
   Screen,
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
+import { dataCopy } from '@/content/data-copy';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreData } from '@/store/app-store';
@@ -45,7 +46,7 @@ export default function SettingsHome() {
           설정
         </AppText>
         <AppText tone="secondary" style={styles.headerDescription}>
-          자주 쓰는 설정만 모았어요.
+          자주 쓰는 설정만 모았습니다.
         </AppText>
       </View>
 
@@ -76,7 +77,7 @@ export default function SettingsHome() {
         <ListRow
           icon="book-outline"
           onPress={() => router.push('/app-management' as Href)}
-          subtitle="백업·업데이트·개인정보"
+          subtitle={dataCopy.managementSummary.text}
           title="데이터·앱 정보"
         />
       </MenuGroup>

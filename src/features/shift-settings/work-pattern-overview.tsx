@@ -33,7 +33,7 @@ export function WorkPatternOverview({
   const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
   const patternDescription =
     presetId === 'custom'
-      ? `${data.pattern.shiftTypeIds.length}일 회사 순서로 반복해요.`
+      ? `${data.pattern.shiftTypeIds.length}일 회사 순서로 반복합니다.`
       : getWorkPatternPreset(presetId).description;
 
   return (
@@ -85,7 +85,7 @@ export function WorkPatternOverview({
       </View>
 
       <AppButton
-        accessibilityHint="근무 방식을 변경해요."
+        accessibilityHint="근무 방식을 변경합니다."
         icon="options-outline"
         label="근무 방식 수정하기"
         onPress={onEdit}

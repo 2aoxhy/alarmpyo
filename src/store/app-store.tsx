@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AppState } from 'react-native';
 
 import { withAlarmRuntimeState } from '@/application/app-data-mutations';
 import {
@@ -26,9 +25,12 @@ import {
 import {
   applyCanonicalSnapshotIfSourceIsCurrent,
   createDataReplacementResult,
-  getSleepReminderSyncModeForAppState,
+  getAutomaticSaveContentSignature,
   getResetAllDataResult,
+  getSleepReminderProjectionKey,
   persistLatestCanonicalSnapshotAndSyncSleep,
+  shouldFlushAutomaticSave,
+  shouldSkipEquivalentExplicitSave,
   shouldSkipAutomaticSaveForAppliedCanonicalSnapshot,
   shouldSyncAlarmsAfterReplacement,
   shouldSyncSleepRemindersAfterReplacement,
@@ -61,6 +63,7 @@ import type {
   SaveStatus,
   SleepReminderSyncStatus,
   UpdatePatternOptions,
+  UpdatePatternResult,
 } from '@/application/app-store-contract';
 import {
   clearSaveIssue,
@@ -80,6 +83,7 @@ import type {
   WidgetDisplayOptions,
   WorkRoutineProfiles,
 } from '@/models/app-data';
+import { useAppLifecycle } from '@/hooks/use-app-active';
 import {
   appDataFromImportPreview,
   canonicalizeAppData,
@@ -209,7 +213,7 @@ export function createDefaultData(anchorDate = toDateKey(new Date())): AppData {
 async function cancelQuickTimerForResetCleanup(): Promise<void> {
   const status = await cancelQuickTimer();
   if (status.supported && (status.active || status.state === 'error')) {
-    throw new Error('타이머를 취소하지 못했어요.');
+    throw new Error('타이머를 취소하지 못했습니다.');
   }
 }
 
@@ -227,30 +231,30 @@ async function resetAlarmRuntimeForResetCleanup(): Promise<void> {
       !unified.restoreJournalReset ||
       !unified.alarmHistoryReset
     ) {
-      throw new Error('네이티브 알람 상태 일부를 초기화하지 못했어요.');
+      throw new Error('네이티브 알람 상태 일부를 초기화하지 못했습니다.');
     }
     return;
   }
 
-  // OTA 뒤 구형 네이티브 모듈이 잠시 실행되는 경우에도 기존 API로 최대한 정리해요.
+  // OTA 뒤 구형 네이티브 모듈이 잠시 실행되는 경우에도 기존 API로 최대한 정리합니다.
   await cancelQuickTimerForResetCleanup();
   const work = await cancelAllAlarmPyoAlarms();
   if (work.supported && (work.enabled || work.scheduledCount > 0)) {
-    throw new Error('근무 알람을 초기화하지 못했어요.');
+    throw new Error('근무 알람을 초기화하지 못했습니다.');
   }
   const sleep = await cancelAlarmPyoSleepReminders();
   if (sleep.supported && (sleep.enabled || sleep.scheduledCount > 0)) {
-    throw new Error('수면 알림을 초기화하지 못했어요.');
+    throw new Error('수면 알림을 초기화하지 못했습니다.');
   }
   const sound = await resetAlarmSound();
   if (sound.supported && sound.selected) {
-    throw new Error('알람음을 초기화하지 못했어요.');
+    throw new Error('알람음을 초기화하지 못했습니다.');
   }
 }
 
 const AUTOMATIC_SAVE_DEBOUNCE_MS = 300;
 const SLEEP_REMINDER_SYNC_SAVE_ERROR =
-  '자료는 저장했지만 수면 알림을 갱신하지 못했어요. 앱을 다시 열면 자동으로 다시 시도해요.';
+  '자료는 저장했지만 수면 알림을 갱신하지 못했습니다. 앱을 다시 열면 자동으로 다시 시도합니다.';
 
 export function resolveShiftFromData(data: AppData, dateKey: string): ShiftType | null {
   return selectShiftForDate(data, dateKey);
@@ -261,6 +265,7 @@ const AppStoreStatusContext = createContext<AppStoreStatusState | null>(null);
 const AppStoreActionsContext = createContext<AppStoreActions | null>(null);
 
 export function AppStoreProvider({ children }: PropsWithChildren) {
+  const appLifecycle = useAppLifecycle();
   const [data, setData] = useState<AppData>(() => createDefaultData());
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -277,6 +282,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     useState<SleepReminderSyncStatus>('idle');
   const [sleepReminderSyncError, setSleepReminderSyncError] =
     useState<string | null>(null);
+  const [sleepReminderSyncRevision, setSleepReminderSyncRevision] = useState(0);
   const [corruptBackupKey, setCorruptBackupKey] = useState<string | null>(null);
   const [alarmAutoCheckState, setAlarmAutoCheckState] =
     useState<AlarmAutoCheckState>({ checkedAt: null, status: 'idle' });
@@ -294,6 +300,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const automaticSaveGenerationRef = useRef(0);
   const automaticSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const automaticSaveAppliedCanonicalSnapshotRef = useRef<AppData | null>(null);
+  const lastPersistedAutomaticSaveSignatureRef = useRef<string | null>(null);
   const lastKnownGoodSnapshotRef = useRef<string | null>(null);
   const alarmResumeSyncRef = useRef<Promise<boolean> | null>(null);
   const sleepReminderSyncTailRef = useRef<Promise<boolean>>(Promise.resolve(true));
@@ -301,6 +308,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const lastAlarmSyncSignatureRef = useRef<string | null>(null);
   const failedAlarmSyncSignatureRef = useRef<string | null>(null);
   const lastSleepReminderSyncSignatureRef = useRef<string | null>(null);
+  const lastSleepReminderProjectionKeyRef = useRef<string | null>(null);
   const failedSleepReminderSyncSignatureRef = useRef<string | null>(null);
   const sleepReminderFailureSaveRevisionRef = useRef<number | null>(null);
   const saveOutcomeRef = useRef<SaveOutcome | null>(null);
@@ -308,6 +316,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const backupRequestRef = useRef<Promise<string> | null>(null);
   const missingPrimaryRecoveryRawRef = useRef<string | null>(null);
   const explicitResetMarkerPendingRef = useRef(false);
+  const lastSleepReminderLifecycleTransitionRef = useRef(
+    appLifecycle.transitionId,
+  );
 
   const recordSaveOutcome = useCallback((outcome: SaveOutcome | null) => {
     saveOutcomeRef.current = outcome;
@@ -349,22 +360,22 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     reportSaveIssue(
       'unsafe-alarm-schedule',
       hasUnsupportedShift
-        ? '자료는 보존했지만 이전 형식의 근무가 포함되어 근무 알람을 껐어요. 근무 방식을 다시 확인해 주세요.'
-        : '자료는 저장됐지만 이전 근무 중 알람이 울릴 수 있어 근무 알람을 껐어요. 근무 시간과 순서를 확인한 뒤 알람을 다시 켜 주세요.',
+        ? '자료는 보존했지만 이전 형식의 근무가 포함되어 근무 알람을 껐습니다. 근무 방식을 다시 확인해야 합니다.'
+        : '자료는 저장되었지만 이전 근무 중 알람이 울릴 수 있어 근무 알람을 껐습니다. 근무 시간과 순서를 확인한 뒤 알람을 다시 켜야 합니다.',
     );
   }, [clearReportedSaveIssue, reportSaveIssue]);
 
   const reportInvalidWorkSchedule = useCallback(() => {
     reportSaveIssue(
       'invalid-work-schedule',
-      '근무 시간이 이전 일정과 겹치거나 올바르지 않아 저장하지 못했어요. 근무 시간과 순서를 확인해 주세요.',
+      '근무 시간이 이전 일정과 겹치거나 올바르지 않아 저장하지 못했습니다. 근무 시간과 순서를 확인해야 합니다.',
     );
   }, [reportSaveIssue]);
 
   const reportAlarmEnableBlocked = useCallback(() => {
     reportSaveIssue(
       'invalid-work-schedule',
-      '이전 근무 중 알람이 울리거나 근무 시간이 겹칠 수 있어 알람을 켜지 않았어요. 근무 시간과 순서를 먼저 확인해 주세요.',
+      '이전 근무 중 알람이 울리거나 근무 시간이 겹칠 수 있어 알람을 켜지 않았습니다. 근무 시간과 순서를 먼저 확인해야 합니다.',
     );
   }, [reportSaveIssue]);
 
@@ -447,10 +458,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     lastAlarmSyncSignatureRef.current = null;
     failedAlarmSyncSignatureRef.current = null;
     lastSleepReminderSyncSignatureRef.current = null;
+    lastSleepReminderProjectionKeyRef.current = null;
     failedSleepReminderSyncSignatureRef.current = null;
     sleepReminderSyncAttemptRef.current += 1;
     sleepReminderFailureSaveRevisionRef.current = null;
     saveOutcomeRef.current = null;
+    lastPersistedAutomaticSaveSignatureRef.current = null;
 
     let result = await loadAppDataFromStorage(
       AsyncStorage,
@@ -467,7 +480,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       try {
         deviceBackup = await readDeviceSafetyBackup();
       } catch {
-        // 독립 파일 백업을 읽지 못해도 AsyncStorage의 정상 백업을 계속 확인해요.
+        // 독립 파일 백업을 읽지 못해도 AsyncStorage의 정상 백업을 계속 확인합니다.
       }
     }
     if (
@@ -507,12 +520,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             try {
               await writeLastKnownGoodBackup(storageWriter, recoveredSnapshot);
             } catch {
-              // 본문 복구가 끝났다면 최근 정상 저장본 갱신 실패로 복구를 되돌리지 않아요.
+              // 본문 복구가 끝났다면 최근 정상 저장본 갱신 실패로 복구를 되돌리지 않습니다.
             }
           }
         }
       } catch {
-        // 기기 파일 백업을 읽거나 복구하지 못하면 보존한 손상 원본과 복구 화면을 유지해요.
+        // 기기 파일 백업을 읽거나 복구하지 못하면 보존한 손상 원본과 복구 화면을 유지합니다.
       }
     }
     const matchingLastKnownGoodSnapshot = result.ok
@@ -560,6 +573,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       mode: 'ingress',
     });
     const loadedData = loadedScheduleSafety.data ?? result.data;
+    lastPersistedAutomaticSaveSignatureRef.current =
+      getAutomaticSaveContentSignature(result.data);
     dataRef.current = loadedData;
     explicitResetMarkerPendingRef.current = explicitResetMarkerPending;
     appDataWriter.setPersistedValue(result.persistedSnapshot);
@@ -583,7 +598,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (!resetCleanupCompleted) {
       reportSaveIssue(
         'reset-marker-cleanup-failed',
-        '자료는 초기화됐지만 알람 상태 또는 이전 설정 초안 정리가 남았어요. 앱을 다시 열면 자동으로 재시도해요.',
+        '자료는 초기화되었지만 알람 상태 또는 이전 설정 초안 정리가 남았습니다. 앱을 다시 열면 자동으로 재시도합니다.',
       );
     }
     reportUnsafeAlarmSchedule(loadedScheduleSafety);
@@ -610,14 +625,14 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     setAlarmSyncStatus('error');
     setAlarmSyncError(
       notificationsEnabled
-        ? '변경 내용은 저장했지만 알람을 다시 예약하지 못했어요. 알람 화면에서 권한을 확인한 뒤 다시 예약해 주세요.'
-        : '알람을 끄는 설정은 저장했지만 기존 예약을 취소하지 못했어요. 알람 화면에서 다시 시도해 주세요.',
+        ? '변경 내용은 저장했지만 알람을 다시 예약하지 못했습니다. 알람 화면에서 권한을 확인한 뒤 다시 예약해야 합니다.'
+        : '알람을 끄는 설정은 저장했지만 기존 예약을 취소하지 못했습니다. 알람 화면에서 다시 시도해야 합니다.',
     );
     reportSaveIssue(
       'alarm-sync-failed',
       notificationsEnabled
-        ? '변경 내용은 저장됐지만 알람을 다시 예약하지 못했어요. 알람 화면에서 권한을 확인한 뒤 다시 예약해 주세요.'
-        : '알람을 끄는 설정은 저장됐지만 기존 예약을 취소하지 못했어요. 알람 화면에서 다시 시도해 주세요.',
+        ? '변경 내용은 저장되었지만 알람을 다시 예약하지 못했습니다. 알람 화면에서 권한을 확인한 뒤 다시 예약해야 합니다.'
+        : '알람을 끄는 설정은 저장되었지만 기존 예약을 취소하지 못했습니다. 알람 화면에서 다시 시도해야 합니다.',
     );
   }, [reportSaveIssue]);
 
@@ -669,7 +684,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             plannedAlarms: plan,
           }))
       ) {
-        throw new Error('알람 예약 내용이 계획과 일치하지 않아요.');
+        throw new Error('알람 예약 내용이 계획과 일치하지 않습니다.');
       }
       lastTimeZoneOffsetRef.current = new Date().getTimezoneOffset();
       lastAlarmSyncSignatureRef.current = signature;
@@ -708,18 +723,20 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const syncSleepRemindersForSnapshot = useCallback(
     (snapshot: AppData, force = false): Promise<boolean> => {
       const signature = getSleepReminderScheduleSignature(snapshot);
+      const syncNow = new Date();
+      const projectionKey = getSleepReminderProjectionKey(syncNow);
       const attempt = sleepReminderSyncAttemptRef.current + 1;
       sleepReminderSyncAttemptRef.current = attempt;
-      if (mountedRef.current) {
-        setSleepReminderSyncStatus('syncing');
-        setSleepReminderSyncError(null);
-      }
       const task = sleepReminderSyncTailRef.current
         .catch(() => false)
         .then(async () => {
           if (
             !force &&
-            lastSleepReminderSyncSignatureRef.current === signature
+            lastSleepReminderSyncSignatureRef.current === signature &&
+            (
+              !snapshot.settings.sleepReminderEnabled ||
+              lastSleepReminderProjectionKeyRef.current === projectionKey
+            )
           ) {
             if (
               mountedRef.current &&
@@ -731,18 +748,26 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             }
             return true;
           }
+          if (mountedRef.current) {
+            setSleepReminderSyncStatus('syncing');
+            setSleepReminderSyncError(null);
+          }
           try {
             if (
               snapshot.settings.sleepReminderEnabled &&
               snapshot.settings.setupCompleted
             ) {
               await syncAlarmPyoSleepReminders(
-                buildSleepReminderPlans(snapshot, { now: new Date() }),
+                buildSleepReminderPlans(snapshot, { now: syncNow }),
               );
             } else {
               await cancelAlarmPyoSleepReminders();
             }
+            if (mountedRef.current) {
+              setSleepReminderSyncRevision((current) => current + 1);
+            }
             lastSleepReminderSyncSignatureRef.current = signature;
+            lastSleepReminderProjectionKeyRef.current = projectionKey;
             failedSleepReminderSyncSignatureRef.current = null;
             sleepReminderFailureSaveRevisionRef.current = null;
             if (
@@ -755,9 +780,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             }
             return true;
           } catch {
+            if (mountedRef.current) {
+              setSleepReminderSyncRevision((current) => current + 1);
+            }
             failedSleepReminderSyncSignatureRef.current = signature;
             if (lastSleepReminderSyncSignatureRef.current === signature) {
               lastSleepReminderSyncSignatureRef.current = null;
+              lastSleepReminderProjectionKeyRef.current = null;
             }
             if (
               mountedRef.current &&
@@ -767,7 +796,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               setSleepReminderSyncError(SLEEP_REMINDER_SYNC_SAVE_ERROR);
             }
             // 저장 결과 표시는 호출한 저장 흐름에서 결정하고, 앱 복귀·초기 동기화 실패가
-            // unrelated 저장 오류를 덮어쓰지 않게 해요.
+            // unrelated 저장 오류를 덮어쓰지 않게 합니다.
             return false;
           }
         });
@@ -821,7 +850,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         if (mountedRef.current) {
           reportSaveIssue(
             'restore-protection-failed',
-            '복원 전 원본 백업을 아직 안전하게 보호하지 못했어요. 저장 공간을 확인한 뒤 다시 저장해 주세요.',
+            '복원 전 원본 백업을 아직 안전하게 보호하지 못했습니다. 저장 공간을 확인한 뒤 다시 저장해야 합니다.',
           );
         }
         return {
@@ -853,6 +882,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       { force },
     );
     lastKnownGoodSnapshotRef.current = outcome.lastKnownGoodSnapshot;
+    const parsedSnapshot = canonicalData === undefined
+      ? tryParseAppDataJson(snapshot)
+      : null;
+    const savedData = canonicalData ?? (parsedSnapshot?.ok ? parsedSnapshot.value.data : null);
+    if (outcome.primarySaved && savedData !== null) {
+      lastPersistedAutomaticSaveSignatureRef.current =
+        getAutomaticSaveContentSignature(savedData);
+      if (automaticSaveTimerRef.current !== null) {
+        clearTimeout(automaticSaveTimerRef.current);
+        automaticSaveTimerRef.current = null;
+      }
+    }
 
     if (!outcome.operationSucceeded || outcome.partialFailure) {
       if (mountedRef.current && saveRevisionRef.current === revision) {
@@ -861,21 +902,17 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             ? 'safety-backup-failed'
             : 'primary-save-failed',
           outcome.primarySaved
-            ? '근무표는 저장됐지만 안전 백업을 만들지 못했어요. 다시 시도해 주세요.'
-            : '변경 내용을 저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+            ? '근무표는 저장되었지만 안전 백업을 만들지 못했습니다. 다시 시도해야 합니다.'
+            : '변경 내용을 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
         );
       }
-      // 본문 저장이 끝났다면 화면 상태도 같은 값으로 맞춰요.
-      // 안전 복사본 실패는 오류 배너로 알리되, 재실행 전후의 자료가 달라지지 않게 해요.
+      // 본문 저장이 끝났다면 화면 상태도 같은 값으로 맞춥니다.
+      // 안전 복사본 실패는 오류 배너로 알리되, 재실행 전후의 자료가 달라지지 않게 합니다.
       return { ...outcome, deviceBackupSaved: false };
     }
 
     let deviceBackupSaved = false;
     let resetMarkerCleared = true;
-    const parsedSnapshot = canonicalData === undefined
-      ? tryParseAppDataJson(snapshot)
-      : null;
-    const savedData = canonicalData ?? (parsedSnapshot?.ok ? parsedSnapshot.value.data : null);
     if (savedData !== null) {
       try {
         deviceBackupSaved = await writeDeviceSafetyBackup(
@@ -905,13 +942,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         if (!deviceBackupSaved) {
           reportSaveIssue(
             'device-backup-failed',
-            '근무표는 저장됐지만 기기 안전 백업 파일을 갱신하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+            '근무표는 저장되었지만 기기 안전 백업 파일을 갱신하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
           );
         }
         if (!resetMarkerCleared) {
           reportSaveIssue(
             'reset-marker-cleanup-failed',
-            '근무표는 저장됐지만 초기화 상태를 정리하지 못했어요. 다시 시도해 주세요.',
+            '근무표는 저장되었지만 초기화 상태를 정리하지 못했습니다. 다시 시도해야 합니다.',
           );
         }
       }
@@ -929,16 +966,30 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   ]);
 
   const flushAutomaticSave = useCallback((generation: number) => {
-    if (generation !== automaticSaveGenerationRef.current || !readyRef.current) {
-      return Promise.resolve(false);
+    if (
+      generation !== automaticSaveGenerationRef.current ||
+      !readyRef.current ||
+      !shouldFlushAutomaticSave(
+        getAutomaticSaveContentSignature(dataRef.current),
+        lastPersistedAutomaticSaveSignatureRef.current,
+      )
+    ) {
+      return Promise.resolve(true);
     }
     return mutationCoordinator.run(async () => {
       try {
-        if (generation !== automaticSaveGenerationRef.current || !readyRef.current) {
-          return false;
+        if (
+          generation !== automaticSaveGenerationRef.current ||
+          !readyRef.current ||
+          !shouldFlushAutomaticSave(
+            getAutomaticSaveContentSignature(dataRef.current),
+            lastPersistedAutomaticSaveSignatureRef.current,
+          )
+        ) {
+          return true;
         }
         // 실행 시점의 최신 상태를 직렬화해 지연된 자동 저장이
-        // 이후에 저장한 근무표를 덮어쓰지 않게 해요.
+        // 이후에 저장한 근무표를 덮어쓰지 않게 합니다.
         let sourceSnapshot: AppData | null = null;
         const result = await persistLatestCanonicalSnapshotAndSyncSleep({
           getLatestCanonicalSnapshot: () => {
@@ -983,7 +1034,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         if (mountedRef.current) {
           reportSaveIssue(
             'invalid-data',
-            '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+            '변경 내용의 형식이 올바르지 않아 저장하지 못했습니다.',
           );
         }
         return false;
@@ -1009,6 +1060,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       return;
     }
     automaticSaveAppliedCanonicalSnapshotRef.current = null;
+    if (
+      !shouldFlushAutomaticSave(
+        getAutomaticSaveContentSignature(data),
+        lastPersistedAutomaticSaveSignatureRef.current,
+      )
+    ) {
+      if (automaticSaveTimerRef.current !== null) {
+        clearTimeout(automaticSaveTimerRef.current);
+        automaticSaveTimerRef.current = null;
+      }
+      return;
+    }
     const generation = automaticSaveGenerationRef.current;
     if (automaticSaveTimerRef.current !== null) {
       clearTimeout(automaticSaveTimerRef.current);
@@ -1029,17 +1092,20 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, [data, flushAutomaticSave, ready]);
 
   useEffect(() => {
-    if (!ready) return;
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') return;
-      if (automaticSaveTimerRef.current !== null) {
-        clearTimeout(automaticSaveTimerRef.current);
-        automaticSaveTimerRef.current = null;
-      }
+    if (!ready || appLifecycle.active) return;
+    if (automaticSaveTimerRef.current !== null) {
+      clearTimeout(automaticSaveTimerRef.current);
+      automaticSaveTimerRef.current = null;
+    }
+    if (
+      shouldFlushAutomaticSave(
+        getAutomaticSaveContentSignature(dataRef.current),
+        lastPersistedAutomaticSaveSignatureRef.current,
+      )
+    ) {
       void flushAutomaticSave(automaticSaveGenerationRef.current);
-    });
-    return () => subscription.remove();
-  }, [flushAutomaticSave, ready]);
+    }
+  }, [appLifecycle.active, flushAutomaticSave, ready]);
 
   const retrySave = useCallback(async () => {
     if (!readyRef.current) return false;
@@ -1071,7 +1137,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (mountedRef.current) {
         reportSaveIssue(
           'invalid-data',
-          '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+          '변경 내용의 형식이 올바르지 않아 저장하지 못했습니다.',
         );
       }
       return false;
@@ -1131,13 +1197,33 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         if (mountedRef.current) {
           reportSaveIssue(
             'invalid-data',
-            '변경 내용의 형식이 올바르지 않아 저장하지 못했어요.',
+            '변경 내용의 형식이 올바르지 않아 저장하지 못했습니다.',
           );
         }
         return createDataReplacementResult({
           primarySaved: false,
           dataApplied: false,
           followUpSucceeded: false,
+        });
+      }
+
+      if (shouldSkipEquivalentExplicitSave({
+        currentSnapshot: JSON.stringify(canonicalizeAppData(current)),
+        nextSnapshot: snapshot,
+        forceAlarmSync,
+        hasPersistenceCallback:
+          beforePrimarySave !== undefined ||
+          afterPrimarySaveBeforeApply !== undefined,
+        hasPendingSaveRetry: Boolean(
+          saveOutcomeRef.current?.issues.some(
+            (issue) => issue.retryAction === 'retry-save',
+          ),
+        ),
+      })) {
+        return createDataReplacementResult({
+          primarySaved: true,
+          dataApplied: true,
+          followUpSucceeded: true,
         });
       }
 
@@ -1205,7 +1291,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!preApplyFollowUpSucceeded) {
         reportSaveIssue(
           'reset-marker-cleanup-failed',
-          '자료는 저장됐지만 초기 설정 임시 상태를 정리하지 못했어요. 다시 시도해 주세요.',
+          '자료는 저장되었지만 초기 설정 임시 상태를 정리하지 못했습니다. 다시 시도해야 합니다.',
         );
       }
       const outcome = createDataReplacementResult({
@@ -1220,7 +1306,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
       if (outcome.partialFailure) {
         // 상태 갱신으로 이미 예약된 자동 저장이 부분 실패 오류를
-        // 곧바로 성공 상태로 덮어쓰지 않게 해요.
+        // 곧바로 성공 상태로 덮어쓰지 않게 합니다.
         automaticSaveGenerationRef.current += 1;
       }
 
@@ -1273,27 +1359,38 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!ready) return;
     // ready가 된 시점의 자료는 loadData가 영속 저장에서 읽었거나 복구 쓰기까지
-    // 마친 스냅샷이에요. 데이터 변경 signature에는 반응하지 않고 최초 로드·복구
-    // 계획만 즉시 확인해, 이후 변경은 반드시 저장 flush 뒤에 동기화되게 해요.
+    // 마친 스냅샷입니다. 데이터 변경 signature에는 반응하지 않고 최초 로드·복구
+    // 계획만 즉시 확인하여, 이후 변경은 반드시 저장 flush 뒤에 동기화되게 합니다.
     void mutationCoordinator.run(() =>
       syncSleepRemindersForSnapshot(dataRef.current),
     );
   }, [mutationCoordinator, ready, syncSleepRemindersForSnapshot]);
 
   useEffect(() => {
-    if (!ready) return;
-    let previousState = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (state) => {
-      const syncMode = getSleepReminderSyncModeForAppState(previousState, state);
-      previousState = state;
-      if (syncMode !== null) {
-        void mutationCoordinator.run(() =>
-          syncSleepRemindersForSnapshot(dataRef.current, true),
-        );
-      }
-    });
-    return () => subscription.remove();
-  }, [mutationCoordinator, ready, syncSleepRemindersForSnapshot]);
+    if (!ready) {
+      lastSleepReminderLifecycleTransitionRef.current =
+        appLifecycle.transitionId;
+      return;
+    }
+    if (
+      !appLifecycle.active ||
+      appLifecycle.transitionId <=
+        lastSleepReminderLifecycleTransitionRef.current
+    ) {
+      return;
+    }
+    lastSleepReminderLifecycleTransitionRef.current =
+      appLifecycle.transitionId;
+    void mutationCoordinator.run(() =>
+      syncSleepRemindersForSnapshot(dataRef.current),
+    );
+  }, [
+    appLifecycle.active,
+    appLifecycle.transitionId,
+    mutationCoordinator,
+    ready,
+    syncSleepRemindersForSnapshot,
+  ]);
 
   const getShiftForDate = useCallback(
     (dateKey: string) => resolveShiftFromData(data, dateKey),
@@ -1369,46 +1466,76 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
-  const updatePattern = useCallback(
+  const updatePatternDetailed = useCallback(
     async (
       pattern: RotationPattern,
       shiftTypePatches: Record<string, Partial<ShiftType>> = {},
       options: UpdatePatternOptions = {},
-    ) => {
-      if (pattern.shiftTypeIds.length === 0) return false;
+    ): Promise<UpdatePatternResult> => {
+      const failed = (): UpdatePatternResult => ({
+        ...createDataReplacementResult({
+          primarySaved: false,
+          dataApplied: false,
+          followUpSucceeded: false,
+        }),
+        saveOutcome: saveOutcomeRef.current,
+      });
+      if (pattern.shiftTypeIds.length === 0) return failed();
       if (
         !isValidDateKey(pattern.anchorDate) ||
         !isValidDateKey(pattern.scheduleStartDate ?? pattern.anchorDate)
       ) {
-        return false;
+        return failed();
       }
       const clearFrom = options.clearFutureScheduleOverridesFrom;
-      if (clearFrom !== undefined && !isValidDateKey(clearFrom)) return false;
+      if (clearFrom !== undefined && !isValidDateKey(clearFrom)) return failed();
       if (
         !hasOnlyKnownShiftTypeIds(
           dataRef.current.shiftTypes,
           Object.keys(shiftTypePatches),
         )
       ) {
-        return false;
+        return failed();
       }
       let scheduleEnforcement: EnforcedScheduleSafety | null = null;
-      const saved = await replaceDataAndPersist(
-        (current) => {
-          const candidate = applyPatternSettings(
-            current,
-            pattern,
-            shiftTypePatches,
-            clearFrom,
-          );
-          scheduleEnforcement = enforceAppDataScheduleSafety(candidate);
-          return scheduleEnforcement.data ?? current;
-        },
-        true,
+      const result = await mutationCoordinator.run(() =>
+        replaceDataAndPersistDetailedInternal(
+          (current) => {
+            const candidate = applyPatternSettings(
+              current,
+              pattern,
+              shiftTypePatches,
+              clearFrom,
+            );
+            scheduleEnforcement = enforceAppDataScheduleSafety(candidate);
+            return scheduleEnforcement.data ?? current;
+          },
+          true,
+        ),
       );
-      return finalizeScheduleMutation(scheduleEnforcement, saved);
+      const enforced = scheduleEnforcement as EnforcedScheduleSafety | null;
+      if (enforced === null || enforced.data === null) {
+        reportInvalidWorkSchedule();
+        return failed();
+      }
+      if (result.operationSucceeded) reportUnsafeAlarmSchedule(enforced);
+      return { ...result, saveOutcome: saveOutcomeRef.current };
     },
-    [finalizeScheduleMutation, replaceDataAndPersist],
+    [
+      mutationCoordinator,
+      replaceDataAndPersistDetailedInternal,
+      reportInvalidWorkSchedule,
+      reportUnsafeAlarmSchedule,
+    ],
+  );
+
+  const updatePattern = useCallback(
+    async (
+      pattern: RotationPattern,
+      shiftTypePatches: Record<string, Partial<ShiftType>> = {},
+      options: UpdatePatternOptions = {},
+    ) => (await updatePatternDetailed(pattern, shiftTypePatches, options)).operationSucceeded,
+    [updatePatternDetailed],
   );
 
   const updateShiftTypes = useCallback(
@@ -1755,9 +1882,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     const status = await requestAlarmPyoAlarmPermissions();
     if (!status.supported) return false;
 
-    // 사용자가 알람을 켜려는 의사와 Android 전달 권한의 준비 상태는 별개예요.
+    // 사용자가 알람을 켜려는 의사와 Android 전달 권한의 준비 상태는 별개입니다.
     // 설정 화면에서 돌아오기 전의 권한 응답이 false여도 저장 실패로 표시하지 않고,
-    // 알람 화면의 상태 카드가 다음으로 필요한 권한을 이어서 안내해요.
+    // 알람 화면의 상태 카드가 다음으로 필요한 권한을 이어서 안내합니다.
     return mutationCoordinator.run(async () => {
       const current = dataRef.current;
       const candidate = {
@@ -1819,8 +1946,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (enabled) {
         await requestAlarmPyoSleepReminderPermission().catch(() => undefined);
       }
-      // 알림 권한이 없어도 설정 저장은 성공이에요. 권한이 준비되면
-      // 앱 복귀 동기화가 같은 14일 계획을 다시 전달해요.
+      // 알림 권한이 없어도 설정 저장은 성공입니다. 권한이 준비되면
+      // 앱 복귀 동기화가 같은 14일 계획을 다시 전달합니다.
       await syncSleepRemindersForSnapshot(dataRef.current, true);
       return true;
     },
@@ -1842,7 +1969,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, []);
 
   const exportData = useCallback(() => {
-    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 내보낼 수 있어요.');
+    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 내보낼 수 있습니다.');
     const backup = exportAppDataToJson(dataRef.current);
     getCheckedBackupContentsByteSize(backup);
     return backup;
@@ -1852,7 +1979,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     return previewAppDataImport(raw);
   }, []);
   const exportSharedWorkSettings = useCallback(() => {
-    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 공유할 수 있어요.');
+    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 공유할 수 있습니다.');
     return exportWorkSettingsToJson(dataRef.current);
   }, []);
   const previewSharedWorkSettings = useCallback(
@@ -1861,17 +1988,17 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   );
 
   const createBackupInternal = useCallback(async () => {
-    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 백업할 수 있어요.');
+    if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 백업할 수 있습니다.');
     try {
       const backup = await writeAutomaticBackup(storageWriter, dataRef.current);
       const deviceBackupSaved = await writeDeviceSafetyBackup(dataRef.current);
       if (!deviceBackupSaved) {
-        throw new Error('기기 안전 백업 파일을 만들지 못했어요.');
+        throw new Error('기기 안전 백업 파일을 만들지 못했습니다.');
       }
       return backup;
     } catch {
-      // 사용자가 시작한 백업은 호출한 화면에서 작업 맥락에 맞게 안내해요.
-      throw new Error('안전 백업을 저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.');
+      // 사용자가 시작한 백업은 호출한 화면에서 작업 맥락에 맞게 안내합니다.
+      throw new Error('안전 백업을 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.');
     }
   }, [storageWriter]);
 
@@ -1900,7 +2027,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         applyWorkSettingsTransaction({
           current: dataRef.current,
           preview,
-          // 개인 일정에 영향을 주는 작업이므로 적용 직전의 전체 데이터를 안전 백업해요.
+          // 개인 일정에 영향을 주는 작업이므로 적용 직전의 전체 데이터를 안전 백업합니다.
           createSafetyBackup: createBackupInternal,
           prepare: (next) => {
             scheduleEnforcementRef.current = enforceAppDataScheduleSafety(
@@ -1932,10 +2059,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!readyRef.current) return false;
       let imported: AppData;
       try {
-        // 예약 개수와 동기화 시각은 백업을 만든 휴대폰의 상태이므로 가져오지 않아요.
+        // 예약 개수와 동기화 시각은 백업을 만든 휴대폰의 상태이므로 가져오지 않습니다.
         imported = withoutAlarmRuntimeState(appDataFromImportPreview(preview));
       } catch {
-        throw new Error('가져올 근무표를 다시 확인해 주세요.');
+        throw new Error('가져올 근무표를 다시 확인해야 합니다.');
       }
 
       const scheduleEnforcement = enforceAppDataScheduleSafety(imported, {
@@ -2184,7 +2311,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             cancelTimer: cancelQuickTimerForResetCleanup,
           });
           if (!cleanup.completed) {
-            throw new Error('초기화 후속 정리를 완료하지 못했어요.');
+            throw new Error('초기화 후속 정리를 완료하지 못했습니다.');
           }
         },
         (snapshot) => prepareResetCleanupJournal(snapshot),
@@ -2231,6 +2358,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       alarmSyncError,
       sleepReminderSyncStatus,
       sleepReminderSyncError,
+      sleepReminderSyncRevision,
       corruptBackupKey,
       alarmAutoCheckState,
     }),
@@ -2247,6 +2375,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       alarmSyncError,
       sleepReminderSyncStatus,
       sleepReminderSyncError,
+      sleepReminderSyncRevision,
     ],
   );
 
@@ -2258,6 +2387,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       saveDay,
       saveDays,
       updatePattern,
+      updatePatternDetailed,
       updateShiftTypes,
       setThemeMode,
       toggleWidgetDisplayOption,
@@ -2322,6 +2452,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       startFreshAfterLoadError,
       applySharedWorkSettings,
       updatePattern,
+      updatePatternDetailed,
       updateShiftTypes,
     ],
   );
@@ -2339,19 +2470,19 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
 export function useAppStoreData() {
   const value = useContext(AppStoreDataContext);
-  if (!value) throw new Error('앱 데이터 저장소가 준비되지 않았어요.');
+  if (!value) throw new Error('앱 데이터 저장소가 준비되지 않았습니다.');
   return value;
 }
 
 export function useAppStoreStatus() {
   const value = useContext(AppStoreStatusContext);
-  if (!value) throw new Error('앱 상태 저장소가 준비되지 않았어요.');
+  if (!value) throw new Error('앱 상태 저장소가 준비되지 않았습니다.');
   return value;
 }
 
 export function useAppStoreActions() {
   const value = useContext(AppStoreActionsContext);
-  if (!value) throw new Error('앱 작업 저장소가 준비되지 않았어요.');
+  if (!value) throw new Error('앱 작업 저장소가 준비되지 않았습니다.');
   return value;
 }
 

@@ -46,7 +46,7 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(publicPolicy).toContain(
       'https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages',
     );
-    expect(inAppPolicy).toContain('앱이 GitHub Pages에 자동 접속하지 않아요');
+    expect(inAppPolicy).toContain('앱이 GitHub Pages에 자동 접속하지 않습니다');
   });
 
   it('초기화가 내부 안전 백업을 남긴다는 삭제 범위를 숨기지 않아요', () => {

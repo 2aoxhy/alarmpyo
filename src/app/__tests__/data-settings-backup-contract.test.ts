@@ -14,10 +14,10 @@ describe('외부 백업 내보내기 안내', () => {
   it('공유 화면을 취소해도 저장 성공이나 앱 삭제 뒤 보존을 단정하지 않아요', () => {
     expect(dataSettingsSource).toContain('마지막 내보내기 시도');
     expect(dataSettingsSource).toContain(
-      '알람표는 저장 완료 여부를 확인할 수 없어요.',
+      '알람표는 저장 완료 여부를 확인할 수 없습니다.',
     );
     expect(dataSettingsSource).toContain(
-      '공유 화면에서 저장해야 앱 밖에 남아요.',
+      '공유 화면에서 저장해야 앱 밖에 남습니다.',
     );
     expect(dataSettingsSource).not.toContain('앱을 삭제해도 남아요');
     expect(dataSettingsSource).not.toContain('앱을 삭제해도 남도록');
@@ -41,7 +41,7 @@ describe('외부 백업 내보내기 안내', () => {
       "formatSharedShiftLine('오후', summary.evening)",
     );
     expect(dataSettingsSource).toContain(
-      '현재 휴대전화 설정 유지 (구형 파일에는 오후 설정이 없어요)',
+      '현재 휴대전화 설정 유지 (구형 파일에는 오후 설정이 없습니다)',
     );
   });
 });

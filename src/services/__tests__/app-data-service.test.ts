@@ -179,7 +179,7 @@ describe('기본 근무표 일정 정리', () => {
 
     expect(clearScheduleOverridesFrom(data, '2026-07-13')).toBe(data);
     expect(() => clearScheduleOverridesFrom(data, '2026-02-30')).toThrow(
-      '직접 변경 일정을 정리할 기준 날짜가 올바르지 않아요.',
+      '직접 변경 일정을 정리할 기준 날짜가 올바르지 않습니다.',
     );
   });
 });
@@ -383,9 +383,9 @@ describe('알람 선행시간 계약 마이그레이션', () => {
     const data = createDefaultAppData('2026-07-11');
     shift(data, 'day').alarmMinutesBefore = MAX_ALARM_MINUTES_BEFORE + 1;
 
-    expect(() => validateAndMigrateAppData(data)).toThrow('알람 시간 값이 올바르지 않아요');
-    expect(() => serializeAppData(data)).toThrow('알람 시간 값이 올바르지 않아요');
-    expect(() => exportAppDataToJson(data)).toThrow('알람 시간 값이 올바르지 않아요');
+    expect(() => validateAndMigrateAppData(data)).toThrow('알람 시간 값이 올바르지 않습니다');
+    expect(() => serializeAppData(data)).toThrow('알람 시간 값이 올바르지 않습니다');
+    expect(() => exportAppDataToJson(data)).toThrow('알람 시간 값이 올바르지 않습니다');
   });
 
   it('기존 저장 데이터의 초과 값은 안전한 110분으로 보정합니다', () => {
@@ -404,7 +404,7 @@ describe('알람 선행시간 계약 마이그레이션', () => {
     shift(data, 'day').alarmMinutesBefore = 7 * 24 * 60 + 1;
 
     expect(() => parseAppDataJson(JSON.stringify(data))).toThrow(
-      '알람 시간 값이 올바르지 않아요',
+      '알람 시간 값이 올바르지 않습니다',
     );
   });
 
@@ -740,7 +740,7 @@ describe('중간 데이터 버전 회귀', () => {
     };
     delete missing.settings.sleepReminderEnabled;
     expect(() => validateAndMigrateAppData(missing)).toThrow(
-      '수면 시작 알림 사용 여부 값이 올바르지 않아요.',
+      '수면 시작 알림 사용 여부 값이 올바르지 않습니다.',
     );
   });
 });
@@ -894,7 +894,7 @@ describe('근무표 데이터 검증과 백업', () => {
           },
         },
       }),
-    ).toThrow('위젯에는 한 가지 이상의 정보를 표시해 주세요.');
+    ).toThrow('위젯에는 한 가지 이상의 정보를 표시해야 합니다.');
   });
 
   it('사용자 지정 출근 준비 시간을 저장하고 다시 불러와요', () => {
@@ -1555,7 +1555,7 @@ describe('근무표 데이터 검증과 백업', () => {
           shiftTypeIds: ['day', 'night', 'off'],
         },
       }),
-    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정입니다.');
   });
 
   it('새 프리셋과 우연히 같은 구버전 순서도 v20 이전에는 허용하지 않아요', () => {
@@ -1566,7 +1566,7 @@ describe('근무표 데이터 검증과 백업', () => {
         ...data,
         pattern: { ...data.pattern, shiftTypeIds: ['day', 'night'] },
       }),
-    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정입니다.');
   });
 
   it('기존 휴대폰의 반복 근무 이름을 새 표기로 통일합니다', () => {
@@ -1915,7 +1915,7 @@ describe('근무표 데이터 검증과 백업', () => {
             shiftTypeIds: ['day', 'day', 'day', 'day', 'day', 'off', 'off'],
           },
         }),
-      ).toThrow('이전 데이터 버전은 3조 2교대 근무 방식만 지원해요.');
+      ).toThrow('이전 데이터 버전은 3조 2교대 근무 방식만 지원합니다.');
     }
   });
 
@@ -2041,7 +2041,7 @@ describe('근무표 데이터 검증과 백업', () => {
           },
         },
       }),
-    ).toThrow('익일 종료 여부가 근무 시간과 맞지 않아요');
+    ).toThrow('익일 종료 여부가 근무 시간과 맞지 않습니다');
   });
 
   it('v1부터 v5까지 테마가 없던 자료를 모두 다크 모드로 이전합니다', () => {
@@ -2111,10 +2111,10 @@ describe('근무표 데이터 검증과 백업', () => {
     );
 
     expect(() => validateAndMigrateAppData({ ...data, shiftTypes: wrongDay })).toThrow(
-      '다음 날 종료 설정이 시간과 맞지 않아요',
+      '다음 날 종료 설정이 시간과 맞지 않습니다',
     );
     expect(() => validateAndMigrateAppData({ ...data, shiftTypes: sameTime })).toThrow(
-      '시작·종료 시간은 달라야 해요',
+      '시작·종료 시간은 달라야 합니다',
     );
   });
 
@@ -2134,7 +2134,7 @@ describe('근무표 데이터 검증과 백업', () => {
         shiftTypes: data.shiftTypes.filter((item) => item.id !== 'evening'),
         pattern: { ...data.pattern, shiftTypeIds: ['day', 'night', 'off'] },
       }),
-    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정이에요.');
+    ).toThrow('지원하는 근무 방식은 3조 2교대 또는 주간 고정입니다.');
   });
 
   it('존재하지 않는 근무와 잘못된 날짜가 든 자료를 거절합니다', () => {
@@ -2151,7 +2151,7 @@ describe('근무표 데이터 검증과 백업', () => {
         ...data,
         notes: { '2026-02-30': '존재하지 않는 날짜' },
       }),
-    ).toThrow('날짜가 올바르지 않아요');
+    ).toThrow('날짜가 올바르지 않습니다');
   });
 
   it('내보낸 JSON을 검증해 가져오기 요약과 데이터를 만듭니다', () => {
@@ -2280,7 +2280,7 @@ describe('근무표 데이터 검증과 백업', () => {
   });
 
   it('지원하지 않는 버전과 깨진 JSON을 거절합니다', () => {
-    expect(() => parseAppDataJson('{')).toThrow('JSON 형식이 올바르지 않아요');
+    expect(() => parseAppDataJson('{')).toThrow('JSON 형식이 올바르지 않습니다');
     expect(() =>
       validateAndMigrateAppData({ ...createDefaultAppData('2026-07-11'), version: 99 }),
     ).toThrow('지원하지 않는');
@@ -2294,7 +2294,7 @@ describe('근무표 데이터 검증과 백업', () => {
         ...data,
         settings: { ...data.settings, themeMode: 'automatic' },
       }),
-    ).toThrow('테마 값이 올바르지 않아요');
+    ).toThrow('테마 값이 올바르지 않습니다');
   });
 
   it('기존 자동 테마 값을 읽으면 다크 테마로 정규화해요', () => {

@@ -29,7 +29,7 @@ internal fun persistSleepReminderReconciliation(
 
   val failedIds = schedulingFailures.mapTo(linkedSetOf()) { (id, _) -> id }
   val error = IllegalStateException(
-    "수면 시작 알림 ${failedIds.size}개를 예약하지 못해 다시 시도해요.",
+    "수면 시작 알림 ${failedIds.size}개를 예약하지 못해 다시 시도합니다.",
     schedulingFailures.first().second
   )
   schedulingFailures.drop(1).forEach { (_, cause) -> error.addSuppressed(cause) }
@@ -40,7 +40,7 @@ internal fun requireAuthoritativePlansForCorruptSleepReminderReseed(
   activePlanCount: Int
 ) {
   check(activePlanCount > 0) {
-    "수면 시작 알림 저장소가 손상됐지만 확인할 계획이 없어 빈 계획으로 덮어쓰지 않았어요."
+    "수면 시작 알림 저장소가 손상됐지만 확인할 계획이 없어 빈 계획으로 덮어쓰지 않았습니다."
   }
 }
 
@@ -79,10 +79,10 @@ internal object AlarmPyoSleepReminderScheduler {
     nowMillis: Long = System.currentTimeMillis()
   ): AlarmPyoSleepReminderSnapshot {
     require(plans.size <= MAX_STORED_SLEEP_REMINDERS) {
-      "수면 시작 알림 계획이 너무 많아요."
+      "수면 시작 알림 계획이 너무 많습니다."
     }
     val normalized = AlarmPyoSleepReminderPolicy.normalize(plans)
-    require(normalized.size == plans.size) { "중복된 수면 시작 알림이 있어요." }
+    require(normalized.size == plans.size) { "중복된 수면 시작 알림이 있습니다." }
 
     val active = AlarmPyoSleepReminderPolicy.active(normalized, nowMillis)
     val previous = AlarmPyoSleepReminderStore.read(context)
@@ -188,7 +188,7 @@ internal object AlarmPyoSleepReminderScheduler {
     // 다음 알림 보충 실패는 부분 스냅샷에 남아 다음 앱 복귀·재부팅에서 다시 시도해요.
     // 이미 도착한 현재 알림까지 잃지 않도록 수신기에는 일치한 계획을 반환합니다.
     runCatching { reconcile(context, nowMillis) }
-      .onFailure { error -> Log.e(TAG, "수면 시작 알림을 보충하지 못했어요.", error) }
+      .onFailure { error -> Log.e(TAG, "수면 시작 알림을 보충하지 못했습니다.", error) }
     return matched
   }
 
@@ -215,13 +215,13 @@ internal object AlarmPyoSleepReminderScheduler {
 
   private fun requireStoredSnapshot(context: Context): AlarmPyoSleepReminderSnapshot =
     requireNotNull(AlarmPyoSleepReminderStore.read(context)) {
-      "수면 시작 알림 저장소가 손상되어 복구를 나중에 다시 시도해요."
+      "수면 시작 알림 저장소가 손상되어 복구를 나중에 다시 시도합니다."
     }
 
   private fun schedulePendingIntent(context: Context, plan: AlarmPyoSleepReminderPlan) {
     val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val operation = pendingIntent(context, plan, PendingIntent.FLAG_UPDATE_CURRENT)
-      ?: error("수면 시작 알림 예약 작업을 만들지 못했어요.")
+      ?: error("수면 시작 알림 예약 작업을 만들지 못했습니다.")
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, plan.reminderAt, operation)
     } else {

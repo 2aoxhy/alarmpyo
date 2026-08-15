@@ -45,7 +45,7 @@ export function WorkRoutinePanel({
   return (
     <View style={[styles.panel, compact && styles.panelCompact]}>
       <Pressable
-        accessibilityHint={`${disclosureLabel}를 실행해요.`}
+        accessibilityHint={`${disclosureLabel}를 실행합니다.`}
         accessibilityLabel={`${plan.title}. ${headline}. ${detail}. ${disclosureLabel}`}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
@@ -102,7 +102,7 @@ export function WorkRoutinePanel({
               {plan.title}
             </AppText>
             <AppText tone="secondary" variant="caption">
-              {formatClock(plan.handoverAt)}까지 교대를 마치는 일정이에요.
+              {formatClock(plan.handoverAt)}까지 교대를 마치는 일정입니다.
             </AppText>
           </View>
 
@@ -112,7 +112,7 @@ export function WorkRoutinePanel({
               return (
                 <View
                   accessible
-                  accessibilityLabel={`${formatStepTime(step)}. ${step.instruction}${current ? ' 현재 단계예요.' : ''}`}
+                  accessibilityLabel={`${formatStepTime(step)}. ${step.instruction}${current ? ' 현재 단계입니다.' : ''}`}
                   key={`${step.id}:${step.at}`}
                   style={styles.timelineItem}>
                   <View style={styles.timelineRail}>

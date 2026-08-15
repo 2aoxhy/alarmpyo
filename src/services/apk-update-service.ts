@@ -74,7 +74,7 @@ function normalizeApkVerification(value: unknown): void {
     typeof value.sha256 !== 'string' ||
     !APK_SHA256_PATTERN.test(value.sha256)
   ) {
-    throw new Error('앱 설치 파일을 안전하게 검증하지 못했어요.');
+    throw new Error('앱 설치 파일을 안전하게 검증하지 못했습니다.');
   }
 }
 
@@ -93,7 +93,7 @@ function normalizeInstalledAppInfo(value: unknown): InstalledAppInfo {
     (value.versionCode as number) <= 0 ||
     typeof value.installPermissionAllowed !== 'boolean'
   ) {
-    throw new Error('설치된 앱 정보를 확인하지 못했어요.');
+    throw new Error('설치된 앱 정보를 확인하지 못했습니다.');
   }
   return {
     supported: true,
@@ -113,7 +113,7 @@ function normalizeInstallResult(value: unknown): ApkInstallResult {
     typeof value.sha256 !== 'string' ||
     !APK_SHA256_PATTERN.test(value.sha256)
   ) {
-    throw new Error('앱 설치 화면을 열지 못했어요.');
+    throw new Error('앱 설치 화면을 열지 못했습니다.');
   }
   return {
     opened: value.opened,
@@ -183,14 +183,14 @@ async function fetchManifestFromUrl(
       headers: { Accept: 'application/json' },
       signal: timeoutController.signal,
     });
-    if (!response.ok) throw new Error('최신 앱 정보를 불러오지 못했어요.');
+    if (!response.ok) throw new Error('최신 앱 정보를 불러오지 못했습니다.');
     const declaredLength = Number(response.headers.get('content-length') ?? 0);
     if (declaredLength > MAX_MANIFEST_BYTES) {
-      throw new Error('앱 업데이트 정보가 너무 커요.');
+      throw new Error('앱 업데이트 정보가 너무 큽니다.');
     }
     const text = await response.text();
     if (new TextEncoder().encode(text).length > MAX_MANIFEST_BYTES) {
-      throw new Error('앱 업데이트 정보가 너무 커요.');
+      throw new Error('앱 업데이트 정보가 너무 큽니다.');
     }
     return parseApkReleaseManifest(JSON.parse(stripOptionalUtf8Bom(text)));
   } finally {
@@ -204,7 +204,7 @@ async function fetchManifest(
 ): Promise<{ manifest: ApkReleaseManifest; fromCache: boolean }> {
   let lastError: unknown = null;
   for (const url of manifestUrls()) {
-    if (signal?.aborted) throw new Error('앱 업데이트 확인을 취소했어요.');
+    if (signal?.aborted) throw new Error('앱 업데이트 확인을 취소했습니다.');
     try {
       const manifest = await fetchManifestFromUrl(url, signal);
       writeCachedManifest(manifest);
@@ -216,7 +216,7 @@ async function fetchManifest(
   const cached = readCachedManifest();
   if (cached) return { manifest: cached, fromCache: true };
   if (lastError instanceof Error) throw lastError;
-  throw new Error('최신 앱 정보를 불러오지 못했어요.');
+  throw new Error('최신 앱 정보를 불러오지 못했습니다.');
 }
 
 export async function checkForApkUpdate(
@@ -362,7 +362,7 @@ export async function downloadApkUpdate(
     !nativeModule?.verifyAndOpenApkInstallerAsync ||
     !nativeModule.verifyApkUpdateAsync
   ) {
-    throw new Error('이 설치본에서는 앱 업데이트를 사용할 수 없어요.');
+    throw new Error('이 설치본에서는 앱 업데이트를 사용할 수 없습니다.');
   }
   const directory = updateDirectory();
   directory.create({ idempotent: true, intermediates: true });
@@ -426,7 +426,7 @@ export async function downloadApkUpdate(
         );
         if (!movedToCompleted && sourceCache.partial.exists) {
           throw new Error(
-            '받아 둔 앱 설치 파일을 준비하지 못했어요. 다시 시도해 주세요.',
+            '받아 둔 앱 설치 파일을 준비하지 못했습니다. 다시 시도해야 합니다.',
             { cause: error },
           );
         }
@@ -478,9 +478,9 @@ export async function downloadApkUpdate(
         ...downloadUrls.filter((url) => url !== selectedResumeState?.url),
       ]
     : downloadUrls;
-  let lastError: unknown = null;
+  let terminalIssue: 'oversize' | null = null;
   for (const url of orderedDownloadUrls) {
-    if (signal?.aborted) throw new Error('앱 설치 파일 다운로드를 취소했어요.');
+    if (signal?.aborted) throw new Error('앱 설치 파일 다운로드를 취소했습니다.');
     let exceededSizeLimit = false;
     const freshCurrentCache = getApkUpdateCacheFiles(
       directory,
@@ -553,10 +553,10 @@ export async function downloadApkUpdate(
           partial,
           pauseState.resumeData ?? String(partial.size),
         );
-        throw new Error('앱 설치 파일 다운로드를 멈췄어요. 다음에 중단된 지점부터 이어받아요.');
+        throw new Error('앱 설치 파일 다운로드를 멈췄습니다. 다음에 중단된 지점부터 이어받습니다.');
       }
       if (downloaded.size !== release.sizeBytes) {
-        throw new Error('앱 설치 파일 크기가 배포 정보와 일치하지 않아요.');
+        throw new Error('앱 설치 파일 크기가 배포 정보와 일치하지 않습니다.');
       }
       await downloaded.move(completed, { overwrite: true });
       normalizeApkVerification(
@@ -573,7 +573,7 @@ export async function downloadApkUpdate(
       );
       onProgress?.(1);
       return completed.uri;
-    } catch (error) {
+    } catch {
       tryRemoveFileIfPresent(completed);
       if (exceededSizeLimit) {
         tryRemoveFileIfPresent(partial);
@@ -588,21 +588,19 @@ export async function downloadApkUpdate(
         );
       }
       if (signal?.aborted) {
-        throw new Error('앱 설치 파일 다운로드를 멈췄어요. 다음에 중단된 지점부터 이어받아요.');
+        throw new Error('앱 설치 파일 다운로드를 멈췄습니다. 다음에 중단된 지점부터 이어받습니다.');
       }
-      lastError = exceededSizeLimit
-        ? new Error('앱 설치 파일 크기가 배포 정보보다 커요.')
-        : error;
+      terminalIssue = exceededSizeLimit ? 'oversize' : null;
     } finally {
       signal?.removeEventListener('abort', abortDownload);
       task.release();
     }
   }
-  if (lastError instanceof Error && downloadUrls.length === 1) {
-    if (/[가-힣]/.test(lastError.message)) throw lastError;
+  if (terminalIssue === 'oversize' && downloadUrls.length === 1) {
+    throw new Error('앱 설치 파일 크기가 배포 정보보다 큽니다.');
   }
   throw new Error(
-    '앱 설치 파일을 모두 받지 못했어요. 연결을 확인하고 다시 누르면 중단된 지점부터 이어받아요.',
+    '앱 설치 파일을 모두 받지 못했습니다. 연결을 확인하고 다시 누르면 중단된 지점부터 이어받습니다.',
   );
 }
 
@@ -647,7 +645,7 @@ export async function verifyAndOpenApkInstaller(
   release: ApkReleaseManifest,
 ): Promise<ApkInstallResult> {
   if (!nativeModule?.verifyAndOpenApkInstallerAsync) {
-    throw new Error('이 설치본에서는 앱 업데이트를 사용할 수 없어요.');
+    throw new Error('이 설치본에서는 앱 업데이트를 사용할 수 없습니다.');
   }
   return normalizeInstallResult(
     await nativeModule.verifyAndOpenApkInstallerAsync(
@@ -660,7 +658,7 @@ export async function verifyAndOpenApkInstaller(
 
 export async function openApkInstallPermissionSettings(): Promise<void> {
   if (!nativeModule?.openApkInstallPermissionSettingsAsync) {
-    throw new Error('앱 설치 권한 설정을 열 수 없어요.');
+    throw new Error('앱 설치 권한 설정을 열 수 없습니다.');
   }
   await nativeModule.openApkInstallPermissionSettingsAsync();
 }

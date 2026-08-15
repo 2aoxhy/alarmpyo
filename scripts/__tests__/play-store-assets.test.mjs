@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V08 재촬영 순서와 대체 텍스트를 manifest에 고정해요', async () => {
+  it('V10 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V08',
+      release: 'V10',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V08',
+      release: 'V10',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -332,7 +332,7 @@ describe('Google Play 등록 이미지', () => {
       'https://support.google.com/googleplay/android-developer/answer/9866151?hl=ko',
     );
     expect(listing).toContain(
-      'JPEG는 마커 구조·크기·채널당 8비트 RGB 3채널 메타데이터만 검사하며 엔트로피 픽셀을 디코딩하지 않아요.',
+      'JPEG는 마커 구조·크기·채널당 8비트 RGB 3채널 메타데이터만 검사하며 엔트로피 픽셀을 디코딩하지 않습니다.',
     );
 
     const appName = listing.match(/^- 앱 이름: `([^`]+)`$/m)?.[1];
@@ -347,14 +347,14 @@ describe('Google Play 등록 이미지', () => {
     expect(shortDescription.length).toBeLessThanOrEqual(80);
     expect(fullDescription.length).toBeLessThanOrEqual(4000);
     expect(shortDescription).toBe(
-      '교대 근무표와 근무·타이머 알람을 한눈에 관리하세요.',
+      '교대 근무표와 근무·타이머 알람을 한눈에 관리합니다.',
     );
     for (const phrase of [
       '대표 교대 근무와 직접 편집하는 반복 순서·근무시간',
       '근무 기상 알람과 30분·60분 소리·진동 타이머',
       '수면 준비 알림',
       '홈 화면 위젯',
-      '근무표, 메모와 설정은 기기에 저장해요',
+      '근무표, 메모와 설정은 기기에 저장합니다',
     ]) {
       expect(fullDescription).toContain(phrase);
     }

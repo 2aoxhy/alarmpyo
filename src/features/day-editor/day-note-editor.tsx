@@ -26,7 +26,7 @@ export function DayNoteEditor({
     <View style={styles.editor}>
       <TextInput
         accessibilityLabel="하루 메모"
-        accessibilityHint="인수인계나 준비물을 적어 둘 수 있어요."
+        accessibilityHint="인수인계나 준비물을 적어 둘 수 있습니다."
         maxLength={200}
         multiline
         onBlur={() => setFocused(false)}

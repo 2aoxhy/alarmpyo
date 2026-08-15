@@ -20,7 +20,7 @@ import type { BulkDayChange } from '@/services/bulk-day-update';
 import type {
   AlarmAutoCheckStatus,
 } from '@/services/alarm-sync-policy';
-import type { ResetAllDataResult } from './app-store-persistence';
+import type { DataReplacementResult, ResetAllDataResult } from './app-store-persistence';
 import type {
   WorkSettingsApplyResult,
   WorkSettingsSharePreview,
@@ -101,6 +101,10 @@ export type UpdatePatternOptions = {
   clearFutureScheduleOverridesFrom?: string;
 };
 
+export type UpdatePatternResult = DataReplacementResult & {
+  saveOutcome: SaveOutcome | null;
+};
+
 export type AppStore = {
   data: AppData;
   ready: boolean;
@@ -115,6 +119,8 @@ export type AppStore = {
   alarmSyncError: string | null;
   sleepReminderSyncStatus: SleepReminderSyncStatus;
   sleepReminderSyncError: string | null;
+  /** 실제 네이티브 수면 알림 동기화가 끝날 때만 증가합니다. */
+  sleepReminderSyncRevision: number;
   corruptBackupKey: string | null;
   alarmAutoCheckState: AlarmAutoCheckState;
   retryLoad: () => Promise<boolean>;
@@ -139,6 +145,11 @@ export type AppStore = {
     shiftTypePatches?: Record<string, Partial<ShiftType>>,
     options?: UpdatePatternOptions,
   ) => Promise<boolean>;
+  updatePatternDetailed: (
+    pattern: RotationPattern,
+    shiftTypePatches?: Record<string, Partial<ShiftType>>,
+    options?: UpdatePatternOptions,
+  ) => Promise<UpdatePatternResult>;
   updateShiftTypes: (
     patches: Record<string, Partial<ShiftType>>,
     workRoutineProfiles?: WorkRoutineProfiles,
@@ -196,6 +207,7 @@ export type AppStoreStatusState = Pick<
   | 'alarmSyncError'
   | 'sleepReminderSyncStatus'
   | 'sleepReminderSyncError'
+  | 'sleepReminderSyncRevision'
   | 'corruptBackupKey'
   | 'alarmAutoCheckState'
 >;

@@ -119,7 +119,7 @@ export const WORK_PATTERN_PRESETS: readonly WorkPatternPreset[] = [
     id: 'custom',
     name: CUSTOM_PATTERN_NAME,
     shortName: '기타',
-    description: '1~42일 회사 순서를 직접 만들어요',
+    description: '1~42일 회사 순서를 직접 만듭니다',
     shiftTypeIds: ['day', 'night', 'off'],
   },
 ] as const;
@@ -168,7 +168,7 @@ export function isBaseWorkShiftId(value: string): value is BaseWorkShiftId {
 
 export function getWorkPatternPreset(id: WorkPatternPresetId): WorkPatternPreset {
   const preset = WORK_PATTERN_PRESETS.find((item) => item.id === id);
-  if (!preset) throw new RangeError('지원하지 않는 근무 방식이에요.');
+  if (!preset) throw new RangeError('지원하지 않는 근무 방식입니다.');
   return preset;
 }
 
@@ -219,7 +219,7 @@ export function validateCustomPatternSequence(
 ): BaseWorkShiftId[] {
   if (!isValidCustomPatternSequence(shiftTypeIds)) {
     throw new RangeError(
-      `기타 근무 순서는 ${CUSTOM_PATTERN_MIN_DAYS}~${CUSTOM_PATTERN_MAX_DAYS}일이며 근무일이 하나 이상 필요해요.`,
+      `기타 근무 순서는 ${CUSTOM_PATTERN_MIN_DAYS}~${CUSTOM_PATTERN_MAX_DAYS}일이며 근무일이 하나 이상 필요합니다.`,
     );
   }
   return [...shiftTypeIds];
@@ -262,7 +262,7 @@ export function getPatternPositionForDate({
   sequenceLength: number;
 }): number {
   if (!isValidDateKey(date) || !isValidDateKey(referenceDate)) {
-    throw new RangeError('근무 순번을 계산할 날짜가 올바르지 않아요.');
+    throw new RangeError('근무 순번을 계산할 날짜가 올바르지 않습니다.');
   }
   if (
     !Number.isInteger(sequenceLength) ||
@@ -271,7 +271,7 @@ export function getPatternPositionForDate({
     referencePosition < 0 ||
     referencePosition >= sequenceLength
   ) {
-    throw new RangeError('기준 날짜의 실제 근무를 선택해 주세요.');
+    throw new RangeError('기준 날짜의 실제 근무를 선택해야 합니다.');
   }
 
   const offset = differenceInCalendarDays(date, referenceDate);
@@ -316,10 +316,10 @@ export function createWorkPatternFromReference(
 ): RotationPattern {
   const { position, referenceDate, scheduleStartDate = referenceDate } = input;
   if (!isValidDateKey(referenceDate)) {
-    throw new RangeError('기준 날짜가 올바르지 않아요.');
+    throw new RangeError('기준 날짜가 올바르지 않습니다.');
   }
   if (!isValidDateKey(scheduleStartDate)) {
-    throw new RangeError('첫 근무일이 올바르지 않아요.');
+    throw new RangeError('첫 근무일이 올바르지 않습니다.');
   }
 
   const legacyKind = 'kind' in input ? input.kind : undefined;
@@ -348,7 +348,7 @@ export function createWorkPatternFromReference(
     referencePosition < 0 ||
     referencePosition >= shiftTypeIds.length
   ) {
-    throw new RangeError('기준 날짜의 실제 근무를 선택해 주세요.');
+    throw new RangeError('기준 날짜의 실제 근무를 선택해야 합니다.');
   }
 
   return {

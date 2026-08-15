@@ -44,10 +44,15 @@ describe('달력 가시성 계약', () => {
   it('좁은 화면의 가로 달력은 양쪽 가장자리 단서와 접근성 힌트를 제공해요', () => {
     expect(monthCard).toContain('horizontalEdgeCueLeft');
     expect(monthCard).toContain('horizontalEdgeCueRight');
-    expect(monthCard).toContain('좌우로 밀어 가려진 토요일까지 확인해요.');
+    expect(monthCard).toContain('좌우로 밀어 가려진 토요일까지 확인합니다.');
   });
 
   it('선택 범위와 선택 패널은 배경 대비 3대 1 이상의 강한 경계를 사용해요', () => {
-    expect(dayCell).toContain('borderColor: palette.controlLine');
+    expect(dayCell).toContain('borderColor: palette.selectionBorder');
+    expect(dayCell).toContain('styles.selectedCheck');
+    expect(dayCell).toContain('styles.dayIndicatorRow');
+    expect(dayCell).toContain('width: 16');
+    expect(dayCell).not.toContain("selectedCheck: {\n      position: 'absolute'");
+    expect(dayCell).toContain('outlineColor: palette.focus');
   });
 });

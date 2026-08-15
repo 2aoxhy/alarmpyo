@@ -222,7 +222,7 @@ class AlarmPyoAlarmService : Service() {
       Log.e(TAG, "알람 오디오 포커스를 얻지 못했습니다.", error)
     }.onSuccess { granted ->
       if (!granted) {
-        Log.w(TAG, "다른 오디오가 사용 중이어서 알람 오디오 포커스를 얻지 못했어요.")
+        Log.w(TAG, "다른 오디오가 사용 중이어서 알람 오디오 포커스를 얻지 못했습니다.")
       }
     }
     runCatching(::startVibration).onFailure { error ->
@@ -681,7 +681,7 @@ class AlarmPyoAlarmService : Service() {
         audioManager.abandonAudioFocus(audioFocusListener)
       }
     }.onFailure { error ->
-      Log.w(TAG, "알람 오디오 포커스를 반환하지 못했어요.", error)
+      Log.w(TAG, "알람 오디오 포커스를 반환하지 못했습니다.", error)
     }
     audioFocusRequest = null
     audioFocusHeld = false

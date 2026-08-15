@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AlarmPyoWidgetSnapshot } from '../widget-planner';
 import {
   createInstalledWidgetSnapshot,
+  createWidgetSnapshotPreflightCoordinator,
   createWidgetSyncCoordinator,
+  GENERATED_WIDGET_PREVIEW_REFRESH_MS,
   syncWidgetWithRetry,
 } from '../widget-sync-policy';
 
@@ -106,6 +108,102 @@ const widgetPayloadChanges: {
 ];
 
 describe('ALARMPYO 위젯 동기화 정책', () => {
+  it('변경 없는 Android 15+ 복귀는 30분 동안 전체 스냅샷 생성을 건너뜁니다', () => {
+    const coordinator = createWidgetSnapshotPreflightCoordinator();
+    const input = {
+      installed: false,
+      supportsGeneratedPreview: true,
+      scheduleSignature: 'schedule-a',
+      generatedDateKey: '2026-08-15',
+      timeZoneSignature: 'Asia/Seoul|540',
+      nowMs: 1_000,
+    };
+
+    expect(coordinator.shouldBuild(input)).toBe(true);
+    expect(coordinator.shouldBuild(input)).toBe(false);
+    coordinator.complete(input, true);
+    expect(coordinator.shouldBuild({ ...input, nowMs: 10_000 })).toBe(false);
+    expect(coordinator.shouldBuild({
+      ...input,
+      nowMs: input.nowMs + GENERATED_WIDGET_PREVIEW_REFRESH_MS,
+    })).toBe(true);
+  });
+
+  it('일정이나 날짜가 바뀌면 생성형 미리보기를 즉시 다시 만듭니다', () => {
+    const coordinator = createWidgetSnapshotPreflightCoordinator();
+    const input = {
+      installed: false,
+      supportsGeneratedPreview: true,
+      scheduleSignature: 'schedule-a',
+      generatedDateKey: '2026-08-15',
+      timeZoneSignature: 'Asia/Seoul|540',
+      nowMs: 1_000,
+    };
+    expect(coordinator.shouldBuild(input)).toBe(true);
+    coordinator.complete(input, true);
+    expect(coordinator.shouldBuild({
+      ...input,
+      scheduleSignature: 'schedule-b',
+      nowMs: 2_000,
+    })).toBe(true);
+    coordinator.complete({
+      ...input,
+      scheduleSignature: 'schedule-b',
+      nowMs: 2_000,
+    }, true);
+    expect(coordinator.shouldBuild({
+      ...input,
+      scheduleSignature: 'schedule-b',
+      generatedDateKey: '2026-08-16',
+      nowMs: 3_000,
+    })).toBe(true);
+  });
+
+  it('설치된 위젯도 같은 값은 생략하고 변경은 즉시 반영합니다', () => {
+    const coordinator = createWidgetSnapshotPreflightCoordinator();
+    const input = {
+      installed: true,
+      supportsGeneratedPreview: true,
+      scheduleSignature: 'schedule-a',
+      generatedDateKey: '2026-08-15',
+      timeZoneSignature: 'Asia/Seoul|540',
+      nowMs: 1_000,
+    };
+    expect(coordinator.shouldBuild(input)).toBe(true);
+    coordinator.complete(input, true);
+    expect(coordinator.shouldBuild({ ...input, nowMs: 99_000_000 })).toBe(false);
+    expect(coordinator.shouldBuild({
+      ...input,
+      timeZoneSignature: 'America/Phoenix|420',
+      nowMs: 100_000_000,
+    })).toBe(true);
+    coordinator.complete({
+      ...input,
+      timeZoneSignature: 'America/Phoenix|420',
+      nowMs: 100_000_000,
+    }, true);
+    expect(coordinator.shouldBuild({
+      ...input,
+      scheduleSignature: 'schedule-b',
+      nowMs: 2_000,
+    })).toBe(true);
+  });
+
+  it('동기화 실패는 동일한 값의 다음 시도를 허용합니다', () => {
+    const coordinator = createWidgetSnapshotPreflightCoordinator();
+    const input = {
+      installed: true,
+      supportsGeneratedPreview: false,
+      scheduleSignature: 'schedule-a',
+      generatedDateKey: '2026-08-15',
+      timeZoneSignature: 'Asia/Seoul|540',
+      nowMs: 1_000,
+    };
+    expect(coordinator.shouldBuild(input)).toBe(true);
+    coordinator.complete(input, false);
+    expect(coordinator.shouldBuild({ ...input, nowMs: 2_000 })).toBe(true);
+  });
+
   it('위젯이 없으면 스냅샷 계산을 건너뛰어요', async () => {
     const createSnapshot = vi.fn(() => ({ entries: Array.from({ length: 366 }) }));
 

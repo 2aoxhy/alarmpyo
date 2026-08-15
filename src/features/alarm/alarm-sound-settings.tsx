@@ -110,8 +110,10 @@ export function AlarmSoundSettings() {
     } catch {
       if (activeRef.current) {
         showDialog(
-          '알람음을 선택하지 못했어요',
-          '휴대폰의 알람음 선택 화면을 다시 열어 주세요.',
+          '알람음을 선택하지 못했습니다',
+          '휴대폰의 알람음 선택 화면을 다시 열어야 합니다.',
+          undefined,
+          { tone: 'danger' },
         );
       }
     } finally {
@@ -131,8 +133,10 @@ export function AlarmSoundSettings() {
       if (!activeRef.current) return;
       if (!started) {
         showDialog(
-          '알람음을 미리 듣지 못했어요',
-          '휴대폰의 알람음 설정을 확인한 뒤 다시 시도해 주세요.',
+          '알람음을 미리 듣지 못했습니다',
+          '휴대폰의 알람음 설정을 확인한 뒤 다시 시도해야 합니다.',
+          undefined,
+          { tone: 'danger' },
         );
         return;
       }
@@ -145,8 +149,10 @@ export function AlarmSoundSettings() {
     } catch {
       if (activeRef.current) {
         showDialog(
-          '알람음을 미리 듣지 못했어요',
-          '잠시 후 다시 시도해 주세요.',
+          '알람음을 미리 듣지 못했습니다',
+          '잠시 후 다시 시도해야 합니다.',
+          undefined,
+          { tone: 'danger' },
         );
       }
     } finally {
@@ -166,8 +172,10 @@ export function AlarmSoundSettings() {
     } catch {
       if (activeRef.current) {
         showDialog(
-          '기본 알람음으로 복원하지 못했어요',
-          '잠시 후 다시 시도해 주세요.',
+          '기본 알람음으로 복원하지 못했습니다',
+          '잠시 후 다시 시도해야 합니다.',
+          undefined,
+          { tone: 'danger' },
         );
       }
     } finally {
@@ -198,7 +206,7 @@ export function AlarmSoundSettings() {
             알람음·진동
           </AppText>
           <AppText tone="secondary" variant="caption">
-            모든 근무·타이머·시험 알람에 알람음과 진동을 함께 적용해요.
+            모든 근무·타이머·시험 알람에 알람음과 진동을 함께 적용합니다.
           </AppText>
         </View>
       </View>
@@ -207,13 +215,13 @@ export function AlarmSoundSettings() {
         <View accessibilityLiveRegion="polite" style={styles.loadingRow}>
           <ActivityIndicator color={palette.indigoDark} size="small" />
           <AppText tone="secondary" variant="caption">
-            현재 알람음을 확인하고 있어요.
+            현재 알람음을 확인하고 있습니다.
           </AppText>
         </View>
       ) : loadFailed && !status ? (
         <View style={styles.errorBlock}>
           <AppText color={palette.danger} variant="caption">
-            알람음 상태를 확인하지 못했어요.
+            알람음 상태를 확인하지 못했습니다.
           </AppText>
           <AppButton
             icon="refresh-outline"

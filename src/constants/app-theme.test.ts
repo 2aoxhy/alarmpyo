@@ -112,4 +112,19 @@ describe('앱 색상 대비', () => {
   ] as const)('%s 모드의 달력 경계가 분명해요', (_name, palette) => {
     expectContrast(palette, 'controlLine', 'surface', 3);
   });
+
+  it.each([
+    ['라이트', lightPalette],
+    ['다크', darkPalette],
+  ] as const)('%s 모드에서 선택 경계와 키보드 포커스가 분리됩니다', (_name, palette) => {
+    expectContrast(palette, 'selectionBorder', 'selectionSurface', 3);
+    expectContrast(palette, 'focus', 'selectionSurface', 3);
+    expect(palette.selectionBorder).not.toBe(palette.controlLine);
+  });
+
+  it('다크 모드 선택 토큰은 V10 가시성 계약을 유지합니다', () => {
+    expect(darkPalette.selectionSurface).toBe('#2A2F35');
+    expect(darkPalette.selectionBorder).toBe('#C8CED6');
+    expect(darkPalette.focus).toBe('#89CEFF');
+  });
 });

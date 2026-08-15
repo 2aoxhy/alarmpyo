@@ -68,14 +68,14 @@ export function BackupPasswordDialog({
       if (createMode) {
         assertNewBackupPassword(password);
         if (password !== confirmation) {
-          throw new Error('두 비밀번호가 같지 않아요.');
+          throw new Error('두 비밀번호가 같지 않습니다.');
         }
       } else if (password.length === 0) {
-        throw new Error('백업 비밀번호를 입력해 주세요.');
+        throw new Error('백업 비밀번호를 입력해야 합니다.');
       }
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : '비밀번호를 다시 확인해 주세요.',
+        error instanceof Error ? error.message : '비밀번호를 다시 확인해야 합니다.',
       );
       return;
     }
@@ -90,7 +90,7 @@ export function BackupPasswordDialog({
       await onSubmit(submittedPassword);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : '비밀번호를 다시 확인해 주세요.',
+        error instanceof Error ? error.message : '비밀번호를 다시 확인해야 합니다.',
       );
     } finally {
       setSubmitting(false);
@@ -139,8 +139,8 @@ export function BackupPasswordDialog({
                 </AppText>
                 <AppText tone="secondary">
                   {createMode
-                    ? '비밀번호를 잊으면 백업을 복구할 수 없어요. 알람표는 비밀번호를 저장하지 않아요.'
-                    : '이 백업을 만들 때 사용한 비밀번호를 입력해 주세요.'}
+                    ? '비밀번호를 잊으면 백업을 복구할 수 없습니다. 알람표는 비밀번호를 저장하지 않습니다.'
+                    : '이 백업을 만들 때 사용한 비밀번호를 입력해야 합니다.'}
                 </AppText>
               </View>
 
@@ -175,7 +175,7 @@ export function BackupPasswordDialog({
                       void submit();
                     }
                   }}
-                  placeholder={createMode ? '12자 이상 입력해 주세요' : '비밀번호를 입력해 주세요'}
+                  placeholder={createMode ? '12자 이상 입력' : '비밀번호 입력'}
                   placeholderTextColor={palette.inkSoft}
                   returnKeyType={createMode ? 'next' : 'done'}
                   secureTextEntry={!revealed}
@@ -200,7 +200,7 @@ export function BackupPasswordDialog({
                     maxLength={128}
                     onChangeText={setConfirmation}
                     onSubmitEditing={() => void submit()}
-                    placeholder="같은 비밀번호를 입력해 주세요"
+                    placeholder="같은 비밀번호 입력"
                     placeholderTextColor={palette.inkSoft}
                     returnKeyType="done"
                     secureTextEntry={!revealed}

@@ -327,7 +327,7 @@ class AlarmPyoAlarmSchedulerTest {
       AlarmPyoAlarmStore.requireCommitted(false, "알람 계획")
     }
 
-    assertEquals("알람 계획 저장에 실패했어요.", error.message)
+    assertEquals("알람 계획 저장에 실패했습니다.", error.message)
   }
 
   @Test

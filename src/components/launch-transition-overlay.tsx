@@ -33,17 +33,30 @@ export function resolveLaunchBrandVisibility(fontMode: LaunchFontMode) {
 }
 
 export const LAUNCH_TRANSITION_TIMING = {
-  fullMotionDuration: 440,
-  fullMotionHold: 880,
+  markFade: 440,
+  wordmarkFade: 440,
+  fullMotionHold: 440,
   fullMotionExit: 300,
   reducedMotionExit: 140,
 } as const;
 
 export const LAUNCH_BRAND_LAYOUT = {
-  groupHeight: 240,
+  groupHeight: 288,
   markSize: 240,
   wordmarkTop: 196,
+  wordmarkFontSize: 60,
+  wordmarkLineHeight: 72,
 } as const;
+
+export type FrozenLaunchFontMode = Exclude<LaunchFontMode, 'pending'>;
+
+export function resolveFrozenLaunchFontMode(
+  frozenMode: FrozenLaunchFontMode | null,
+  currentMode: LaunchFontMode,
+): FrozenLaunchFontMode {
+  if (frozenMode) return frozenMode;
+  return currentMode === 'pending' ? 'fallback' : currentMode;
+}
 
 type LaunchTransitionOverlayProps = {
   fontMode: LaunchFontMode;
@@ -65,7 +78,8 @@ export function LaunchTransitionOverlay({
   ready,
   reduceMotion,
 }: LaunchTransitionOverlayProps) {
-  const [entry] = useState(() => new Animated.Value(0));
+  const [markEntry] = useState(() => new Animated.Value(0));
+  const [wordmarkEntry] = useState(() => new Animated.Value(0));
   const [exit] = useState(() => new Animated.Value(0));
   const reduceMotionAtLaunch = useRef(reduceMotion);
   const readyReported = useRef(false);
@@ -85,13 +99,15 @@ export function LaunchTransitionOverlay({
   useEffect(() => {
     if (!ready) return;
 
-    entry.stopAnimation();
+    markEntry.stopAnimation();
+    wordmarkEntry.stopAnimation();
     exit.stopAnimation();
     exit.setValue(0);
 
     const animation = reduceMotionAtLaunch.current
       ? (() => {
-          entry.setValue(1);
+          markEntry.setValue(1);
+          wordmarkEntry.setValue(1);
           return Animated.timing(exit, {
             duration: LAUNCH_TRANSITION_TIMING.reducedMotionExit,
             easing: Easing.out(Easing.quad),
@@ -100,10 +116,17 @@ export function LaunchTransitionOverlay({
           });
         })()
       : (() => {
-          entry.setValue(0);
+          markEntry.setValue(0);
+          wordmarkEntry.setValue(0);
           return Animated.sequence([
-            Animated.timing(entry, {
-              duration: LAUNCH_TRANSITION_TIMING.fullMotionDuration,
+            Animated.timing(markEntry, {
+              duration: LAUNCH_TRANSITION_TIMING.markFade,
+              easing: Easing.out(Easing.cubic),
+              toValue: 1,
+              useNativeDriver,
+            }),
+            Animated.timing(wordmarkEntry, {
+              duration: LAUNCH_TRANSITION_TIMING.wordmarkFade,
               easing: Easing.out(Easing.cubic),
               toValue: 1,
               useNativeDriver,
@@ -124,10 +147,11 @@ export function LaunchTransitionOverlay({
 
     return () => {
       animation.stop();
-      entry.stopAnimation();
+      markEntry.stopAnimation();
+      wordmarkEntry.stopAnimation();
       exit.stopAnimation();
     };
-  }, [entry, exit, onFinished, ready, useNativeDriver]);
+  }, [exit, markEntry, onFinished, ready, useNativeDriver, wordmarkEntry]);
 
   return (
     <Animated.View
@@ -149,13 +173,15 @@ export function LaunchTransitionOverlay({
       ]}>
       <View style={styles.brand}>
         {brandVisibility.mark ? (
-          <Image
-            accessible={false}
-            accessibilityIgnoresInvertColors
-            resizeMode="contain"
-            source={require('../../assets/images/splash-transparent.png')}
-            style={styles.brandMark}
-          />
+          <Animated.View style={[styles.brandMark, { opacity: markEntry }]}>
+            <Image
+              accessible={false}
+              accessibilityIgnoresInvertColors
+              resizeMode="contain"
+              source={require('../../assets/images/splash-transparent.png')}
+              style={styles.brandMarkImage}
+            />
+          </Animated.View>
         ) : null}
         {brandVisibility.wordmark ? (
           <Animated.View
@@ -163,15 +189,7 @@ export function LaunchTransitionOverlay({
             style={[
               styles.brandCopy,
               {
-                opacity: entry,
-                transform: [
-                  {
-                    scale: entry.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.96, 1],
-                    }),
-                  },
-                ],
+                opacity: wordmarkEntry,
               },
             ]}>
             <AppText
@@ -214,14 +232,15 @@ const styles = StyleSheet.create({
     top: 0,
     width: LAUNCH_BRAND_LAYOUT.markSize,
   },
+  brandMarkImage: { width: '100%', height: '100%' },
   brandCopy: {
     alignItems: 'center',
     position: 'absolute',
     top: LAUNCH_BRAND_LAYOUT.wordmarkTop,
   },
   wordmark: {
-    fontSize: 60,
-    lineHeight: 72,
+    fontSize: LAUNCH_BRAND_LAYOUT.wordmarkFontSize,
+    lineHeight: LAUNCH_BRAND_LAYOUT.wordmarkLineHeight,
     letterSpacing: 1.2,
     textAlign: 'center',
   },

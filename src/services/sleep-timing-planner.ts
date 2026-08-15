@@ -324,7 +324,7 @@ function fitSleepWindowAroundWork(
     bedtimeRangeStartAt,
     bedtimeRangeEndAt,
     guidance: adjusted
-      ? `${window.guidance} 저장된 근무 시간과 겹치지 않는 범위로 조정했어요.`
+      ? `${window.guidance} 저장된 근무 시간과 겹치지 않는 범위로 조정했습니다.`
       : window.guidance,
   };
 }
@@ -380,8 +380,8 @@ function createWorkWindow(
     guidance:
       options.guidance ??
       (kind === 'pre-night-nap'
-        ? '야간 근무 전에 90분 보충 수면을 확보하세요.'
-        : '기상 목표를 기준으로 7시간 이상 수면을 확보하세요.'),
+        ? '야간 근무 전에 90분 보충 수면을 확보해야 합니다.'
+        : '기상 목표를 기준으로 7시간 이상 수면을 확보해야 합니다.'),
     relatedDateKey: event.dateKey,
     shiftTypeId: event.shiftTypeId,
     shiftName: options.shiftName === undefined ? event.shiftName : options.shiftName,
@@ -440,8 +440,8 @@ function regularSleepWindow(data: AppData, now: Date): SleepTimingWindow {
     bedtimeRangeEndAt:
       window.endAt - SLEEP_TIMING_MINIMUM_MINUTES * 60_000,
     guidance: window.endDateEvent
-      ? '다음 근무의 기상 시각을 넘기지 않도록 수면 시간을 확보하세요.'
-      : '휴무일에도 기상 시각을 크게 늦추지 말고 생활 리듬을 유지하세요.',
+      ? '다음 근무의 기상 시각을 넘기지 않도록 수면 시간을 확보해야 합니다.'
+      : '휴무일에도 기상 시각을 크게 늦추지 말고 생활 리듬을 유지해야 합니다.',
     relatedDateKey: null,
     shiftTypeId: null,
     shiftName: null,
@@ -501,10 +501,10 @@ function createFirstNightWindows(
     {
       guidance:
         coreEndAt < defaultCoreEndAt
-          ? '이른 야간 근무 전에는 보충 수면 준비와 겹치지 않도록 주수면을 먼저 마치세요.'
+          ? '이른 야간 근무 전에는 보충 수면 준비와 겹치지 않도록 주수면을 먼저 마쳐야 합니다.'
           : previousEvent && !isNightShift(previousEvent.shift)
-          ? '주간 근무를 마친 밤에는 아침 07시까지 주수면을 확보하고, 오후에 보충 수면을 추가하세요.'
-          : '첫 야간 전에는 아침까지 주수면을 확보하고 오후에 한 번 더 쉬세요.',
+          ? '주간 근무를 마친 밤에는 아침 07시까지 주수면을 확보하고, 오후에 보충 수면을 추가해야 합니다.'
+          : '첫 야간 전에는 아침까지 주수면을 확보하고 오후에 한 번 더 쉬어야 합니다.',
       transitionModeKind,
     },
   );
@@ -520,7 +520,7 @@ function createFirstNightWindows(
           {
             bedtimeRangeStartAt: napPrepStartAt,
             bedtimeRangeEndAt: napStartAt,
-            guidance: `${event.shiftName} 전 90분 보충 수면을 위해 10분 전부터 준비하세요.`,
+            guidance: `${event.shiftName} 전 90분 보충 수면을 위해 10분 전부터 준비해야 합니다.`,
             transitionModeKind,
           },
         )
@@ -561,7 +561,7 @@ function createPostNightWindows(data: AppData, event: WorkEvent): SleepTimingWin
           earliestSleepAt,
           nextWakeAt - SLEEP_TIMING_MINIMUM_MINUTES * 60_000,
         ),
-        guidance: `퇴근 후 가능한 빨리 주무시고 다음 ${nextEvent.shiftName} 기상까지 주수면을 확보하세요.`,
+        guidance: `퇴근 후 가능한 빨리 주무시고 다음 ${nextEvent.shiftName} 기상까지 주수면을 확보해야 합니다.`,
         title: `연속 ${event.shiftName} 사이 주수면`,
       },
     );
@@ -585,7 +585,7 @@ function createPostNightWindows(data: AppData, event: WorkEvent): SleepTimingWin
       bedtimeRangeEndAt:
         earliestSleepAt + LAST_NIGHT_RECOVERY_BEDTIME_RANGE_MINUTES * 60_000,
       guidance:
-        '마지막 야간 뒤에는 회복 수면을 오후 초반에 마치고 밤 수면으로 전환하세요.',
+        '마지막 야간 뒤에는 회복 수면을 오후 초반에 마치고 밤 수면으로 전환해야 합니다.',
       transitionModeKind,
     },
   );
@@ -618,8 +618,8 @@ function createPostNightWindows(data: AppData, event: WorkEvent): SleepTimingWin
           transitionEndAt - SLEEP_TIMING_MINIMUM_MINUTES * 60_000,
         guidance:
           transitionModeKind === 'night-to-day'
-            ? '이어진 주간 근무를 마친 뒤 다음 기상 시각에 맞춰 수면을 확보하는 참고 일정이에요.'
-            : '당일 밤에는 평소 시간대에 다시 주무시고 휴무 리듬으로 전환하세요.',
+            ? '이어진 주간 근무를 마친 뒤 다음 기상 시각에 맞춰 수면을 확보하는 참고 일정입니다.'
+            : '당일 밤에는 평소 시간대에 다시 주무시고 휴무 리듬으로 전환해야 합니다.',
         shiftName: null,
         title:
           transitionModeKind === 'night-to-day'
@@ -667,7 +667,7 @@ function buildWorkWindows(
         wake.timestamp,
         wake.usesFallback,
         {
-          guidance: `${event.shiftName} 기상 시각을 기준으로 8시간 수면을 목표로 하세요.`,
+          guidance: `${event.shiftName} 기상 시각을 기준으로 8시간 수면을 목표로 해야 합니다.`,
           title:
             transitionModeKind === 'off-to-day'
               ? `${event.shiftName} 전환 수면`
@@ -723,7 +723,7 @@ function findActiveFirstNightTransition(
       nextSleepStartAt: nap.startAt,
       nextWakeAt: nap.endAt,
       guidance:
-        '주수면 종료부터 보충 수면 준비까지 깨어 있는 전환 구간이에요. 보충 수면 전에 개인 일정을 마무리하세요.',
+        '주수면 종료부터 보충 수면 준비까지 깨어 있는 전환 구간입니다. 보충 수면 전에 개인 일정을 마무리해야 합니다.',
       relatedDateKey: core.relatedDateKey,
       shiftTypeId: core.shiftTypeId,
       shiftName: core.shiftName,
@@ -740,23 +740,23 @@ const TRANSITION_MODE_COPY: Record<
   'day-to-night': {
     title: '주간 → 야간 전환',
     guidance:
-      '주수면·깨어 있는 전환 구간·오후 보충 수면을 이어서 확인하는 참고 일정이에요.',
+      '주수면·깨어 있는 전환 구간·오후 보충 수면을 이어서 확인하는 참고 일정입니다.',
   },
   'off-to-night': {
     title: '휴무 → 야간 전환',
-    guidance: '밤 주수면과 오후 보충 수면을 나눠 다음 야간을 준비하는 일정 참고예요.',
+    guidance: '밤 주수면과 오후 보충 수면을 나눠 다음 야간을 준비하는 일정 참고입니다.',
   },
   'night-to-off': {
     title: '야간 → 휴무 전환',
-    guidance: '퇴근 뒤 회복 수면을 짧게 마치고 당일 밤 수면으로 돌아가는 일정 참고예요.',
+    guidance: '퇴근 뒤 회복 수면을 짧게 마치고 당일 밤 수면으로 돌아가는 일정 참고입니다.',
   },
   'night-to-day': {
     title: '야간 → 주간 전환',
-    guidance: '두 근무 사이에 계산된 수면 시간을 확인하고 실제 일정에 맞춰 조정하세요.',
+    guidance: '두 근무 사이에 계산된 수면 시간을 확인하고 실제 일정에 맞춰 조정해야 합니다.',
   },
   'off-to-day': {
     title: '휴무 → 주간 전환',
-    guidance: '다음 주간 기상 시각에 맞춰 전날 취침 시각을 앞당기는 일정 참고예요.',
+    guidance: '다음 주간 기상 시각에 맞춰 전날 취침 시각을 앞당기는 일정 참고입니다.',
   },
 };
 

@@ -1,8 +1,8 @@
 import type { AppData, ShiftType } from '../models/app-data';
 import {
   ALARM_PLAN_HORIZON_DAYS,
-  buildAlarmPyoAlarmPlan,
 } from './alarm-planner';
+import { getCachedDailyAlarmProjection } from './schedule-projection-cache';
 import type { AlarmPyoAlarmStatus } from './alarmpyo-alarm-service';
 import type { SleepReminderStatus } from './sleep-reminder-service';
 import type { AlarmAutoCheckStatus } from './alarm-sync-policy';
@@ -43,8 +43,8 @@ export type TodayAlarmSummary = {
 };
 
 /**
- * 366일 알람 계획은 분 단위 화면 갱신과 분리해 계산해요.
- * 호출부는 앱 데이터나 날짜가 바뀔 때만 이 값을 다시 만들어요.
+ * 366일 알람 계획은 분 단위 화면 갱신과 분리하여 계산합니다.
+ * 호출부는 앱 데이터나 날짜가 바뀔 때만 이 값을 다시 만듭니다.
  */
 export function buildTodayAlarmPlanSummary(input: {
   data: AppData;
@@ -52,9 +52,11 @@ export function buildTodayAlarmPlanSummary(input: {
   resolveShift: (dateKey: string) => ShiftType | null;
 }): TodayAlarmPlanSummary {
   return {
-    plannedAlarmCount: buildAlarmPyoAlarmPlan(input.data, input.resolveShift, {
-      now: input.now,
-    }).length,
+    plannedAlarmCount: getCachedDailyAlarmProjection(
+      input.data,
+      input.resolveShift,
+      input.now,
+    ).length,
   };
 }
 
@@ -90,8 +92,16 @@ function shiftTimeLabel(shift: ShiftType) {
   return `${formatMinutes(shift.startMinutes)}부터 ${shift.endsNextDay ? '다음 날 ' : ''}${formatMinutes(shift.endMinutes)}까지`;
 }
 
+const STANDARD_WORK_SHIFT_IDS = new Set([
+  'day',
+  'evening',
+  'night',
+  'substitute-day',
+  'substitute-night',
+]);
+
 function workLabel(shift: ShiftType) {
-  return shift.name.endsWith('근무') ? shift.name : `${shift.name} 근무`;
+  return STANDARD_WORK_SHIFT_IDS.has(shift.id) ? `${shift.name} 근무` : shift.name;
 }
 
 function alarmTimeLabel(timestamp: number) {
@@ -216,16 +226,16 @@ export function buildTodayViewModel(input: {
       : homeState === 'before'
         ? shiftTimeLabel(todayShift!)
         : homeState === 'finished'
-          ? '오늘 근무를 마쳤어요.\n다음 근무도 미리 확인하세요.'
+          ? '오늘 근무를 마쳤습니다.\n다음 근무도 미리 확인해야 합니다.'
           : homeState === 'off'
             ? todayException === 'leave'
-              ? '근무 알람은 울리지 않아요.\n기본 근무표는 그대로 유지돼요.'
+              ? '근무 알람은 울리지 않습니다.\n기본 근무표는 그대로 유지됩니다.'
               : todayException
-                ? `${getDayExceptionLabel(todayException)} 일정이 등록되어 있어요.\n필요하면 근무 시간을 확인하세요.`
-                : '오늘은 충분히 쉬고\n다음 근무를 준비하세요.'
+                ? `${getDayExceptionLabel(todayException)} 일정이 등록되어 있습니다.\n필요하면 근무 시간을 확인해야 합니다.`
+                : '오늘은 충분히 쉬고\n다음 근무를 준비해야 합니다.'
             : scheduleHasStarted
-              ? '달력에서 오늘 근무를\n선택하세요.'
-              : `${formatKoreanDate(scheduleStartDate, true)}부터\n일정이 시작돼요.`;
+              ? '달력에서 오늘 근무를\n선택해야 합니다.'
+              : `${formatKoreanDate(scheduleStartDate, true)}부터\n일정이 시작됩니다.`;
   const nextWorkException = nextWork
     ? resolveDayExceptionFromAppData(data, nextWork.dateKey)
     : undefined;
@@ -282,15 +292,15 @@ export function buildTodayViewModel(input: {
   });
   const alarmsReady = alarmHealthState.status === 'ready';
   const alarmStateLabel = !alarmPlatformSupported
-    ? '안드로이드 앱에서만 사용할 수 있어요'
+    ? 'Android 앱에서만 사용할 수 있습니다'
     : !data.settings.notificationsEnabled
-      ? '근무 알람을 사용하지 않아요'
+      ? '근무 알람을 사용하지 않습니다'
       : alarmHealthState.status === 'checking'
-        ? '알람 상태를 확인하고 있어요'
+        ? '알람 상태를 확인하고 있습니다'
         : alarmHealthState.status === 'ready' && scheduledAlarms.length > 0
-          ? '다음 근무 알람이 준비됐어요'
+          ? '다음 근무 알람이 준비되었습니다'
           : alarmHealthState.status === 'ready'
-            ? '예정된 근무 알람이 없어요'
+            ? '예정된 근무 알람이 없습니다'
             : alarmHealthState.title;
   const nextScheduledAlarm = scheduledAlarms[0];
   const alarmSummary: TodayAlarmSummary = alarmsReady && nextScheduledAlarm

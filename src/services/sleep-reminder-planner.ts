@@ -106,8 +106,8 @@ function createReminderPlan(
     id: `sleep-reminder:${window.id}`,
     reminderAt: window.startAt,
     ...context,
-    title: '수면 시작 시간이에요',
-    body: `${window.title} 목표 시각이에요. 지금 주무세요.`,
+    title: '수면 시작 시간입니다',
+    body: `${window.title} 목표 시각입니다. 지금 수면을 시작해야 합니다.`,
   };
 }
 
@@ -153,12 +153,12 @@ export function buildSleepReminderPlans(
 
   const now = options.now ?? new Date();
   if (Number.isNaN(now.getTime())) {
-    throw new RangeError('수면 알림 계산 시각이 올바르지 않아요.');
+    throw new RangeError('수면 알림 계산 시각이 올바르지 않습니다.');
   }
 
   const horizonDays = options.horizonDays ?? SLEEP_REMINDER_HORIZON_DAYS;
   if (!Number.isInteger(horizonDays) || horizonDays < 1 || horizonDays > 14) {
-    throw new RangeError('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 해요.');
+    throw new RangeError('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 합니다.');
   }
 
   const startsAfter = now.getTime();

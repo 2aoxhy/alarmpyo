@@ -16,15 +16,15 @@ export function getBase64DecodedByteLength(value: string): number {
     value.length % 4 !== 0 ||
     !/^[A-Za-z0-9+/]+={0,2}$/.test(value)
   ) {
-    throw new Error('Base64 형식이 올바르지 않아요.');
+    throw new Error('Base64 형식이 올바르지 않습니다.');
   }
   const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
   if (padding === 2) {
     const lastDataValue = decodeBase64Character(value.charCodeAt(value.length - 3));
-    if ((lastDataValue & 0x0f) !== 0) throw new Error('Base64 형식이 올바르지 않아요.');
+    if ((lastDataValue & 0x0f) !== 0) throw new Error('Base64 형식이 올바르지 않습니다.');
   } else if (padding === 1) {
     const lastDataValue = decodeBase64Character(value.charCodeAt(value.length - 2));
-    if ((lastDataValue & 0x03) !== 0) throw new Error('Base64 형식이 올바르지 않아요.');
+    if ((lastDataValue & 0x03) !== 0) throw new Error('Base64 형식이 올바르지 않습니다.');
   }
   return (value.length / 4) * 3 - padding;
 }
@@ -58,7 +58,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 export function base64ToBytes(value: string, maximumBytes?: number): Uint8Array {
   const byteLength = getBase64DecodedByteLength(value);
   if (maximumBytes !== undefined && byteLength > maximumBytes) {
-    throw new Error('Base64 데이터가 허용된 크기를 넘었어요.');
+    throw new Error('Base64 데이터가 허용된 크기를 넘었습니다.');
   }
 
   const output = new Uint8Array(byteLength);
@@ -81,9 +81,9 @@ export function base64ToBytes(value: string, maximumBytes?: number): Uint8Array 
 
 function decodeBase64Character(character: number): number {
   if (character >= BASE64_DECODE_TABLE.length) {
-    throw new Error('Base64 형식이 올바르지 않아요.');
+    throw new Error('Base64 형식이 올바르지 않습니다.');
   }
   const decoded = BASE64_DECODE_TABLE[character]!;
-  if (decoded < 0) throw new Error('Base64 형식이 올바르지 않아요.');
+  if (decoded < 0) throw new Error('Base64 형식이 올바르지 않습니다.');
   return decoded;
 }

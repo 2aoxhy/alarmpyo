@@ -74,7 +74,7 @@ describe('빠른 타이머 화면 모델', () => {
         isRepeat: true,
         state: 'ringing',
       }),
-    ).toBe('타이머가 다시 울리고 있어요');
+    ).toBe('타이머가 다시 울리고 있습니다');
     expect(
       getQuickTimerDisplayLabel({
         durationMinutes: 30,

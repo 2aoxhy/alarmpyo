@@ -21,7 +21,7 @@ describe('백업 파일 크기 정책', () => {
     expect(MAX_APP_DATA_BYTES).toBe(MAX_BACKUP_FILE_BYTES);
     expect(() => assertAppDataByteSize(MAX_APP_DATA_BYTES)).not.toThrow();
     expect(() => assertAppDataByteSize(MAX_APP_DATA_BYTES + 1)).toThrow(
-      '근무표 데이터는 4MB 이하여야 해요',
+      '근무표 데이터는 4MB 이하여야 합니다',
     );
   });
 
@@ -38,9 +38,9 @@ describe('백업 파일 크기 정책', () => {
     );
     expect(() =>
       getCheckedBackupContentsByteSize('a'.repeat(MAX_BACKUP_FILE_BYTES + 1)),
-    ).toThrow('백업 파일은 4MB 이하여야 해요');
+    ).toThrow('백업 파일은 4MB 이하여야 합니다');
     expect(() => assertBackupFileByteSize(MAX_BACKUP_FILE_BYTES + 1)).toThrow(
-      '백업 파일은 4MB 이하여야 해요',
+      '백업 파일은 4MB 이하여야 합니다',
     );
   });
 
@@ -67,13 +67,13 @@ describe('백업 파일 크기 정책', () => {
     ).toBe(MAX_ENCRYPTED_BACKUP_FILE_BYTES);
     expect(() =>
       assertEncryptedBackupFileByteSize(MAX_ENCRYPTED_BACKUP_FILE_BYTES + 1),
-    ).toThrow('암호화 백업 파일은 6MB 이하여야 해요');
+    ).toThrow('암호화 백업 파일은 6MB 이하여야 합니다');
   });
 
   it('형식을 확인하기 전에는 6MB를 절대 상한으로 적용해요', () => {
     expect(() => assertBackupImportFileByteSize(MAX_BACKUP_IMPORT_FILE_BYTES)).not.toThrow();
     expect(() =>
       assertBackupImportFileByteSize(MAX_BACKUP_IMPORT_FILE_BYTES + 1),
-    ).toThrow('가져올 백업 파일은 6MB 이하여야 해요');
+    ).toThrow('가져올 백업 파일은 6MB 이하여야 합니다');
   });
 });

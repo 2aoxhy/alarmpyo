@@ -304,7 +304,7 @@ class AlarmPyoWidgetFormatterTest {
     )
 
     assertEquals("일정 갱신 필요", state.statusText)
-    assertEquals("근무표를 갱신하세요", state.titleText)
+    assertEquals("근무표 갱신 필요", state.titleText)
     assertEquals(AlarmPyoWidgetVisual.UNKNOWN, state.visual)
   }
 

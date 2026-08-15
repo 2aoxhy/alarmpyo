@@ -155,7 +155,7 @@ export async function scheduleQuickTimer(
   durationMinutes: QuickTimerDuration,
 ): Promise<QuickTimerStatus> {
   if (!isQuickTimerDuration(durationMinutes)) {
-    throw new RangeError('빠른 타이머는 30분 또는 60분만 설정할 수 있어요.');
+    throw new RangeError('빠른 타이머는 30분 또는 60분만 설정할 수 있습니다.');
   }
   if (!nativeTimerSupported()) return unsupportedStatus();
   return enqueueMutation(async () =>

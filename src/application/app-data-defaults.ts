@@ -106,6 +106,6 @@ export function createDefaultShiftTypes(): ShiftType[] {
 
 export function createDefaultWorkShift(id: DefaultWorkShiftId): ShiftType {
   const shift = DEFAULT_SHIFT_TYPES.find((item) => item.id === id);
-  if (!shift) throw new Error(`기본 근무 종류 ${id}를 찾을 수 없어요.`);
+  if (!shift) throw new Error(`기본 근무 종류 ${id}를 찾을 수 없습니다.`);
   return { ...shift };
 }

@@ -82,10 +82,10 @@ internal object AlarmPyoAlarmScheduler {
         plan.originalAlarmAt.takeIf { it > 0L } ?: plan.alarmAt
       } ?: 0L
       require(value.generatedAt <= now + TimeUnit.MINUTES.toMillis(5)) {
-        "알람 안전 계획 생성 시각이 올바르지 않아요."
+        "알람 안전 계획 생성 시각이 올바르지 않습니다."
       }
       require(value.refreshRecommendedAt > now) {
-        "알람 권장 갱신 시각이 이미 지났어요."
+        "알람 권장 갱신 시각이 이미 지났습니다."
       }
       require(value.safetyThroughAt >= lastPlanAt) {
         "알람 안전 계획 종료 시각이 실제 계획보다 이릅니다."
@@ -120,7 +120,7 @@ internal object AlarmPyoAlarmScheduler {
       scheduled.size != selectRestorableSchedule(plans).size
     ) {
       rearmSafetyCheck(appContext, force = true)
-      error("손상 복구 중 일부 근무 알람을 예약하지 못해 다시 시도해야 해요.")
+      error("손상 복구 중 일부 근무 알람을 예약하지 못해 다시 시도해야 합니다.")
     }
     AlarmPyoPlanRefreshReminder.update(appContext, plans, metadata)
     AlarmPyoAlarmStore.markHealthy(appContext)
@@ -618,7 +618,7 @@ internal object AlarmPyoAlarmScheduler {
 
   private fun rearmSafetyCheck(context: Context, force: Boolean = false) {
     runCatching { AlarmPyoAlarmSafetyScheduler.rearm(context, force) }
-      .onFailure { error -> Log.e("AlarmPyoAlarmSafety", "알람 안전 점검을 다시 예약하지 못했어요.", error) }
+      .onFailure { error -> Log.e("AlarmPyoAlarmSafety", "알람 안전 점검을 다시 예약하지 못했습니다.", error) }
   }
 
   private fun reconcileInternal(context: Context) {

@@ -16,7 +16,7 @@ class AlarmPyoQuickTimerReceiver : BroadcastReceiver() {
     val watchdog = runCatching {
       AlarmPyoQuickTimerScheduler.retryDelivery(appContext, plan)
     }.onFailure { error ->
-      Log.e(TAG, "타이머 전달 안전 재시도를 예약하지 못했어요.", error)
+      Log.e(TAG, "타이머 전달 안전 재시도를 예약하지 못했습니다.", error)
     }.getOrNull() ?: return
 
     if (!AlarmPyoAlarmPermissions.notificationsAllowed(appContext)) {
@@ -43,7 +43,7 @@ class AlarmPyoQuickTimerReceiver : BroadcastReceiver() {
       if (!watchdog.scheduled) {
         AlarmPyoQuickTimerScheduler.markDeliveryExhausted(appContext, watchdog.plan)
       }
-      Log.e(TAG, "타이머 알람 서비스를 시작하지 못했어요.", error)
+      Log.e(TAG, "타이머 알람 서비스를 시작하지 못했습니다.", error)
     }
   }
 

@@ -70,8 +70,8 @@ describe('수면 시작 알림 계획', () => {
       reminderAt: at('2026-07-10', 20, 55),
       shiftDate: '2026-07-11',
       shiftName: '주간',
-      title: '수면 시작 시간이에요',
-      body: '주간 전환 수면 목표 시각이에요. 지금 주무세요.',
+      title: '수면 시작 시간입니다',
+      body: '주간 전환 수면 목표 시각입니다. 지금 수면을 시작해야 합니다.',
     });
   });
 
@@ -101,19 +101,19 @@ describe('수면 시작 알림 계획', () => {
     const data = appData();
     expect(() =>
       buildSleepReminderPlans(data, { now: new Date(Number.NaN) }),
-    ).toThrow('수면 알림 계산 시각이 올바르지 않아요.');
+    ).toThrow('수면 알림 계산 시각이 올바르지 않습니다.');
     expect(() =>
       buildSleepReminderPlans(data, {
         now: new Date(2026, 6, 10, 12),
         horizonDays: 0,
       }),
-    ).toThrow('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 해요.');
+    ).toThrow('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 합니다.');
     expect(() =>
       buildSleepReminderPlans(data, {
         now: new Date(2026, 6, 10, 12),
         horizonDays: 15,
       }),
-    ).toThrow('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 해요.');
+    ).toThrow('수면 알림 계산 일수는 1일부터 14일까지의 정수여야 합니다.');
   });
 
   it('메모와 테마 변경은 재예약하지 않고 근무와 루틴 변경은 재예약해요', () => {

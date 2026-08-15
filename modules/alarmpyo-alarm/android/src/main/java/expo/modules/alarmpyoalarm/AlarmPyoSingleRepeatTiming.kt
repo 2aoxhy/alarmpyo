@@ -35,8 +35,8 @@ internal object AlarmPyoSingleRepeatTimingPolicy {
     currentBootCount: Int,
     delayMillis: Long
   ): AlarmPyoAlarmPlan {
-    require(plan.isSingleRepeat()) { "5분 재알람만 monotonic 목표를 사용할 수 있어요." }
-    require(delayMillis > 0L) { "5분 재알람 지연 시간은 0보다 커야 해요." }
+    require(plan.isSingleRepeat()) { "5분 재알람만 monotonic 목표를 사용할 수 있습니다." }
+    require(delayMillis > 0L) { "5분 재알람 지연 시간은 0보다 커야 합니다." }
     val fireAt = Math.addExact(nowWallClock, delayMillis)
     return plan.copy(
       alarmAt = fireAt,

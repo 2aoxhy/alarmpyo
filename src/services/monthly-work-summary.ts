@@ -21,10 +21,10 @@ export type MonthlyWorkSummary = {
 
 function assertMonth(year: number, month: number): void {
   if (!Number.isInteger(year) || year < 1900 || year > 2200) {
-    throw new RangeError('요약할 연도가 올바르지 않아요.');
+    throw new RangeError('요약할 연도가 올바르지 않습니다.');
   }
   if (!Number.isInteger(month) || month < 0 || month > 11) {
-    throw new RangeError('요약할 월이 올바르지 않아요.');
+    throw new RangeError('요약할 월이 올바르지 않습니다.');
   }
 }
 
@@ -58,7 +58,7 @@ function buildWorkSummary(
     !isValidDateKey(periodEndDateKey) ||
     periodStartDateKey > periodEndDateKey
   ) {
-    throw new RangeError('요약할 기간이 올바르지 않아요.');
+    throw new RangeError('요약할 기간이 올바르지 않습니다.');
   }
   const summary: MonthlyWorkSummary = {
     year,

@@ -252,14 +252,14 @@ describe('기준 날짜로 근무표 시작점 계산', () => {
         referenceDate: '2026-02-30',
         position: 0,
       }),
-    ).toThrow('기준 날짜가 올바르지 않아요.');
+    ).toThrow('기준 날짜가 올바르지 않습니다.');
     expect(() =>
       createWorkPatternFromReference({
         kind: 'rotation',
         referenceDate: '2026-07-14',
         position: 6,
       }),
-    ).toThrow('기준 날짜의 실제 근무를 선택해 주세요.');
+    ).toThrow('기준 날짜의 실제 근무를 선택해야 합니다.');
     expect(() =>
       createWorkPatternFromReference({
         kind: 'rotation',
@@ -267,7 +267,7 @@ describe('기준 날짜로 근무표 시작점 계산', () => {
         scheduleStartDate: '2026-02-30',
         position: 0,
       }),
-    ).toThrow('첫 근무일이 올바르지 않아요.');
+    ).toThrow('첫 근무일이 올바르지 않습니다.');
   });
 });
 

@@ -44,7 +44,7 @@ describe('백업 파일 내보내기와 가져오기', () => {
     const oversized = 'a'.repeat(MAX_BACKUP_FILE_BYTES + 1);
 
     await expect(exportBackupFile(oversized)).rejects.toThrow(
-      '백업 파일은 4MB 이하여야 해요',
+      '백업 파일은 4MB 이하여야 합니다',
     );
     expect(fileSystem.writeAsStringAsync).not.toHaveBeenCalled();
     expect(sharing.shareAsync).not.toHaveBeenCalled();
@@ -172,7 +172,7 @@ describe('백업 파일 내보내기와 가져오기', () => {
     fileSystem.getInfoAsync.mockResolvedValue({ exists: true, size: 10 });
     fileSystem.readAsStringAsync.mockResolvedValue('{}');
 
-    await expect(pickBackupFile()).rejects.toThrow('UTF-8 내용을 정확히 읽지 못했어요');
+    await expect(pickBackupFile()).rejects.toThrow('UTF-8 내용을 정확히 읽지 못했습니다');
     expect(fileSystem.deleteAsync).toHaveBeenCalledOnce();
   });
 
@@ -245,7 +245,7 @@ describe('백업 파일 내보내기와 가져오기', () => {
     fileSystem.getInfoAsync.mockResolvedValue({ exists: true, size });
     fileSystem.readAsStringAsync.mockResolvedValue(contents);
 
-    await expect(pickBackupFile()).rejects.toThrow('4MB 이하여야 해요');
+    await expect(pickBackupFile()).rejects.toThrow('4MB 이하여야 합니다');
   });
 
   it('6MB 절대 상한을 넘는 파일은 내용을 읽기 전에 거부해요', async () => {
@@ -258,7 +258,7 @@ describe('백업 파일 내보내기와 가져오기', () => {
       size: MAX_BACKUP_IMPORT_FILE_BYTES + 1,
     });
 
-    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 해요');
+    await expect(pickBackupFile()).rejects.toThrow('6MB 이하여야 합니다');
     expect(fileSystem.readAsStringAsync).not.toHaveBeenCalled();
   });
 });

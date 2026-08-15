@@ -52,8 +52,8 @@ function permissionIssue(status: AlarmPyoAlarmStatus): AlarmPyoSafetyIssue | nul
   return {
     code: 'alarm-permissions',
     priority: 10,
-    title: '알람 권한을 확인해 주세요',
-    detail: `${missing.join('·')} 권한이 꺼져 있어요.`,
+    title: '알람 권한을 확인해야 합니다',
+    detail: `${missing.join('·')} 권한이 꺼져 있습니다.`,
   };
 }
 
@@ -76,16 +76,16 @@ function scheduleIssue(
 
   let detail: string;
   if (listMismatch) {
-    detail = '예약 정보가 서로 맞지 않아 다시 동기화해야 해요.';
+    detail = '예약 정보가 서로 맞지 않아 다시 동기화해야 합니다.';
   } else if (expectedCount === 0) {
-    detail = `예정된 근무는 없지만 알람 ${status.scheduledCount}개가 남아 있어요.`;
+    detail = `예정된 근무는 없지만 알람 ${status.scheduledCount}개가 남아 있습니다.`;
   } else {
-    detail = `다음 알람 ${expectedCount}개 중 ${status.scheduledCount}개만 예약됐어요.`;
+    detail = `다음 알람 ${expectedCount}개 중 ${status.scheduledCount}개만 예약됐습니다.`;
   }
   return {
     code: 'alarm-schedule',
     priority: 30,
-    title: '알람 예약을 다시 확인해 주세요',
+    title: '알람 예약을 다시 확인해야 합니다',
     detail,
   };
 }
@@ -105,8 +105,8 @@ function persistedSafetyIssues(status: AlarmPyoAlarmStatus): AlarmPyoSafetyIssue
       permissionIssue(status) ?? {
         code: 'alarm-permissions',
         priority: 10,
-        title: '알람 권한을 확인해 주세요',
-        detail: '백그라운드 안전 점검에서 알람 권한 문제를 확인했어요.',
+        title: '알람 권한을 확인해야 합니다',
+        detail: '백그라운드 안전 점검에서 알람 권한 문제를 확인했습니다.',
       },
     );
   }
@@ -114,40 +114,40 @@ function persistedSafetyIssues(status: AlarmPyoAlarmStatus): AlarmPyoSafetyIssue
     issues.push({
       code: 'do-not-disturb',
       priority: 15,
-      title: '방해 금지에서 알람을 확인해 주세요',
-      detail: '백그라운드 안전 점검에서 근무 알람 소리가 차단될 수 있다고 확인했어요.',
+      title: '방해 금지에서 알람을 확인해야 합니다',
+      detail: '백그라운드 안전 점검에서 근무 알람 소리가 차단될 수 있음을 확인했습니다.',
     });
   }
   if (mappedCodes.has('alarm-volume')) {
     issues.push({
       code: 'alarm-volume',
       priority: 20,
-      title: '알람 음량을 높여 주세요',
-      detail: '백그라운드 안전 점검에서 알람 음량 문제를 확인했어요.',
+      title: '알람 음량을 높여야 합니다',
+      detail: '백그라운드 안전 점검에서 알람 음량 문제를 확인했습니다.',
     });
   }
   if (mappedCodes.has('alarm-storage')) {
     issues.push({
       code: 'alarm-storage',
       priority: 25,
-      title: '알람 저장 정보를 다시 확인해 주세요',
-      detail: '백그라운드 안전 점검에서 알람 저장 정보 문제를 확인했어요.',
+      title: '알람 저장 정보를 다시 확인해야 합니다',
+      detail: '백그라운드 안전 점검에서 알람 저장 정보 문제를 확인했습니다.',
     });
   }
   if (mappedCodes.has('alarm-schedule')) {
     issues.push({
       code: 'alarm-schedule',
       priority: 30,
-      title: '알람 예약을 다시 확인해 주세요',
-      detail: '백그라운드 안전 점검에서 알람 예약 불일치를 확인했어요.',
+      title: '알람 예약을 다시 확인해야 합니다',
+      detail: '백그라운드 안전 점검에서 알람 예약 불일치를 확인했습니다.',
     });
   }
   if (mappedCodes.has('battery-optimization')) {
     issues.push({
       code: 'battery-optimization',
       priority: 40,
-      title: '배터리 사용 제한을 확인해 주세요',
-      detail: '백그라운드 안전 점검에서 배터리 사용 제한 문제를 확인했어요.',
+      title: '배터리 사용 제한을 확인해야 합니다',
+      detail: '백그라운드 안전 점검에서 배터리 사용 제한 문제를 확인했습니다.',
     });
   }
   return issues;
@@ -164,9 +164,9 @@ export function getAlarmPyoSafetyIssues({
   statusError = false,
   now = Date.now(),
 }: AlarmPyoSafetyCheckInput): AlarmPyoSafetyIssue[] {
-  if (!Number.isFinite(now)) throw new RangeError('안전 점검 기준 시각이 올바르지 않아요.');
+  if (!Number.isFinite(now)) throw new RangeError('안전 점검 기준 시각이 올바르지 않습니다.');
   if (!Number.isInteger(plannedAlarmCount) || plannedAlarmCount < 0) {
-    throw new RangeError('예정된 알람 개수가 올바르지 않아요.');
+    throw new RangeError('예정된 알람 개수가 올바르지 않습니다.');
   }
 
   if (!status) {
@@ -174,8 +174,8 @@ export function getAlarmPyoSafetyIssues({
       ? [{
           code: 'status-unavailable',
           priority: 5,
-          title: '알람 상태를 확인할 수 없어요',
-          detail: '알람 설정에서 권한을 확인한 뒤 다시 시도해 주세요.',
+          title: '알람 상태를 확인할 수 없습니다',
+          detail: '알람 설정에서 권한을 확인한 뒤 다시 시도해야 합니다.',
         }]
       : [];
   }
@@ -187,8 +187,8 @@ export function getAlarmPyoSafetyIssues({
       issues.push({
         code: 'status-unavailable',
         priority: 5,
-        title: '알람 상태를 확인할 수 없어요',
-        detail: '현재 설치본에서 알람표 알람을 사용할 수 있는지 확인해 주세요.',
+        title: '알람 상태를 확인할 수 없습니다',
+        detail: '현재 설치본에서 알람표 알람을 사용할 수 있는지 확인해야 합니다.',
       });
     } else {
       const permissions = permissionIssue(status);
@@ -197,25 +197,25 @@ export function getAlarmPyoSafetyIssues({
         issues.push({
           code: 'do-not-disturb',
           priority: 15,
-          title: '방해 금지에서 알람을 확인해 주세요',
-          detail: '현재 설정에서는 근무 알람 소리가 차단될 수 있어요.',
+          title: '방해 금지에서 알람을 확인해야 합니다',
+          detail: '현재 설정에서는 근무 알람 소리가 차단될 수 있습니다.',
         });
       }
       if (!status.batteryOptimizationIgnored) {
         issues.push({
           code: 'battery-optimization',
           priority: 40,
-          title: '배터리 사용 제한을 확인해 주세요',
+          title: '배터리 사용 제한을 확인해야 합니다',
           detail:
-            '알람표를 오래 열지 않아도 안정적으로 울리도록 배터리 사용을 제한하지 않음으로 설정해 주세요.',
+            '알람표를 오래 열지 않아도 안정적으로 울리도록 배터리 사용을 제한하지 않음으로 설정해야 합니다.',
         });
       }
       if (status.alarmVolume <= 0) {
         issues.push({
           code: 'alarm-volume',
           priority: 20,
-          title: '알람 음량을 높여 주세요',
-          detail: '현재 알람 음량이 0이라 소리가 나지 않아요.',
+          title: '알람 음량을 높여야 합니다',
+          detail: '현재 알람 음량이 0이라 소리가 나지 않습니다.',
         });
       }
       const schedule = scheduleIssue(status, plannedAlarmCount);
@@ -228,8 +228,8 @@ export function getAlarmPyoSafetyIssues({
         issues.push({
           code: 'alarm-plan-expiry',
           priority: 35,
-          title: '알람 계획을 이어서 예약하세요',
-          detail: '알람표를 열어 저장된 근무표로 다음 366일 알람 계획을 갱신해 주세요.',
+          title: '알람 계획을 이어서 예약해야 합니다',
+          detail: '알람표를 열어 저장된 근무표로 다음 366일 알람 계획을 갱신해야 합니다.',
         });
       }
       issues.push(...persistedSafetyIssues(status));
@@ -248,8 +248,8 @@ export function getAlarmPyoSafetyIssues({
       issues.push({
         code: 'widget-snapshot',
         priority: 90,
-        title: '홈 화면 위젯을 갱신해 주세요',
-        detail: '알람표를 다시 열어 최신 근무 정보를 위젯에 반영해 주세요.',
+        title: '홈 화면 위젯을 갱신해야 합니다',
+        detail: '알람표를 다시 열어 최신 근무 정보를 위젯에 반영해야 합니다.',
       });
     }
   }

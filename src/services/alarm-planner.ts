@@ -50,7 +50,7 @@ export function buildAlarmPyoAlarmSyncMetadata(
   now: Date = new Date(),
 ): AlarmPyoAlarmSyncMetadata {
   if (Number.isNaN(now.getTime())) {
-    throw new RangeError('알람 갱신 계산 기준 시각이 올바르지 않아요.');
+    throw new RangeError('알람 갱신 계산 기준 시각이 올바르지 않습니다.');
   }
   const generatedAt = now.getTime();
   const refreshRecommendedAt = new Date(now.getTime());
@@ -78,6 +78,17 @@ function nativeShiftTypeId(shift: ShiftType): string {
     : shift.id;
 }
 
+function nativeAlarmShiftTypeId(
+  data: AppData,
+  dateKey: string,
+  shift: ShiftType,
+): string {
+  const dayException = data.dayExceptions[dateKey];
+  return dayException && usesDayAlarmForException(dayException)
+    ? `exception-${dayException}`
+    : nativeShiftTypeId(shift);
+}
+
 /**
  * 네이티브 알람 화면은 주간·야간 대체근무를 하나의 표시 종류로 받아요.
  * 앱 안에서는 이름을 함께 비교해 원래 대체근무 설정과 다시 연결해요.
@@ -101,7 +112,7 @@ export function resolveAlarmPyoAlarmShift(
 
 function assertNonNegativeInteger(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 0) {
-    throw new RangeError(`${name}은(는) 0 이상의 정수여야 해요.`);
+    throw new RangeError(`${name}은(는) 0 이상의 정수여야 합니다.`);
   }
 }
 
@@ -150,7 +161,7 @@ export function buildAlarmPyoAlarmPlan(
 ): AlarmPyoAlarmPlan[] {
   const now = options.now ?? new Date();
   if (Number.isNaN(now.getTime())) {
-    throw new RangeError('알람 계산 기준 시각이 올바르지 않아요.');
+    throw new RangeError('알람 계산 기준 시각이 올바르지 않습니다.');
   }
 
   const horizonDays = options.horizonDays ?? ALARM_PLAN_HORIZON_DAYS;
@@ -204,7 +215,7 @@ export function buildAlarmPyoAlarmPlan(
         shift.alarmMinutesBefore < 0 ||
         shift.alarmMinutesBefore > MAX_ALARM_MINUTES_BEFORE
       ) {
-        throw new RangeError(`${shift.name} 근무의 알람 준비 시간이 올바르지 않아요.`);
+        throw new RangeError(`${shift.name} 근무의 알람 준비 시간이 올바르지 않습니다.`);
       }
       alarmMinutesBefore = shift.alarmMinutesBefore;
       alarmAt =
@@ -217,7 +228,7 @@ export function buildAlarmPyoAlarmPlan(
     plans.push({
       id: createAlarmId(dateKey, shift, alarmAt),
       dateKey,
-      shiftTypeId: nativeShiftTypeId(shift),
+      shiftTypeId: nativeAlarmShiftTypeId(data, dateKey, shift),
       shiftName: shift.name,
       alarmAt,
       startMinutes: shift.startMinutes,

@@ -12,7 +12,7 @@ export type InitialAdditionalSettingsInput = {
   note: string;
 };
 
-const DEFAULT_SUMMARY = '특별 일정, 근무 시간, 알람과 메모를 설정해요.';
+const DEFAULT_SUMMARY = '특별 일정, 근무 시간, 알람과 메모를 설정합니다.';
 
 export function buildAdditionalSettingsSummary({
   exceptionLabel,

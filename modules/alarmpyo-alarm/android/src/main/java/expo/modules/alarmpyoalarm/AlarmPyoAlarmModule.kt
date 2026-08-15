@@ -43,7 +43,7 @@ class AlarmPyoAlarmModule : Module() {
       syncRecords(
         records,
         requireNotNull(metadata.toValidatedMetadata()) {
-          "알람 안전 계획 메타데이터가 올바르지 않아요."
+          "알람 안전 계획 메타데이터가 올바르지 않습니다."
         }
       )
     }
@@ -59,7 +59,7 @@ class AlarmPyoAlarmModule : Module() {
     AsyncFunction("openPermissionSettingsAsync") { target: String ->
       val parsedTarget = requireNotNull(
         AlarmPyoPermissionSettingsTarget.fromWireValue(target)
-      ) { "권한 설정 대상이 올바르지 않아요." }
+      ) { "권한 설정 대상이 올바르지 않습니다." }
       AlarmPyoPermissionSettings.open(context, parsedTarget).toMap()
     }
 
@@ -103,7 +103,7 @@ class AlarmPyoAlarmModule : Module() {
     AsyncFunction("scheduleQuickTimerAsync") { durationMinutes: Int ->
       AlarmPyoAlarmChannels.ensure(context)
       require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-        "빠른 타이머는 30분 또는 60분만 설정할 수 있어요."
+        "빠른 타이머는 30분 또는 60분만 설정할 수 있습니다."
       }
       if (AlarmPyoAlarmPermissions.canDeliver(context)) {
         AlarmPyoQuickTimerScheduler.schedule(context, durationMinutes)
@@ -180,10 +180,10 @@ class AlarmPyoAlarmModule : Module() {
 
     AsyncFunction("syncWidgetAsync") { snapshotJson: String ->
       require(AlarmPyoWidgetSnapshot.fromJson(snapshotJson) != null) {
-        "위젯 근무 정보가 올바르지 않아요."
+        "위젯 근무 정보가 올바르지 않습니다."
       }
       check(AlarmPyoWidgetStore.write(context, snapshotJson)) {
-        "위젯 근무 정보를 저장하지 못했어요."
+        "위젯 근무 정보를 저장하지 못했습니다."
       }
       // Android 15+의 생성형 선택기 미리보기도 같은 저장 스냅샷으로 갱신해요.
       // 설치된 위젯이 없어도 updater가 미리보기를 먼저 갱신한 뒤 안전하게 종료해요.
@@ -227,22 +227,22 @@ class AlarmPyoAlarmModule : Module() {
     records: List<AlarmPyoSleepReminderPlanRecord>
   ): List<AlarmPyoSleepReminderPlan> {
     require(records.size <= MAX_STORED_SLEEP_REMINDERS) {
-      "수면 시작 알림 계획이 너무 많아요."
+      "수면 시작 알림 계획이 너무 많습니다."
     }
     val plans = records.map { record ->
       require(
         record.reminderAt.isFinite() &&
           record.reminderAt > 0.0 &&
           record.reminderAt % 1.0 == 0.0
-      ) { "수면 시작 알림 시각이 올바르지 않아요." }
+      ) { "수면 시작 알림 시각이 올바르지 않습니다." }
       record.toPlan().also { plan ->
         require(AlarmPyoSleepReminderPlan.isValid(plan)) {
-          "수면 시작 알림 계획이 올바르지 않아요."
+          "수면 시작 알림 계획이 올바르지 않습니다."
         }
       }
     }
     require(plans.map(AlarmPyoSleepReminderPlan::id).distinct().size == plans.size) {
-      "중복된 수면 시작 알림이 있어요."
+      "중복된 수면 시작 알림이 있습니다."
     }
     return plans
   }

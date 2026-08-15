@@ -6,6 +6,7 @@ type AppStateSubscription = ReturnType<typeof AppState.addEventListener>;
 const listeners = new Set<() => void>();
 let appStateSubscription: AppStateSubscription | null = null;
 let appActive = isActiveState(AppState.currentState);
+let appLifecycleSnapshot = { active: appActive, transitionId: 0 };
 
 function isActiveState(state: AppStateStatus | null) {
   return state !== 'background' && state !== 'inactive';
@@ -16,6 +17,10 @@ function updateAppState(state: AppStateStatus) {
   if (nextAppActive === appActive) return;
 
   appActive = nextAppActive;
+  appLifecycleSnapshot = {
+    active: appActive,
+    transitionId: appLifecycleSnapshot.transitionId + (appActive ? 1 : 0),
+  };
   listeners.forEach((listener) => listener());
 }
 
@@ -31,6 +36,10 @@ function subscribe(listener: () => void) {
       appStateSubscription?.remove();
       appStateSubscription = null;
       appActive = isActiveState(AppState.currentState);
+      appLifecycleSnapshot = {
+        active: appActive,
+        transitionId: appLifecycleSnapshot.transitionId,
+      };
     }
   };
 }
@@ -41,4 +50,18 @@ function getSnapshot() {
 
 export function useAppActive() {
   return useSyncExternalStore(subscribe, getSnapshot, () => true);
+}
+
+function getLifecycleSnapshot() {
+  return appLifecycleSnapshot;
+}
+
+const serverLifecycleSnapshot = { active: true, transitionId: 0 };
+
+export function useAppLifecycle() {
+  return useSyncExternalStore(
+    subscribe,
+    getLifecycleSnapshot,
+    () => serverLifecycleSnapshot,
+  );
 }

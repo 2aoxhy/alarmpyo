@@ -44,7 +44,7 @@ const HOLIDAY_PRESET_ENTRIES: readonly (readonly [number, HolidayPreset])[] = Ob
   .sort(([leftYear], [rightYear]) => leftYear - rightYear);
 
 if (HOLIDAY_PRESET_ENTRIES.length === 0) {
-  throw new Error('공식 공휴일 자료를 불러오지 못했어요.');
+  throw new Error('공식 공휴일 자료를 불러오지 못했습니다.');
 }
 
 const HOLIDAY_PRESETS = Object.fromEntries(
@@ -98,11 +98,11 @@ function friendlyHolidayName(name: string): string {
 }
 
 function shortHolidayName(name: string): string {
-  const friendlyName = friendlyHolidayName(name);
-  if (friendlyName.startsWith('대체공휴일')) return '대체휴일';
-  if (friendlyName.includes('선거')) return '선거일';
-  if (friendlyName.startsWith('임시공휴일')) return '임시휴일';
-  return SHORT_NAMES[friendlyName] ?? friendlyName.replaceAll(' ', '');
+  const holidayDescriptor = friendlyHolidayName(name);
+  if (holidayDescriptor.startsWith('대체공휴일')) return '대체휴일';
+  if (holidayDescriptor.includes('선거')) return '선거일';
+  if (holidayDescriptor.startsWith('임시공휴일')) return '임시휴일';
+  return SHORT_NAMES[holidayDescriptor] ?? holidayDescriptor.replaceAll(' ', '');
 }
 
 const CALENDAR_LABELS: Readonly<Record<string, string>> = {

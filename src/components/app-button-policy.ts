@@ -1,31 +1,41 @@
 import type { AppIconName } from '@/components/app-icon';
 
-const EMPTY_BUTTON_LABEL = '계속하기';
+const EMPTY_BUTTON_LABEL = '계속';
 
-/** 동적으로 만든 문구가 비어도 버튼 자체가 빈 상자로 보이지 않게 해요. */
+export type AppButtonActionId =
+  | 'confirm'
+  | 'save'
+  | 'back'
+  | 'test-alarm'
+  | 'retry'
+  | 'open-settings'
+  | 'download'
+  | 'delete'
+  | 'cancel';
+
+const ACTION_ICONS: Readonly<
+  Partial<Record<AppButtonActionId, AppIconName>>
+> = {
+  confirm: 'checkmark',
+  save: 'checkmark',
+  back: 'chevron-back',
+  'test-alarm': 'alarm-outline',
+  retry: 'refresh-outline',
+  'open-settings': 'settings-outline',
+  download: 'download-outline',
+  delete: 'trash-outline',
+  cancel: 'close',
+};
+
+/** 동적 문구가 비어 있어도 버튼에 안전한 행동명을 표시합니다. */
 export function resolveAppButtonLabel(label: string): string {
   return label.trim() || EMPTY_BUTTON_LABEL;
 }
 
-/** 앱 전역의 반복 동작은 같은 아이콘을 사용해 화면마다 의미가 달라 보이지 않게 해요. */
+/** 버튼 아이콘은 표시 문구가 아닌 명시적인 행동 식별자로 결정합니다. */
 export function resolveAppButtonIcon(
-  label: string,
+  actionId?: AppButtonActionId,
   icon?: AppIconName,
 ): AppIconName | undefined {
-  if (icon) return icon;
-
-  const normalizedLabel = resolveAppButtonLabel(label);
-  if (normalizedLabel.includes('시험 알람')) return 'alarm-outline';
-  if (
-    normalizedLabel === '저장하기' ||
-    normalizedLabel === '저장 중' ||
-    normalizedLabel === '다시 저장하기' ||
-    normalizedLabel.startsWith('변경 내용 저장')
-  ) {
-    return 'checkmark';
-  }
-  if (normalizedLabel === '뒤로 가기' || normalizedLabel.endsWith('돌아가기')) {
-    return 'chevron-back';
-  }
-  return undefined;
+  return icon ?? (actionId ? ACTION_ICONS[actionId] : undefined);
 }

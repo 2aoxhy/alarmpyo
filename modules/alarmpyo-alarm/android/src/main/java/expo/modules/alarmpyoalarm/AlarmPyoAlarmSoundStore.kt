@@ -53,7 +53,7 @@ internal object AlarmPyoAlarmSoundStore {
 
   fun save(context: Context, uri: Uri) {
     require(uri != Uri.EMPTY && uri.toString().isNotBlank()) {
-      "선택한 알람음 주소가 올바르지 않아요."
+      "선택한 알람음 주소가 올바르지 않습니다."
     }
     val label = ringtoneLabel(context, uri) ?: SELECTED_FALLBACK_LABEL
     check(
@@ -61,7 +61,7 @@ internal object AlarmPyoAlarmSoundStore {
         .putString(KEY_SELECTED_URI, uri.toString())
         .putString(KEY_SELECTED_LABEL, label)
         .commit()
-    ) { "선택한 알람음을 저장하지 못했어요." }
+    ) { "선택한 알람음을 저장하지 못했습니다." }
   }
 
   fun reset(context: Context) {
@@ -70,7 +70,7 @@ internal object AlarmPyoAlarmSoundStore {
         .remove(KEY_SELECTED_URI)
         .remove(KEY_SELECTED_LABEL)
         .commit()
-    ) { "알람음을 기본값으로 복원하지 못했어요." }
+    ) { "알람음을 기본값으로 복원하지 못했습니다." }
   }
 
   fun playbackCandidates(context: Context): List<Uri> = AlarmPyoAlarmSoundPolicy.candidateValues(

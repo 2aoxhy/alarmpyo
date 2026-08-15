@@ -14,6 +14,7 @@ function loadService(module: Record<string, unknown> | null) {
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   getAlarmPyoNativeModule.mockReset();
 });
 
@@ -99,6 +100,8 @@ describe('수면 시작 알림 네이티브 서비스', () => {
   });
 
   it('취소와 상태 조회의 잘못된 필드는 안전한 기본값으로 보정해요', async () => {
+    let now = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
     const cancelSleepRemindersAsync = vi.fn(async () => ({
       supported: true,
       enabled: false,
@@ -141,6 +144,16 @@ describe('수면 시작 알림 네이티브 서비스', () => {
     });
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toEqual({
       supported: true,
+      enabled: false,
+      notificationsAllowed: true,
+      scheduledCount: 0,
+      storageHealth: 'normal',
+    });
+    expect(getSleepReminderStatusAsync).not.toHaveBeenCalled();
+
+    now += 751;
+    await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toEqual({
+      supported: true,
       enabled: true,
       notificationsAllowed: true,
       scheduledCount: 0,
@@ -163,6 +176,8 @@ describe('수면 시작 알림 네이티브 서비스', () => {
   });
 
   it('저장소 상태를 정규화하고 이전 APK의 누락 값은 정상으로 처리해요', async () => {
+    let now = 10_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
     const getSleepReminderStatusAsync = vi
       .fn()
       .mockResolvedValueOnce({
@@ -197,14 +212,42 @@ describe('수면 시작 알림 네이티브 서비스', () => {
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
       storageHealth: 'recovered',
     });
+    now += 751;
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
       storageHealth: 'corrupt',
     });
+    now += 751;
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
       storageHealth: 'normal',
     });
+    now += 751;
     await expect(service.getAlarmPyoSleepReminderStatus()).resolves.toMatchObject({
       storageHealth: 'normal',
     });
+    expect(getSleepReminderStatusAsync).toHaveBeenCalledTimes(4);
+  });
+
+  it('동시 상태 조회를 한 번으로 합치고 호출자마다 복사본을 반환해요', async () => {
+    let resolveStatus!: (value: unknown) => void;
+    const statusPromise = new Promise<unknown>((resolve) => {
+      resolveStatus = resolve;
+    });
+    const getSleepReminderStatusAsync = vi.fn(() => statusPromise);
+    const service = loadService({ getSleepReminderStatusAsync });
+
+    const firstPromise = service.getAlarmPyoSleepReminderStatus();
+    const secondPromise = service.getAlarmPyoSleepReminderStatus();
+    expect(getSleepReminderStatusAsync).toHaveBeenCalledTimes(1);
+
+    resolveStatus({
+      supported: true,
+      enabled: true,
+      notificationsAllowed: true,
+      scheduledCount: 1,
+      storageHealth: 'normal',
+    });
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+    expect(first).toEqual(second);
+    expect(first).not.toBe(second);
   });
 });

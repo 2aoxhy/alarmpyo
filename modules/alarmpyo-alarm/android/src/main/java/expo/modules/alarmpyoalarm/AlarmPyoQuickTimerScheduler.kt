@@ -195,11 +195,11 @@ internal object AlarmPyoQuickTimerScheduler {
   @Synchronized
   fun schedule(context: Context, durationMinutes: Int): AlarmPyoQuickTimerSnapshot {
     require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-      "빠른 타이머는 30분 또는 60분만 설정할 수 있어요."
+      "빠른 타이머는 30분 또는 60분만 설정할 수 있습니다."
     }
     val appContext = context.applicationContext
     check(AlarmPyoAlarmPermissions.canDeliver(appContext)) {
-      "타이머를 울리려면 정확한 알람, 알림, 전체 화면 권한이 필요해요."
+      "타이머를 울리려면 정확한 알람, 알림, 전체 화면 권한이 필요합니다."
     }
     processSyncGate.markNeedsReconciliation()
 
@@ -436,11 +436,18 @@ internal object AlarmPyoQuickTimerScheduler {
     if (original.isSingleRepeat()) return null
     val appContext = context.applicationContext
     if (!AlarmPyoAlarmPermissions.canSchedule(appContext)) return null
+    val currentSnapshot = AlarmPyoQuickTimerStore.read(appContext)
+      .snapshot
+      ?.takeIf(AlarmPyoQuickTimerSnapshot::isActive)
+      ?.takeIf { it.plan?.hasSameDeliveryGeneration(original) == true }
+      ?: return null
+    val duration = currentSnapshot.durationMinutes
+      ?.takeIf(AlarmPyoQuickTimerPolicy::isSupportedDuration)
+      ?: return null
     val delayMillis = TimeUnit.MINUTES.toMillis(minutes.coerceIn(1, 60).toLong())
     val nowWallClock = System.currentTimeMillis()
     val nowElapsed = SystemClock.elapsedRealtime()
     val fireAt = nowWallClock + delayMillis
-    val duration = if (original.shiftName.startsWith("60")) 60 else 30
     val repeat = original.copy(
       id = "$TIMER_PLAN_ID$SINGLE_REPEAT_ID_SUFFIX",
       alarmAt = fireAt,
@@ -512,7 +519,7 @@ internal object AlarmPyoQuickTimerScheduler {
           force = result.storageHealth == AlarmPyoQuickTimerStorageHealth.RECOVERED
         ) {
           check(restoreCurrentSnapshot(appContext)) {
-            "타이머 예약을 복원하지 못했어요."
+            "타이머 예약을 복원하지 못했습니다."
           }
         }
       }.fold(
@@ -647,7 +654,7 @@ internal object AlarmPyoQuickTimerScheduler {
       context,
       plan,
       PendingIntent.FLAG_UPDATE_CURRENT
-    ) ?: error("타이머 PendingIntent를 만들지 못했어요.")
+    ) ?: error("타이머 PendingIntent를 만들지 못했습니다.")
     when {
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> manager.setExactAndAllowWhileIdle(
         AlarmManager.ELAPSED_REALTIME_WAKEUP,

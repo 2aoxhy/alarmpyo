@@ -77,7 +77,7 @@ export function UpcomingWorkSection({
             return (
               <Pressable
                 key={dateKey}
-                accessibilityHint="선택한 날짜의 근무를 수정해요."
+                accessibilityHint="선택한 날짜의 근무를 수정합니다."
                 accessibilityLabel={`${formatKoreanDate(dateKey, true)}, ${exceptionLabel ? `${exceptionLabel}, ` : ''}${shift.name}, ${formatMinutes(displayShift.startMinutes)} 시작`}
                 accessibilityRole="button"
                 onPress={() =>
@@ -165,9 +165,9 @@ export function UpcomingWorkSection({
             />
           </View>
           <View style={styles.emptyUpcomingCopy}>
-            <AppText variant="label">예정된 근무가 없어요.</AppText>
+            <AppText variant="label">예정된 근무가 없습니다.</AppText>
             <AppText tone="secondary" variant="caption">
-              앞으로 90일 안에 등록된 근무가 없어요.
+              앞으로 90일 안에 등록된 근무가 없습니다.
             </AppText>
           </View>
         </Card>

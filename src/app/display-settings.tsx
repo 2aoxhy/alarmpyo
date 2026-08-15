@@ -35,17 +35,17 @@ export default function DisplaySettingsScreen() {
       const result = await requestPreparedAlarmPyoWidgetPin(data);
       if (result.status === 'requested') return;
       if (result.status === 'installed') {
-        showDialog('이미 추가되어 있어요', '홈 화면에서 알람표 위젯을 확인하세요.');
+        showDialog('이미 추가되어 있습니다', '홈 화면에서 알람표 위젯을 확인해야 합니다.');
         return;
       }
       showDialog(
-        '홈 화면에서 직접 추가하세요',
-        '홈 화면을 길게 누른 뒤 위젯 목록에서 알람표를 선택하세요.',
+        '홈 화면에서 직접 추가해야 합니다',
+        '홈 화면을 길게 누른 뒤 위젯 목록에서 알람표를 선택해야 합니다.',
       );
     } catch {
       showDialog(
-        '위젯 추가 요청을 열지 못했어요',
-        '잠시 후 다시 시도하거나 홈 화면의 위젯 목록에서 알람표를 선택하세요.',
+        '위젯 추가 요청을 열지 못했습니다',
+        '잠시 후 다시 시도하거나 홈 화면의 위젯 목록에서 알람표를 선택해야 합니다.',
       );
     } finally {
       setWidgetPinBusy(false);
@@ -57,12 +57,12 @@ export default function DisplaySettingsScreen() {
       <Stack.Screen options={{ title: '홈 화면 위젯' }} />
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText tone="secondary">4×1 위젯에 표시할 정보를 선택해요.</AppText>
+          <AppText tone="secondary">4×1 위젯에 표시할 정보를 선택합니다.</AppText>
         </View>
         {!androidWidgetSupported ? (
           <View accessible style={styles.platformNotice}>
             <AppText tone="secondary" variant="caption">
-              홈 화면 위젯은 안드로이드에서만 지원해요.
+              홈 화면 위젯은 안드로이드에서만 지원합니다.
             </AppText>
           </View>
         ) : null}
@@ -87,12 +87,12 @@ export default function DisplaySettingsScreen() {
                 onValueChange={() => void toggleWidgetDisplayOption(option.key)}
                 subtitle={
                   !androidWidgetSupported
-                    ? '안드로이드에서만 설정할 수 있어요.'
+                    ? '안드로이드에서만 설정할 수 있습니다.'
                     : required
-                      ? '위젯에는 한 가지 이상의 정보를 표시해야 해요.'
+                      ? '위젯에는 한 가지 이상의 정보를 표시해야 합니다.'
                     : selected
-                      ? '위젯에 표시 중이에요.'
-                      : '위젯에서 숨겨져 있어요.'
+                      ? '위젯에 표시 중입니다.'
+                      : '위젯에서 숨겨져 있습니다.'
                 }
                 title={option.label}
                 value={selected}
@@ -103,8 +103,8 @@ export default function DisplaySettingsScreen() {
         <AppButton
           accessibilityHint={
             androidWidgetSupported
-              ? '알람표 위젯을 홈 화면에 추가해요.'
-              : '홈 화면 위젯은 안드로이드에서만 지원해요.'
+              ? '알람표 위젯을 홈 화면에 추가합니다.'
+              : '홈 화면 위젯은 안드로이드에서만 지원합니다.'
           }
           disabled={!androidWidgetSupported}
           icon="add"

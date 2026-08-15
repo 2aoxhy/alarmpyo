@@ -126,10 +126,10 @@ describe('ALARMPYO 자동 안전 점검', () => {
     expect(result[0]).toEqual({
       code: 'alarm-permissions',
       priority: 10,
-      title: '알람 권한을 확인해 주세요',
-      detail: '전체 화면 알람 권한이 꺼져 있어요.',
+      title: '알람 권한을 확인해야 합니다',
+      detail: '전체 화면 알람 권한이 꺼져 있습니다.',
     });
-    expect(result[2].detail).toBe('다음 알람 3개 중 2개만 예약됐어요.');
+    expect(result[2].detail).toBe('다음 알람 3개 중 2개만 예약됐습니다.');
   });
 
   it('예약 권한이 없으면 정상적인 예약 0개를 별도 문제로 중복 안내하지 않아요', () => {
@@ -197,14 +197,14 @@ describe('ALARMPYO 자동 안전 점검', () => {
     expect(issues({ scheduledCount: 3, scheduledAlarms: SCHEDULED_ALARMS.slice(0, 2) }))
       .toContainEqual(expect.objectContaining({
         code: 'alarm-schedule',
-        detail: '예약 정보가 서로 맞지 않아 다시 동기화해야 해요.',
+        detail: '예약 정보가 서로 맞지 않아 다시 동기화해야 합니다.',
       }));
     expect(issues({
       scheduledCount: 1,
       scheduledAlarms: SCHEDULED_ALARMS.slice(0, 1),
     }, { plannedAlarmCount: 0 })).toContainEqual(expect.objectContaining({
       code: 'alarm-schedule',
-      detail: '예정된 근무는 없지만 알람 1개가 남아 있어요.',
+      detail: '예정된 근무는 없지만 알람 1개가 남아 있습니다.',
     }));
   });
 
@@ -218,8 +218,8 @@ describe('ALARMPYO 자동 안전 점검', () => {
     })).toEqual([{
       code: 'status-unavailable',
       priority: 5,
-      title: '알람 상태를 확인할 수 없어요',
-      detail: '알람 설정에서 권한을 확인한 뒤 다시 시도해 주세요.',
+      title: '알람 상태를 확인할 수 없습니다',
+      detail: '알람 설정에서 권한을 확인한 뒤 다시 시도해야 합니다.',
     }]);
     expect(issues({ supported: false })).toEqual([expect.objectContaining({
       code: 'status-unavailable',
@@ -240,8 +240,8 @@ describe('ALARMPYO 자동 안전 점검', () => {
     expect(missing).toEqual([{
       code: 'widget-snapshot',
       priority: 90,
-      title: '홈 화면 위젯을 갱신해 주세요',
-      detail: '알람표를 다시 열어 최신 근무 정보를 위젯에 반영해 주세요.',
+      title: '홈 화면 위젯을 갱신해야 합니다',
+      detail: '알람표를 다시 열어 최신 근무 정보를 위젯에 반영해야 합니다.',
     }]);
 
     expect(issues({

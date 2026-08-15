@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { SelectionPill } from '@/components/selection-controls';
 import { AppText, MenuGroup } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -45,36 +46,17 @@ export function SpecialScheduleSection({
               ? getDayExceptionAppearance(option.value, palette)
               : null;
             const accentColor = appearance?.accentColor ?? palette.inkMuted;
-            const softColor = appearance?.softColor ?? palette.surfaceSoft;
             return (
-              <Pressable
+              <SelectionPill
                 key={option.label}
-                accessibilityLabel={`${option.label} 예외 일정${
-                  selected ? ', 선택됨' : ''
-                }`}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
+                accessibilityLabel={`${option.label} 예외 일정`}
+                icon={appearance?.iconName ?? option.icon}
+                label={option.label}
                 onPress={() => onChange(option.value)}
-                style={({ pressed }) => [
-                  styles.exceptionChoice,
-                  selected && {
-                    backgroundColor: softColor,
-                    borderColor: accentColor,
-                  },
-                  pressed && styles.pressed,
-                ]}>
-                <AppIcon
-                  accessible={false}
-                  color={accentColor}
-                  name={appearance?.iconName ?? option.icon}
-                  size={17}
-                />
-                <AppText
-                  color={selected ? accentColor : palette.inkMuted}
-                  variant="caption">
-                  {option.label}
-                </AppText>
-              </Pressable>
+                selected={selected}
+                semanticColor={accentColor}
+                style={styles.exceptionChoice}
+              />
             );
           })}
         </View>
@@ -91,8 +73,8 @@ export function SpecialScheduleSection({
               style={styles.exceptionGuideText}
               variant="caption">
               {dayException === 'leave'
-                ? '연차일에는 근무 알람이 울리지 않아요.'
-                : `${selectedAppearance.label} 일정에는 주간 근무 알람이 울려요. 기본 근무표는 그대로 유지돼요.`}
+                ? '연차일에는 근무 알람이 울리지 않습니다.'
+                : `${selectedAppearance.label} 일정에는 주간 근무 알람이 울립니다. 기본 근무표는 그대로 유지됩니다.`}
             </AppText>
           </View>
         ) : null}
@@ -123,10 +105,6 @@ function createStyles(palette: AppPalette) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      borderRadius: radii.pill,
-      borderWidth: 1,
-      borderColor: palette.controlLine,
-      backgroundColor: palette.surfaceSoft,
       paddingHorizontal: spacing.small,
     },
     exceptionGuide: {
@@ -138,6 +116,5 @@ function createStyles(palette: AppPalette) {
       padding: spacing.medium,
     },
     exceptionGuideText: { flex: 1, minWidth: 0 },
-    pressed: { opacity: 0.65 },
   });
 }
