@@ -45,7 +45,7 @@
   "devDependencies": {
     "@expo/fingerprint": "~0.20.9",
     "@types/react": "~19.2.2",
-    "eslint": "^9.0.0",
+    "eslint": "^10.8.1",
     "eslint-config-expo": "~57.0.1",
     "opentype.js": "2.0.0",
     "sharp": "0.35.3",
