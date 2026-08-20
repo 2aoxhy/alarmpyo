@@ -25,12 +25,43 @@ describe('달력 가시성 계약', () => {
     expect(monthCard).toContain('index === 6 ? palette.weekendSaturday');
   });
 
-  it('급여 중복은 색 점이 아닌 급여 글리프로 표시해요', () => {
-    expect(dayCell).toContain('statusDisplay.paydayMarkerLabel');
+  it('공휴일과 급여일을 근무 배지와 분리한 16dp 표식으로 표시합니다', () => {
+    expect(dayCell).toContain('statusDisplay.markers');
+    expect(dayCell).toContain('styles.calendarMetadataMarker');
+    expect(dayCell).toContain('styles.holidayMetadataMarker');
+    expect(dayCell).toContain('styles.paydayMetadataMarker');
+    expect(dayCell).toContain('width: 16');
+    expect(dayCell).toContain('height: 16');
+    expect(dayCell).toContain('accessibilityElementsHidden');
+    expect(dayCell).toContain('importantForAccessibility="no-hide-descendants"');
+    expect(dayCell).not.toContain('statusDisplay.primary');
     expect(dayCell).not.toContain('showPaydayDot');
     expect(dayCell).not.toContain('styles.paydayDot');
-    expect(supportSections).toContain('회사 기준 급여일');
-    expect(supportSections).toContain('* 예상일');
+    expect(supportSections).toContain('급여일 · 급* 예상 급여일');
+    expect(supportSections).toContain('급은 급여일, 급 별표는 예상 급여일');
+  });
+
+  it('표식 행은 기존 상태 영역보다 높아지지 않습니다', () => {
+    expect(dayCell).toContain('minHeight: 22');
+    expect(dayCell).toContain('calendarMetadataRowCompact: { minHeight: 20 }');
+  });
+
+  it('범례는 공휴일과 급여일 표식을 모양과 한 번의 접근성 문장으로 설명해요', () => {
+    expect(supportSections).toContain(
+      'accessibilityLabel="공. 공휴일을 표시합니다."',
+    );
+    expect(supportSections).toContain('styles.holidayLegendMarker');
+    expect(supportSections).toContain('styles.paydayLegendMarkers');
+    expect(supportSections).toContain("maxWidth: '100%'");
+    expect(supportSections).toContain('flexShrink: 0');
+    expect(supportSections).toContain(
+      'legendCopy: { minWidth: 0, flex: 1, flexShrink: 1 }',
+    );
+    expect(
+      supportSections.match(
+        /importantForAccessibility="no-hide-descendants"/g,
+      ),
+    ).toHaveLength(2);
   });
 
   it('비활성 날짜는 컨테이너 투명도로 글자까지 흐리지 않아요', () => {

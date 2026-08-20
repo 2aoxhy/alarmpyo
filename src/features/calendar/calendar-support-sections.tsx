@@ -191,17 +191,55 @@ export function CalendarLegend({ isDark, shiftTypes }: LegendProps) {
           직접 변경한 날
         </AppText>
       </View>
-      <View style={[styles.legendItem, styles.paydayLegendItem]}>
-        <View style={styles.paydayLegendMarker}>
+      <View
+        accessible
+        accessibilityLabel="공. 공휴일을 표시합니다."
+        style={[styles.legendItem, styles.holidayLegendItem]}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.holidayLegendMarker}>
           <AppText
             color={palette.canvas}
-            style={styles.paydayLegendMarkerText}
+            style={styles.legendMarkerText}
             variant="caption">
-            급
+            공
           </AppText>
         </View>
-        <AppText variant="caption" color={palette.white}>
-          회사 기준 급여일 · * 예상일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
+        <AppText variant="caption" color={palette.coral}>
+          공휴일
+        </AppText>
+      </View>
+      <View
+        accessible
+        accessibilityLabel={`급은 급여일, 급 별표는 예상 급여일을 표시합니다. ${CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}에도 표시합니다.`}
+        style={[styles.legendItem, styles.paydayLegendItem]}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.paydayLegendMarkers}>
+          <View style={styles.paydayLegendMarker}>
+            <AppText
+              color={palette.canvas}
+              style={styles.legendMarkerText}
+              variant="caption">
+              급
+            </AppText>
+          </View>
+          <View style={styles.paydayLegendMarker}>
+            <AppText
+              color={palette.canvas}
+              style={styles.legendMarkerText}
+              variant="caption">
+              급*
+            </AppText>
+          </View>
+        </View>
+        <AppText
+          color={palette.amber}
+          style={styles.legendCopy}
+          variant="caption">
+          급여일 · 급* 예상 급여일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
         </AppText>
       </View>
       {DAY_EXCEPTION_TYPES.map((type) => {
@@ -285,6 +323,7 @@ function createStyles(palette: AppPalette) {
     },
     legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     legendItem: {
+      maxWidth: '100%',
       minHeight: 30,
       flexDirection: 'row',
       alignItems: 'center',
@@ -299,7 +338,22 @@ function createStyles(palette: AppPalette) {
       borderRadius: 2,
       backgroundColor: palette.mint,
     },
+    holidayLegendItem: { backgroundColor: palette.coralSoft },
+    holidayLegendMarker: {
+      width: 18,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 5,
+      backgroundColor: palette.coral,
+    },
     paydayLegendItem: { backgroundColor: palette.amberSoft },
+    paydayLegendMarkers: {
+      flexShrink: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
     paydayLegendMarker: {
       minWidth: 18,
       height: 18,
@@ -309,9 +363,10 @@ function createStyles(palette: AppPalette) {
       backgroundColor: palette.amber,
       paddingHorizontal: 2,
     },
-    paydayLegendMarkerText: {
+    legendMarkerText: {
       fontSize: 10,
       lineHeight: 13,
     },
+    legendCopy: { minWidth: 0, flex: 1, flexShrink: 1 },
   });
 }

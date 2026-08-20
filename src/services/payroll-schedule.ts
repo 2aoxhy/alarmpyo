@@ -34,8 +34,15 @@ export type PayrollCalendarEntry = {
   confirmed: boolean;
 };
 
+const PAYROLL_YEAR_MIN = 1900;
+const PAYROLL_YEAR_MAX = 2200;
+
 function assertSalaryMonth(year: number, month: number): void {
-  if (!Number.isInteger(year) || year < 1900 || year > 2200) {
+  if (
+    !Number.isInteger(year) ||
+    year < PAYROLL_YEAR_MIN ||
+    year > PAYROLL_YEAR_MAX
+  ) {
     throw new RangeError('급여 연도가 올바르지 않습니다.');
   }
   if (!Number.isInteger(month) || month < 0 || month > 11) {
@@ -160,6 +167,25 @@ export function getPayrollCalendarEntriesForMonth(
   month: number,
   settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
 ): Readonly<Record<string, PayrollCalendarEntry>> {
-  const entry = getPayrollCalendarEntry(year, month, settings);
-  return { [entry.dateKey]: entry };
+  assertSalaryMonth(year, month);
+
+  const nextSalaryMonth = new Date(year, month + 1, 1, 12);
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+  const entries = [getPayrollCalendarEntry(year, month, settings)];
+  if (nextSalaryMonth.getFullYear() <= PAYROLL_YEAR_MAX) {
+    entries.push(
+      getPayrollCalendarEntry(
+        nextSalaryMonth.getFullYear(),
+        nextSalaryMonth.getMonth(),
+        settings,
+      ),
+    );
+  }
+  const visibleEntries = entries.filter((entry) =>
+    entry.dateKey.startsWith(monthPrefix),
+  );
+
+  return Object.fromEntries(
+    visibleEntries.map((entry) => [entry.dateKey, entry]),
+  );
 }

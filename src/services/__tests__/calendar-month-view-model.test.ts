@@ -119,4 +119,24 @@ describe('달력 월 화면 계산 모델', () => {
     expect(model.payrollEntries).toHaveProperty('2026-07-31');
     expect(model.payrollEntries).not.toHaveProperty('2026-07-21');
   });
+
+  it('다음 달 급여일이 직전 영업일로 앞당겨지면 현재 달 표식에 포함합니다', () => {
+    const model = buildCalendarMonthViewModel({
+      data: {
+        ...data,
+        payrollSettings: { day: 1, adjustment: 'previous-business-day' },
+      },
+      year: 2026,
+      month: 6,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(model.payrollEntries).toHaveProperty('2026-07-31');
+    expect(model.payrollEntries['2026-07-31']).toMatchObject({
+      salaryYear: 2026,
+      salaryMonth: 7,
+      adjusted: true,
+    });
+  });
 });

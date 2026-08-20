@@ -85,6 +85,25 @@ describe('급여 지급일', () => {
     });
   });
 
+  it('다음 달 지급일이 이번 달로 앞당겨지면 보이는 달에 표시합니다', () => {
+    const entries = getPayrollCalendarEntriesForMonth(2026, 6, {
+      day: 1,
+      adjustment: 'previous-business-day',
+    });
+
+    expect(entries).toHaveProperty('2026-07-31');
+    expect(entries['2026-07-31']).toMatchObject({
+      salaryYear: 2026,
+      salaryMonth: 7,
+      adjusted: true,
+      confirmed: true,
+    });
+  });
+
+  it('지원 연도 상한의 12월은 다음 연도를 조회하지 않습니다', () => {
+    expect(() => getPayrollCalendarEntriesForMonth(2200, 11)).not.toThrow();
+  });
+
   it('공식 자료가 없는 연도의 달력 표시는 자동 계산한 예상일임을 알려요', () => {
     expect(getPayrollCalendarEntry(2028, 4)).toMatchObject({
       dateKey: '2028-05-19',

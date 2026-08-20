@@ -5,8 +5,8 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Screen } from '@/components/ui-kit';
-import { spacing, type AppPalette } from '@/constants/app-theme';
+import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
+import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { AdditionalSettingsSection } from '@/features/day-editor/additional-settings-section';
 import {
   areDayAlarmOverridesEqual,
@@ -42,6 +42,7 @@ import {
   getScheduleStartDate,
   resolveEffectiveDayFromAppData,
 } from '@/services/app-data-service';
+import { getPayrollCalendarEntriesForMonth } from '@/services/payroll-schedule';
 import { resolveShiftFromData, useAppStore } from '@/store/app-store';
 import {
   formatKoreanDate,
@@ -50,6 +51,7 @@ import {
 } from '@/utils/date';
 import { getDayExceptionAppearance } from '@/utils/day-exception-appearance';
 import { usesDayAlarmForException } from '@/utils/day-exception';
+import { getKoreanHoliday } from '@/utils/korean-holiday';
 import {
   calculateShiftDuration,
   formatTimeInput,
@@ -70,6 +72,15 @@ export default function DayEditorScreen() {
   const dateIsValid = isValidDateKey(params.date ?? '');
   const dateKey = dateIsValid ? (params.date as string) : toDateKey(new Date());
   const { data, getNoteForDate, saveDay } = useAppStore();
+  const holiday = getKoreanHoliday(dateKey);
+  const calendarYear = Number(dateKey.slice(0, 4));
+  const calendarMonth = Number(dateKey.slice(5, 7)) - 1;
+  const payrollEntry =
+    getPayrollCalendarEntriesForMonth(
+      calendarYear,
+      calendarMonth,
+      data.payrollSettings,
+    )[dateKey] ?? null;
   const scheduleStartDate = getScheduleStartDate(data);
   const beforeScheduleStart = dateKey < scheduleStartDate;
   const hasOverride = Object.prototype.hasOwnProperty.call(data.overrides, dateKey);
@@ -477,6 +488,61 @@ export default function DayEditorScreen() {
         {formatKoreanDate(dateKey, true)}
       </AppText>
 
+      {holiday || payrollEntry ? (
+        <Card density="compact" style={styles.dateInformation}>
+          <AppText accessibilityRole="header" variant="label">
+            날짜 정보
+          </AppText>
+          <View style={styles.dateInformationRows}>
+            {holiday ? (
+              <View
+                accessible
+                accessibilityLabel={`공휴일. ${holiday.accessibilityLabel}`}
+                style={styles.dateInformationRow}>
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={[styles.dateInformationMarker, styles.holidayMarker]}>
+                  <AppText
+                    color={palette.canvas}
+                    maxFontSizeMultiplier={1.3}
+                    style={styles.dateInformationMarkerText}
+                    variant="caption">
+                    공
+                  </AppText>
+                </View>
+                <AppText style={styles.dateInformationCopy} variant="caption">
+                  {holiday.names.join(' · ')}
+                </AppText>
+              </View>
+            ) : null}
+            {payrollEntry ? (
+              <View
+                accessible
+                accessibilityLabel={`${payrollEntry.confirmed ? '급여일' : '예상 급여일'}. ${payrollEntry.accessibilityLabel}`}
+                style={styles.dateInformationRow}>
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={[styles.dateInformationMarker, styles.paydayMarker]}>
+                  <AppText
+                    color={palette.canvas}
+                    maxFontSizeMultiplier={1.3}
+                    style={styles.dateInformationMarkerText}
+                    variant="caption">
+                    {payrollEntry.confirmed ? '급' : '급*'}
+                  </AppText>
+                </View>
+                <AppText style={styles.dateInformationCopy} variant="caption">
+                  {payrollEntry.confirmed ? '월급날' : '예상 월급날'}
+                  {payrollEntry.adjusted ? ' · 휴일 조정' : ''}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        </Card>
+      ) : null}
+
       <ShiftSelectionSection
         compact={compactTimeFields}
         onChoose={choose}
@@ -587,5 +653,51 @@ function createStyles(palette: AppPalette) {
     },
     invalidDateText: { textAlign: 'center' },
     dateTitle: { width: '100%', textAlign: 'center' },
+    dateInformation: {
+      gap: spacing.small,
+      paddingHorizontal: spacing.medium,
+    },
+    dateInformationRows: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.small,
+    },
+    dateInformationRow: {
+      minWidth: 0,
+      minHeight: 34,
+      flexGrow: 1,
+      flexBasis: 180,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+      borderRadius: radii.medium,
+      backgroundColor: palette.surfaceSoft,
+      paddingHorizontal: spacing.small,
+      paddingVertical: spacing.tiny,
+    },
+    dateInformationMarker: {
+      minWidth: 22,
+      height: 22,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    holidayMarker: {
+      borderRadius: 6,
+      backgroundColor: palette.coral,
+    },
+    paydayMarker: {
+      borderRadius: radii.pill,
+      backgroundColor: palette.amber,
+    },
+    dateInformationMarkerText: {
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    dateInformationCopy: {
+      minWidth: 0,
+      flex: 1,
+    },
   });
 }

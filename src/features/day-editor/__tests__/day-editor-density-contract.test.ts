@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { getPayrollCalendarEntriesForMonth } from '../../../services/payroll-schedule';
+
 const dayEditor = readFileSync(
   resolve(process.cwd(), 'src/app/day/[date].tsx'),
   'utf8',
@@ -26,5 +28,30 @@ describe('하루 일정 요약 우선 계약', () => {
   it('저장 오류가 난 정확한 편집 항목을 열어요', () => {
     expect(dayEditor).toContain("setAdditionalPanel('time')");
     expect(dayEditor).toContain("setAdditionalPanel('alarm')");
+  });
+
+  it('공휴일이나 급여일이 있는 날짜만 편집 항목 앞에 전체 이름을 표시해요', () => {
+    const dateTitle = dayEditor.indexOf('style={styles.dateTitle}');
+    const dateInformation = dayEditor.indexOf('날짜 정보');
+    const shiftSelection = dayEditor.indexOf('<ShiftSelectionSection');
+
+    expect(dayEditor).toContain('const holiday = getKoreanHoliday(dateKey);');
+    expect(dayEditor).toContain('{holiday || payrollEntry ? (');
+    expect(dayEditor).toContain("holiday.names.join(' · ')");
+    expect(dayEditor).toContain('payrollEntry.accessibilityLabel');
+    expect(dateInformation).toBeGreaterThan(dateTitle);
+    expect(shiftSelection).toBeGreaterThan(dateInformation);
+  });
+
+  it('다음 달 지급일이 직전 영업일 조정으로 넘어온 날짜도 확인해요', () => {
+    const entries = getPayrollCalendarEntriesForMonth(2026, 6, {
+      day: 1,
+      adjustment: 'previous-business-day',
+    });
+    const spillover = entries['2026-07-31'];
+
+    expect(spillover.dateKey).toBe('2026-07-31');
+    expect(dayEditor).toContain('getPayrollCalendarEntriesForMonth(');
+    expect(dayEditor).toContain(')[dateKey] ?? null');
   });
 });

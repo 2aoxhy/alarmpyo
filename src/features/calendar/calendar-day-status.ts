@@ -11,43 +11,40 @@ export type CalendarStatusSummaryEntry = {
   payrollLabel: string | null;
 };
 
-function compactCalendarLabel(label: string): string {
-  return Array.from(label).slice(0, 2).join('');
-}
+export type CalendarDateMarker =
+  | { fullLabel: string; kind: 'holiday'; token: '공' }
+  | {
+      estimated: boolean;
+      fullLabel: string;
+      kind: 'payday';
+      token: '급' | '급*';
+    };
 
-/** 한 칸에 문구가 겹치지 않도록 공휴일을 우선하고 급여일은 보조 점으로 남겨요. */
+/** 날짜 메타데이터를 근무 배지와 분리한 고정 크기 표식으로 반환합니다. */
 export function resolveCalendarStatusDisplay(
   holiday: KoreanHolidayInfo | null,
   payrollEntry: PayrollCalendarEntry | null,
-  compact = false,
+  _compact = false,
 ) {
-  const primary = holiday
-    ? { kind: 'holiday' as const, label: holiday.calendarLabel }
-    : payrollEntry
-      ? {
-          kind: 'payday' as const,
-          label: `${payrollEntry.calendarLabel}${payrollEntry.confirmed ? '' : '*'}`,
-        }
-      : null;
+  const markers: CalendarDateMarker[] = [];
 
-  return {
-    primary:
-      compact && primary
-        ? {
-            ...primary,
-            label:
-              primary.kind === 'payday'
-                ? primary.label
-                : compactCalendarLabel(primary.label),
-          }
-        : primary,
-    paydayMarkerLabel:
-      holiday && payrollEntry
-        ? payrollEntry.confirmed
-          ? '급'
-          : '급*'
-        : null,
-  };
+  if (holiday) {
+    markers.push({
+      fullLabel: holiday.accessibilityLabel,
+      kind: 'holiday',
+      token: '공',
+    });
+  }
+  if (payrollEntry) {
+    markers.push({
+      estimated: !payrollEntry.confirmed,
+      fullLabel: payrollEntry.accessibilityLabel,
+      kind: 'payday',
+      token: payrollEntry.confirmed ? '급' : '급*',
+    });
+  }
+
+  return { markers };
 }
 
 /** 좁은 날짜 칸에서는 아이콘과 한 글자 이름을 사용해 의미를 유지해요. */

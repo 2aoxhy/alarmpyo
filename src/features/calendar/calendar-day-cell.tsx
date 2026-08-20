@@ -26,6 +26,7 @@ import { getDayExceptionLabel } from '@/utils/day-exception';
 import type { KoreanHolidayInfo } from '@/utils/korean-holiday';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
+  type CalendarDateMarker,
   resolveCalendarExceptionBadgeDisplay,
   resolveCalendarStatusDisplay,
 } from './calendar-day-status';
@@ -110,7 +111,6 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   );
   const badgeMaxWidth = Math.max(calendarLayout.cellWidth - 8, 32);
   const calendarTextScale = compact ? 1.35 : 1.7;
-  const statusTextScale = compact ? 1.25 : 1.5;
 
   return (
     <Pressable
@@ -221,31 +221,12 @@ export const CalendarDayCell = memo(function CalendarDayCell({
 
         {simplified ? (
           <>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.simpleStatusRow}>
-              {holiday ? (
-                <StatusBadge
-                  backgroundColor={palette.coralSoft}
-                  borderColor={palette.coral}
-                  label="휴"
-                  maxFontSizeMultiplier={1.25}
-                  size="calendar"
-                  style={styles.simpleStatusBadge}
-                />
-              ) : null}
-              {payrollEntry ? (
-                <StatusBadge
-                  backgroundColor={palette.amberSoft}
-                  borderColor={palette.amber}
-                  label={payrollEntry.confirmed ? '급' : '급*'}
-                  maxFontSizeMultiplier={1.25}
-                  size="calendar"
-                  style={styles.simpleStatusBadge}
-                />
-              ) : null}
-            </View>
+            <CalendarDateMetadataMarkers
+              compact
+              markers={statusDisplay.markers}
+              palette={palette}
+              styles={styles}
+            />
             <View style={styles.simpleShiftSlot}>
               {shift || dayExceptionLabel ? (
                 <StatusBadge
@@ -295,45 +276,11 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           </>
         ) : (
           <>
-            <View
-              style={[
-                styles.calendarStatusSlot,
-                { minHeight: fontScale >= 1.4 ? 28 : 22 },
-              ]}>
-              {statusDisplay.primary?.kind === 'holiday' ? (
-                <StatusBadge
-                  backgroundColor={palette.coralSoft}
-                  borderColor={palette.coral}
-                  label={statusDisplay.primary.label}
-                  maxFontSizeMultiplier={statusTextScale}
-                  maxWidth={badgeMaxWidth}
-                  size="calendar"
-                />
-              ) : statusDisplay.primary?.kind === 'payday' ? (
-                <StatusBadge
-                  backgroundColor={palette.amberSoft}
-                  borderColor={palette.amber}
-                  label={statusDisplay.primary.label}
-                  maxFontSizeMultiplier={statusTextScale}
-                  maxWidth={badgeMaxWidth}
-                  size="calendar"
-                />
-              ) : null}
-              {statusDisplay.paydayMarkerLabel ? (
-                <View
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                  style={styles.paydayMarker}>
-                  <AppText
-                    color={palette.canvas}
-                    maxFontSizeMultiplier={1.25}
-                    style={styles.paydayMarkerText}
-                    variant="caption">
-                    {statusDisplay.paydayMarkerLabel}
-                  </AppText>
-                </View>
-              ) : null}
-            </View>
+            <CalendarDateMetadataMarkers
+              markers={statusDisplay.markers}
+              palette={palette}
+              styles={styles}
+            />
 
             <View
               style={[
@@ -398,6 +345,54 @@ export const CalendarDayCell = memo(function CalendarDayCell({
     </Pressable>
   );
 }, areCalendarDayCellPropsEqual);
+
+function CalendarDateMetadataMarkers({
+  compact = false,
+  markers,
+  palette,
+  styles,
+}: {
+  compact?: boolean;
+  markers: readonly CalendarDateMarker[];
+  palette: AppPalette;
+  styles: CalendarDayCellStyles;
+}) {
+  return (
+    <View
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        styles.calendarMetadataRow,
+        compact && styles.calendarMetadataRowCompact,
+      ]}>
+      {markers.map((marker) => (
+        <View
+          accessible={false}
+          key={marker.kind}
+          style={[
+            styles.calendarMetadataMarker,
+            marker.kind === 'holiday'
+              ? styles.holidayMetadataMarker
+              : styles.paydayMetadataMarker,
+          ]}>
+          <AppText
+            color={palette.canvas}
+            maxFontSizeMultiplier={1.25}
+            style={[
+              styles.calendarMetadataMarkerText,
+              marker.kind === 'payday' &&
+                marker.estimated &&
+                styles.calendarMetadataMarkerTextCompact,
+            ]}
+            variant="caption">
+            {marker.token}
+          </AppText>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function areCalendarDayCellPropsEqual(previous: Props, next: Props): boolean {
   const selectionUnchanged =
@@ -534,7 +529,7 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       borderRadius: 3,
       backgroundColor: palette.coral,
     },
-    calendarStatusSlot: {
+    calendarMetadataRow: {
       width: '100%',
       minHeight: 22,
       paddingHorizontal: 1,
@@ -544,17 +539,34 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       gap: 3,
       overflow: 'hidden',
     },
-    simpleStatusRow: {
-      minHeight: 14,
-      flexDirection: 'row',
+    calendarMetadataRowCompact: { minHeight: 20 },
+    calendarMetadataMarker: {
+      width: 16,
+      height: 16,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 5,
+      overflow: 'hidden',
     },
-    simpleStatusBadge: {
-      minWidth: 19,
-      minHeight: 20,
-      paddingHorizontal: 2,
+    holidayMetadataMarker: {
+      borderRadius: 4,
+      backgroundColor: palette.coral,
+    },
+    paydayMetadataMarker: {
+      borderRadius: 8,
+      backgroundColor: palette.amber,
+    },
+    calendarMetadataMarkerText: {
+      fontFamily: fontFamily.label,
+      fontSize: 9,
+      lineHeight: 12,
+      letterSpacing: -0.4,
+      textAlign: 'center',
+    },
+    calendarMetadataMarkerTextCompact: {
+      fontSize: 7,
+      lineHeight: 10,
+      letterSpacing: -0.7,
     },
     simpleShiftSlot: {
       minHeight: 34,
@@ -566,26 +578,6 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       minHeight: 32,
       paddingHorizontal: 4,
       borderRadius: 11,
-    },
-    paydayMarker: {
-      position: 'absolute',
-      right: 1,
-      top: 0,
-      minWidth: 16,
-      height: 16,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 8,
-      backgroundColor: palette.amber,
-      paddingHorizontal: 2,
-    },
-    paydayMarkerText: {
-      fontFamily: fontFamily.label,
-      fontSize: 9,
-      lineHeight: 12,
-      letterSpacing: -0.4,
-      textAlign: 'center',
     },
     shiftSlot: {
       width: '100%',
