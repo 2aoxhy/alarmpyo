@@ -75,3 +75,5 @@ https://2aoxhy.github.io/alarmpyo/humantss_c.json
 ```
 
 Pages artifact는 `index.html`, `privacy-policy.html`, 공식 JSON 세 개만 허용합니다. 키가 없거나 공개 keyring과 다르거나 한 파일이라도 변조되면 artifact 업로드 전에 실패합니다.
+
+2026년 8월 20일 `main` 커밋 `c7a155f`의 GitHub Actions 실행 `#5`에서 세 공식 파일을 서명·검증하여 게시했습니다. 배포 후 각 공개 URL을 캐시 없는 요청으로 다시 내려받아 저장소의 공개 keyring으로 P-256 서명을 검증했습니다.

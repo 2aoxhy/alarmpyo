@@ -24,7 +24,7 @@ direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.jso
 
 1. 실제 production Hosting을 만든 뒤 HTTPS 기준 URL을 `productionHostingUrl`에 기록해 direct 정책의 마지막 blocker를 해제합니다.
 2. EAS에 보관된 direct 키스토어를 장기 보관합니다.
-3. Play 개인정보처리방침 Pages URL 등록은 완료했습니다. 본문이나 시행일을 바꾼 릴리스는 같은 URL에 새 원본을 다시 게시하고 로컬 SHA-256과 일치하는지 확인하며, 이 작업은 direct `productionHostingUrl`을 변경하지 않습니다.
+3. Play 개인정보처리방침 Pages URL 등록은 완료했습니다. V12 본문과 공식 서명 패턴 세 파일은 2026년 8월 20일 `main` 커밋 `c7a155f`의 GitHub Actions 실행 `#5`로 게시했으며, 로컬 원본 일치와 세 서명을 확인했습니다. 이후 본문이나 시행일을 바꾼 릴리스는 같은 URL에 새 원본을 다시 게시하고 로컬 SHA-256과 일치하는지 확인하며, 이 작업은 direct `productionHostingUrl`을 변경하지 않습니다.
 4. Play 내부 트랙 설치본의 실제 인증서가 2026-08-12에 기록한 Google 관리 별도 signer와 같은지 다시 확인합니다.
 5. 각 정책의 `releaseBlockers`를 모두 해소한 배포판만 `releaseState: active`로 전환합니다.
 6. 새 패키지로 빌드한 산출물과 실기기 증거를 검증한 뒤에만 `docs/release-ledger.json`에 첫 항목을 추가합니다.
