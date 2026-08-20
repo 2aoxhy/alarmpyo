@@ -18,13 +18,13 @@ AlarmPyo의 첫 EAS Android 키스토어는 내부 canary 빌드에서 생성했
 
 direct 공개 기능과 운영 승격을 수행하지 않는 비공개 EAS internal canary APK는 계속 사용할 수 있습니다. Play는 활성 정책의 일반 AAB 경로를 사용하며, 제출 불가 draft AAB 부트스트랩 예외는 다시 사용할 수 없습니다. 관련 명령은 정책이 인증서 미확정 상태로 돌아가지 않는 한 실패해야 합니다. 절차와 사용 범위는 [`internal-canary-apk-ko.md`](internal-canary-apk-ko.md)와 [`google-play-release-runbook-ko.md`](google-play-release-runbook-ko.md)를 따릅니다.
 
-direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정합니다. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였습니다. 현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며, V10은 internal 검증 계보로 유지하고 현재 소스의 후속 후보는 `V11 · 1.0.11(11)`입니다. V09는 사용하지 않으며 V11 검증이 완료될 때까지 V08 Alpha를 유지합니다. `1.0.0(1)` 내부 canary는 공개 후보로 재사용하지 않습니다.
+direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정합니다. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였습니다. 현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며 V10은 internal 검증 계보로 유지합니다. V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며, 현재 소스의 후속 후보는 `V12 · 1.0.12(12)`입니다. V09는 사용하지 않으며 V12 검증이 완료될 때까지 V08 Alpha를 유지합니다. `1.0.0(1)` 내부 canary는 공개 후보로 재사용하지 않습니다.
 
 ## 차단 해제 조건
 
 1. 실제 production Hosting을 만든 뒤 HTTPS 기준 URL을 `productionHostingUrl`에 기록해 direct 정책의 마지막 blocker를 해제합니다.
 2. EAS에 보관된 direct 키스토어를 장기 보관합니다.
-3. 실제 개인정보처리방침 Pages를 공개·확인한 뒤 쿼리와 조각이 없는 HTTPS 주소를 `play-release-policy.json`의 `privacyPolicyUrl`에 기록합니다. 이 작업은 direct `productionHostingUrl`을 변경하지 않습니다.
+3. Play 개인정보처리방침 Pages URL 등록은 완료했습니다. 본문이나 시행일을 바꾼 릴리스는 같은 URL에 새 원본을 다시 게시하고 로컬 SHA-256과 일치하는지 확인하며, 이 작업은 direct `productionHostingUrl`을 변경하지 않습니다.
 4. Play 내부 트랙 설치본의 실제 인증서가 2026-08-12에 기록한 Google 관리 별도 signer와 같은지 다시 확인합니다.
 5. 각 정책의 `releaseBlockers`를 모두 해소한 배포판만 `releaseState: active`로 전환합니다.
 6. 새 패키지로 빌드한 산출물과 실기기 증거를 검증한 뒤에만 `docs/release-ledger.json`에 첫 항목을 추가합니다.

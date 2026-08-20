@@ -26,6 +26,16 @@ import type {
   WorkSettingsApplyResult,
   WorkSettingsSharePreview,
 } from '@/services/work-settings-share-service';
+import type {
+  PatternApplicationInput,
+  PatternApplicationPreviewResult,
+  PatternApplyResult,
+  PatternRollbackResult,
+  PatternVaultDeleteResult,
+  PatternVaultSaveResult,
+  UserPatternInput,
+} from '@/services/pattern-vault-service';
+import type { ValidatedPatternDescriptor } from '@/services/shift-pattern-schema';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export type AlarmSyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
@@ -178,6 +188,18 @@ export type AppStore = {
   applySharedWorkSettings: (
     preview: WorkSettingsSharePreview,
   ) => Promise<WorkSettingsApplyResult>;
+  saveUserPattern: (input: UserPatternInput) => Promise<PatternVaultSaveResult>;
+  importValidatedPattern: (
+    descriptor: ValidatedPatternDescriptor,
+  ) => Promise<PatternVaultSaveResult>;
+  deletePattern: (patternId: string) => Promise<PatternVaultDeleteResult>;
+  previewPatternApplication: (
+    input: PatternApplicationInput,
+  ) => PatternApplicationPreviewResult;
+  applyPatternFromVault: (
+    input: PatternApplicationInput,
+  ) => Promise<PatternApplyResult>;
+  rollbackLastPatternApplication: () => Promise<PatternRollbackResult>;
   createBackup: () => Promise<string>;
   createBackupBeforeReset: () => Promise<string>;
   getLatestBackupPreview: () => Promise<AppDataImportPreview | null>;

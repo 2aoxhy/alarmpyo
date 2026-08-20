@@ -1,7 +1,7 @@
 {
   "name": "alarmpyo",
   "main": "expo-router/entry",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
@@ -68,8 +68,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "copy:check": "node scripts/check-user-copy.mjs",
+    "patterns:validate:sources": "node scripts/validate-official-shift-pattern-sources.mjs",
+    "patterns:sign": "node scripts/sign-official-shift-patterns.mjs",
+    "patterns:verify": "node scripts/verify-official-shift-patterns.mjs",
     "test:android-native": "node scripts/run-native-unit-tests.mjs --prebuild",
-    "check": "npm run copy:check && npm run typecheck && npm run lint && npm run test",
+    "check": "npm run copy:check && npm run patterns:validate:sources && npm run typecheck && npm run lint && npm run test",
     "verify:toolchain": "node scripts/verify-toolchain.mjs",
     "eas-build-on-success": "node scripts/run-native-unit-tests.mjs",
     "configure:updates": "node scripts/run-eas-cli.mjs update:configure",

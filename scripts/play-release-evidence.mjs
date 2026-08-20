@@ -4,17 +4,24 @@ export const REQUIRED_PLAY_PHYSICAL_CHECKS = Object.freeze([
   'directApkUpgrade',
   'dataPreserved',
   'permissionsPreserved',
+  'playUpgradeDataPreserved',
+  'playUpgradePermissionsPreserved',
+  'payrollSettings',
   'alarmWhileClosed',
   'alarmAfterReboot',
   'timerWhileClosed',
   'timerAfterReboot',
   'timerSoundAndVibration',
+  'timerPauseResumeReset',
   'timeAndTimezoneRecovery',
   'notificationDeniedState',
   'exactAlarm',
   'fullScreenAlarm',
   'foregroundAlarmAudio',
   'widgetAvailable',
+  'officialPatternVerification',
+  'userPatternApplyRollback',
+  'externalPatternSettingsIsolated',
 ]);
 export const PLAY_DIRECT_UPGRADE_CHECKS = Object.freeze([
   'directApkUpgrade',
@@ -28,8 +35,10 @@ export const REQUIRED_PLAY_16KB_CHECKS = Object.freeze([
   'alarmAfterReboot',
   'timerWhileClosed',
   'timerAfterReboot',
+  'timerPauseResumeReset',
   'fullScreenAlarm',
   'widgetAvailable',
+  'patternVaultFlow',
 ]);
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;

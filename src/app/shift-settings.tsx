@@ -445,6 +445,7 @@ export default function ShiftSettingsScreen() {
             <View style={styles.editorBody}>
               <WorkPatternOverview
                 data={data}
+                onBrowsePatterns={() => router.push('/pattern-library' as never)}
                 onEdit={() => router.push('/pattern')}
                 today={today}
               />

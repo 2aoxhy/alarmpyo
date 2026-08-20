@@ -1,4 +1,4 @@
-name: Publish privacy policy to GitHub Pages
+name: Publish privacy policy and signed patterns to GitHub Pages
 
 on:
   workflow_dispatch:
@@ -6,24 +6,30 @@ on:
 permissions: {}
 
 concurrency:
-  group: privacy-policy-pages
+  group: alarmpyo-pages
   cancel-in-progress: false
 
 jobs:
   build:
-    name: Package the privacy-only site
+    name: Sign and package the public site
     if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment:
+      name: official-pattern-signing
     permissions:
       contents: read
       pages: read
     steps:
       - name: Check out the selected default-branch commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Use the pinned Node.js runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
       - name: Configure GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-      - name: Validate and stage only the public privacy policy
+      - name: Validate and stage the public privacy policy
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +45,20 @@ jobs:
           cmp -- public/privacy-policy.html _privacy-site/index.html
           cmp -- public/privacy-policy.html _privacy-site/privacy-policy.html
 
-          expected_files="$(printf '%s\n' index.html privacy-policy.html)"
+      - name: Sign the fixed official pattern files
+        env:
+          SHIFT_PATTERN_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.SHIFT_PATTERN_SIGNING_PRIVATE_KEY_PEM }}
+        run: node scripts/sign-official-shift-patterns.mjs --output-dir _privacy-site
+
+      - name: Verify the complete signed pattern set
+        run: node scripts/verify-official-shift-patterns.mjs --directory _privacy-site
+
+      - name: Verify the exact Pages artifact contents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_files="$(printf '%s\n' humantss_a.json humantss_b.json humantss_c.json index.html privacy-policy.html)"
           actual_files="$(find _privacy-site -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$actual_files" = "$expected_files"
           test -z "$(find _privacy-site -mindepth 1 ! -type f -print -quit)"
@@ -51,7 +70,7 @@ jobs:
           retention-days: 1
 
   deploy:
-    name: Publish the privacy-only site
+    name: Publish the verified public site
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

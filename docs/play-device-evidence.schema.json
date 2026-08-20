@@ -98,34 +98,48 @@
         "directApkUpgrade",
         "dataPreserved",
         "permissionsPreserved",
+        "playUpgradeDataPreserved",
+        "playUpgradePermissionsPreserved",
+        "payrollSettings",
         "alarmWhileClosed",
         "alarmAfterReboot",
         "timerWhileClosed",
         "timerAfterReboot",
         "timerSoundAndVibration",
+        "timerPauseResumeReset",
         "timeAndTimezoneRecovery",
         "notificationDeniedState",
         "exactAlarm",
         "fullScreenAlarm",
         "foregroundAlarmAudio",
-        "widgetAvailable"
+        "widgetAvailable",
+        "officialPatternVerification",
+        "userPatternApplyRollback",
+        "externalPatternSettingsIsolated"
       ],
       "properties": {
         "playInstallAndLaunch": { "const": true },
         "directApkUpgrade": { "type": "boolean" },
         "dataPreserved": { "type": "boolean" },
         "permissionsPreserved": { "type": "boolean" },
+        "playUpgradeDataPreserved": { "const": true },
+        "playUpgradePermissionsPreserved": { "const": true },
+        "payrollSettings": { "const": true },
         "alarmWhileClosed": { "const": true },
         "alarmAfterReboot": { "const": true },
         "timerWhileClosed": { "const": true },
         "timerAfterReboot": { "const": true },
         "timerSoundAndVibration": { "const": true },
+        "timerPauseResumeReset": { "const": true },
         "timeAndTimezoneRecovery": { "const": true },
         "notificationDeniedState": { "const": true },
         "exactAlarm": { "const": true },
         "fullScreenAlarm": { "const": true },
         "foregroundAlarmAudio": { "const": true },
-        "widgetAvailable": { "const": true }
+        "widgetAvailable": { "const": true },
+        "officialPatternVerification": { "const": true },
+        "userPatternApplyRollback": { "const": true },
+        "externalPatternSettingsIsolated": { "const": true }
       }
     },
     "pageSize16KbDevice": {
@@ -167,8 +181,10 @@
         "alarmAfterReboot",
         "timerWhileClosed",
         "timerAfterReboot",
+        "timerPauseResumeReset",
         "fullScreenAlarm",
-        "widgetAvailable"
+        "widgetAvailable",
+        "patternVaultFlow"
       ],
       "properties": {
         "installAndLaunch": { "const": true },
@@ -177,8 +193,10 @@
         "alarmAfterReboot": { "const": true },
         "timerWhileClosed": { "const": true },
         "timerAfterReboot": { "const": true },
+        "timerPauseResumeReset": { "const": true },
         "fullScreenAlarm": { "const": true },
-        "widgetAvailable": { "const": true }
+        "widgetAvailable": { "const": true },
+        "patternVaultFlow": { "const": true }
       }
     }
   }

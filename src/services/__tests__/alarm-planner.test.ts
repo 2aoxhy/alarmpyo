@@ -96,6 +96,7 @@ function makeData(alarmsEnabled = true): AppData {
     patternVault: [],
     patternHistory: [],
     appliedPatternSource: 'legacy',
+    appliedPatternId: null,
     settings: {
       notificationsEnabled: alarmsEnabled,
       sleepReminderEnabled: false,

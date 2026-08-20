@@ -51,7 +51,7 @@ describe('저장소 자동화 계약', () => {
     });
   });
 
-  it('앱은 V11 1.0.11(11) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V12 1.0.12(12) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -63,25 +63,28 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.11');
+    expect(pkg.version).toBe('1.0.12');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.0.11',
-      androidVersionCode: 11,
-      iosBuildNumber: '11',
+      versionName: '1.0.12',
+      androidVersionCode: 12,
+      iosBuildNumber: '12',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      '현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며, V10은 internal 검증 계보로 유지하고 현재 소스의 후속 후보는 `V11 · 1.0.11(11)`입니다.',
+      '현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며 V10은 internal 검증 계보로 유지합니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
-      'V09는 사용하지 않으며 V11 검증이 완료될 때까지 V08 Alpha를 유지합니다.',
+      'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며, 현재 소스의 후속 후보는 `V12 · 1.0.12(12)`입니다.',
+    );
+    expect(source('docs/release-lineage.md')).toContain(
+      'V09는 사용하지 않으며 V12 검증이 완료될 때까지 V08 Alpha를 유지합니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 Alpha 계보의 최고값이며, V10 internal 계보 다음 현재 V11 후보는 `versionCode: 11`입니다.',
+      'Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 Alpha 계보의 최고값이며, V10 internal 계보 다음 V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. 현재 V12 후보는 `versionCode: 12`입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 11 번들',
+      '같은 versionCode 12 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -194,7 +197,7 @@ describe('저장소 자동화 계약', () => {
     );
   });
 
-  it('개인정보처리방침만 수동으로 GitHub Pages에 게시해요', () => {
+  it('개인정보처리방침과 검증된 공식 패턴만 수동으로 GitHub Pages에 게시합니다', () => {
     const pages = source('.github/workflows/privacy-policy-pages.yml');
 
     expect(pages).toContain('workflow_dispatch:');
@@ -223,13 +226,39 @@ describe('저장소 자동화 계약', () => {
     );
     expect(pages).toContain('path: _privacy-site');
     expect(pages).not.toContain('path: public');
+    expect(pages).toContain('name: official-pattern-signing');
+    expect(pages).toContain(
+      'SHIFT_PATTERN_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.SHIFT_PATTERN_SIGNING_PRIVATE_KEY_PEM }}',
+    );
+    expect(pages).toContain(
+      'node scripts/sign-official-shift-patterns.mjs --output-dir _privacy-site',
+    );
+    expect(pages).toContain(
+      'node scripts/verify-official-shift-patterns.mjs --directory _privacy-site',
+    );
+    for (const fileName of [
+      'humantss_a.json',
+      'humantss_b.json',
+      'humantss_c.json',
+    ]) {
+      expect(pages).toContain(fileName);
+    }
 
     const actionReferences = workflowActionReferences(
       '.github/workflows/privacy-policy-pages.yml',
     );
-    expect(actionReferences).toHaveLength(4);
+    expect(actionReferences).toHaveLength(5);
     for (const reference of actionReferences) {
       expect(reference).toMatch(/^actions\/[a-z-]+@[0-9a-f]{40}$/u);
     }
+    expect(actionReferences).toEqual(
+      expect.arrayContaining([
+        'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',
+        'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
+        'actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b',
+        'actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b',
+        'actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e',
+      ]),
+    );
   });
 });

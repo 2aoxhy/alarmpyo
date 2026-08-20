@@ -1,0 +1,13 @@
+{
+  "format": "alarmpyo.shiftpattern.unsigned-source",
+  "formatVersion": 1,
+  "id": "humantss_a",
+  "source": "official",
+  "name": "휴먼TSS A",
+  "author": "알람표",
+  "sourceVersion": 1,
+  "anchorDate": "2026-08-01",
+  "shiftCodes": ["NIGHT", "NIGHT", "OFF", "OFF", "DAY", "DAY"],
+  "createdAt": "2026-08-20T00:00:00.000Z",
+  "keyId": "alarmpyo-official-patterns-v1"
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "ECDSA_P256_SHA256",
+  "keys": [
+    {
+      "id": "alarmpyo-official-patterns-v1",
+      "algorithm": "ECDSA_P256_SHA256",
+      "publicKeyBase64": "BBHcv+G45xnbfBmMlDX6lSZwUNG8O+Aur6ij/z7p3ePpKeA7iozAVTqsEsywtp9jRVoZhq9ek1CEW0PmTonB61U="
+    }
+  ]
+}

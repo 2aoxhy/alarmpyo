@@ -15,10 +15,12 @@ import { buildWorkScheduleOverview } from './shift-settings-model';
 
 export function WorkPatternOverview({
   data,
+  onBrowsePatterns,
   onEdit,
   today,
 }: {
   data: AppData;
+  onBrowsePatterns?: () => void;
   onEdit: () => void;
   today: string;
 }) {
@@ -91,6 +93,15 @@ export function WorkPatternOverview({
         onPress={onEdit}
         variant="secondary"
       />
+      {onBrowsePatterns ? (
+        <AppButton
+          accessibilityHint="공식 패턴, 내 패턴과 최근 적용 이력을 확인합니다."
+          icon="book-outline"
+          label="근무 패턴 보관함"
+          onPress={onBrowsePatterns}
+          variant="ghost"
+        />
+      ) : null}
     </Card>
   );
 }

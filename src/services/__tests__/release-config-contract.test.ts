@@ -234,7 +234,7 @@ describe('stable 배포 설정', () => {
     expect(app.expo.runtimeVersion).toEqual({ policy: 'appVersion' });
   });
 
-  it('알람표 표시명과 새 앱 계보 식별자·V11 후보 버전을 유지합니다', () => {
+  it('알람표 표시명과 새 앱 계보 식별자·V12 후보 버전을 유지합니다', () => {
     const pkg = readJson('package.json');
     const app = readJson('app.json');
     const generatedAndroidStringsPath = resolve(
@@ -256,10 +256,10 @@ describe('stable 배포 설정', () => {
     expect(app.expo.description).toBe(
       '교대 근무표와 근무·타이머 알람을 간편하게 관리합니다',
     );
-    expect(pkg.version).toBe('1.0.11');
-    expect(app.expo.version).toBe('1.0.11');
-    expect(app.expo.android.versionCode).toBe(11);
-    expect(app.expo.ios.buildNumber).toBe('11');
+    expect(pkg.version).toBe('1.0.12');
+    expect(app.expo.version).toBe('1.0.12');
+    expect(app.expo.android.versionCode).toBe(12);
+    expect(app.expo.ios.buildNumber).toBe('12');
     // `android`는 Expo prebuild가 만드는 생성물이므로 새 clone과 소스
     // 아카이브에는 없을 수 있어요. 생성물이 있을 때에는 그 결과도 함께
     // 검증하고, 없을 때에는 원본 Expo 설정 계약만 검증해요.

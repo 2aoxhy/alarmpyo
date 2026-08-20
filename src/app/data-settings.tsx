@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import { useAppDialog } from '@/components/app-dialog';
@@ -692,6 +692,13 @@ export default function DataSettingsScreen() {
             onPress={() => void receiveWorkSettings()}
             subtitle="받은 파일을 확인한 뒤 적용합니다."
             title="설정 받기"
+          />
+          <MenuDivider />
+          <ListRow
+            icon="book-outline"
+            onPress={() => router.push('/pattern-library' as never)}
+            subtitle="근무 순서만 담은 파일을 가져오거나 공유합니다."
+            title="근무 패턴 보관함"
           />
         </MenuGroup>
 

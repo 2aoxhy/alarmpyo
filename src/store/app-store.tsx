@@ -184,6 +184,22 @@ import {
   previewWorkSettingsImport,
   type WorkSettingsSharePreview,
 } from '@/services/work-settings-share-service';
+import {
+  buildPatternApplicationMutation,
+  buildPatternRollbackMutation,
+  createUserPatternId,
+  deletePatternMutation,
+  importValidatedPatternMutation,
+  previewPatternApplication as previewPatternApplicationForData,
+  runPatternPersistenceTransaction,
+  saveUserPatternMutation,
+  type PatternApplicationInput,
+  type PatternApplyResult,
+  type PatternRollbackResult,
+  type PatternVaultSaveResult,
+  type UserPatternInput,
+} from '@/services/pattern-vault-service';
+import type { ValidatedPatternDescriptor } from '@/services/shift-pattern-schema';
 import { isValidWorkRoutineTiming } from '@/services/work-routine-settings';
 import { isValidDateKey, toDateKey } from '@/utils/date';
 import {
@@ -208,6 +224,18 @@ export type {
   SaveStatus,
   UpdatePatternOptions,
 } from '@/application/app-store-contract';
+export type {
+  PatternApplicationInput,
+  PatternApplicationPreview,
+  PatternApplicationPreviewResult,
+  PatternApplicationPreviewRow,
+  PatternApplyResult,
+  PatternOverridePolicy,
+  PatternRollbackResult,
+  PatternVaultDeleteResult,
+  PatternVaultSaveResult,
+  UserPatternInput,
+} from '@/services/pattern-vault-service';
 
 export function createDefaultData(anchorDate = toDateKey(new Date())): AppData {
   return createDefaultAppData(anchorDate);
@@ -2018,6 +2046,132 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [],
   );
 
+  const saveUserPattern = useCallback(
+    async (input: UserPatternInput): Promise<PatternVaultSaveResult> => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready' };
+      }
+      const now = new Date();
+      const id = input.id ?? createUserPatternId(
+        now,
+        Math.random().toString(36).slice(2),
+      );
+      const mutationRef: {
+        current: ReturnType<typeof saveUserPatternMutation> | null;
+      } = { current: null };
+      const saved = await replaceDataAndPersist((current) => {
+        mutationRef.current = saveUserPatternMutation(
+          current,
+          { ...input, id },
+          now,
+        );
+        return mutationRef.current.status === 'failure'
+          ? current
+          : mutationRef.current.data;
+      });
+      const mutation = mutationRef.current;
+      if (mutation === null || mutation.status === 'failure') {
+        return {
+          status: 'failure',
+          reason: mutation?.reason ?? 'invalid-pattern',
+        };
+      }
+      if (mutation.status === 'unchanged') {
+        return { status: 'unchanged', patternId: mutation.patternId };
+      }
+      if (!saved) return { status: 'failure', reason: 'storage-failed' };
+      return {
+        status: 'saved',
+        patternId: mutation.patternId,
+        created: mutation.created,
+      };
+    },
+    [replaceDataAndPersist],
+  );
+
+  const importValidatedPattern = useCallback(
+    async (
+      descriptor: ValidatedPatternDescriptor,
+    ): Promise<PatternVaultSaveResult> => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready' };
+      }
+      const now = new Date();
+      const mutationRef: {
+        current: ReturnType<typeof importValidatedPatternMutation> | null;
+      } = { current: null };
+      const saved = await replaceDataAndPersist((current) => {
+        mutationRef.current = importValidatedPatternMutation(
+          current,
+          descriptor,
+          now,
+        );
+        return mutationRef.current.status === 'failure'
+          ? current
+          : mutationRef.current.data;
+      });
+      const mutation = mutationRef.current;
+      if (mutation === null || mutation.status === 'failure') {
+        return {
+          status: 'failure',
+          reason: mutation?.reason ?? 'invalid-pattern',
+        };
+      }
+      if (mutation.status === 'unchanged') {
+        return { status: 'unchanged', patternId: mutation.patternId };
+      }
+      if (!saved) return { status: 'failure', reason: 'storage-failed' };
+      return {
+        status: 'saved',
+        patternId: mutation.patternId,
+        created: mutation.created,
+      };
+    },
+    [replaceDataAndPersist],
+  );
+
+  const deletePattern = useCallback(
+    async (patternId: string) => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready' } as const;
+      }
+      const mutationRef: {
+        current: ReturnType<typeof deletePatternMutation> | null;
+      } = { current: null };
+      const saved = await replaceDataAndPersist((current) => {
+        mutationRef.current = deletePatternMutation(current, patternId);
+        return mutationRef.current.status === 'deleted'
+          ? mutationRef.current.data
+          : current;
+      });
+      const mutation = mutationRef.current;
+      if (mutation === null) {
+        return { status: 'not-found', patternId } as const;
+      }
+      if (mutation.status === 'failure') {
+        return { status: 'failure', reason: mutation.reason } as const;
+      }
+      if (mutation.status === 'not-found') {
+        return { status: 'not-found', patternId } as const;
+      }
+      if (!saved) {
+        return { status: 'failure', reason: 'storage-failed' } as const;
+      }
+      return { status: 'deleted', patternId } as const;
+    },
+    [replaceDataAndPersist],
+  );
+
+  const previewPatternApplication = useCallback(
+    (input: PatternApplicationInput) => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready' } as const;
+      }
+      return previewPatternApplicationForData(dataRef.current, input);
+    },
+    [],
+  );
+
   const createBackupInternal = useCallback(async () => {
     if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 백업할 수 있습니다.');
     try {
@@ -2045,6 +2199,145 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     backupRequestRef.current = tracked;
     return tracked;
   }, [createBackupInternal, mutationCoordinator]);
+
+  const persistPatternTransaction = useCallback(
+    async (
+      current: AppData,
+      candidate: AppData,
+    ): Promise<
+      | { status: 'success' }
+      | {
+          status: 'failure';
+          reason:
+            | 'backup-failed'
+            | 'save-failed'
+            | 'sync-failed'
+            | 'rollback-failed';
+          rolledBack: boolean;
+        }
+    > => {
+      const candidateAlarmSignature = getAlarmScheduleSignature(candidate);
+      const candidateSleepSignature = getSleepReminderScheduleSignature(candidate);
+      return runPatternPersistenceTransaction({
+        createSafetyBackup: async () => {
+          await createBackupInternal();
+        },
+        persistCandidate: () => replaceDataAndPersistDetailedInternal(
+          candidate,
+          true,
+          true,
+        ),
+        candidateSyncFailed: () =>
+          failedAlarmSyncSignatureRef.current === candidateAlarmSignature ||
+          failedSleepReminderSyncSignatureRef.current === candidateSleepSignature,
+        persistRollback: () => replaceDataAndPersistDetailedInternal(
+          current,
+          false,
+          true,
+        ),
+      });
+    },
+    [createBackupInternal, replaceDataAndPersistDetailedInternal],
+  );
+
+  const applyPatternFromVault = useCallback(
+    async (input: PatternApplicationInput): Promise<PatternApplyResult> => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready', rolledBack: false };
+      }
+      return mutationCoordinator.run(async () => {
+        const current = dataRef.current;
+        const now = new Date();
+        const historyId = `apply-${now.getTime().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}`;
+        const mutation = buildPatternApplicationMutation(
+          current,
+          input,
+          now,
+          historyId,
+        );
+        if (mutation.status === 'failure') {
+          return {
+            status: 'failure',
+            reason: mutation.reason,
+            rolledBack: false,
+          };
+        }
+        const scheduleEnforcement = enforceAppDataScheduleSafety(mutation.data);
+        if (
+          scheduleEnforcement.data === null ||
+          scheduleEnforcement.alarmsDisabled
+        ) {
+          reportInvalidWorkSchedule();
+          return {
+            status: 'failure',
+            reason: 'invalid-schedule',
+            rolledBack: false,
+          };
+        }
+        const persisted = await persistPatternTransaction(
+          current,
+          scheduleEnforcement.data,
+        );
+        if (persisted.status === 'failure') return persisted;
+        return {
+          status: 'success',
+          patternId: input.patternId,
+          historyId,
+          clearedOverrideDateKeys: mutation.preview.clearedOverrideDateKeys,
+        };
+      });
+    },
+    [
+      mutationCoordinator,
+      persistPatternTransaction,
+      reportInvalidWorkSchedule,
+    ],
+  );
+
+  const rollbackLastPatternApplication = useCallback(
+    async (): Promise<PatternRollbackResult> => {
+      if (!readyRef.current) {
+        return { status: 'failure', reason: 'not-ready', rolledBack: false };
+      }
+      return mutationCoordinator.run(async () => {
+        const current = dataRef.current;
+        const mutation = buildPatternRollbackMutation(current);
+        if (mutation.status === 'nothing-to-rollback') return mutation;
+        if (mutation.status === 'failure') {
+          return {
+            status: 'failure',
+            reason: mutation.reason,
+            rolledBack: false,
+          };
+        }
+        const scheduleEnforcement = enforceAppDataScheduleSafety(mutation.data);
+        if (
+          scheduleEnforcement.data === null ||
+          scheduleEnforcement.alarmsDisabled
+        ) {
+          reportInvalidWorkSchedule();
+          return {
+            status: 'failure',
+            reason: 'invalid-schedule',
+            rolledBack: false,
+          };
+        }
+        const persisted = await persistPatternTransaction(
+          current,
+          scheduleEnforcement.data,
+        );
+        if (persisted.status === 'failure') return persisted;
+        return { status: 'success', historyId: mutation.history.id };
+      });
+    },
+    [
+      mutationCoordinator,
+      persistPatternTransaction,
+      reportInvalidWorkSchedule,
+    ],
+  );
 
   const applySharedWorkSettings = useCallback(
     async (preview: WorkSettingsSharePreview) => {
@@ -2439,6 +2732,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       exportSharedWorkSettings,
       previewSharedWorkSettings,
       applySharedWorkSettings,
+      saveUserPattern,
+      importValidatedPattern,
+      deletePattern,
+      previewPatternApplication,
+      applyPatternFromVault,
+      rollbackLastPatternApplication,
       createBackup,
       createBackupBeforeReset: createBackup,
       getLatestBackupPreview,
@@ -2486,6 +2785,12 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       toggleWidgetDisplayOption,
       startFreshAfterLoadError,
       applySharedWorkSettings,
+      applyPatternFromVault,
+      deletePattern,
+      importValidatedPattern,
+      previewPatternApplication,
+      rollbackLastPatternApplication,
+      saveUserPattern,
       updatePattern,
       updatePatternDetailed,
       updateShiftTypes,

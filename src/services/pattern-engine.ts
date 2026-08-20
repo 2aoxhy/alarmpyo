@@ -77,11 +77,11 @@ export function isPatternScheduleDate(
 }
 
 export function calculatePatternPosition(
-  pattern: Pick<RotationPattern, 'anchorDate' | 'shiftTypeIds'>,
+  pattern: Pick<RotationPattern, 'anchorDate' | 'kind' | 'shiftTypeIds'>,
   dateKey: string,
 ): number | null {
   if (pattern.shiftTypeIds.length === 0) return null;
-  if (getWorkPatternKind(pattern.shiftTypeIds) === 'weekday') {
+  if ((pattern.kind ?? getWorkPatternKind(pattern.shiftTypeIds)) === 'weekday') {
     return getWeekdayPatternPosition(dateKey);
   }
   const difference = differenceInCalendarDays(dateKey, pattern.anchorDate);

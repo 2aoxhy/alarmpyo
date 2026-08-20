@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "formatVersion": 1,
+  "keyId": "alarmpyo-official-patterns-v1",
+  "patterns": [
+    {
+      "id": "humantss_a",
+      "fileName": "humantss_a.json",
+      "name": "휴먼TSS A",
+      "author": "알람표",
+      "sourceVersion": 1,
+      "anchorDate": "2026-08-01",
+      "shiftCodes": ["NIGHT", "NIGHT", "OFF", "OFF", "DAY", "DAY"],
+      "createdAt": "2026-08-20T00:00:00.000Z"
+    },
+    {
+      "id": "humantss_b",
+      "fileName": "humantss_b.json",
+      "name": "휴먼TSS B",
+      "author": "알람표",
+      "sourceVersion": 1,
+      "anchorDate": "2026-08-01",
+      "shiftCodes": ["OFF", "OFF", "DAY", "DAY", "NIGHT", "NIGHT"],
+      "createdAt": "2026-08-20T00:00:00.000Z"
+    },
+    {
+      "id": "humantss_c",
+      "fileName": "humantss_c.json",
+      "name": "휴먼TSS C",
+      "author": "알람표",
+      "sourceVersion": 1,
+      "anchorDate": "2026-08-01",
+      "shiftCodes": ["DAY", "DAY", "NIGHT", "NIGHT", "OFF", "OFF"],
+      "createdAt": "2026-08-20T00:00:00.000Z"
+    }
+  ]
+}

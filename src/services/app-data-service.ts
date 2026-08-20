@@ -61,6 +61,7 @@ import {
 import { stripOptionalUtf8Bom } from '../utils/json';
 import {
   getWorkPatternDisplayName,
+  getWorkPatternKind,
   getWorkPatternName,
   getWorkPatternPresetId,
   isBaseWorkShiftId,
@@ -86,6 +87,8 @@ import {
   type ResolveEffectiveDay,
   type ResolveEffectiveDayOptions,
 } from './pattern-engine';
+import { isOfficialPatternId } from './official-pattern-ids';
+import { matchesOfficialPatternContract } from './official-pattern-contract';
 
 export const APP_DATA_VERSION = 21 as const;
 export { APP_DATA_BACKUP_FORMAT, APP_DATA_BACKUP_FORMAT_VERSION };
@@ -106,6 +109,14 @@ const DEFAULT_ALARM_SHIFT_IDS = [
   'substitute-day',
   'substitute-night',
 ] as const;
+const V12_PATTERN_SHIFT_TYPE_IDS = new Set([
+  'day',
+  'evening',
+  'night',
+  'off',
+  'substitute-day',
+  'substitute-night',
+]);
 type PreviousAppDataVersion =
   | 1
   | 2
@@ -458,6 +469,7 @@ export function createDefaultAppData(anchorDate = toDateKey(new Date())): AppDat
     patternVault: [],
     patternHistory: [],
     appliedPatternSource: 'legacy',
+    appliedPatternId: null,
     settings: {
       notificationsEnabled: false,
       sleepReminderEnabled: false,
@@ -841,11 +853,16 @@ function parsePattern(
   const scheduleStartDate = inferredScheduleStartDate
     ? anchorDate
     : dateKey(item.scheduleStartDate, '첫 근무일');
+  const kind = item.kind;
+  if (kind !== undefined && kind !== 'rotation' && kind !== 'weekday') {
+    throw new AppDataValidationError('근무 방식 실행 종류가 올바르지 않습니다.');
+  }
 
   return {
     pattern: {
       name: requiredString(item.name, '근무 방식 이름', 200),
       anchorDate,
+      ...(kind === undefined ? {} : { kind }),
       scheduleStartDate,
       shiftTypeIds,
     },
@@ -1167,14 +1184,43 @@ function parsePatternVault(value: unknown, sourceVersion: AppDataVersion): Patte
     ) {
       throw new AppDataValidationError(`${label} 출처가 올바르지 않습니다.`);
     }
+    const source = item.source as PatternVaultSource;
+    const reservedOfficialId = isOfficialPatternId(id);
+    if ((source === 'official') !== reservedOfficialId) {
+      throw new AppDataValidationError(`${label} 공식 ID와 출처가 맞지 않습니다.`);
+    }
+    const name = requiredString(item.name, `${label} 이름`, 80);
+    const author = nullableShortString(item.author, `${label} 제작자`, 80);
+    const sourceVersion = integerInRange(
+      item.sourceVersion,
+      `${label} 버전`,
+      1,
+      2_147_483_647,
+    );
+    const anchorDate = dateKey(item.anchorDate, `${label} 기준일`);
+    const shiftCodes = parsePatternShiftCodes(item.shiftCodes, `${label} 근무 순서`);
+    if (
+      source === 'official' &&
+      reservedOfficialId &&
+      !matchesOfficialPatternContract({
+        id,
+        name,
+        author,
+        sourceVersion,
+        anchorDate,
+        shiftCodes,
+      })
+    ) {
+      throw new AppDataValidationError(`${label} 공식 패턴 계약이 올바르지 않습니다.`);
+    }
     return {
       id,
-      source: item.source as PatternVaultSource,
-      name: requiredString(item.name, `${label} 이름`, 100),
-      author: nullableShortString(item.author, `${label} 제작자`, 30),
-      sourceVersion: integerInRange(item.sourceVersion, `${label} 버전`, 1, 2_147_483_647),
-      anchorDate: dateKey(item.anchorDate, `${label} 기준일`),
-      shiftCodes: parsePatternShiftCodes(item.shiftCodes, `${label} 근무 순서`),
+      source,
+      name,
+      author,
+      sourceVersion,
+      anchorDate,
+      shiftCodes,
       createdAt: requiredIsoDate(item.createdAt, `${label} 생성일`),
       updatedAt: requiredIsoDate(item.updatedAt, `${label} 수정일`),
     };
@@ -1201,7 +1247,7 @@ function parsePatternHistory(
     ids.add(id);
     if (
       typeof item.source !== 'string' ||
-      !APPLIED_PATTERN_SOURCES.has(item.source as AppliedPatternSource)
+      !PATTERN_VAULT_SOURCES.has(item.source as PatternVaultSource)
     ) {
       throw new AppDataValidationError(`${label} 출처가 올바르지 않습니다.`);
     }
@@ -1209,14 +1255,61 @@ function parsePatternHistory(
     if (!Array.isArray(overrideDateKeys) || overrideDateKeys.length > MAX_DATED_ITEMS) {
       throw new AppDataValidationError(`${label} 변경 날짜가 올바르지 않습니다.`);
     }
+    const previousSource = item.previousSource;
+    if (
+      typeof previousSource !== 'string' ||
+      !APPLIED_PATTERN_SOURCES.has(previousSource as AppliedPatternSource)
+    ) {
+      throw new AppDataValidationError(`${label} 이전 출처가 올바르지 않습니다.`);
+    }
+    const clearedOverrides = parseOverrides(
+      item.clearedOverrides,
+      knownShiftIds,
+      false,
+    );
+    const clearedTimeOverrides = parseTimeOverrides(
+      item.clearedTimeOverrides,
+      knownShiftIds,
+    );
+    const parsedOverrideDateKeys = overrideDateKeys.map((key) =>
+      dateKey(key, `${label} 변경 날짜`),
+    );
+    if (new Set(parsedOverrideDateKeys).size !== parsedOverrideDateKeys.length) {
+      throw new AppDataValidationError(`${label} 변경 날짜가 중복되어 있습니다.`);
+    }
+    const recordedDateKeys = new Set([
+      ...Object.keys(clearedOverrides),
+      ...Object.keys(clearedTimeOverrides),
+    ]);
+    if (
+      recordedDateKeys.size !== parsedOverrideDateKeys.length ||
+      parsedOverrideDateKeys.some((key) => !recordedDateKeys.has(key))
+    ) {
+      throw new AppDataValidationError(`${label} 변경 원본이 날짜 목록과 맞지 않습니다.`);
+    }
+    const previousPatternId = nullableShortString(
+      item.previousPatternId,
+      `${label} 이전 패턴 ID`,
+      100,
+    );
+    if (
+      (previousSource === 'legacy' && previousPatternId !== null) ||
+      (previousSource !== 'legacy' && previousPatternId === null)
+    ) {
+      throw new AppDataValidationError(`${label} 이전 출처와 패턴 ID가 맞지 않습니다.`);
+    }
     return {
       id,
       appliedAt: requiredIsoDate(item.appliedAt, `${label} 적용일`),
-      source: item.source as AppliedPatternSource,
-      patternId: nullableShortString(item.patternId, `${label} 패턴 ID`, 100),
+      source: item.source as PatternVaultSource,
+      patternId: requiredString(item.patternId, `${label} 패턴 ID`, 100),
+      previousSource: previousSource as AppliedPatternSource,
+      previousPatternId,
       previousPattern: parsePattern(item.previousPattern, knownShiftIds).pattern,
       nextPattern: parsePattern(item.nextPattern, knownShiftIds).pattern,
-      overrideDateKeys: overrideDateKeys.map((key) => dateKey(key, `${label} 변경 날짜`)),
+      clearedOverrides,
+      clearedTimeOverrides,
+      overrideDateKeys: parsedOverrideDateKeys,
     };
   });
 }
@@ -1230,6 +1323,15 @@ function parseAppliedPatternSource(
     throw new AppDataValidationError('적용한 패턴 출처가 올바르지 않습니다.');
   }
   return value as AppliedPatternSource;
+}
+
+function parseAppliedPatternId(
+  value: unknown,
+  sourceVersion: AppDataVersion,
+): string | null {
+  // V11의 v21 저장 계약에는 이 필드가 없었으므로 누락을 정상적인 legacy 상태로 읽습니다.
+  if (sourceVersion < 21 || value === undefined || value === null) return null;
+  return requiredString(value, '적용한 패턴 ID', 100);
 }
 
 function parseDismissedUpdateVersionCode(
@@ -1380,6 +1482,14 @@ export function validateAndMigrateAppData(
           rewriteLegacyEveningReference(shiftTypeId, renamedLegacyEveningId),
         );
   const presetId = getWorkPatternPresetId(normalizedShiftTypeIds);
+  const v12VaultRotation =
+    sourceVersion >= 21 &&
+    parsedPattern.kind === 'rotation' &&
+    source.appliedPatternSource !== 'legacy' &&
+    typeof source.appliedPatternId === 'string' &&
+    normalizedShiftTypeIds.length >= 1 &&
+    normalizedShiftTypeIds.length <= 42 &&
+    normalizedShiftTypeIds.every((id) => V12_PATTERN_SHIFT_TYPE_IDS.has(id));
   const migratedLegacyEveningPattern =
     renamedLegacyEveningId !== null &&
     parsedPattern.shiftTypeIds.includes('evening') &&
@@ -1405,15 +1515,19 @@ export function validateAndMigrateAppData(
     sourceVersion >= 20 &&
     (presetId === 'custom'
       ? !isValidCustomPatternSequence(normalizedShiftTypeIds) &&
-        !isValidLegacyEveningCompatibilityPattern(normalizedShiftTypeIds)
+        !isValidLegacyEveningCompatibilityPattern(normalizedShiftTypeIds) &&
+        !v12VaultRotation
       : !normalizedShiftTypeIds.every(isBaseWorkShiftId))
   ) {
     throw new AppDataValidationError('기타 근무 순서는 1~42일이며 주간·오후·야간·휴무만 사용할 수 있습니다.');
   }
-  const patternKind = presetId === 'weekday' ? 'weekday' : 'rotation';
+  const patternKind = parsedPattern.kind ?? getWorkPatternKind(normalizedShiftTypeIds);
   const pattern: RotationPattern = {
     ...parsedPattern,
-    name: getWorkPatternDisplayName(normalizedShiftTypeIds, parsedPattern.name),
+    name:
+      patternKind === 'rotation' && presetId === 'weekday'
+        ? parsedPattern.name
+        : getWorkPatternDisplayName(normalizedShiftTypeIds, parsedPattern.name),
     shiftTypeIds: normalizedShiftTypeIds,
   };
   const substituteOverrideTargetId = legacySubstituteTargetId(parsedShiftTypes);
@@ -1479,12 +1593,43 @@ export function validateAndMigrateAppData(
       source.appliedPatternSource,
       sourceVersion,
     ),
+    appliedPatternId: parseAppliedPatternId(source.appliedPatternId, sourceVersion),
     settings: {
       ...parsedSettings,
       // 이전 백업의 자동·라이트 값은 읽기 호환만 유지하고 현재 앱에서는 다크로 확정해요.
       themeMode: 'dark',
     },
   };
+
+  if (
+    (data.appliedPatternSource === 'legacy' && data.appliedPatternId !== null) ||
+    (data.appliedPatternSource !== 'legacy' && data.appliedPatternId === null)
+  ) {
+    throw new AppDataValidationError('적용한 패턴 출처와 ID가 맞지 않습니다.');
+  }
+  if (data.appliedPatternId !== null) {
+    const appliedEntry = data.patternVault.find(
+      (entry) => entry.id === data.appliedPatternId,
+    );
+    if (!appliedEntry || appliedEntry.source !== data.appliedPatternSource) {
+      throw new AppDataValidationError('적용한 패턴이 보관소에 없거나 출처가 다릅니다.');
+    }
+  }
+  const patternVaultById = new Map(
+    data.patternVault.map((entry) => [entry.id, entry] as const),
+  );
+  for (const history of data.patternHistory) {
+    const nextEntry = patternVaultById.get(history.patternId);
+    if (!nextEntry || nextEntry.source !== history.source) {
+      throw new AppDataValidationError('패턴 적용 이력이 보관소의 적용 패턴과 맞지 않습니다.');
+    }
+    if (history.previousPatternId !== null) {
+      const previousEntry = patternVaultById.get(history.previousPatternId);
+      if (!previousEntry || previousEntry.source !== history.previousSource) {
+        throw new AppDataValidationError('패턴 적용 이력이 이전 보관 패턴과 맞지 않습니다.');
+      }
+    }
+  }
 
   const removedLegacyActivityData =
     Object.prototype.hasOwnProperty.call(source, 'workBreakPlans') ||

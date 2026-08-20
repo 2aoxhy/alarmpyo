@@ -9,6 +9,7 @@
 - 사용자 분석 SDK: 없음
 - 근무표·메모·알람·타이머 설정: 기기 내부 저장
 - 백업·근무 설정 공유: 사용자가 직접 기능을 실행하고 대상 앱·파일 위치를 선택할 때만 외부 파일로 전달
+- 공식 근무 패턴: 사용자가 패턴 보관함을 열거나 새로고침할 때만 GitHub Pages의 서명 파일 세 개를 HTTPS로 조회하며, 기기 내 근무 자료는 요청에 포함하지 않음
 - 앱 데이터 삭제: 설정의 데이터 초기화 또는 앱 삭제
 - 자체 서버: 없음
 
@@ -78,16 +79,17 @@ Google의 정의에서 앱이 SDK를 통해 기기 밖으로 전송하는 것은
 - 기기 내 저장, 사용자 시작 공유·백업
 - EAS Update 통신과 Expo가 처리할 수 있는 기술 정보
 - GitHub Pages에서 공개 방침 페이지를 열 때의 IP 주소 보안 로그와 앱 데이터 전송의 구분
+- 패턴 보관함 진입·새로고침 때의 공식 패턴 HTTPS 조회, 백그라운드 주기 조회 없음, 기기 내 근무 자료 미전송
 - 수면 준비 시점의 기기 내 계산, 건강 데이터 미수집, 비의료 안내
 - 권한, 보관·삭제, 아동 대상 아님, 시행일
 
-다만 **로컬 HTML 파일은 Play Console에 넣을 수 있는 URL이 아니에요.** GitHub Pages 수동 게시 절차는 `docs/privacy-policy-github-pages-ko.md`에 준비되어 있어요. 실제 Pages URL이 로그인·지역 제한 없이 열리고 PDF가 아닌 정적·수정 불가 페이지인지 확인한 뒤에만 Console과 `play-release-policy.json`의 `privacyPolicyUrl`에 입력해요. 건강 콘텐츠 정책은 Play Console의 정해진 필드와 앱 안에 링크 또는 본문을 모두 요구해요. 현재 앱은 본문을 제공하고 있고, 실제 공개·확인 작업이 남아 있어요.
+Play Console과 `play-release-policy.json`에는 이미 공개·확인한 `https://2aoxhy.github.io/alarmpyo/privacy-policy.html`이 등록되어 있고 Play 정책은 `active`예요. 다만 V12에서는 공식 패턴 수동 조회 설명과 시행일을 갱신했으므로, 현재 로컬 HTML과 서명 패턴 세 파일을 같은 Pages 워크플로로 다시 게시해야 해요. 게시본 SHA-256이 로컬 원본과 같고 세 공식 패턴의 서명 검증이 모두 통과하기 전에는 V12 사전 검사를 완료하지 않아요. 기존 URL 등록 완료와 V12 콘텐츠 재게시 대기를 서로 다른 상태로 기록해요.
 
-GitHub Pages의 방문자 IP 보안 로그는 사용자가 웹 개인정보처리방침을 열 때 발생하는 호스팅 처리예요. 앱이 GitHub Pages로 근무표·메모·알람·타이머 설정을 자동 전송하는 동작이나 최종 AAB의 SDK 통신으로 신고하지 않아요. 앱의 데이터 보안 양식은 EAS Update를 포함한 최종 Play 설치본의 실제 네트워크 동작을 별도로 관찰해 작성해요.
+GitHub Pages의 방문자 IP 보안 로그는 사용자가 웹 개인정보처리방침을 열거나 앱에서 공식 패턴을 조회할 때 발생하는 호스팅 처리예요. 공식 패턴 요청에는 근무표·메모·알람·타이머 설정을 포함하지 않고 백그라운드 주기 조회도 하지 않아요. 앱의 데이터 보안 양식은 이 사용자 시작 조회와 EAS Update를 포함한 최종 Play 설치본의 실제 네트워크 동작을 별도로 관찰해 작성해요.
 
 ## 권한·API 선언과 영상 증거
 
-- `USE_EXACT_ALARM`: 사용자가 설정한 교대 근무 기상 시각과 30분·60분 타이머 목표 시각에 정확히 울리는 핵심 알람 기능으로 설명해요. 대략적인 백그라운드 작업에 사용하지 않아요. [정확한 알람 공식 안내](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms?hl=ko)
+- `USE_EXACT_ALARM`: 사용자가 설정한 교대 근무 기상 시각과 30분·45분·60분 타이머 목표 시각에 정확히 울리는 핵심 알람 기능으로 설명해요. 대략적인 백그라운드 작업에 사용하지 않아요. [정확한 알람 공식 안내](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms?hl=ko)
 - `USE_FULL_SCREEN_INTENT`: 사용자가 켠 근무·타이머 알람을 잠금 화면에서 즉시 인지하고 끌 수 있게 하는 알람 핵심 기능으로 설명해요.
 - `FOREGROUND_SERVICE_MEDIA_PLAYBACK`: 근무·타이머 알람 발생 후 사용자가 끄거나 다시 알림을 선택할 때까지 알람음을 안정적으로 재생하는 사용자 인지 기능으로 설명해요.
 - Play AAB에는 `REQUEST_INSTALL_PACKAGES`, direct APK 설치 Provider·클래스·화면이 포함되지 않아야 해요.

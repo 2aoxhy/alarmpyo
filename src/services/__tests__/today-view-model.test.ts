@@ -54,6 +54,7 @@ const data: AppData = {
   patternVault: [],
   patternHistory: [],
   appliedPatternSource: 'legacy',
+  appliedPatternId: null,
   settings: {
     notificationsEnabled: false,
     sleepReminderEnabled: false,

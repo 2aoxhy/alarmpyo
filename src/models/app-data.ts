@@ -19,7 +19,9 @@ export type ShiftType = {
 export type RotationPattern = {
   name: string;
   anchorDate: string;
-  /** 실제 근무표가 시작되는 첫 날짜예요. 이전 데이터는 기준일을 시작일로 사용해요. */
+  /** V12 보관 패턴은 주간 고정과 배열이 같아도 기준일 기반 회전을 유지합니다. */
+  kind?: 'rotation' | 'weekday';
+  /** 실제 근무표가 시작되는 첫 날짜입니다. 이전 데이터는 기준일을 시작일로 사용합니다. */
   scheduleStartDate?: string;
   shiftTypeIds: string[];
 };
@@ -99,10 +101,16 @@ export type PatternVaultEntry = {
 export type PatternHistoryEntry = {
   id: string;
   appliedAt: string;
-  source: AppliedPatternSource;
-  patternId: string | null;
+  source: PatternVaultSource;
+  patternId: string;
+  previousSource: AppliedPatternSource;
+  previousPatternId: string | null;
   previousPattern: RotationPattern;
   nextPattern: RotationPattern;
+  /** 적용 정책으로 제거한 날짜별 직접 근무를 정확히 되돌리기 위한 원본입니다. */
+  clearedOverrides: Record<string, string | null>;
+  /** 직접 근무와 함께 제거한 날짜별 시간 변경 원본입니다. */
+  clearedTimeOverrides: Record<string, DayTimeOverride>;
   overrideDateKeys: string[];
 };
 
@@ -136,5 +144,6 @@ export type AppData = {
   /** 최근 적용 이력입니다. 최대 10건만 보존합니다. */
   patternHistory: PatternHistoryEntry[];
   appliedPatternSource: AppliedPatternSource;
+  appliedPatternId: string | null;
   settings: AppSettings;
 };

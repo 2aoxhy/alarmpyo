@@ -147,6 +147,7 @@ export function applyPatternSettings(
   shiftTypePatches: Record<string, Partial<ShiftType>>,
   clearFutureScheduleOverridesFrom?: string,
 ): AppData {
+  const patternChanged = !areRotationPatternsEqual(current.pattern, pattern);
   const patchIds = new Set(Object.keys(shiftTypePatches));
   let shiftTypesChanged = false;
   const shiftTypes = current.shiftTypes.map((shift) => {
@@ -157,8 +158,16 @@ export function applyPatternSettings(
   });
 
   const next =
-    !areRotationPatternsEqual(current.pattern, pattern) || shiftTypesChanged
-      ? { ...current, pattern, shiftTypes }
+    patternChanged || shiftTypesChanged
+      ? {
+          ...current,
+          pattern,
+          shiftTypes,
+          appliedPatternSource: patternChanged
+            ? ('legacy' as const)
+            : current.appliedPatternSource,
+          appliedPatternId: patternChanged ? null : current.appliedPatternId,
+        }
       : current;
   const result = clearFutureScheduleOverridesFrom === undefined
     ? next

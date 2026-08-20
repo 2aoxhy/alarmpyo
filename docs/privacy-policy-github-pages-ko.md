@@ -1,13 +1,13 @@
 # 개인정보처리방침 GitHub Pages 게시 절차
 
-이 절차는 `public/privacy-policy.html`만 공개하는 별도 정적 사이트를 준비합니다. 앱 소스가 공개 저장소에 있더라도 APK, AAB, 업데이트 manifest와 `.release` 산출물은 이 Pages 배포에 포함하지 않습니다.
+이 절차는 `public/privacy-policy.html`과 V12 공식 근무 패턴 세 파일만 공개하는 별도 정적 사이트를 준비합니다. 앱 소스가 공개 저장소에 있더라도 APK, AAB, 업데이트 manifest와 `.release` 산출물은 이 Pages 배포에 포함하지 않습니다. 공식 패턴의 키 준비와 검증 계약은 `docs/official-shift-pattern-security-ko.md`를 따릅니다.
 
 ## 배포 경계
 
 - `.github/workflows/privacy-policy-pages.yml`은 자동 배포하지 않고 GitHub Actions에서 수동으로 실행할 때만 동작합니다.
 - 기본 브랜치의 커밋에서 실행한 경우에만 게시 작업이 진행됩니다. 작업 중인 로컬 파일, 다른 브랜치와 커밋되지 않은 변경은 게시되지 않습니다.
-- 워크플로는 `public/privacy-policy.html`만 임시 디렉터리에 복사하고, 같은 본문을 사이트 루트의 `index.html`과 `/privacy-policy.html`로 게시합니다.
-- 게시 전 원본이 유효한 UTF-8이고 필수 제목·문자셋 선언을 포함하는지 확인합니다. 산출물에는 원본과 바이트 단위로 같은 두 HTML 파일만 들어가며 하위 디렉터리·심볼릭 링크·다른 공개 파일은 허용하지 않습니다.
+- 워크플로는 `public/privacy-policy.html`을 임시 디렉터리에 복사하고, 같은 본문을 사이트 루트의 `index.html`과 `/privacy-policy.html`로 게시합니다. 같은 임시 디렉터리에 unsigned source를 Environment 비공개키로 서명한 `humantss_a.json`, `humantss_b.json`, `humantss_c.json`을 만듭니다.
+- 게시 전 HTML 원본과 공식 패턴 source·공개키·SHA-256·ECDSA P-256 서명을 검증합니다. 산출물에는 두 HTML과 공식 JSON 세 개만 들어가며 하위 디렉터리·심볼릭 링크·다른 공개 파일은 허용하지 않습니다.
 - 포장 작업은 저장소 읽기와 Pages 읽기 권한만 사용하고, 실제 게시 작업만 `pages: write`와 OIDC `id-token: write` 권한을 사용합니다. 외부 Actions는 검토한 릴리스의 변경 불가능한 전체 커밋 SHA로 고정합니다.
 - 개인정보처리방침 게시와 direct APK용 production Hosting은 서로 다른 결정입니다. Pages 주소가 열렸다는 이유만으로 `release-policy.json`의 `productionHostingUrl` 또는 blocker를 변경하지 않습니다.
 - 실제 Pages 주소가 확인되기 전에는 Play Console이나 `play-release-policy.json`에 예시 주소를 넣지 않습니다. Play 정책은 `privacyPolicyUrl: null`과 해당 blocker를 유지합니다.
@@ -16,9 +16,10 @@
 
 1. 비밀 파일이 추적되지 않는지 확인한 뒤 이 저장소를 원하는 GitHub 공개 저장소에 연결합니다.
 2. GitHub 저장소의 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 선택합니다.
-3. **Settings → Environments → github-pages**에서 가능한 경우 배포 브랜치를 기본 브랜치로 제한하고, 필요한 검토자 승인 규칙을 설정합니다.
-4. **Actions → Publish privacy policy to GitHub Pages → Run workflow**에서 기본 브랜치를 선택해 수동 실행합니다. 다른 브랜치를 선택하면 워크플로가 게시하지 않고 종료합니다.
-5. 완료된 작업의 `github-pages` 환경에 표시된 실제 주소를 복사합니다.
+3. `docs/official-shift-pattern-security-ko.md`에 따라 **Settings → Environments → official-pattern-signing**을 만들고 비공개키 secret을 등록합니다.
+4. **Settings → Environments → github-pages**에서 가능한 경우 배포 브랜치를 기본 브랜치로 제한하고, 두 Environment에 필요한 검토자 승인 규칙을 설정합니다.
+5. **Actions → Publish privacy policy and signed patterns to GitHub Pages → Run workflow**에서 기본 브랜치를 선택해 수동 실행합니다. 다른 브랜치를 선택하면 워크플로가 게시하지 않고 종료합니다.
+6. 완료된 작업의 `github-pages` 환경에 표시된 실제 주소를 복사합니다.
 
 프로젝트 Pages의 일반적인 주소는 다음 형태지만 저장소 이름과 대소문자, 사용자·조직 Pages 여부에 따라 달라질 수 있으므로 워크플로 결과를 기준으로 합니다.
 

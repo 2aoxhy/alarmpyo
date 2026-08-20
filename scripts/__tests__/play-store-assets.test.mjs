@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V10 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
+  it('V12 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V10',
+      release: 'V12',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V10',
+      release: 'V12',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -350,10 +350,11 @@ describe('Google Play 등록 이미지', () => {
       '교대 근무표와 근무·타이머 알람을 한눈에 관리합니다.',
     );
     for (const phrase of [
-      '대표 교대 근무와 직접 편집하는 반복 순서·근무시간',
-      '근무 기상 알람과 30분·60분 소리·진동 타이머',
+      '공식 서명 패턴과 1~42일 사용자 반복 순서',
+      '근무 기상 알람과 30분·45분·60분 소리·진동 타이머',
       '수면 준비 알림',
       '홈 화면 위젯',
+      '근무 패턴 파일 공유·적용 이력 복구',
       '근무표, 메모와 설정은 기기에 저장합니다',
     ]) {
       expect(fullDescription).toContain(phrase);

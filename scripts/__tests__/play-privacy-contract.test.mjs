@@ -36,7 +36,7 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(dataSafety).toContain('`수집·필수·앱 기능`');
   });
 
-  it('GitHub Pages 방문 로그를 앱 데이터 전송과 구분해요', () => {
+  it('GitHub Pages의 수동 공식 패턴 조회와 앱 데이터 전송을 구분합니다', () => {
     for (const contents of [publicPolicy, inAppPolicy]) {
       expect(contents).toContain('GitHub Pages');
       expect(contents).toContain('보안과 무결성');
@@ -46,7 +46,9 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(publicPolicy).toContain(
       'https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages',
     );
-    expect(inAppPolicy).toContain('앱이 GitHub Pages에 자동 접속하지 않습니다');
+    expect(inAppPolicy).toContain('근무 패턴 보관함을 열거나 새로고침하면');
+    expect(inAppPolicy).toContain('백그라운드에서 주기적으로 조회하지 않으며');
+    expect(inAppPolicy).toContain('설정을 요청에 포함하지 않습니다');
   });
 
   it('초기화가 내부 안전 백업을 남긴다는 삭제 범위를 숨기지 않아요', () => {
@@ -92,8 +94,8 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(publicPolicy).toContain('color-scheme: dark');
     expect(publicPolicy).not.toContain('prefers-color-scheme');
     expect(publicPolicy).not.toContain('light dark');
-    expect(publicPolicy).toContain('시행일 2026년 8월 15일');
-    expect(inAppPolicy).toContain('시행일 2026년 8월 15일');
+    expect(publicPolicy).toContain('시행일 2026년 8월 20일');
+    expect(inAppPolicy).toContain('시행일 2026년 8월 20일');
   });
 
   it('스토어 초안은 활성 방침 상태를 반영하되 소유자 URL을 복제하지 않아요', () => {
