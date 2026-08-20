@@ -24,6 +24,10 @@ import {
   WorkTimeEditor,
 } from '@/features/setup/setup-components';
 import {
+  SetupApplyingOverlay,
+  SetupBlurredHomeBackdrop,
+} from '@/features/setup/setup-onboarding-surface';
+import {
   applySetupPresetSuggestions,
   buildSetupPreview,
   createSetupSequenceOptions,
@@ -95,6 +99,7 @@ export default function SetupScreen() {
   const [editedWorkTimeFields, setEditedWorkTimeFields] = useState<SetupWorkTimeField[]>([]);
   const [openEditor, setOpenEditor] = useState<'sequence' | 'times' | null>(null);
   const [saving, setSaving] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState(0);
   const [focusShiftTypeId, setFocusShiftTypeId] = useState<EditableWorkShiftId | null>(null);
   const issueHeadingRef = useRef<View>(null);
@@ -400,6 +405,7 @@ export default function SetupScreen() {
       notificationsEnabled: effectiveAlarmsWanted,
     };
 
+    setApplyError(null);
     setSaving(true);
     try {
       let alarmReady = true;
@@ -415,8 +421,7 @@ export default function SetupScreen() {
 
       const saved = await completeInitialSetup(payload);
       if (!saved) {
-        showDialog(
-          '근무표를 저장하지 못했습니다',
+        setApplyError(
           '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
         );
         return;
@@ -431,6 +436,10 @@ export default function SetupScreen() {
             : '필요한 알람 권한을 허용하면 근무 알람이 자동으로 준비됩니다.',
         );
       }
+    } catch {
+      setApplyError(
+        '근무표를 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+      );
     } finally {
       setSaving(false);
     }
@@ -499,7 +508,11 @@ export default function SetupScreen() {
   );
 
   return (
-    <Screen key={step} contentStyle={styles.screenContent} footer={footer}>
+    <Screen
+      background={<SetupBlurredHomeBackdrop />}
+      key={step}
+      contentStyle={styles.screenContent}
+      footer={footer}>
       <SetupHero step={step} />
       <SetupProgress compact={width <= 320 || fontScale >= 1.3} step={step} />
 
@@ -682,7 +695,9 @@ export default function SetupScreen() {
             ref={issueHeadingRef}
             style={styles.stepHeading}>
             <AppText accessibilityRole="header" variant="heading" style={styles.centerText}>
-              일정 적용 시작일을 설정합니다
+              {referenceDateValid && referenceDate === today
+                ? '오늘 근무는 어떻게 되십니까?'
+                : '일정 적용 시작일을 설정합니다'}
             </AppText>
             <AppText variant="body" tone="secondary" style={styles.centerText}>
               이 날짜의 실제 근무를 맞추면 이후 일정이 자동으로 이어집니다.
@@ -734,6 +749,17 @@ export default function SetupScreen() {
 
           <SetupPreview items={preview} shiftTypes={data.shiftTypes} today={today} />
 
+          {applyError ? (
+            <StatusBanner
+              actionLabel="다시 시도"
+              icon="alert-circle-outline"
+              message={applyError}
+              onAction={() => void save()}
+              title="근무표를 저장하지 못했습니다"
+              tone="danger"
+            />
+          ) : null}
+
           {Platform.OS === 'android' ? (
             <Card density="compact" style={styles.alarmCard}>
               <ToggleRow
@@ -763,6 +789,7 @@ export default function SetupScreen() {
           </Card>
         </View>
       ) : null}
+      <SetupApplyingOverlay visible={saving} />
     </Screen>
   );
 }

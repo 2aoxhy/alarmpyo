@@ -30,9 +30,11 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
-  cancelQuickTimer,
   getQuickTimerStatus,
+  pauseQuickTimer,
   QUICK_TIMER_DURATIONS,
+  resetQuickTimer,
+  resumeQuickTimer,
   scheduleQuickTimer,
   type QuickTimerDuration,
   type QuickTimerStatus,
@@ -59,9 +61,9 @@ export default function TimerScreen() {
   const [expiredObservationKey, setExpiredObservationKey] =
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busyAction, setBusyAction] = useState<'schedule' | 'cancel' | 'refresh' | null>(
-    null,
-  );
+  const [busyAction, setBusyAction] = useState<
+    'schedule' | 'pause' | 'resume' | 'reset' | 'refresh' | null
+  >(null);
   const [schedulingDuration, setSchedulingDuration] =
     useState<QuickTimerDuration | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -227,7 +229,7 @@ export default function TimerScreen() {
     durationMinutes: QuickTimerDuration,
     currentWallClock: number,
   ) => {
-    if (!status?.active) {
+    if (!status?.active && status?.state !== 'paused') {
       void startTimer(durationMinutes);
       return;
     }
@@ -251,24 +253,72 @@ export default function TimerScreen() {
     );
   };
 
-  const cancel = async () => {
+  const pause = async () => {
     if (busyAction !== null) return;
-    setBusyAction('cancel');
+    setBusyAction('pause');
     setLoadError(false);
     try {
-      const nextStatus = await cancelQuickTimer();
+      const nextStatus = await pauseQuickTimer();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
-      if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
+      if (nextStatus.state !== 'paused') {
         setLoadError(true);
-        announce('타이머를 취소하지 못했습니다. 다시 확인해야 합니다.');
+        announce('타이머를 일시정지하지 못했습니다. 다시 확인해야 합니다.');
       } else {
-        announce('타이머를 취소했습니다.');
+        announce('타이머를 일시정지했습니다.');
       }
     } catch {
       if (mountedRef.current) {
         setLoadError(true);
-        announce('타이머를 취소하지 못했습니다. 다시 확인해야 합니다.');
+        announce('타이머를 일시정지하지 못했습니다. 다시 확인해야 합니다.');
+      }
+    } finally {
+      if (mountedRef.current) setBusyAction(null);
+    }
+  };
+
+  const resume = async () => {
+    if (busyAction !== null) return;
+    setBusyAction('resume');
+    setLoadError(false);
+    try {
+      const nextStatus = await resumeQuickTimer();
+      if (!mountedRef.current) return;
+      observeStatus(nextStatus);
+      if (!nextStatus.active || nextStatus.state !== 'scheduled') {
+        setLoadError(true);
+        announce('타이머를 재개하지 못했습니다. 다시 확인해야 합니다.');
+      } else {
+        announce('타이머를 재개했습니다.');
+      }
+    } catch {
+      if (mountedRef.current) {
+        setLoadError(true);
+        announce('타이머를 재개하지 못했습니다. 다시 확인해야 합니다.');
+      }
+    } finally {
+      if (mountedRef.current) setBusyAction(null);
+    }
+  };
+
+  const reset = async () => {
+    if (busyAction !== null) return;
+    setBusyAction('reset');
+    setLoadError(false);
+    try {
+      const nextStatus = await resetQuickTimer();
+      if (!mountedRef.current) return;
+      observeStatus(nextStatus);
+      if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
+        setLoadError(true);
+        announce('타이머를 초기화하지 못했습니다. 다시 확인해야 합니다.');
+      } else {
+        announce('타이머를 초기화했습니다.');
+      }
+    } catch {
+      if (mountedRef.current) {
+        setLoadError(true);
+        announce('타이머를 초기화하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
       if (mountedRef.current) setBusyAction(null);
@@ -283,11 +333,13 @@ export default function TimerScreen() {
 
   const supported = status?.supported === true;
   const active = supported && status.active;
+  const paused = supported && status.state === 'paused';
+  const hasTimer = active || paused;
   const ringing = active && status.state === 'ringing';
-  const activeTimerLabel = active ? getQuickTimerDisplayLabel(status) : '';
+  const activeTimerLabel = hasTimer ? getQuickTimerDisplayLabel(status) : '';
   const canShowIdleControls =
     supported &&
-    !active &&
+    !hasTimer &&
     status.state !== 'error' &&
     status.storageHealth !== 'corrupt';
 
@@ -301,7 +353,7 @@ export default function TimerScreen() {
           타이머
         </AppText>
         <AppText tone="secondary" style={styles.centerText}>
-          지금부터 30분 또는 60분 뒤에 알람음·진동으로 알립니다.
+          지금부터 30분·45분·60분 뒤에 알람음과 진동으로 알립니다.
         </AppText>
       </View>
 
@@ -344,7 +396,7 @@ export default function TimerScreen() {
         />
       ) : null}
 
-      {active ? (
+      {hasTimer ? (
         <Card style={styles.activeCard}>
           {countdownAnchor ? (
             <QuickTimerCountdown
@@ -355,17 +407,37 @@ export default function TimerScreen() {
               label={activeTimerLabel}
               observationKey={statusObservationKey ?? ''}
               onExpired={handleCountdownExpired}
+              paused={paused}
               screenActive={screenActive}
             />
           ) : null}
-          <AppButton
-            disabled={busyAction !== null}
-            icon="close"
-            label="타이머 취소"
-            loading={busyAction === 'cancel'}
-            onPress={() => void cancel()}
-            variant="secondary"
-          />
+          <View style={[styles.timerActions, stackPresets && styles.timerActionsStacked]}>
+            {!ringing ? (
+              <AppButton
+                accessibilityHint={
+                  paused
+                    ? '저장된 남은 시간부터 타이머를 다시 시작합니다.'
+                    : '남은 시간을 저장하고 알람 예약을 잠시 멈춥니다.'
+                }
+                disabled={busyAction !== null}
+                icon={paused ? 'play' : 'pause'}
+                label={paused ? '타이머 재개' : '일시정지'}
+                loading={busyAction === (paused ? 'resume' : 'pause')}
+                onPress={() => void (paused ? resume() : pause())}
+                style={stackPresets ? styles.timerActionStacked : styles.timerAction}
+              />
+            ) : null}
+            <AppButton
+              accessibilityHint="남은 시간을 지우고 예약된 타이머 알람을 종료합니다."
+              disabled={busyAction !== null}
+              icon="refresh-outline"
+              label={ringing ? '타이머 종료' : '초기화'}
+              loading={busyAction === 'reset'}
+              onPress={() => void reset()}
+              style={stackPresets ? styles.timerActionStacked : styles.timerAction}
+              variant="secondary"
+            />
+          </View>
           {!ringing && status.state !== 'action-required' ? (
             <View style={styles.changeSection}>
               <AppText tone="secondary" style={styles.centerText} variant="caption">
@@ -457,6 +529,10 @@ function createStyles(palette: AppPalette) {
       gap: spacing.medium,
     },
     activeCard: { gap: spacing.large },
+    timerActions: { flexDirection: 'row', gap: spacing.small },
+    timerActionsStacked: { flexDirection: 'column' },
+    timerAction: { flex: 1 },
+    timerActionStacked: { width: '100%' },
     changeSection: {
       gap: spacing.small,
       paddingTop: spacing.small,

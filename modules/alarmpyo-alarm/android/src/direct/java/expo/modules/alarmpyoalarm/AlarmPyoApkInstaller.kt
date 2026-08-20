@@ -97,7 +97,7 @@ internal object AlarmPyoApkInstaller {
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     check(openPackageInstaller(context, contentUri, intent)) {
-      "APK 설치 화면을 열 수 없어요. 파일 앱에서 다운로드한 APK를 선택해 주세요."
+      "APK 설치 화면을 열 수 없습니다. 파일 앱에서 다운로드한 APK를 선택해야 합니다."
     }
     return mapOf(
       "opened" to true,

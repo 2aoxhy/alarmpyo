@@ -126,4 +126,52 @@ describe('급여 산정기간', () => {
     expect(() => getPayrollScheduleForWorkDate('2026-02-30')).toThrow(RangeError);
     expect(() => resolvePayrollBusinessDay('날짜 없음')).toThrow(RangeError);
   });
+
+  it('29~31일이 없는 달은 해당 월의 말일을 기준으로 사용합니다', () => {
+    expect(getPayrollSchedule(2026, 1, {
+      day: 31,
+      adjustment: 'fixed-date',
+    })).toMatchObject({
+      regularPaydayDateKey: '2026-02-28',
+      paydayDateKey: '2026-02-28',
+      paydayAdjusted: false,
+      paydayCalculation: 'confirmed',
+    });
+    expect(getPayrollSchedule(2028, 1, {
+      day: 31,
+      adjustment: 'fixed-date',
+    }).paydayDateKey).toBe('2028-02-29');
+  });
+
+  it('지정일 그대로 정책은 주말과 공휴일에도 앞당기지 않습니다', () => {
+    const schedule = getPayrollSchedule(2026, 1, {
+      day: 21,
+      adjustment: 'fixed-date',
+    });
+    expect(schedule.regularPaydayDateKey).toBe('2026-02-21');
+    expect(schedule.paydayDateKey).toBe('2026-02-21');
+    expect(schedule.paydayAdjusted).toBe(false);
+    expect(getPayrollCalendarEntry(2026, 1, {
+      day: 21,
+      adjustment: 'fixed-date',
+    }).confirmed).toBe(true);
+  });
+
+  it('사용자 지급일에도 직전 영업일 정책을 동일하게 적용합니다', () => {
+    expect(getPayrollSchedule(2021, 8, {
+      day: 21,
+      adjustment: 'previous-business-day',
+    }).paydayDateKey).toBe('2021-09-17');
+    expect(getPayrollScheduleForWorkDate('2026-07-16', {
+      day: 31,
+      adjustment: 'fixed-date',
+    }).paydayDateKey).toBe('2026-08-31');
+  });
+
+  it('급여 설정 범위를 벗어나면 거부합니다', () => {
+    expect(() => getPayrollSchedule(2026, 6, {
+      day: 0,
+      adjustment: 'fixed-date',
+    })).toThrow(RangeError);
+  });
 });

@@ -64,4 +64,31 @@ describe('알람 일정 서명', () => {
       getAlarmScheduleSignature(original),
     );
   });
+
+  it('사용하지 않는 대체근무 알람 저장값만 바뀌면 다시 예약하지 않습니다', () => {
+    const original = createDefaultAppData('2026-07-11');
+    const legacyValueChanged = {
+      ...original,
+      shiftTypes: original.shiftTypes.map((shift) =>
+        shift.id === 'substitute-day'
+          ? { ...shift, alarmEnabled: !shift.alarmEnabled, alarmMinutesBefore: 1 }
+          : shift,
+      ),
+    };
+    const dayChanged = {
+      ...original,
+      shiftTypes: original.shiftTypes.map((shift) =>
+        shift.id === 'day'
+          ? { ...shift, alarmMinutesBefore: shift.alarmMinutesBefore + 1 }
+          : shift,
+      ),
+    };
+
+    expect(getAlarmScheduleSignature(legacyValueChanged)).toBe(
+      getAlarmScheduleSignature(original),
+    );
+    expect(getAlarmScheduleSignature(dayChanged)).not.toBe(
+      getAlarmScheduleSignature(original),
+    );
+  });
 });

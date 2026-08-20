@@ -25,6 +25,9 @@ android {
 }
 
 dependencies {
+  if (alarmpyoDistribution == 'play') {
+    implementation 'com.google.android.play:app-update:2.1.0'
+  }
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.json:json:20251224'
 }

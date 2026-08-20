@@ -16,11 +16,17 @@ import {
   LEGACY_MAX_ALARM_MINUTES_BEFORE,
   MAX_ALARM_MINUTES_BEFORE,
   type AppData,
+  type AppliedPatternSource,
   type AppSettings,
   type DayAlarmOverride,
   type DayExceptionType,
   type DayTimeOverride,
   type RotationPattern,
+  type PatternHistoryEntry,
+  type PatternShiftCode,
+  type PatternVaultEntry,
+  type PatternVaultSource,
+  type PayrollSettings,
   type ShiftType,
   type ThemeMode,
   type WidgetDisplayOptions,
@@ -46,19 +52,14 @@ import {
 import {
   addDays,
   dateAtMinutes,
-  differenceInCalendarDays,
   isValidDateKey,
   toDateKey,
 } from '../utils/date';
 import {
   DAY_EXCEPTION_TYPES,
-  getDayExceptionLabel,
-  usesDayAlarmForException,
 } from '../utils/day-exception';
 import { stripOptionalUtf8Bom } from '../utils/json';
 import {
-  getWeekdayPatternPosition,
-  getWorkPatternKind,
   getWorkPatternDisplayName,
   getWorkPatternName,
   getWorkPatternPresetId,
@@ -75,8 +76,18 @@ import {
   getCheckedAppDataContentsByteSize,
   getCheckedBackupContentsByteSize,
 } from './backup-file-policy';
+import { DEFAULT_PAYROLL_SETTINGS } from './payroll-policy';
+import {
+  getPatternScheduleStartDate,
+  isPatternScheduleDate,
+  resolveBaseShift,
+  resolveEffectiveDay,
+  type EffectiveDay,
+  type ResolveEffectiveDay,
+  type ResolveEffectiveDayOptions,
+} from './pattern-engine';
 
-export const APP_DATA_VERSION = 20 as const;
+export const APP_DATA_VERSION = 21 as const;
 export { APP_DATA_BACKUP_FORMAT, APP_DATA_BACKUP_FORMAT_VERSION };
 
 const MAX_LEGACY_SHIFT_TYPES = 100;
@@ -86,6 +97,8 @@ const MAX_PRE_V20_SHIFT_TYPES = MAX_LEGACY_SHIFT_TYPES + 2;
 const MAX_SHIFT_TYPES = MAX_PRE_V20_SHIFT_TYPES + 1;
 const MAX_PATTERN_LENGTH = 3_660;
 const MAX_DATED_ITEMS = 20_000;
+const MAX_PATTERN_VAULT_ITEMS = 100;
+const MAX_PATTERN_HISTORY_ITEMS = 10;
 const V12_DEFAULT_ALARM_MINUTES_BEFORE = 120;
 const DEFAULT_ALARM_SHIFT_IDS = [
   'day',
@@ -112,7 +125,8 @@ type PreviousAppDataVersion =
   | 16
   | 17
   | 18
-  | 19;
+  | 19
+  | 20;
 type AppDataVersion = PreviousAppDataVersion | typeof APP_DATA_VERSION;
 
 export const DEFAULT_WIDGET_DISPLAY_OPTIONS: Readonly<WidgetDisplayOptions> = {
@@ -120,6 +134,8 @@ export const DEFAULT_WIDGET_DISPLAY_OPTIONS: Readonly<WidgetDisplayOptions> = {
   nextShift: true,
   nextAlarm: false,
 };
+
+export { DEFAULT_PAYROLL_SETTINGS } from './payroll-policy';
 
 export type ParsedAppData = {
   data: AppData;
@@ -313,6 +329,35 @@ function migrateV20EveningShift(
   };
 }
 
+// v20 이하 저장 형식에 기록된 기본 명칭 식별자입니다.
+// 현재 UI 문구 분기에 사용하지 않고 마이그레이션에서만 사용합니다.
+const V20_DEFAULT_SUBSTITUTE_DAY_NAME = '주간 대체근무';
+const V20_DEFAULT_SUBSTITUTE_NIGHT_NAME = '야간 대체근무';
+
+function migrateV21SubstituteLabels(
+  shiftTypes: ShiftType[],
+  sourceVersion: AppDataVersion,
+): ShiftType[] {
+  if (sourceVersion >= 21) return shiftTypes;
+  return shiftTypes.map((shift) => {
+    if (
+      shift.id === 'substitute-day' &&
+      shift.name === V20_DEFAULT_SUBSTITUTE_DAY_NAME &&
+      shift.shortName === '대주'
+    ) {
+      return { ...shift, shortName: '주대' };
+    }
+    if (
+      shift.id === 'substitute-night' &&
+      shift.name === V20_DEFAULT_SUBSTITUTE_NIGHT_NAME &&
+      shift.shortName === '대야'
+    ) {
+      return { ...shift, shortName: '야대' };
+    }
+    return shift;
+  });
+}
+
 function rewriteLegacyEveningReference(
   shiftTypeId: string,
   renamedLegacyEveningId: string | null,
@@ -409,6 +454,10 @@ export function createDefaultAppData(anchorDate = toDateKey(new Date())): AppDat
     alarmOverrides: {},
     notes: {},
     scheduleChangeHistory: [],
+    payrollSettings: { ...DEFAULT_PAYROLL_SETTINGS },
+    patternVault: [],
+    patternHistory: [],
+    appliedPatternSource: 'legacy',
     settings: {
       notificationsEnabled: false,
       sleepReminderEnabled: false,
@@ -418,19 +467,19 @@ export function createDefaultAppData(anchorDate = toDateKey(new Date())): AppDat
       themeMode: 'dark',
       workRoutineProfiles: createDefaultWorkRoutineProfiles(),
       widgetDisplayOptions: { ...DEFAULT_WIDGET_DISPLAY_OPTIONS },
+      dismissedUpdateVersionCode: null,
     },
   };
 }
 
-/** 반복 계산용 기준일과 별개로 실제 근무표가 시작되는 첫 날짜를 반환해요. */
+/** 반복 계산용 기준일과 별개로 실제 근무표가 시작되는 첫 날짜를 반환합니다. */
 export function getScheduleStartDate(data: Pick<AppData, 'pattern'>): string {
-  const startDate = data.pattern.scheduleStartDate;
-  return startDate && isValidDateKey(startDate) ? startDate : data.pattern.anchorDate;
+  return getPatternScheduleStartDate(data.pattern);
 }
 
-/** 첫 근무일부터 근무·예외 일정을 적용해요. */
+/** 첫 근무일부터 근무·예외 일정을 적용합니다. */
 export function isScheduleDate(data: Pick<AppData, 'pattern'>, dateKey: string): boolean {
-  return dateKey >= getScheduleStartDate(data);
+  return isPatternScheduleDate(data.pattern, dateKey);
 }
 
 /** 첫 근무일 이전에 저장된 예외 일정은 화면과 알람에 적용하지 않아요. */
@@ -442,51 +491,10 @@ export function resolveDayExceptionFromAppData(
 }
 
 export function resolveBaseShiftFromAppData(data: AppData, dateKey: string): ShiftType | null {
-  if (!isScheduleDate(data, dateKey) || data.pattern.shiftTypeIds.length === 0) return null;
-
-  const hasOverride = Object.prototype.hasOwnProperty.call(data.overrides, dateKey);
-  const patternPosition =
-    getWorkPatternKind(data.pattern.shiftTypeIds) === 'weekday'
-      ? getWeekdayPatternPosition(dateKey)
-      : ((differenceInCalendarDays(dateKey, data.pattern.anchorDate) %
-            data.pattern.shiftTypeIds.length) +
-          data.pattern.shiftTypeIds.length) %
-        data.pattern.shiftTypeIds.length;
-  const shiftTypeId = hasOverride
-    ? data.overrides[dateKey]
-    : data.pattern.shiftTypeIds[patternPosition];
-
-  if (shiftTypeId === null || shiftTypeId === undefined) return null;
-  const shift = data.shiftTypes.find((item) => item.id === shiftTypeId) ?? null;
-  const timeOverride = data.timeOverrides[dateKey];
-  if (!shift || shift.isOff || !timeOverride || timeOverride.shiftTypeId !== shift.id) return shift;
-  return {
-    ...shift,
-    startMinutes: timeOverride.startMinutes,
-    endMinutes: timeOverride.endMinutes,
-    endsNextDay: timeOverride.endsNextDay,
-  };
+  return resolveBaseShift(data, dateKey);
 }
 
-export type EffectiveDay = {
-  dateKey: string;
-  /** 첫 근무일 이후로 근무표가 적용되는 날짜인지 나타내요. */
-  scheduleActive: boolean;
-  /** 날짜 예외를 적용하기 전의 반복·직접 변경 근무예요. */
-  scheduledShift: ShiftType | null;
-  /** 날짜 예외까지 적용한 뒤 화면·알람·내보내기에서 사용할 최종 일정이에요. */
-  shift: ShiftType | null;
-  dayException: DayExceptionType | undefined;
-};
-
-export type ResolveEffectiveDay = (dateKey: string) => EffectiveDay;
-
-export type ResolveEffectiveDayOptions = {
-  /** 저장 전 미리 보기에만 사용해요. 생략하면 저장된 근무를 계산해요. */
-  scheduledShift?: ShiftType | null;
-  /** 저장 전 미리 보기에만 사용해요. null이면 예외 일정을 해제한 상태예요. */
-  dayException?: DayExceptionType | null;
-};
+export type { EffectiveDay, ResolveEffectiveDay, ResolveEffectiveDayOptions };
 
 /**
  * 한 날짜의 최종 일정 의미를 한 곳에서 계산해요.
@@ -498,44 +506,7 @@ export function resolveEffectiveDayFromAppData(
   dateKey: string,
   options: ResolveEffectiveDayOptions = {},
 ): EffectiveDay {
-  const scheduleActive = isScheduleDate(data, dateKey);
-  if (!scheduleActive) {
-    return {
-      dateKey,
-      scheduleActive: false,
-      scheduledShift: null,
-      shift: null,
-      dayException: undefined,
-    };
-  }
-
-  const scheduledShift = Object.prototype.hasOwnProperty.call(options, 'scheduledShift')
-    ? options.scheduledShift ?? null
-    : resolveBaseShiftFromAppData(data, dateKey);
-  const dayException = Object.prototype.hasOwnProperty.call(options, 'dayException')
-    ? options.dayException ?? undefined
-    : resolveDayExceptionFromAppData(data, dateKey);
-
-  if (!dayException) {
-    return { dateKey, scheduleActive, scheduledShift, shift: scheduledShift, dayException };
-  }
-
-  if (usesDayAlarmForException(dayException)) {
-    const dayShift = data.shiftTypes.find((item) => item.id === 'day');
-    const shift = dayShift && !dayShift.isOff ? dayShift : null;
-    return { dateKey, scheduleActive, scheduledShift, shift, dayException };
-  }
-
-  const offShift = data.shiftTypes.find((item) => item.isOff);
-  const shift = offShift
-    ? {
-        ...offShift,
-        id: `exception-${dayException}`,
-        name: getDayExceptionLabel(dayException),
-        shortName: '연',
-      }
-    : null;
-  return { dateKey, scheduleActive, scheduledShift, shift, dayException };
+  return resolveEffectiveDay(data, dateKey, options);
 }
 
 export function resolveShiftFromAppData(data: AppData, dateKey: string): ShiftType | null {
@@ -1111,6 +1082,164 @@ function parseWidgetDisplayOptions(
   return options;
 }
 
+function parsePayrollSettings(
+  value: unknown,
+  sourceVersion: AppDataVersion,
+): PayrollSettings {
+  if (sourceVersion < 21) return { ...DEFAULT_PAYROLL_SETTINGS };
+  const item = record(value, '급여일 설정');
+  const day = integerInRange(item.day, '급여 지급일', 1, 31);
+  if (
+    item.adjustment !== 'fixed-date' &&
+    item.adjustment !== 'previous-business-day'
+  ) {
+    throw new AppDataValidationError('급여일 조정 방식이 올바르지 않습니다.');
+  }
+  return { day, adjustment: item.adjustment };
+}
+
+const PATTERN_SHIFT_CODES = new Set<PatternShiftCode>([
+  'DAY',
+  'EVENING',
+  'NIGHT',
+  'OFF',
+  'DAY_SUBSTITUTE',
+  'NIGHT_SUBSTITUTE',
+]);
+const PATTERN_VAULT_SOURCES = new Set<PatternVaultSource>([
+  'official',
+  'user',
+  'imported',
+]);
+const APPLIED_PATTERN_SOURCES = new Set<AppliedPatternSource>([
+  'legacy',
+  'official',
+  'user',
+  'imported',
+]);
+
+function requiredIsoDate(value: unknown, label: string): string {
+  const parsed = nullableIsoDate(value, label);
+  if (parsed === null) {
+    throw new AppDataValidationError(`${label} 날짜가 올바르지 않습니다.`);
+  }
+  return parsed;
+}
+
+function nullableShortString(
+  value: unknown,
+  label: string,
+  maximumLength: number,
+): string | null {
+  if (value === null) return null;
+  return requiredString(value, label, maximumLength);
+}
+
+function parsePatternShiftCodes(value: unknown, label: string): PatternShiftCode[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 42) {
+    throw new AppDataValidationError(`${label}이 올바르지 않습니다.`);
+  }
+  return value.map((code) => {
+    if (typeof code !== 'string' || !PATTERN_SHIFT_CODES.has(code as PatternShiftCode)) {
+      throw new AppDataValidationError(`${label}에 알 수 없는 근무 코드가 있습니다.`);
+    }
+    return code as PatternShiftCode;
+  });
+}
+
+function parsePatternVault(value: unknown, sourceVersion: AppDataVersion): PatternVaultEntry[] {
+  if (sourceVersion < 21) return [];
+  if (!Array.isArray(value) || value.length > MAX_PATTERN_VAULT_ITEMS) {
+    throw new AppDataValidationError('패턴 보관소가 올바르지 않습니다.');
+  }
+  const ids = new Set<string>();
+  return value.map((rawEntry, index) => {
+    const label = `${index + 1}번째 보관 패턴`;
+    const item = record(rawEntry, label);
+    const id = requiredString(item.id, `${label} ID`, 100);
+    if (ids.has(id)) {
+      throw new AppDataValidationError('패턴 보관소 ID가 중복되어 있습니다.');
+    }
+    ids.add(id);
+    if (
+      typeof item.source !== 'string' ||
+      !PATTERN_VAULT_SOURCES.has(item.source as PatternVaultSource)
+    ) {
+      throw new AppDataValidationError(`${label} 출처가 올바르지 않습니다.`);
+    }
+    return {
+      id,
+      source: item.source as PatternVaultSource,
+      name: requiredString(item.name, `${label} 이름`, 100),
+      author: nullableShortString(item.author, `${label} 제작자`, 30),
+      sourceVersion: integerInRange(item.sourceVersion, `${label} 버전`, 1, 2_147_483_647),
+      anchorDate: dateKey(item.anchorDate, `${label} 기준일`),
+      shiftCodes: parsePatternShiftCodes(item.shiftCodes, `${label} 근무 순서`),
+      createdAt: requiredIsoDate(item.createdAt, `${label} 생성일`),
+      updatedAt: requiredIsoDate(item.updatedAt, `${label} 수정일`),
+    };
+  });
+}
+
+function parsePatternHistory(
+  value: unknown,
+  sourceVersion: AppDataVersion,
+  knownShiftIds: ReadonlySet<string>,
+): PatternHistoryEntry[] {
+  if (sourceVersion < 21) return [];
+  if (!Array.isArray(value) || value.length > MAX_PATTERN_HISTORY_ITEMS) {
+    throw new AppDataValidationError('패턴 적용 이력이 올바르지 않습니다.');
+  }
+  const ids = new Set<string>();
+  return value.map((rawEntry, index) => {
+    const label = `${index + 1}번째 패턴 적용 이력`;
+    const item = record(rawEntry, label);
+    const id = requiredString(item.id, `${label} ID`, 100);
+    if (ids.has(id)) {
+      throw new AppDataValidationError('패턴 적용 이력 ID가 중복되어 있습니다.');
+    }
+    ids.add(id);
+    if (
+      typeof item.source !== 'string' ||
+      !APPLIED_PATTERN_SOURCES.has(item.source as AppliedPatternSource)
+    ) {
+      throw new AppDataValidationError(`${label} 출처가 올바르지 않습니다.`);
+    }
+    const overrideDateKeys = item.overrideDateKeys;
+    if (!Array.isArray(overrideDateKeys) || overrideDateKeys.length > MAX_DATED_ITEMS) {
+      throw new AppDataValidationError(`${label} 변경 날짜가 올바르지 않습니다.`);
+    }
+    return {
+      id,
+      appliedAt: requiredIsoDate(item.appliedAt, `${label} 적용일`),
+      source: item.source as AppliedPatternSource,
+      patternId: nullableShortString(item.patternId, `${label} 패턴 ID`, 100),
+      previousPattern: parsePattern(item.previousPattern, knownShiftIds).pattern,
+      nextPattern: parsePattern(item.nextPattern, knownShiftIds).pattern,
+      overrideDateKeys: overrideDateKeys.map((key) => dateKey(key, `${label} 변경 날짜`)),
+    };
+  });
+}
+
+function parseAppliedPatternSource(
+  value: unknown,
+  sourceVersion: AppDataVersion,
+): AppliedPatternSource {
+  if (sourceVersion < 21) return 'legacy';
+  if (typeof value !== 'string' || !APPLIED_PATTERN_SOURCES.has(value as AppliedPatternSource)) {
+    throw new AppDataValidationError('적용한 패턴 출처가 올바르지 않습니다.');
+  }
+  return value as AppliedPatternSource;
+}
+
+function parseDismissedUpdateVersionCode(
+  value: unknown,
+  sourceVersion: AppDataVersion,
+): number | null {
+  if (sourceVersion < 21 || value === undefined || value === null) return null;
+  return integerInRange(value, '닫은 업데이트 버전', 1, 2_147_483_647);
+}
+
 function parseSettings(value: unknown, sourceVersion: AppDataVersion): AppSettings {
   const legacy = sourceVersion === 1;
   const item = legacy ? optionalLegacyRecord(value, '설정') : record(value, '설정');
@@ -1124,6 +1253,7 @@ function parseSettings(value: unknown, sourceVersion: AppDataVersion): AppSettin
       themeMode: 'dark',
       workRoutineProfiles: createDefaultWorkRoutineProfiles(),
       widgetDisplayOptions: { ...DEFAULT_WIDGET_DISPLAY_OPTIONS },
+      dismissedUpdateVersionCode: null,
     };
   }
 
@@ -1146,6 +1276,10 @@ function parseSettings(value: unknown, sourceVersion: AppDataVersion): AppSettin
     ),
     widgetDisplayOptions: parseWidgetDisplayOptions(
       item.widgetDisplayOptions,
+      sourceVersion,
+    ),
+    dismissedUpdateVersionCode: parseDismissedUpdateVersionCode(
+      item.dismissedUpdateVersionCode,
       sourceVersion,
     ),
   };
@@ -1176,6 +1310,7 @@ export function validateAndMigrateAppData(
     source.version !== 17 &&
     source.version !== 18 &&
     source.version !== 19 &&
+    source.version !== 20 &&
     source.version !== APP_DATA_VERSION
   ) {
     throw new AppDataValidationError('지원하지 않는 근무표 데이터 버전입니다.');
@@ -1233,7 +1368,11 @@ export function validateAndMigrateAppData(
     ),
     sourceVersion,
   );
-  const { shiftTypes, renamedLegacyEveningId } = eveningMigration;
+  const {
+    shiftTypes: v20ShiftTypes,
+    renamedLegacyEveningId,
+  } = eveningMigration;
+  const shiftTypes = migrateV21SubstituteLabels(v20ShiftTypes, sourceVersion);
   const normalizedShiftTypeIds =
     sourceVersion <= 2
       ? [...ROTATION_PATTERN_SHIFT_TYPE_IDS]
@@ -1331,6 +1470,15 @@ export function validateAndMigrateAppData(
     alarmOverrides,
     notes: parseNotes(source.notes, legacyV1),
     scheduleChangeHistory: [],
+    payrollSettings: parsePayrollSettings(source.payrollSettings, sourceVersion),
+    patternVault: parsePatternVault(source.patternVault, sourceVersion),
+    patternHistory: parsePatternHistory(source.patternHistory, sourceVersion, new Set(
+      normalizedShiftTypes.map((shift) => shift.id),
+    )),
+    appliedPatternSource: parseAppliedPatternSource(
+      source.appliedPatternSource,
+      sourceVersion,
+    ),
     settings: {
       ...parsedSettings,
       // 이전 백업의 자동·라이트 값은 읽기 호환만 유지하고 현재 앱에서는 다크로 확정해요.

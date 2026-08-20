@@ -70,8 +70,12 @@ export function buildCalendarMonthViewModel(input: {
       month,
       resolveVisibleOrStoredDay,
     ),
-    payrollSchedule: getPayrollSchedule(year, month),
-    payrollEntries: getPayrollCalendarEntriesForMonth(year, month),
+    payrollSchedule: getPayrollSchedule(year, month, data.payrollSettings),
+    payrollEntries: getPayrollCalendarEntriesForMonth(
+      year,
+      month,
+      data.payrollSettings,
+    ),
     resolveDay,
   };
 }

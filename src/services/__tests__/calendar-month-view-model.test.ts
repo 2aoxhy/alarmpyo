@@ -5,7 +5,7 @@ import { buildCalendarMonthViewModel } from '../calendar-month-view-model';
 import { createDefaultWorkRoutineProfiles } from '../work-routine-settings';
 
 const data: AppData = {
-  version: 20,
+  version: 21,
   shiftTypes: [
     {
       id: 'day',
@@ -46,6 +46,10 @@ const data: AppData = {
   alarmOverrides: {},
   notes: {},
   scheduleChangeHistory: [],
+  payrollSettings: { day: 21, adjustment: 'previous-business-day' },
+  patternVault: [],
+  patternHistory: [],
+  appliedPatternSource: 'legacy',
   settings: {
     notificationsEnabled: false,
     sleepReminderEnabled: false,
@@ -59,6 +63,7 @@ const data: AppData = {
       nextShift: true,
       nextAlarm: false,
     },
+    dismissedUpdateVersionCode: null,
   },
 };
 
@@ -94,5 +99,23 @@ describe('달력 월 화면 계산 모델', () => {
     ).toBe(true);
     expect(model.selectableDateKeySet.has('2026-07-01')).toBe(true);
     expect(model.monthlySummary.workdayCount).toBeGreaterThan(0);
+  });
+
+  it('저장된 급여일과 조정 정책을 달력 표시에 반영합니다', () => {
+    const model = buildCalendarMonthViewModel({
+      data: {
+        ...data,
+        payrollSettings: { day: 31, adjustment: 'fixed-date' },
+      },
+      year: 2026,
+      month: 6,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(model.payrollSchedule.regularPaydayDateKey).toBe('2026-07-31');
+    expect(model.payrollSchedule.paydayDateKey).toBe('2026-07-31');
+    expect(model.payrollEntries).toHaveProperty('2026-07-31');
+    expect(model.payrollEntries).not.toHaveProperty('2026-07-21');
   });
 });

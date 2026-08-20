@@ -10,6 +10,8 @@ import { DisclosureRow, SegmentedControl, StatusBanner } from '@/design-system';
 import {
   RoutineTimingEditor,
 } from '@/features/shift-settings/routine-timing-editor';
+import { PayrollSettingsEditor } from '@/features/shift-settings/payroll-settings-editor';
+import { formatPayrollSettingsSummary } from '@/features/shift-settings/payroll-settings-model';
 import {
   cloneWorkRoutineProfiles,
   createShiftDrafts,
@@ -45,13 +47,18 @@ import {
   getWorkPatternKind,
 } from '@/utils/work-pattern';
 
-type SettingsPanel = 'pattern' | 'time' | 'routine';
+type SettingsPanel = 'pattern' | 'time' | 'routine' | 'payroll';
 
 export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
-  const { createBackup, data, updateShiftTypes } = useAppStore();
+  const {
+    createBackup,
+    data,
+    updatePayrollSettings,
+    updateShiftTypes,
+  } = useAppStore();
   const activeWorkShiftIds = (['day', 'evening', 'night'] as const).filter(
     (id) => data.pattern.shiftTypeIds.includes(id),
   );
@@ -96,7 +103,7 @@ export default function ShiftSettingsScreen() {
     value: EditorSection;
   }[] = [
     ...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value })),
-    { label: '대체', value: 'substitute' as const },
+    { label: '특근', value: 'substitute' as const },
   ];
   const selectedShift = data.shiftTypes.find(
     (shift) => shift.id === editorSection,
@@ -118,10 +125,10 @@ export default function ShiftSettingsScreen() {
       const profile = workRoutineProfiles[kind];
       const relevantDraftIds =
         kind === 'night'
-          ? ['night', SUBSTITUTE_NIGHT_ID]
+          ? ['night']
           : kind === 'evening'
             ? ['evening']
-            : ['day', SUBSTITUTE_DAY_ID];
+            : ['day'];
       const relevantDrafts = drafts.filter((draft) =>
         relevantDraftIds.includes(draft.id),
       );
@@ -309,16 +316,24 @@ export default function ShiftSettingsScreen() {
       }
       const shiftTypePatches: Record<string, Partial<ShiftType>> =
         Object.fromEntries(
-          parsed.map((item) => [
-            item.draft.id,
-            {
+          parsed.map((item) => {
+            const timePatch = {
               startMinutes: item.startMinutes,
               endMinutes: item.endMinutes,
               endsNextDay: item.duration.endsNextDay,
-              alarmEnabled: item.draft.alarmEnabled,
-              alarmMinutesBefore: item.draft.alarmMinutesBefore,
-            },
-          ]),
+            };
+            return [
+              item.draft.id,
+              item.draft.id === SUBSTITUTE_DAY_ID ||
+              item.draft.id === SUBSTITUTE_NIGHT_ID
+                ? timePatch
+                : {
+                    ...timePatch,
+                    alarmEnabled: item.draft.alarmEnabled,
+                    alarmMinutesBefore: item.draft.alarmMinutesBefore,
+                  },
+            ];
+          }),
         );
       const saved = await updateShiftTypes(
         shiftTypePatches,
@@ -377,8 +392,15 @@ export default function ShiftSettingsScreen() {
     activeWorkShiftIds.includes('evening'),
     activeWorkShiftIds.includes('day'),
   );
+  const payrollSummary = formatPayrollSettingsSummary(data.payrollSettings);
+  const routineSectionOptions = sectionOptions.filter(
+    (option) => option.value !== 'substitute',
+  );
   const togglePanel = (panel: SettingsPanel) => {
     void Haptics.selectionAsync();
+    if (panel === 'routine' && editorSection === 'substitute') {
+      setEditorSection(substituteMode);
+    }
     setActivePanel((current) => (current === panel ? null : panel));
   };
   const openFirstInvalidSetting = () => {
@@ -518,7 +540,7 @@ export default function ShiftSettingsScreen() {
                   void Haptics.selectionAsync();
                   setEditorSection(section);
                 }}
-                options={sectionOptions}
+                options={routineSectionOptions}
                 value={editorSection}
               />
 
@@ -549,46 +571,27 @@ export default function ShiftSettingsScreen() {
                 </>
               ) : null}
 
-              {editorSection === 'substitute' &&
-              activeSubstituteDraft &&
-              weekdayFixed ? (
-                <>
-                  {activeSubstitute ? (
-                    <ShiftTimingEditor
-                      compact={compactEditor}
-                      draft={activeSubstituteDraft}
-                      onChange={(patch) =>
-                        updateDraft(activeSubstitute.id, patch)
-                      }
-                      onSubstituteModeChange={setSubstituteMode}
-                      shift={activeSubstitute}
-                      substituteMode={substituteMode}
-                      visibleSection="wake"
-                    />
-                  ) : null}
-                  <RoutineTimingEditor
-                    alarmMinutesBefore={activeSubstituteDraft.alarmMinutesBefore}
-                    compact={compactEditor}
-                    expanded
-                    kind={substituteMode}
-                    onChange={(profile) =>
-                      updateRoutineProfile(substituteMode, profile)
-                    }
-                    onExpandedChange={() => undefined}
-                    profile={workRoutineProfiles[substituteMode]}
-                    showDisclosure={false}
-                    startMinutes={parseTimeInput(activeSubstituteDraft.start)}
-                  />
-                </>
-              ) : null}
+              <StatusBanner
+                message="주대는 주간 기상 알람과 출근 루틴을, 야대는 야간 설정을 그대로 사용합니다."
+                title="주대·야대 알람은 자동으로 이어받습니다"
+                tone="info"
+              />
+            </View>
+          ) : null}
 
-              {editorSection === 'substitute' && !weekdayFixed ? (
-                <StatusBanner
-                  message="교대근무의 대체 근무는 주간·오후·야간 루틴을 사용합니다."
-                  title="별도 루틴이 필요하지 않습니다"
-                  tone="info"
-                />
-              ) : null}
+          <DisclosureRow
+            expanded={activePanel === 'payroll'}
+            icon="calendar-outline"
+            onPress={() => togglePanel('payroll')}
+            subtitle={payrollSummary}
+            title="급여일"
+          />
+          {activePanel === 'payroll' ? (
+            <View style={styles.editorBody}>
+              <PayrollSettingsEditor
+                onSave={updatePayrollSettings}
+                value={data.payrollSettings}
+              />
             </View>
           ) : null}
 

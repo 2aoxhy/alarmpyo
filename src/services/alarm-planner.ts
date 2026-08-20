@@ -12,6 +12,7 @@ import {
   resolveDayAlarmOverrideFromAppData,
   resolveEffectiveDayFromAppData,
 } from './app-data-service';
+import { resolveAlarmSettingsForShift } from './pattern-engine';
 
 /**
  * 네이티브 계층이 앱을 다시 열지 않아도 다음 알람을 이어서 예약할 수 있도록
@@ -209,15 +210,16 @@ export function buildAlarmPyoAlarmPlan(
       alarmAt = getDayAlarmOverrideWakeAt(dateKey, alarmOverride);
       alarmMinutesBefore = overrideLead;
     } else {
-      if (!shift.alarmEnabled) continue;
+      const alarmSettings = resolveAlarmSettingsForShift(data.shiftTypes, shift);
+      if (!alarmSettings.alarmEnabled) continue;
       if (
-        !Number.isInteger(shift.alarmMinutesBefore) ||
-        shift.alarmMinutesBefore < 0 ||
-        shift.alarmMinutesBefore > MAX_ALARM_MINUTES_BEFORE
+        !Number.isInteger(alarmSettings.alarmMinutesBefore) ||
+        alarmSettings.alarmMinutesBefore < 0 ||
+        alarmSettings.alarmMinutesBefore > MAX_ALARM_MINUTES_BEFORE
       ) {
         throw new RangeError(`${shift.name} 근무의 알람 준비 시간이 올바르지 않습니다.`);
       }
-      alarmMinutesBefore = shift.alarmMinutesBefore;
+      alarmMinutesBefore = alarmSettings.alarmMinutesBefore;
       alarmAt =
         dateAtMinutes(dateKey, shift.startMinutes).getTime() - alarmMinutesBefore * 60_000;
     }

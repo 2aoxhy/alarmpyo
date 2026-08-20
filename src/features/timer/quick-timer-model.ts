@@ -33,12 +33,13 @@ export function getQuickTimerDisplayLabel(
 }
 
 export function createQuickTimerCountdownAnchor(
-  status: Pick<QuickTimerStatus, 'active' | 'remainingMillis'>,
+  status: Pick<QuickTimerStatus, 'active' | 'remainingMillis' | 'state'>,
   observedAtMonotonic: number,
 ): QuickTimerCountdownAnchor {
+  const preservesRemainingTime = status.active || status.state === 'paused';
   return {
     remainingMillis:
-      status.active && Number.isFinite(status.remainingMillis)
+      preservesRemainingTime && Number.isFinite(status.remainingMillis)
         ? Math.max(0, status.remainingMillis)
         : 0,
     observedAtMonotonic: Number.isFinite(observedAtMonotonic)
@@ -80,15 +81,14 @@ export function isQuickTimerScheduleConfirmed(
 }
 
 export function formatQuickTimerCountdown(remainingMillis: number): string {
-  const totalSeconds = Number.isFinite(remainingMillis)
-    ? Math.max(0, Math.ceil(remainingMillis / SECOND_MS))
+  const safeRemainingMillis = Number.isFinite(remainingMillis)
+    ? Math.max(0, remainingMillis)
     : 0;
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  return [hours, minutes, seconds]
-    .map((value) => value.toString().padStart(2, '0'))
-    .join(':');
+  const totalSeconds = Math.ceil(safeRemainingMillis / SECOND_MS);
+  if (safeRemainingMillis >= 60_000) {
+    return `${Math.ceil(safeRemainingMillis / 60_000)}분 남음`;
+  }
+  return `${totalSeconds}초 남음`;
 }
 
 function sameCalendarDate(left: Date, right: Date): boolean {
@@ -123,18 +123,7 @@ export function formatQuickTimerTarget(
 }
 
 export function getQuickTimerRemainingLabel(remainingMillis: number): string {
-  const totalSeconds = Number.isFinite(remainingMillis)
-    ? Math.max(0, Math.ceil(remainingMillis / SECOND_MS))
-    : 0;
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts = [
-    hours > 0 ? `${hours}시간` : null,
-    minutes > 0 ? `${minutes}분` : null,
-    seconds > 0 || totalSeconds === 0 ? `${seconds}초` : null,
-  ].filter((part): part is string => Boolean(part));
-  return `${parts.join(' ')} 남음`;
+  return formatQuickTimerCountdown(remainingMillis);
 }
 
 export function shouldStackQuickTimerPresets(
@@ -169,7 +158,7 @@ export function getQuickTimerActionPresentation(
     case 'exact-alarm':
       return {
         title: '정확한 알람 허용 필요',
-        message: '30분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
+        message: '30분·45분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
       };
     case 'notifications':
       return {

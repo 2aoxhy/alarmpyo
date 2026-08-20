@@ -3,6 +3,7 @@ import type {
   DayAlarmOverride,
   DayExceptionType,
   DayTimeOverride,
+  PayrollSettings,
   RotationPattern,
   ShiftType,
   ThemeMode,
@@ -154,6 +155,8 @@ export type AppStore = {
     patches: Record<string, Partial<ShiftType>>,
     workRoutineProfiles?: WorkRoutineProfiles,
   ) => Promise<boolean>;
+  updatePayrollSettings: (settings: PayrollSettings) => Promise<boolean>;
+  dismissPlayUpdate: (versionCode: number) => Promise<boolean>;
   setThemeMode: (themeMode: ThemeMode) => void;
   toggleWidgetDisplayOption: (
     option: keyof WidgetDisplayOptions,

@@ -108,6 +108,7 @@ export function Screen({
   children,
   scroll = true,
   contentStyle,
+  background,
   footer,
   footerBottomOffset = 0,
   maxContentWidth = 600,
@@ -116,6 +117,7 @@ export function Screen({
 }: PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  background?: ReactNode;
   footer?: ReactNode;
   footerBottomOffset?: number;
   maxContentWidth?: number;
@@ -145,6 +147,15 @@ export function Screen({
   );
   return (
     <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
+      {background ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}>
+          {background}
+        </View>
+      ) : null}
       <View style={styles.backgroundAccent} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

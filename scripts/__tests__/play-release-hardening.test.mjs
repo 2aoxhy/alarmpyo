@@ -12,6 +12,7 @@ import {
   validatePlayManifest,
   validateProvenanceBinding,
 } from '../play-release-policy.mjs';
+import { assertPlayNativeApiSource } from '../validate-play-config.mjs';
 
 function source(path) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -169,11 +170,21 @@ describe('Play AAB 하드닝', () => {
     );
     const metro = source('metro.config.js');
     expect(gradle).toContain('src/${alarmpyoDistribution}/java');
-    expect(mainModule).toContain('registerAlarmPyoDistributionApi { context }');
+    expect(mainModule).toContain('registerAlarmPyoDistributionApi(');
+    expect(mainModule).toContain('contextProvider = { context }');
+    expect(mainModule).toContain('activityProvider = { appContext.currentActivity }');
     expect(mainModule).not.toContain('AlarmPyoApkInstaller');
     expect(mainModule).not.toContain('verifyAndOpenApkInstallerAsync');
-    expect(playApi).not.toContain('AsyncFunction');
     expect(playApi).not.toContain('AlarmPyoApkInstaller');
+    expect(() => assertPlayNativeApiSource(playApi)).not.toThrow();
+    expect(() =>
+      assertPlayNativeApiSource(
+        playApi.replace('completePlayUpdateAsync', 'unexpectedPlayUpdateAsync'),
+      ),
+    ).toThrow('허용된 업데이트 함수 3개');
+    expect(() =>
+      assertPlayNativeApiSource(`${playApi}\nAlarmPyoApkInstaller`),
+    ).toThrow('직접 APK 설치 코드');
     expect(metro).toContain("process.env.ALARMPYO_DISTRIBUTION === 'play'");
     expect(metro).toContain('play-app-update-screen.tsx');
   });

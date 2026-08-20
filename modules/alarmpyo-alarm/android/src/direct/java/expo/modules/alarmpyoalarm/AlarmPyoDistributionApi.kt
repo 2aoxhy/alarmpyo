@@ -1,12 +1,26 @@
 package expo.modules.alarmpyoalarm
 
+import android.app.Activity
 import android.content.Context
 import expo.modules.kotlin.modules.ModuleDefinitionBuilder
 
-/** 직접 배포 빌드에서만 APK 검증과 설치 API를 등록해요. */
+/** 직접 배포 빌드에서만 APK 검증과 설치 API를 등록합니다. */
 internal fun ModuleDefinitionBuilder.registerAlarmPyoDistributionApi(
-  contextProvider: () -> Context
+  contextProvider: () -> Context,
+  @Suppress("UNUSED_PARAMETER") activityProvider: () -> Activity?
 ) {
+  AsyncFunction("getPlayUpdateStatusAsync") {
+    AlarmPyoPlayUpdateStatus.unsupported().toMap()
+  }
+
+  AsyncFunction("startPlayUpdateAsync") {
+    AlarmPyoPlayUpdateStartResult.unsupported().toMap()
+  }
+
+  AsyncFunction("completePlayUpdateAsync") {
+    AlarmPyoPlayUpdateCompleteResult.unsupported().toMap()
+  }
+
   AsyncFunction("getAppInstallInfoAsync") {
     AlarmPyoApkInstaller.appInfo(contextProvider())
   }
@@ -23,7 +37,7 @@ internal fun ModuleDefinitionBuilder.registerAlarmPyoDistributionApi(
       expectedVersionCode.isFinite() &&
         expectedVersionCode > 0.0 &&
         expectedVersionCode % 1.0 == 0.0
-    ) { "APK 버전 정보가 올바르지 않아요." }
+    ) { "APK 버전 정보가 올바르지 않습니다." }
     AlarmPyoApkInstaller.verify(
       contextProvider(),
       fileUri,
@@ -40,7 +54,7 @@ internal fun ModuleDefinitionBuilder.registerAlarmPyoDistributionApi(
       expectedVersionCode.isFinite() &&
         expectedVersionCode > 0.0 &&
         expectedVersionCode % 1.0 == 0.0
-    ) { "APK 버전 정보가 올바르지 않아요." }
+    ) { "APK 버전 정보가 올바르지 않습니다." }
     AlarmPyoApkInstaller.verifyAndOpen(
       contextProvider(),
       fileUri,

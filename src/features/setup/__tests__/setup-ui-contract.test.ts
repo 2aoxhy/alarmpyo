@@ -148,4 +148,24 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
     expect(setup).toContain('앱을 삭제하면 근무표·메모·설정도 함께 삭제됩니다.');
     expect(setup).toContain('설정 후 데이터 메뉴에서 외부 백업을 만들 수 있습니다.');
   });
+
+  it('로고 전환 뒤 최초 설정에 블러 처리한 홈 배경과 저장 진행 상태를 표시합니다', () => {
+    const setup = source('src/app/setup.tsx');
+    const onboarding = source(
+      'src/features/setup/setup-onboarding-surface.tsx',
+    );
+    const launch = source('src/components/launch-transition-overlay.tsx');
+
+    expect(setup).toContain('background={<SetupBlurredHomeBackdrop />}');
+    expect(setup).toContain('<SetupApplyingOverlay visible={saving} />');
+    expect(setup).toContain('오늘 근무는 어떻게 되십니까?');
+    expect(setup).toContain('actionLabel="다시 시도"');
+    expect(onboarding).toContain('filter: [{ blur: 12 }, { saturate: 0.35 }]');
+    expect(onboarding).toContain('if (!visible || reduceMotion || !appActive) return;');
+    expect(onboarding).not.toContain('docs/design-qa');
+    expect(launch).toContain('markFade: 440');
+    expect(launch).toContain('wordmarkFade: 440');
+    expect(launch).toContain('fullMotionHold: 440');
+    expect(launch).toContain('fullMotionExit: 300');
+  });
 });

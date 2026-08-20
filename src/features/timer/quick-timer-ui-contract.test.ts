@@ -29,11 +29,23 @@ describe('빠른 타이머 화면 계약', () => {
     expect(tabs).toContain('resolveFloatingTabBarHorizontalLayout(windowWidth, 4)');
   });
 
-  it('30분·60분만 제공하고 실행 중에는 교체 확인을 거쳐요', () => {
+  it('30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
     expect(timer).toContain('QUICK_TIMER_DURATIONS.map');
     expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
     expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
     expect(timer).toContain('현재 타이머를 취소하고');
+  });
+
+  it('실행 중에는 일시정지·초기화, 일시정지 중에는 재개를 제공합니다', () => {
+    expect(timer).toContain("status.state === 'paused'");
+    expect(timer).toContain('pauseQuickTimer()');
+    expect(timer).toContain('resumeQuickTimer()');
+    expect(timer).toContain('resetQuickTimer()');
+    expect(timer).toContain("label={paused ? '타이머 재개' : '일시정지'}");
+    expect(timer).toContain("label={ringing ? '타이머 종료' : '초기화'}");
+    expect(countdown).toContain('재개하면 남은 시간부터 다시 시작합니다.');
+    expect(countdown).toContain('paused\n    ? anchor.remainingMillis');
+    expect(countdown).toContain('if (!active || !screenActive) return;');
   });
 
   it('활성 화면에서만 monotonic 남은 시간을 갱신하고 카운트다운을 자동 낭독하지 않아요', () => {
@@ -71,7 +83,8 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('5분 재알람은 원래 타이머 길이 대신 재알람 상태로 읽어요', () => {
     expect(timer).toContain('getQuickTimerDisplayLabel(status)');
-    expect(countdown).toContain('accessibilityLabel={`${label}.');
+    expect(countdown).toContain('`${label}. 일시정지했습니다.');
+    expect(countdown).toContain('`${label}. ${formatQuickTimerTarget(');
   });
 
   it('지원하지 않는 플랫폼과 권한 문제를 명시적으로 안내해요', () => {

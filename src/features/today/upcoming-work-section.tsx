@@ -78,7 +78,7 @@ export function UpcomingWorkSection({
               <Pressable
                 key={dateKey}
                 accessibilityHint="선택한 날짜의 근무를 수정합니다."
-                accessibilityLabel={`${formatKoreanDate(dateKey, true)}, ${exceptionLabel ? `${exceptionLabel}, ` : ''}${shift.name}, ${formatMinutes(displayShift.startMinutes)} 시작`}
+                accessibilityLabel={`${formatKoreanDate(dateKey, true)}, ${exceptionLabel ? `${exceptionLabel}, ` : ''}${shift.name}${shift.id.startsWith('substitute-') ? ', 특근' : ''}, ${formatMinutes(displayShift.startMinutes)} 시작`}
                 accessibilityRole="button"
                 onPress={() =>
                   router.push({
@@ -107,7 +107,14 @@ export function UpcomingWorkSection({
                 <View
                   style={[
                     styles.shiftIcon,
-                    { backgroundColor: appearance.softColor },
+                    {
+                      backgroundColor: shift.id.startsWith('substitute-')
+                        ? palette.surfaceSoft
+                        : appearance.softColor,
+                      borderColor: shift.id.startsWith('substitute-')
+                        ? appearance.accentColor
+                        : palette.transparent,
+                    },
                   ]}>
                   {exceptionAppearance ? (
                     <AppIcon
@@ -217,6 +224,7 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
       borderRadius: 13,
     },
     upcomingMain: {

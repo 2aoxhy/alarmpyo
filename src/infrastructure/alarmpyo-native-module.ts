@@ -42,12 +42,18 @@ export type NativeAlarmPyoModule = {
   cancelAllAsync(): Promise<unknown>;
   resetAlarmRuntimeAsync?(): Promise<unknown>;
   getQuickTimerStatusAsync?(): Promise<unknown>;
-  scheduleQuickTimerAsync?(durationMinutes: 30 | 60): Promise<unknown>;
+  scheduleQuickTimerAsync?(durationMinutes: 30 | 45 | 60): Promise<unknown>;
+  pauseQuickTimerAsync?(): Promise<unknown>;
+  resumeQuickTimerAsync?(): Promise<unknown>;
+  resetQuickTimerAsync?(): Promise<unknown>;
   cancelQuickTimerAsync?(): Promise<unknown>;
   openSleepReminderSettingsAsync?(): Promise<unknown>;
   syncWidgetAsync?(snapshotJson: string): Promise<unknown>;
   isWidgetInstalledAsync?(): Promise<unknown>;
   requestWidgetPinAsync?(): Promise<unknown>;
+  getPlayUpdateStatusAsync?(): Promise<unknown>;
+  startPlayUpdateAsync?(): Promise<unknown>;
+  completePlayUpdateAsync?(): Promise<unknown>;
   getAppInstallInfoAsync?(): Promise<unknown>;
   openApkInstallPermissionSettingsAsync?(): Promise<unknown>;
   verifyApkUpdateAsync?(

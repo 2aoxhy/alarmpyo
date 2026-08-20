@@ -12,8 +12,10 @@ import {
 
 import { withAlarmRuntimeState } from '@/application/app-data-mutations';
 import {
+  applyDismissedUpdateVersionCode,
   applyInitialSetupValues,
   applyPatternSettings,
+  applyPayrollSettings,
   applySetupCompletion,
   applyShiftSettings,
   applyThemeMode,
@@ -77,6 +79,7 @@ import type {
   DayAlarmOverride,
   DayExceptionType,
   DayTimeOverride,
+  PayrollSettings,
   RotationPattern,
   ShiftType,
   ThemeMode,
@@ -1578,6 +1581,34 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [replaceDataAndPersist],
   );
 
+  const updatePayrollSettings = useCallback(
+    async (settings: PayrollSettings) => {
+      if (!readyRef.current) return false;
+      let valid = true;
+      const saved = await replaceDataAndPersist((current) => {
+        const result = applyPayrollSettings(current, settings);
+        valid = result.valid;
+        return result.data;
+      });
+      return valid && saved;
+    },
+    [replaceDataAndPersist],
+  );
+
+  const dismissPlayUpdate = useCallback(
+    async (versionCode: number) => {
+      if (!readyRef.current) return false;
+      let valid = true;
+      const saved = await replaceDataAndPersist((current) => {
+        const next = applyDismissedUpdateVersionCode(current, versionCode);
+        valid = next !== null;
+        return next ?? current;
+      });
+      return valid && saved;
+    },
+    [replaceDataAndPersist],
+  );
+
   const toggleWidgetDisplayOption = useCallback(
     async (option: keyof WidgetDisplayOptions) => {
       let validSelection = true;
@@ -2389,6 +2420,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       updatePattern,
       updatePatternDetailed,
       updateShiftTypes,
+      updatePayrollSettings,
+      dismissPlayUpdate,
       setThemeMode,
       toggleWidgetDisplayOption,
       completeSetup,
@@ -2422,6 +2455,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       completeSetup,
       completeInitialSetup,
       createBackup,
+      dismissPlayUpdate,
       disableAlarms,
       enableAlarms,
       exportData,
@@ -2448,6 +2482,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       sendTestAlarm,
       setSleepReminderEnabled,
       setThemeMode,
+      updatePayrollSettings,
       toggleWidgetDisplayOption,
       startFreshAfterLoadError,
       applySharedWorkSettings,

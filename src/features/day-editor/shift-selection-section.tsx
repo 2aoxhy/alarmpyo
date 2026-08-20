@@ -114,7 +114,7 @@ export function ShiftSelectionSection({
 
           {activeSubstitute && activeSubstituteAppearance ? (
             <CompactChoice
-              accessibilityLabel={`${activeSubstitute.name}. 대체근무를 추가합니다.`}
+              accessibilityLabel={`${activeSubstitute.name}. 특근 일정을 추가합니다.`}
               compact={compact}
               icon={
                 <AnimatedShiftIcon
@@ -124,11 +124,11 @@ export function ShiftSelectionSection({
                   size={23}
                 />
               }
-              label="대체근무"
+              label="특근"
               onPress={() => onChoose(activeSubstitute.id)}
               selected={substituteSelected}
               selectedColor={activeSubstituteAppearance.accentColor}
-              softColor={activeSubstituteAppearance.softColor}
+              softColor={palette.surfaceSoft}
             />
           ) : null}
 
@@ -155,19 +155,19 @@ export function ShiftSelectionSection({
           <>
             <MenuDivider inset={false} />
             <View
-              accessibilityLabel="대체근무 종류"
+              accessibilityLabel="특근 종류"
               accessibilityRole="radiogroup"
               style={styles.substituteModeTabs}>
               {(
                 [
                   {
                     appearance: substituteDayAppearance,
-                    label: '주간 대체',
+                    label: substituteDay?.shortName ?? '주대',
                     value: 'day' as const,
                   },
                   {
                     appearance: substituteNightAppearance,
-                    label: '야간 대체',
+                    label: substituteNight?.shortName ?? '야대',
                     value: 'night' as const,
                   },
                 ]
@@ -177,7 +177,7 @@ export function ShiftSelectionSection({
                 return (
                   <SelectionPill
                     key={option.value}
-                    accessibilityLabel={`${option.label}근무`}
+                    accessibilityLabel={`${option.label} 특근`}
                     label={option.label}
                     onPress={() => {
                       if (!selected) onChooseSubstituteMode(option.value);

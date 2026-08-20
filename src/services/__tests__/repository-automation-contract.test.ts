@@ -51,7 +51,7 @@ describe('저장소 자동화 계약', () => {
     });
   });
 
-  it('앱은 V10 1.0.10(10) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V11 1.0.11(11) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -63,25 +63,25 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.10');
+    expect(pkg.version).toBe('1.0.11');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.0.10',
-      androidVersionCode: 10,
-      iosBuildNumber: '10',
+      versionName: '1.0.11',
+      androidVersionCode: 11,
+      iosBuildNumber: '11',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      '현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며, 현재 소스의 후속 후보는 `V10 · 1.0.10(10)`입니다.',
+      '현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며, V10은 internal 검증 계보로 유지하고 현재 소스의 후속 후보는 `V11 · 1.0.11(11)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
-      'V09는 사용하지 않으며 V10 검증이 완료될 때까지 V08 Alpha를 유지합니다.',
+      'V09는 사용하지 않으며 V11 검증이 완료될 때까지 V08 Alpha를 유지합니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 계보의 최고값이며, 현재 V10 후보는 `versionCode: 10`입니다.',
+      'Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 Alpha 계보의 최고값이며, V10 internal 계보 다음 현재 V11 후보는 `versionCode: 11`입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 10 번들',
+      '같은 versionCode 11 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',

@@ -1,11 +1,12 @@
 import { getAlarmPyoNativeModule } from '../infrastructure/alarmpyo-native-module';
 
-export const QUICK_TIMER_DURATIONS = [30, 60] as const;
+export const QUICK_TIMER_DURATIONS = [30, 45, 60] as const;
 
 export type QuickTimerDuration = (typeof QUICK_TIMER_DURATIONS)[number];
 export type QuickTimerState =
   | 'idle'
   | 'scheduled'
+  | 'paused'
   | 'ringing'
   | 'expired'
   | 'action-required'
@@ -33,6 +34,7 @@ export type QuickTimerStatus = {
 const QUICK_TIMER_STATES = new Set<QuickTimerState>([
   'idle',
   'scheduled',
+  'paused',
   'ringing',
   'expired',
   'action-required',
@@ -109,10 +111,17 @@ export function normalizeQuickTimerStatus(value: unknown): QuickTimerStatus {
   )
     ? (value.requiredAction as QuickTimerRequiredAction)
     : 'none';
+  const pausedValid =
+    state !== 'paused' ||
+    (!nativeActive &&
+      durationMinutes !== null &&
+      startedAt > 0 &&
+      fireAt === 0 &&
+      remainingMillis > 0);
 
   return {
     supported: true,
-    state: nativeActive && !active ? 'error' : state,
+    state: (nativeActive && !active) || !pausedValid ? 'error' : state,
     active,
     durationMinutes,
     startedAt,
@@ -155,12 +164,43 @@ export async function scheduleQuickTimer(
   durationMinutes: QuickTimerDuration,
 ): Promise<QuickTimerStatus> {
   if (!isQuickTimerDuration(durationMinutes)) {
-    throw new RangeError('빠른 타이머는 30분 또는 60분만 설정할 수 있습니다.');
+    throw new RangeError(
+      '빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다.',
+    );
   }
   if (!nativeTimerSupported()) return unsupportedStatus();
   return enqueueMutation(async () =>
     normalizeQuickTimerStatus(
       await nativeModule!.scheduleQuickTimerAsync!(durationMinutes),
+    ),
+  );
+}
+
+export async function pauseQuickTimer(): Promise<QuickTimerStatus> {
+  if (!nativeTimerSupported() || !nativeModule?.pauseQuickTimerAsync) {
+    return unsupportedStatus();
+  }
+  return enqueueMutation(async () =>
+    normalizeQuickTimerStatus(await nativeModule.pauseQuickTimerAsync!()),
+  );
+}
+
+export async function resumeQuickTimer(): Promise<QuickTimerStatus> {
+  if (!nativeTimerSupported() || !nativeModule?.resumeQuickTimerAsync) {
+    return unsupportedStatus();
+  }
+  return enqueueMutation(async () =>
+    normalizeQuickTimerStatus(await nativeModule.resumeQuickTimerAsync!()),
+  );
+}
+
+export async function resetQuickTimer(): Promise<QuickTimerStatus> {
+  if (!nativeTimerSupported()) return unsupportedStatus();
+  return enqueueMutation(async () =>
+    normalizeQuickTimerStatus(
+      nativeModule?.resetQuickTimerAsync
+        ? await nativeModule.resetQuickTimerAsync()
+        : await nativeModule!.cancelQuickTimerAsync!(),
     ),
   );
 }

@@ -18,8 +18,39 @@ import { readReleasePolicy } from './release-policy.mjs';
 const root = resolve(import.meta.dirname, '..');
 const require = createRequire(import.meta.url);
 
+const PLAY_UPDATE_ASYNC_FUNCTIONS = [
+  'getPlayUpdateStatusAsync',
+  'startPlayUpdateAsync',
+  'completePlayUpdateAsync',
+];
+const FORBIDDEN_PLAY_NATIVE_APK_SYMBOLS = [
+  'AlarmPyoApkInstaller',
+  'verifyAndOpenApkInstallerAsync',
+  'FileProvider',
+  'ACTION_INSTALL_PACKAGE',
+  'canRequestPackageInstalls',
+];
+
 function ensure(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+export function assertPlayNativeApiSource(source) {
+  const asyncFunctions = [
+    ...source.matchAll(/\bAsyncFunction\s*\(\s*"([^"]+)"/gu),
+  ].map((match) => match[1]);
+  ensure(
+    asyncFunctions.length === PLAY_UPDATE_ASYNC_FUNCTIONS.length &&
+      PLAY_UPDATE_ASYNC_FUNCTIONS.every((name) => asyncFunctions.includes(name)),
+    'Play 네이티브 API는 허용된 업데이트 함수 3개만 등록해야 합니다.',
+  );
+  ensure(
+    FORBIDDEN_PLAY_NATIVE_APK_SYMBOLS.every(
+      (symbol) => !source.includes(symbol),
+    ),
+    'Play 네이티브 API에 직접 APK 설치 코드가 포함되었습니다.',
+  );
+  return true;
 }
 
 export async function validatePlayConfig() {
@@ -137,14 +168,7 @@ export async function validatePlayConfig() {
         gradle.includes('src/${alarmpyoDistribution}/java'),
       'Android 모듈이 Play/direct 소스 세트를 빌드 시점에 분리하지 않았어요.',
     );
-    ensure(
-      !playStub.includes('AlarmPyoApkInstaller') &&
-        !playStub.includes('AsyncFunction') &&
-        !playStub.includes('FileProvider') &&
-        !playStub.includes('ACTION_INSTALL_PACKAGE') &&
-        !playStub.includes('canRequestPackageInstalls'),
-      'Play 네이티브 빈 구현에 직접 APK 설치 코드가 포함됐어요.',
-    );
+    assertPlayNativeApiSource(playStub);
     ensure(
       playPlugin.includes(REQUEST_INSTALL_PACKAGES) &&
         playPlugin.includes(DIRECT_UPDATE_PROVIDER),

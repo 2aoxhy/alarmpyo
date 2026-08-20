@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -76,6 +77,23 @@ class AlarmPyoAlarmActivity : Activity() {
 
   @Deprecated("알람은 알람 끄기 또는 다시 울리기 버튼으로 종료합니다.")
   override fun onBackPressed() = Unit
+
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (AlarmPyoAlarmKeyPolicy.handles(event.keyCode)) {
+      if (
+        AlarmPyoAlarmKeyPolicy.shouldDismiss(
+          event.keyCode,
+          event.action,
+          event.repeatCount
+        )
+      ) {
+        finishAlarm(ACTION_DISMISS_ALARM)
+      }
+      // Consume down, repeat and up events so the alarm volume is not changed.
+      return true
+    }
+    return super.dispatchKeyEvent(event)
+  }
 
   @Suppress("DEPRECATION")
   private fun configureLockScreenWindow() {
@@ -516,4 +534,12 @@ class AlarmPyoAlarmActivity : Activity() {
       }
     }
   }
+}
+
+internal object AlarmPyoAlarmKeyPolicy {
+  fun handles(keyCode: Int): Boolean =
+    keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+
+  fun shouldDismiss(keyCode: Int, action: Int, repeatCount: Int): Boolean =
+    handles(keyCode) && action == KeyEvent.ACTION_DOWN && repeatCount == 0
 }

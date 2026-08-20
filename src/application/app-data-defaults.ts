@@ -62,7 +62,7 @@ const DEFAULT_SHIFT_TYPES: readonly ShiftType[] = [
   {
     id: 'substitute-day',
     name: '주간 대체근무',
-    shortName: '대주',
+    shortName: '주대',
     color: palette.amber,
     softColor: palette.amberSoft,
     startMinutes: DAY_SHIFT_START_MINUTES,
@@ -75,7 +75,7 @@ const DEFAULT_SHIFT_TYPES: readonly ShiftType[] = [
   {
     id: 'substitute-night',
     name: '야간 대체근무',
-    shortName: '대야',
+    shortName: '야대',
     color: palette.amber,
     softColor: palette.amberSoft,
     startMinutes: NIGHT_SHIFT_START_MINUTES,

@@ -43,7 +43,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-2026-08-15 Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 계보의 최고값이며, 현재 V10 후보는 `versionCode: 10`입니다. V09는 사용하지 않고 V10 검증이 끝날 때까지 V08 Alpha를 유지합니다. 예제의 `highestPreviouslyDistributedVersionCode`와 `highestExistingPlayVersionCode`는 모두 `8`로 기록합니다. 후보 업로드 직전에 두 값을 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록합니다. 둘 중 하나라도 `10` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신합니다.
+2026-08-15 Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 Alpha 계보의 최고값이며, V10 internal 계보 다음 현재 V11 후보는 `versionCode: 11`입니다. V09는 사용하지 않고 V11 검증이 끝날 때까지 V08 Alpha를 유지합니다. 예제의 계보 값은 업로드 직전에 Play Console의 모든 트랙·초안·과거 업로드에서 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록합니다. 확인한 최고값이 `11` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신합니다.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인합니다
 
@@ -134,7 +134,7 @@ npm run submit:internal -- --aab .release/AlarmPyo.aab `
 
 이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드합니다. 초안만으로는 Play Store 설치 링크가 열리지 않으므로, 업로드 후 Play Console에서 같은 번들의 내부 테스트 릴리스를 검토하고 출시해 내부 테스터에게 활성화합니다.
 
-V10은 이렇게 활성화한 internal Play 설치본으로 근무 방식 설정·선택 상태·문구·로딩 화면·위젯·권한을 검증하고 스크린샷을 촬영한 뒤, Play Console에서 **같은 versionCode 10 번들**을 Alpha 출시로 추가하거나 승격합니다. 이때 AAB를 다시 업로드하지 않습니다. 승격이 완료되기 전까지 기존 V08 Alpha를 유지하며 V09는 사용하지 않습니다.
+V11은 이렇게 활성화한 internal Play 설치본으로 AppData v21 마이그레이션·급여일·온보딩·타이머·Play 유연 업데이트·위젯 호환을 검증한 뒤, Play Console에서 **같은 versionCode 11 번들**을 Alpha 출시로 추가하거나 승격합니다. 이때 AAB를 다시 업로드하지 않습니다. 승격이 완료되기 전까지 기존 V08 Alpha와 V10 internal 검증 계보를 유지하며 V09는 사용하지 않습니다.
 
 internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다.
 

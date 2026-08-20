@@ -22,7 +22,7 @@ internal object AlarmPyoQuickTimerPolicy {
     TimeUnit.MINUTES.toMillis(5)
   )
 
-  fun isSupportedDuration(minutes: Int): Boolean = minutes == 30 || minutes == 60
+  fun isSupportedDuration(minutes: Int): Boolean = minutes == 30 || minutes == 45 || minutes == 60
 
   fun remainingMillis(
     snapshot: AlarmPyoQuickTimerSnapshot,
@@ -53,6 +53,41 @@ internal object AlarmPyoQuickTimerPolicy {
   fun rollbackSnapshot(
     previous: AlarmPyoQuickTimerSnapshot?
   ): AlarmPyoQuickTimerSnapshot = previous ?: AlarmPyoQuickTimerSnapshot.idle()
+
+  fun pausedSnapshot(
+    snapshot: AlarmPyoQuickTimerSnapshot,
+    remainingMillis: Long
+  ): AlarmPyoQuickTimerSnapshot {
+    require(snapshot.isActive()) { "실행 중인 타이머만 일시정지할 수 있습니다." }
+    require(remainingMillis > 0L) { "남은 시간이 있는 타이머만 일시정지할 수 있습니다." }
+    return snapshot.copy(
+      state = AlarmPyoQuickTimerSnapshotState.PAUSED,
+      fireAtElapsed = 0L,
+      bootCount = -1,
+      pausedRemainingMillis = remainingMillis
+    )
+  }
+
+  fun resumedSnapshot(
+    snapshot: AlarmPyoQuickTimerSnapshot,
+    resumedPlan: AlarmPyoAlarmPlan,
+    nowWallClock: Long,
+    nowElapsed: Long,
+    currentBootCount: Int
+  ): AlarmPyoQuickTimerSnapshot {
+    require(snapshot.isPaused()) { "일시정지된 타이머만 다시 시작할 수 있습니다." }
+    val remainingMillis = snapshot.pausedRemainingMillis
+    require(remainingMillis > 0L) { "다시 시작할 남은 시간이 없습니다." }
+    return snapshot.copy(
+      plan = resumedPlan,
+      startedAt = nowWallClock,
+      startedAtElapsed = nowElapsed,
+      fireAtElapsed = Math.addExact(nowElapsed, remainingMillis),
+      bootCount = currentBootCount,
+      state = AlarmPyoQuickTimerSnapshotState.ACTIVE,
+      pausedRemainingMillis = 0L
+    )
+  }
 
   fun restoredSnapshot(
     snapshot: AlarmPyoQuickTimerSnapshot,
@@ -88,7 +123,7 @@ internal object AlarmPyoQuickTimerPolicy {
   ): AlarmPyoQuickTimerSnapshot = snapshot.copy(
     plan = repeatPlan,
     // A 5-minute repeat is a new countdown stage, not an extension of the
-    // original 30/60-minute timer's start point.
+    // original 30/45/60-minute timer's start point.
     startedAt = nowWallClock,
     startedAtElapsed = nowElapsed,
     fireAtElapsed = Math.addExact(nowElapsed, delayMillis),
@@ -195,7 +230,7 @@ internal object AlarmPyoQuickTimerScheduler {
   @Synchronized
   fun schedule(context: Context, durationMinutes: Int): AlarmPyoQuickTimerSnapshot {
     require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-      "빠른 타이머는 30분 또는 60분만 설정할 수 있습니다."
+      "빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다."
     }
     val appContext = context.applicationContext
     check(AlarmPyoAlarmPermissions.canDeliver(appContext)) {
@@ -245,6 +280,82 @@ internal object AlarmPyoQuickTimerScheduler {
     }
     stopRingingTimerIfNeeded(appContext)
     return requireNotNull(stored)
+  }
+
+  @Synchronized
+  fun pause(context: Context): AlarmPyoQuickTimerSnapshot {
+    val appContext = context.applicationContext
+    val result = AlarmPyoQuickTimerStore.read(appContext)
+    check(result.storageHealth != AlarmPyoQuickTimerStorageHealth.CORRUPT) {
+      "타이머 저장소가 손상되어 초기화가 필요합니다."
+    }
+    val snapshot = requireNotNull(result.snapshot)
+    if (snapshot.isPaused() || !snapshot.isActive()) return snapshot
+
+    val remaining = AlarmPyoQuickTimerPolicy.remainingMillis(
+      snapshot,
+      bootCount(appContext),
+      System.currentTimeMillis(),
+      SystemClock.elapsedRealtime()
+    )
+    require(remaining > 0L) { "울리기 시작한 타이머는 일시정지할 수 없습니다." }
+
+    processSyncGate.markNeedsReconciliation()
+    // Persist the paused generation first. If the old PendingIntent races with
+    // cancellation, the receiver rejects it because it no longer matches an
+    // ACTIVE authoritative snapshot.
+    val stored = AlarmPyoQuickTimerStore.writeAuthoritative(
+      appContext,
+      AlarmPyoQuickTimerPolicy.pausedSnapshot(snapshot, remaining)
+    )
+    cancelPendingIntent(appContext)
+    processSyncGate.markSuccessfulSync()
+    return stored
+  }
+
+  @Synchronized
+  fun resume(context: Context): AlarmPyoQuickTimerSnapshot {
+    val appContext = context.applicationContext
+    val result = AlarmPyoQuickTimerStore.read(appContext)
+    check(result.storageHealth != AlarmPyoQuickTimerStorageHealth.CORRUPT) {
+      "타이머 저장소가 손상되어 초기화가 필요합니다."
+    }
+    val paused = requireNotNull(result.snapshot)
+    if (paused.isActive() || !paused.isPaused()) return paused
+    check(AlarmPyoAlarmPermissions.canDeliver(appContext)) {
+      "타이머를 울리려면 정확한 알람, 알림, 전체 화면 권한이 필요합니다."
+    }
+    val previousPlan = requireNotNull(paused.plan)
+    val remaining = paused.pausedRemainingMillis
+    val nowWallClock = System.currentTimeMillis()
+    val nowElapsed = SystemClock.elapsedRealtime()
+    val resumedPlan = AlarmPyoQuickTimerPolicy.rebasePlanForRestore(
+      previousPlan,
+      nowWallClock,
+      remaining
+    )
+    val desired = AlarmPyoQuickTimerPolicy.resumedSnapshot(
+      snapshot = paused,
+      resumedPlan = resumedPlan,
+      nowWallClock = nowWallClock,
+      nowElapsed = nowElapsed,
+      currentBootCount = bootCount(appContext)
+    )
+
+    processSyncGate.markNeedsReconciliation()
+    return try {
+      val stored = AlarmPyoQuickTimerStore.writeAuthoritative(appContext, desired)
+      schedulePendingIntent(appContext, resumedPlan, stored.fireAtElapsed)
+      processSyncGate.markSuccessfulSync()
+      stored
+    } catch (error: Throwable) {
+      runCatching { cancelPendingIntent(appContext) }
+      val rolledBack = runCatching {
+        AlarmPyoQuickTimerStore.writeAuthoritative(appContext, paused)
+      }.isSuccess
+      if (rolledBack) processSyncGate.markSuccessfulSync()
+      throw error
+    }
   }
 
   @Synchronized
@@ -545,9 +656,9 @@ internal object AlarmPyoQuickTimerScheduler {
         System.currentTimeMillis(),
         SystemClock.elapsedRealtime()
       ).coerceAtLeast(0L)
-    } else {
-      0L
-    }
+    } else if (statusSnapshot.isPaused()) {
+      statusSnapshot.pausedRemainingMillis
+    } else 0L
     val active = statusSnapshot.isActive()
     val state = when {
       reconciliationFailed -> "error"
@@ -558,6 +669,7 @@ internal object AlarmPyoQuickTimerScheduler {
         AlarmPyoAlarmSource.TIMER
       ) -> "ringing"
       active -> "scheduled"
+      statusSnapshot.isPaused() -> "paused"
       statusSnapshot.state == AlarmPyoQuickTimerSnapshotState.EXPIRED -> "expired"
       requiredAction != "none" -> "action-required"
       else -> "idle"
@@ -567,7 +679,7 @@ internal object AlarmPyoQuickTimerScheduler {
       active = active,
       durationMinutes = statusSnapshot.durationMinutes,
       startedAt = statusSnapshot.startedAt,
-      fireAt = plan?.alarmAt ?: 0L,
+      fireAt = if (statusSnapshot.isPaused()) 0L else plan?.alarmAt ?: 0L,
       remainingMillis = remaining,
       isRepeat = plan?.isSingleRepeat() == true,
       storageHealth = statusResult.storageHealth,

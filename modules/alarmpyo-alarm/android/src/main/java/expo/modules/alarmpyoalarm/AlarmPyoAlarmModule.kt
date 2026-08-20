@@ -103,11 +103,27 @@ class AlarmPyoAlarmModule : Module() {
     AsyncFunction("scheduleQuickTimerAsync") { durationMinutes: Int ->
       AlarmPyoAlarmChannels.ensure(context)
       require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-        "빠른 타이머는 30분 또는 60분만 설정할 수 있습니다."
+        "빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다."
       }
       if (AlarmPyoAlarmPermissions.canDeliver(context)) {
         AlarmPyoQuickTimerScheduler.schedule(context, durationMinutes)
       }
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
+    AsyncFunction("pauseQuickTimerAsync") {
+      AlarmPyoQuickTimerScheduler.pause(context)
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
+    AsyncFunction("resumeQuickTimerAsync") {
+      AlarmPyoAlarmChannels.ensure(context)
+      AlarmPyoQuickTimerScheduler.resume(context)
+      AlarmPyoQuickTimerScheduler.status(context).toMap()
+    }
+
+    AsyncFunction("resetQuickTimerAsync") {
+      AlarmPyoQuickTimerScheduler.cancel(context)
       AlarmPyoQuickTimerScheduler.status(context).toMap()
     }
 
@@ -199,7 +215,10 @@ class AlarmPyoAlarmModule : Module() {
       AlarmPyoShiftWidgetUpdater.requestPin(context)
     }
 
-    registerAlarmPyoDistributionApi { context }
+    registerAlarmPyoDistributionApi(
+      contextProvider = { context },
+      activityProvider = { appContext.currentActivity }
+    )
 
     OnDestroy {
       AlarmPyoAlarmSoundPreview.stop()

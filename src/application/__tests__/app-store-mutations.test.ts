@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultAppData } from '../../services/app-data-service';
 
 import {
+  applyDismissedUpdateVersionCode,
   applyDayEditValues,
   applyInitialSetupValues,
   applyPatternSettings,
+  applyPayrollSettings,
   applySetupCompletion,
   applyShiftSettings,
   applyThemeMode,
@@ -204,5 +206,32 @@ describe('app-store-mutations', () => {
       initialized.shiftTypes.find((shift) => shift.id === 'day')
         ?.alarmMinutesBefore,
     ).toBe(80);
+  });
+
+  it('급여일과 조정 정책만 유효한 범위에서 저장해요', () => {
+    const current = createDefaultAppData('2026-08-15');
+    const changed = applyPayrollSettings(current, {
+      day: 31,
+      adjustment: 'fixed-date',
+    });
+    expect(changed.valid).toBe(true);
+    expect(changed.data.payrollSettings).toEqual({
+      day: 31,
+      adjustment: 'fixed-date',
+    });
+    expect(
+      applyPayrollSettings(current, {
+        day: 0,
+        adjustment: 'fixed-date',
+      }),
+    ).toEqual({ data: current, valid: false });
+  });
+
+  it('닫은 업데이트 버전은 유효한 증가 값만 보존해요', () => {
+    const current = createDefaultAppData('2026-08-15');
+    const dismissed = applyDismissedUpdateVersionCode(current, 11)!;
+    expect(dismissed.settings.dismissedUpdateVersionCode).toBe(11);
+    expect(applyDismissedUpdateVersionCode(dismissed, 10)).toBe(dismissed);
+    expect(applyDismissedUpdateVersionCode(dismissed, 0)).toBeNull();
   });
 });

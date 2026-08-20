@@ -182,7 +182,7 @@ export function ShiftTimingEditor({
     <Card style={styles.card}>
       {substituteMode && onSubstituteModeChange ? (
         <SegmentedControl
-          label="대체근무 종류"
+          label="특근 종류"
           onChange={(value) => {
             if (value === substituteMode) return;
             void Haptics.selectionAsync();
@@ -191,11 +191,11 @@ export function ShiftTimingEditor({
           options={[
             {
               value: 'day',
-              label: `주간 대체${substituteDayHasError ? ' · 확인 필요' : ''}`,
+              label: `주대${substituteDayHasError ? ' · 확인 필요' : ''}`,
             },
             {
               value: 'night',
-              label: `야간 대체${substituteNightHasError ? ' · 확인 필요' : ''}`,
+              label: `야대${substituteNightHasError ? ' · 확인 필요' : ''}`,
             },
           ]}
           value={substituteMode}

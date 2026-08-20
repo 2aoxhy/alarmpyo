@@ -98,15 +98,64 @@ export type AlarmPyoSleepReminderStatus = {
 
 export type AlarmPyoQuickTimerStatus = {
   supported: boolean;
-  state: 'idle' | 'scheduled' | 'ringing' | 'expired' | 'action-required' | 'error';
+  state:
+    | 'idle'
+    | 'scheduled'
+    | 'paused'
+    | 'ringing'
+    | 'expired'
+    | 'action-required'
+    | 'error';
   active: boolean;
-  durationMinutes: 30 | 60 | null;
+  durationMinutes: 30 | 45 | 60 | null;
   startedAt: number;
   fireAt: number;
   remainingMillis: number;
   isRepeat: boolean;
   storageHealth: 'normal' | 'recovered' | 'corrupt';
   requiredAction: 'none' | 'exact-alarm' | 'notifications' | 'full-screen';
+};
+
+export type AlarmPyoPlayUpdateInstallStatus =
+  | 'unknown'
+  | 'pending'
+  | 'downloading'
+  | 'downloaded'
+  | 'installing'
+  | 'installed'
+  | 'failed'
+  | 'canceled';
+
+export type AlarmPyoPlayUpdateStatus = {
+  supported: boolean;
+  state:
+    | 'unsupported'
+    | 'idle'
+    | 'available'
+    | 'in-progress'
+    | 'downloaded'
+    | 'installing'
+    | 'installed'
+    | 'failed'
+    | 'canceled';
+  updateAvailable: boolean;
+  flexibleAllowed: boolean;
+  availableVersionCode: number;
+  installStatus: AlarmPyoPlayUpdateInstallStatus;
+  bytesDownloaded: number;
+  totalBytesToDownload: number;
+  errorCode: number;
+};
+
+export type AlarmPyoPlayUpdateStartResult = {
+  started: boolean;
+  resultCode: number;
+  status: AlarmPyoPlayUpdateStatus;
+};
+
+export type AlarmPyoPlayUpdateCompleteResult = {
+  completed: boolean;
+  status: AlarmPyoPlayUpdateStatus;
 };
 
 export type AlarmPyoPermissionSettingsTarget =
@@ -147,7 +196,7 @@ export type AlarmPyoAlarmRuntimeResetResult = {
   alarmSoundReset: boolean;
   restoreJournalReset: boolean;
   alarmHistoryReset: boolean;
-  issueCodes: Array<
+  issueCodes: (
     | 'work-alarms'
     | 'sleep-reminders'
     | 'quick-timer'
@@ -155,7 +204,7 @@ export type AlarmPyoAlarmRuntimeResetResult = {
     | 'alarm-sound'
     | 'restore-journal'
     | 'alarm-history'
-  >;
+  )[];
 };
 
 type AlarmPyoAlarmNativeModule = {
@@ -177,7 +226,10 @@ type AlarmPyoAlarmNativeModule = {
   cancelAllAsync(): Promise<AlarmPyoAlarmStatus>;
   resetAlarmRuntimeAsync?(): Promise<AlarmPyoAlarmRuntimeResetResult>;
   getQuickTimerStatusAsync?(): Promise<AlarmPyoQuickTimerStatus>;
-  scheduleQuickTimerAsync?(durationMinutes: 30 | 60): Promise<AlarmPyoQuickTimerStatus>;
+  scheduleQuickTimerAsync?(durationMinutes: 30 | 45 | 60): Promise<AlarmPyoQuickTimerStatus>;
+  pauseQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
+  resumeQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
+  resetQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   cancelQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   syncSleepRemindersAsync?(
     plans: AlarmPyoSleepReminderPlan[],
@@ -198,6 +250,9 @@ type AlarmPyoAlarmNativeModule = {
     supported: boolean;
     installed: boolean;
   }>;
+  getPlayUpdateStatusAsync?(): Promise<AlarmPyoPlayUpdateStatus>;
+  startPlayUpdateAsync?(): Promise<AlarmPyoPlayUpdateStartResult>;
+  completePlayUpdateAsync?(): Promise<AlarmPyoPlayUpdateCompleteResult>;
   getAppInstallInfoAsync(): Promise<{
     supported: boolean;
     packageName: string;

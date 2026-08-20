@@ -3,6 +3,7 @@ import type {
   DayAlarmOverride,
   DayExceptionType,
   DayTimeOverride,
+  PayrollSettings,
   RotationPattern,
   ShiftType,
   ThemeMode,
@@ -39,6 +40,11 @@ export type ShiftSettingsMutationResult = {
 export type WidgetDisplayMutationResult = {
   data: AppData;
   validSelection: boolean;
+};
+
+export type PayrollSettingsMutationResult = {
+  data: AppData;
+  valid: boolean;
 };
 
 export function isValidDayTimeOverride(
@@ -230,6 +236,54 @@ export function applyThemeMode(current: AppData, _themeMode: ThemeMode): AppData
   return {
     ...current,
     settings: { ...current.settings, themeMode: 'dark' },
+  };
+}
+
+export function isValidPayrollSettings(settings: PayrollSettings): boolean {
+  return (
+    Number.isInteger(settings.day) &&
+    settings.day >= 1 &&
+    settings.day <= 31 &&
+    (settings.adjustment === 'fixed-date' ||
+      settings.adjustment === 'previous-business-day')
+  );
+}
+
+export function applyPayrollSettings(
+  current: AppData,
+  settings: PayrollSettings,
+): PayrollSettingsMutationResult {
+  if (!isValidPayrollSettings(settings)) {
+    return { data: current, valid: false };
+  }
+  if (
+    current.payrollSettings.day === settings.day &&
+    current.payrollSettings.adjustment === settings.adjustment
+  ) {
+    return { data: current, valid: true };
+  }
+  return {
+    valid: true,
+    data: {
+      ...current,
+      payrollSettings: { ...settings },
+    },
+  };
+}
+
+export function applyDismissedUpdateVersionCode(
+  current: AppData,
+  versionCode: number,
+): AppData | null {
+  if (!Number.isSafeInteger(versionCode) || versionCode <= 0) return null;
+  const previous = current.settings.dismissedUpdateVersionCode;
+  if (previous !== null && previous >= versionCode) return current;
+  return {
+    ...current,
+    settings: {
+      ...current.settings,
+      dismissedUpdateVersionCode: versionCode,
+    },
   };
 }
 

@@ -66,19 +66,19 @@ const SUBSTITUTE_DAY: ShiftType = {
   ...DAY,
   id: 'substitute-day',
   name: '주간 대체근무',
-  shortName: '대주',
+  shortName: '주대',
 };
 
 const SUBSTITUTE_NIGHT: ShiftType = {
   ...NIGHT,
   id: 'substitute-night',
   name: '야간 대체근무',
-  shortName: '대야',
+  shortName: '야대',
 };
 
 function makeData(alarmsEnabled = true): AppData {
   return {
-    version: 20,
+    version: 21,
     shiftTypes: [DAY, EVENING, NIGHT, SUBSTITUTE_DAY, SUBSTITUTE_NIGHT, OFF],
     pattern: {
       name: '3조 2교대 (주주야야휴휴)',
@@ -92,6 +92,10 @@ function makeData(alarmsEnabled = true): AppData {
     alarmOverrides: {},
     notes: {},
     scheduleChangeHistory: [],
+    payrollSettings: { day: 21, adjustment: 'previous-business-day' },
+    patternVault: [],
+    patternHistory: [],
+    appliedPatternSource: 'legacy',
     settings: {
       notificationsEnabled: alarmsEnabled,
       sleepReminderEnabled: false,
@@ -101,6 +105,7 @@ function makeData(alarmsEnabled = true): AppData {
       themeMode: 'light',
       workRoutineProfiles: createDefaultWorkRoutineProfiles(),
       widgetDisplayOptions: { ...DEFAULT_WIDGET_DISPLAY_OPTIONS },
+      dismissedUpdateVersionCode: null,
     },
   };
 }
@@ -192,6 +197,40 @@ describe('ALARMPYO 알람 계획 계산', () => {
     expect(new Set(plan.map((item) => item.id)).size).toBe(2);
     expect(plan[0].alarmAt).toBe(new Date(2026, 6, 11, 5, 0).getTime());
     expect(plan[1].alarmAt).toBe(new Date(2026, 6, 12, 16, 0).getTime());
+  });
+
+  it('주대와 야대 예약은 자체 저장값 대신 주간과 야간 알람 설정을 상속합니다', () => {
+    const data = makeData();
+    data.shiftTypes = data.shiftTypes.map((shift) =>
+      shift.id === 'day'
+        ? { ...shift, alarmMinutesBefore: 45 }
+        : shift.id === 'night'
+          ? { ...shift, alarmEnabled: false, alarmMinutesBefore: 95 }
+          : shift.id === 'substitute-day'
+            ? { ...shift, alarmEnabled: true, alarmMinutesBefore: 10 }
+            : shift.id === 'substitute-night'
+              ? { ...shift, alarmEnabled: true, alarmMinutesBefore: 10 }
+              : shift,
+    );
+    const substituteDay = data.shiftTypes.find((shift) => shift.id === 'substitute-day')!;
+    const substituteNight = data.shiftTypes.find((shift) => shift.id === 'substitute-night')!;
+    const shifts: Record<string, ShiftType> = {
+      '2026-07-11': substituteDay,
+      '2026-07-12': substituteNight,
+    };
+
+    const plan = buildAlarmPyoAlarmPlan(data, (dateKey) => shifts[dateKey] ?? OFF, {
+      now: new Date(2026, 6, 11, 0, 0),
+      horizonDays: 2,
+    });
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0]).toMatchObject({
+      dateKey: '2026-07-11',
+      shiftTypeId: 'substitute',
+      alarmMinutesBefore: 45,
+      alarmAt: new Date(2026, 6, 11, 6, 15).getTime(),
+    });
   });
 
   it('개인 출근 루틴을 적용하면 주간 05시 10분과 야간 16시 10분에 울립니다', () => {

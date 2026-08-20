@@ -803,7 +803,7 @@ class AlarmPyoAlarmService : Service() {
   }
 
   private fun startVibration() {
-    val pattern = longArrayOf(0L, 700L, 300L, 700L, 800L)
+    val pattern = AlarmPyoAlarmVibrationPolicy.patternMillis()
     val vibrator = vibrator()
     if (!vibrator.hasVibrator()) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -839,4 +839,16 @@ class AlarmPyoAlarmService : Service() {
     const val FALLBACK_TONE_DURATION_MILLIS = 1_000
     const val FALLBACK_TONE_REPEAT_MILLIS = 1_500L
   }
+}
+
+internal object AlarmPyoAlarmVibrationPolicy {
+  private val FOUR_BURST_PATTERN = longArrayOf(
+    0L,
+    240L, 160L,
+    240L, 160L,
+    240L, 160L,
+    240L, 800L
+  )
+
+  fun patternMillis(): LongArray = FOUR_BURST_PATTERN.copyOf()
 }

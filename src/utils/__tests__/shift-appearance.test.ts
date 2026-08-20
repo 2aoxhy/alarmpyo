@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { darkPalette, lightPalette } from '../../constants/app-theme';
 import type { ShiftType } from '../../models/app-data';
-import { getShiftAppearance } from '../shift-appearance';
+import { getShiftAppearance, getShiftCategory } from '../shift-appearance';
 
 function shift(id: string, isOff = false): ShiftType {
   return {
@@ -61,5 +61,12 @@ describe('근무 표시 색상', () => {
       accentColor: darkPalette.inkMuted,
       softColor: darkPalette.surfaceSoft,
     });
+  });
+
+  it('주대와 야대를 알람 상속과 접근성에 사용할 특근으로 분류합니다', () => {
+    expect(getShiftCategory(shift('substitute-day'))).toBe('special-work');
+    expect(getShiftCategory(shift('substitute-night'))).toBe('special-work');
+    expect(getShiftCategory(shift('day'))).toBe('day');
+    expect(getShiftCategory(shift('off', true))).toBe('off');
   });
 });

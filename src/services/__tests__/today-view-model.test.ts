@@ -36,7 +36,7 @@ const offShift: ShiftType = {
 };
 
 const data: AppData = {
-  version: 20,
+  version: 21,
   shiftTypes: [dayShift, offShift],
   pattern: {
     name: '시험 근무표',
@@ -50,6 +50,10 @@ const data: AppData = {
   alarmOverrides: {},
   notes: {},
   scheduleChangeHistory: [],
+  payrollSettings: { day: 21, adjustment: 'previous-business-day' },
+  patternVault: [],
+  patternHistory: [],
+  appliedPatternSource: 'legacy',
   settings: {
     notificationsEnabled: false,
     sleepReminderEnabled: false,
@@ -63,6 +67,7 @@ const data: AppData = {
       nextShift: true,
       nextAlarm: false,
     },
+    dismissedUpdateVersionCode: null,
   },
 };
 

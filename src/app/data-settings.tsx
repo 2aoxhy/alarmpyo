@@ -219,8 +219,8 @@ export default function DataSettingsScreen() {
       formatSharedShiftLine('주간', summary.day),
       eveningLine,
       formatSharedShiftLine('야간', summary.night),
-      formatSharedShiftLine('주간 대체', summary.substituteDay),
-      formatSharedShiftLine('야간 대체', summary.substituteNight),
+      formatSharedShiftLine('주대', summary.substituteDay),
+      formatSharedShiftLine('야대', summary.substituteNight),
       '',
       '개인 일정과 메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
     ];

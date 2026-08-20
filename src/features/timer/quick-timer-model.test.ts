@@ -17,7 +17,7 @@ import {
 describe('빠른 타이머 화면 모델', () => {
   it('네이티브 남은 시간을 monotonic 관측 시각에 고정해 기기 시각 변경과 분리해요', () => {
     const anchor = createQuickTimerCountdownAnchor(
-      { active: true, remainingMillis: 5_500 },
+      { active: true, remainingMillis: 5_500, state: 'scheduled' },
       4_500,
     );
 
@@ -25,10 +25,16 @@ describe('빠른 타이머 화면 모델', () => {
     expect(getQuickTimerRemainingMillis(anchor, 10_100)).toBe(0);
     expect(
       createQuickTimerCountdownAnchor(
-        { active: false, remainingMillis: 5_500 },
+        { active: false, remainingMillis: 5_500, state: 'idle' },
         4_500,
       ).remainingMillis,
     ).toBe(0);
+    expect(
+      createQuickTimerCountdownAnchor(
+        { active: false, remainingMillis: 5_500, state: 'paused' },
+        4_500,
+      ).remainingMillis,
+    ).toBe(5_500);
     expect(getQuickTimerTargetAt(5_500, 100_000)).toBe(105_500);
   });
 
@@ -53,14 +59,15 @@ describe('빠른 타이머 화면 모델', () => {
     );
   });
 
-  it('남은 시간을 시·분·초와 접근성 문구로 표시해요', () => {
-    expect(formatQuickTimerCountdown(30 * 60_000)).toBe('00:30:00');
-    expect(formatQuickTimerCountdown(3_600_001)).toBe('01:00:01');
-    expect(formatQuickTimerCountdown(-1)).toBe('00:00:00');
-    expect(getQuickTimerRemainingLabel(3_661_000)).toBe('1시간 1분 1초 남음');
+  it('1분 이상은 올림한 분으로, 1분 미만은 초로 표시합니다', () => {
+    expect(formatQuickTimerCountdown(30 * 60_000)).toBe('30분 남음');
+    expect(formatQuickTimerCountdown(3_600_001)).toBe('61분 남음');
+    expect(formatQuickTimerCountdown(59_001)).toBe('60초 남음');
+    expect(formatQuickTimerCountdown(-1)).toBe('0초 남음');
+    expect(getQuickTimerRemainingLabel(3_661_000)).toBe('62분 남음');
   });
 
-  it('5분 재알람은 원래 30분·60분 길이로 오인되지 않게 표시해요', () => {
+  it('5분 재알람은 원래 30분·45분·60분 길이로 오인되지 않게 표시해요', () => {
     expect(
       getQuickTimerDisplayLabel({
         durationMinutes: 60,
@@ -68,6 +75,13 @@ describe('빠른 타이머 화면 모델', () => {
         state: 'scheduled',
       }),
     ).toBe('타이머 다시 울림');
+    expect(
+      getQuickTimerDisplayLabel({
+        durationMinutes: 45,
+        isRepeat: false,
+        state: 'scheduled',
+      }),
+    ).toBe('45분 타이머');
     expect(
       getQuickTimerDisplayLabel({
         durationMinutes: 30,
@@ -91,7 +105,7 @@ describe('빠른 타이머 화면 모델', () => {
     expect(formatQuickTimerTarget(fireAt, now)).toBe('내일 오전 12:15');
   });
 
-  it('좁은 화면과 큰 글자에서는 30분·60분 버튼을 세로로 배치해요', () => {
+  it('좁은 화면과 큰 글자에서는 30분·45분·60분 버튼을 세로로 배치해요', () => {
     expect(shouldStackQuickTimerPresets(320, 1)).toBe(true);
     expect(shouldStackQuickTimerPresets(412, 1.3)).toBe(true);
     expect(shouldStackQuickTimerPresets(412, 1)).toBe(false);

@@ -1,4 +1,5 @@
 import type { AppData } from '../models/app-data';
+import { resolveAlarmSettingsForShift } from './pattern-engine';
 
 /** 위젯 스냅샷의 일정·다음 알람·표시 선택을 바꿀 수 있는 입력만 직렬화해요. */
 export function getWidgetScheduleSignature(data: AppData): string {
@@ -15,20 +16,23 @@ export function getWidgetScheduleSignature(data: AppData): string {
       scheduleStartDate: data.pattern.scheduleStartDate,
       shiftTypeIds: data.pattern.shiftTypeIds,
     },
-    shiftTypes: data.shiftTypes.map((shift) => ({
-      id: shift.id,
-      name: shift.name,
-      startMinutes: shift.startMinutes,
-      endMinutes: shift.endMinutes,
-      endsNextDay: shift.endsNextDay,
-      isOff: shift.isOff,
-      ...(includesNextAlarm
-        ? {
-            alarmEnabled: shift.alarmEnabled,
-            alarmMinutesBefore: shift.alarmMinutesBefore,
-          }
-        : {}),
-    })),
+    shiftTypes: data.shiftTypes.map((shift) => {
+      const alarmSettings = resolveAlarmSettingsForShift(data.shiftTypes, shift);
+      return {
+        id: shift.id,
+        name: shift.name,
+        startMinutes: shift.startMinutes,
+        endMinutes: shift.endMinutes,
+        endsNextDay: shift.endsNextDay,
+        isOff: shift.isOff,
+        ...(includesNextAlarm
+          ? {
+              alarmEnabled: alarmSettings.alarmEnabled,
+              alarmMinutesBefore: alarmSettings.alarmMinutesBefore,
+            }
+          : {}),
+      };
+    }),
     timeOverrides: data.timeOverrides,
     alarmOverrides: includesNextAlarm
       ? orderedAlarmOverrides.map(([dateKey, override]) =>

@@ -14,6 +14,7 @@ internal enum class AlarmPyoQuickTimerStorageHealth(val wireValue: String) {
 internal enum class AlarmPyoQuickTimerSnapshotState(val wireValue: String) {
   IDLE("idle"),
   ACTIVE("active"),
+  PAUSED("paused"),
   EXPIRED("expired");
 
   companion object {
@@ -30,9 +31,11 @@ internal data class AlarmPyoQuickTimerSnapshot(
   val fireAtElapsed: Long,
   val bootCount: Int,
   val state: AlarmPyoQuickTimerSnapshotState,
+  val pausedRemainingMillis: Long = 0L,
   val generation: Long = 0L
 ) {
   fun isActive(): Boolean = state == AlarmPyoQuickTimerSnapshotState.ACTIVE && plan != null
+  fun isPaused(): Boolean = state == AlarmPyoQuickTimerSnapshotState.PAUSED && plan != null
 
   companion object {
     fun idle(
@@ -46,6 +49,7 @@ internal data class AlarmPyoQuickTimerSnapshot(
       fireAtElapsed = 0L,
       bootCount = -1,
       state = state,
+      pausedRemainingMillis = 0L,
       generation = generation
     )
   }
@@ -76,7 +80,8 @@ internal object AlarmPyoQuickTimerReplicaPolicy {
 }
 
 internal object AlarmPyoQuickTimerCodec {
-  const val SCHEMA_VERSION = 1
+  const val SCHEMA_VERSION = 2
+  private const val LEGACY_SCHEMA_VERSION = 1
   private const val MAX_PAYLOAD_BYTES = 32 * 1024
 
   fun encode(snapshot: AlarmPyoQuickTimerSnapshot): String {
@@ -87,13 +92,14 @@ internal object AlarmPyoQuickTimerCodec {
       .put("startedAtElapsed", snapshot.startedAtElapsed)
       .put("fireAtElapsed", snapshot.fireAtElapsed)
       .put("bootCount", snapshot.bootCount)
+      .put("pausedRemainingMillis", snapshot.pausedRemainingMillis)
       .put("plan", snapshot.plan?.toJson() ?: JSONObject.NULL)
       .toString()
     return JSONObject()
       .put("schemaVersion", SCHEMA_VERSION)
       .put("generation", snapshot.generation)
       .put("payload", payload)
-      .put("checksum", checksum(snapshot.generation, payload))
+      .put("checksum", checksum(SCHEMA_VERSION, snapshot.generation, payload))
       .toString()
   }
 
@@ -102,13 +108,15 @@ internal object AlarmPyoQuickTimerCodec {
       return null
     }
     val envelope = JSONObject(raw)
-    if (envelope.getInt("schemaVersion") != SCHEMA_VERSION) return null
+    val schemaVersion = envelope.getInt("schemaVersion")
+    if (schemaVersion != SCHEMA_VERSION && schemaVersion != LEGACY_SCHEMA_VERSION) return null
     val generation = envelope.getLong("generation")
     if (generation <= 0L) return null
     val payload = envelope.getString("payload")
     if (
       payload.toByteArray(Charsets.UTF_8).size > MAX_PAYLOAD_BYTES ||
-      !checksum(generation, payload).equals(envelope.getString("checksum"), ignoreCase = true)
+      !checksum(schemaVersion, generation, payload)
+        .equals(envelope.getString("checksum"), ignoreCase = true)
     ) return null
 
     val json = JSONObject(payload)
@@ -118,7 +126,12 @@ internal object AlarmPyoQuickTimerCodec {
       AlarmPyoAlarmPlan.fromJson(json.getJSONObject("plan")) ?: return null
     }
     val durationMinutes = if (json.isNull("durationMinutes")) null else {
-      json.getInt("durationMinutes").takeIf(AlarmPyoQuickTimerPolicy::isSupportedDuration)
+      json.getInt("durationMinutes").takeIf { duration ->
+        when (schemaVersion) {
+          LEGACY_SCHEMA_VERSION -> duration == 30 || duration == 60
+          else -> AlarmPyoQuickTimerPolicy.isSupportedDuration(duration)
+        }
+      }
         ?: return null
     }
     val snapshot = AlarmPyoQuickTimerSnapshot(
@@ -129,6 +142,7 @@ internal object AlarmPyoQuickTimerCodec {
       fireAtElapsed = json.getLong("fireAtElapsed"),
       bootCount = json.optInt("bootCount", -1),
       state = state,
+      pausedRemainingMillis = json.optLong("pausedRemainingMillis", 0L),
       generation = generation
     )
     if (snapshot.isActive()) {
@@ -137,17 +151,28 @@ internal object AlarmPyoQuickTimerCodec {
         snapshot.startedAt <= 0L ||
         snapshot.startedAtElapsed < 0L ||
         snapshot.fireAtElapsed <= snapshot.startedAtElapsed ||
+        snapshot.pausedRemainingMillis != 0L ||
+        snapshot.plan?.shiftTypeId != "timer"
+      ) return null
+    } else if (snapshot.isPaused()) {
+      if (
+        snapshot.durationMinutes == null ||
+        snapshot.startedAt <= 0L ||
+        snapshot.fireAtElapsed != 0L ||
+        snapshot.pausedRemainingMillis <= 0L ||
         snapshot.plan?.shiftTypeId != "timer"
       ) return null
     } else if (snapshot.plan != null) {
+      return null
+    } else if (snapshot.pausedRemainingMillis != 0L) {
       return null
     }
     snapshot
   }.getOrNull()
 
-  private fun checksum(generation: Long, payload: String): String =
+  private fun checksum(schemaVersion: Int, generation: Long, payload: String): String =
     MessageDigest.getInstance("SHA-256")
-      .digest("$SCHEMA_VERSION\n$generation\n$payload".toByteArray(Charsets.UTF_8))
+      .digest("$schemaVersion\n$generation\n$payload".toByteArray(Charsets.UTF_8))
       .joinToString("") { byte -> "%02x".format(byte) }
 }
 

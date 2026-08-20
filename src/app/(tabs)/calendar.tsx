@@ -514,23 +514,23 @@ export default function CalendarScreen() {
             ),
         },
         {
-          text: '주간 대체근무로 변경하기',
+          text: '주대로 변경하기',
           actionId: 'confirm',
           icon: 'shift-substitute',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'substitute-day' },
-              '주간 대체근무',
+              '주대',
             ),
         },
         {
-          text: '야간 대체근무로 변경하기',
+          text: '야대로 변경하기',
           actionId: 'confirm',
           icon: 'shift-substitute',
           onPress: () =>
             void applySelectedDateChange(
               { kind: 'shift', shiftTypeId: 'substitute-night' },
-              '야간 대체근무',
+              '야대',
             ),
         },
         {

@@ -19,6 +19,7 @@ type QuickTimerCountdownProps = {
   label: string;
   onExpired: (observationKey: string) => void;
   observationKey: string;
+  paused?: boolean;
   screenActive: boolean;
 };
 
@@ -36,6 +37,7 @@ function QuickTimerCountdownView({
   label,
   onExpired,
   observationKey,
+  paused = false,
   screenActive,
 }: QuickTimerCountdownProps) {
   const [clock, setClock] = useState(readClock);
@@ -56,11 +58,12 @@ function QuickTimerCountdownView({
     };
   }, [active, observationKey, screenActive]);
 
-  const remainingMillis = getQuickTimerRemainingMillis(
-    anchor,
-    clock.monotonic,
-  );
-  const targetAt = getQuickTimerTargetAt(remainingMillis, clock.wall);
+  const remainingMillis = paused
+    ? anchor.remainingMillis
+    : getQuickTimerRemainingMillis(anchor, clock.monotonic);
+  const targetAt = paused
+    ? 0
+    : getQuickTimerTargetAt(remainingMillis, clock.wall);
 
   useEffect(() => {
     if (
@@ -78,10 +81,14 @@ function QuickTimerCountdownView({
   return (
     <View
       accessible
-      accessibilityLabel={`${label}. ${formatQuickTimerTarget(
-        targetAt,
-        clock.wall,
-      )}에 울립니다. ${getQuickTimerRemainingLabel(remainingMillis)}`}>
+      accessibilityLabel={
+        paused
+          ? `${label}. 일시정지했습니다. ${getQuickTimerRemainingLabel(remainingMillis)}`
+          : `${label}. ${formatQuickTimerTarget(
+              targetAt,
+              clock.wall,
+            )}에 울립니다. ${getQuickTimerRemainingLabel(remainingMillis)}`
+      }>
       <AppText tone="secondary" style={styles.centerText} variant="label">
         {label}
       </AppText>
@@ -99,7 +106,9 @@ function QuickTimerCountdownView({
         {formatQuickTimerCountdown(remainingMillis)}
       </AppText>
       <AppText tone="secondary" style={styles.centerText} variant="body">
-        {formatQuickTimerTarget(targetAt, clock.wall)}에 울립니다.
+        {paused
+          ? '재개하면 남은 시간부터 다시 시작합니다.'
+          : `${formatQuickTimerTarget(targetAt, clock.wall)}에 울립니다.`}
       </AppText>
     </View>
   );

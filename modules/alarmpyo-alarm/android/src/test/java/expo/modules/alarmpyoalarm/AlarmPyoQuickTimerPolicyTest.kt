@@ -1,12 +1,14 @@
 package expo.modules.alarmpyoalarm
 
 import android.content.Intent
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
 
 class AlarmPyoQuickTimerPolicyTest {
   @Test
@@ -87,11 +89,69 @@ class AlarmPyoQuickTimerPolicyTest {
   }
 
   @Test
-  fun `only thirty and sixty minute quick timers are accepted`() {
+  fun `thirty forty five and sixty minute quick timers are accepted`() {
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(30))
+    assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(45))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(60))
     assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(0))
-    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(45))
+    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(15))
+  }
+
+  @Test
+  fun `paused timer persists its authoritative remaining duration without an active target`() {
+    val active = activeSnapshot(generation = 21L)
+    val remaining = TimeUnit.MINUTES.toMillis(17)
+
+    val paused = AlarmPyoQuickTimerPolicy.pausedSnapshot(active, remaining)
+      .copy(generation = 22L)
+    val decoded = AlarmPyoQuickTimerCodec.decode(AlarmPyoQuickTimerCodec.encode(paused))!!
+
+    assertFalse(decoded.isActive())
+    assertTrue(decoded.isPaused())
+    assertEquals(remaining, decoded.pausedRemainingMillis)
+    assertEquals(0L, decoded.fireAtElapsed)
+    assertEquals(-1, decoded.bootCount)
+    assertEquals(active.plan, decoded.plan)
+    assertEquals(active.durationMinutes, decoded.durationMinutes)
+  }
+
+  @Test
+  fun `resuming a paused timer creates a new monotonic target from saved remaining time`() {
+    val remaining = TimeUnit.MINUTES.toMillis(17)
+    val paused = AlarmPyoQuickTimerPolicy.pausedSnapshot(
+      activeSnapshot(generation = 21L),
+      remaining
+    )
+    val nowWallClock = 1_900_000_000_000L
+    val nowElapsed = 4_000L
+    val resumedPlan = AlarmPyoQuickTimerPolicy.rebasePlanForRestore(
+      paused.plan!!,
+      nowWallClock,
+      remaining
+    )
+
+    val resumed = AlarmPyoQuickTimerPolicy.resumedSnapshot(
+      paused,
+      resumedPlan,
+      nowWallClock,
+      nowElapsed,
+      currentBootCount = 33
+    )
+
+    assertTrue(resumed.isActive())
+    assertFalse(resumed.isPaused())
+    assertEquals(0L, resumed.pausedRemainingMillis)
+    assertEquals(nowWallClock + remaining, resumed.plan!!.alarmAt)
+    assertEquals(nowElapsed + remaining, resumed.fireAtElapsed)
+    assertEquals(
+      remaining,
+      AlarmPyoQuickTimerPolicy.remainingMillis(
+        resumed,
+        currentBootCount = 33,
+        nowWallClock = nowWallClock,
+        nowElapsed = nowElapsed
+      )
+    )
   }
 
   @Test
@@ -374,6 +434,11 @@ class AlarmPyoQuickTimerPolicyTest {
     assertNull(rollback.plan)
     val previous = activeSnapshot(generation = 4L)
     assertEquals(previous, AlarmPyoQuickTimerPolicy.rollbackSnapshot(previous))
+    val paused = AlarmPyoQuickTimerPolicy.pausedSnapshot(
+      previous,
+      TimeUnit.MINUTES.toMillis(11)
+    )
+    assertEquals(paused, AlarmPyoQuickTimerPolicy.rollbackSnapshot(paused))
   }
 
   @Test
@@ -395,6 +460,31 @@ class AlarmPyoQuickTimerPolicyTest {
         encoded.replace("30분 타이머", "60분 타이머")
       )
     )
+  }
+
+  @Test
+  fun `version one active timer remains readable after the paused schema upgrade`() {
+    val snapshot = activeSnapshot(generation = 31L)
+    val payload = JSONObject()
+      .put("state", snapshot.state.wireValue)
+      .put("durationMinutes", snapshot.durationMinutes)
+      .put("startedAt", snapshot.startedAt)
+      .put("startedAtElapsed", snapshot.startedAtElapsed)
+      .put("fireAtElapsed", snapshot.fireAtElapsed)
+      .put("bootCount", snapshot.bootCount)
+      .put("plan", snapshot.plan!!.toJson())
+      .toString()
+    val checksum = MessageDigest.getInstance("SHA-256")
+      .digest("1\n${snapshot.generation}\n$payload".toByteArray(Charsets.UTF_8))
+      .joinToString("") { byte -> "%02x".format(byte) }
+    val legacyEnvelope = JSONObject()
+      .put("schemaVersion", 1)
+      .put("generation", snapshot.generation)
+      .put("payload", payload)
+      .put("checksum", checksum)
+      .toString()
+
+    assertEquals(snapshot, AlarmPyoQuickTimerCodec.decode(legacyEnvelope))
   }
 
   @Test

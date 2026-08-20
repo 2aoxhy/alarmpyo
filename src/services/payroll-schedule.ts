@@ -1,9 +1,15 @@
 import { addDays, isValidDateKey, parseDateKey, toDateKey } from '../utils/date';
+import type { PayrollSettings } from '../models/app-data';
 import {
   getKoreanHoliday,
   getKoreanHolidayDataStatus,
   type KoreanHolidayDataSource,
 } from '../utils/korean-holiday';
+import {
+  DEFAULT_PAYROLL_SETTINGS,
+  assertPayrollSettings,
+  getRegularPayrollDateKey,
+} from './payroll-policy';
 
 export type PayrollSchedule = {
   salaryYear: number;
@@ -76,15 +82,32 @@ export function resolvePayrollBusinessDay(dateKey: string): string {
 }
 
 /** 해당 월에 지급되는 급여의 산정기간과 지급일을 계산해요. */
-export function getPayrollSchedule(year: number, month: number): PayrollSchedule {
+export function getPayrollSchedule(
+  year: number,
+  month: number,
+  settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
+): PayrollSchedule {
   assertSalaryMonth(year, month);
+  assertPayrollSettings(settings);
 
-  const regularPaydayDateKey = toDateKey(new Date(year, month, 21, 12));
+  const regularPaydayDateKey = getRegularPayrollDateKey(year, month, settings);
   const holidayDataStatus = getKoreanHolidayDataStatus(year);
   const holidayDataAvailable = holidayDataStatus.available;
-  const paydayDateKey = holidayDataAvailable
-    ? resolvePayrollBusinessDay(regularPaydayDateKey)
-    : resolvePreviousWeekday(regularPaydayDateKey);
+  let usedHolidayData = holidayDataAvailable;
+  let paydayDateKey = regularPaydayDateKey;
+  if (settings.adjustment === 'previous-business-day') {
+    if (holidayDataAvailable) {
+      try {
+        paydayDateKey = resolvePayrollBusinessDay(regularPaydayDateKey);
+      } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        usedHolidayData = false;
+        paydayDateKey = resolvePreviousWeekday(regularPaydayDateKey);
+      }
+    } else {
+      paydayDateKey = resolvePreviousWeekday(regularPaydayDateKey);
+    }
+  }
 
   return {
     salaryYear: year,
@@ -95,18 +118,21 @@ export function getPayrollSchedule(year: number, month: number): PayrollSchedule
     paydayDateKey,
     paydayAdjusted: paydayDateKey !== regularPaydayDateKey,
     paydayCalculation:
-      holidayDataStatus.source === 'official'
+      settings.adjustment === 'fixed-date' || holidayDataStatus.source === 'official'
         ? 'confirmed'
-        : holidayDataStatus.source === 'calculated'
+        : usedHolidayData && holidayDataStatus.source === 'calculated'
           ? 'calculated-standard'
           : 'weekend-only-estimate',
-    holidayDataAvailable,
-    holidayDataSource: holidayDataStatus.source,
+    holidayDataAvailable: usedHolidayData,
+    holidayDataSource: usedHolidayData ? holidayDataStatus.source : 'unavailable',
   };
 }
 
 /** 근무한 날짜가 어느 달 급여에 포함되는지 계산해요. */
-export function getPayrollScheduleForWorkDate(dateKey: string): PayrollSchedule {
+export function getPayrollScheduleForWorkDate(
+  dateKey: string,
+  settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
+): PayrollSchedule {
   if (!isValidDateKey(dateKey)) {
     throw new RangeError('근무 날짜가 올바르지 않습니다.');
   }
@@ -119,15 +145,16 @@ export function getPayrollScheduleForWorkDate(dateKey: string): PayrollSchedule 
     12,
   );
 
-  return getPayrollSchedule(salaryMonth.getFullYear(), salaryMonth.getMonth());
+  return getPayrollSchedule(salaryMonth.getFullYear(), salaryMonth.getMonth(), settings);
 }
 
 /** 달력 날짜 셀에서 바로 사용할 월급날 표시 정보를 만들어요. */
 export function getPayrollCalendarEntry(
   year: number,
   month: number,
+  settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
 ): PayrollCalendarEntry {
-  const schedule = getPayrollSchedule(year, month);
+  const schedule = getPayrollSchedule(year, month, settings);
   const adjustedCopy = schedule.paydayAdjusted
     ? `, ${formatMonthDay(schedule.regularPaydayDateKey)}이 휴일이라 앞당겨졌습니다`
     : '';
@@ -155,7 +182,8 @@ export function getPayrollCalendarEntry(
 export function getPayrollCalendarEntriesForMonth(
   year: number,
   month: number,
+  settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
 ): Readonly<Record<string, PayrollCalendarEntry>> {
-  const entry = getPayrollCalendarEntry(year, month);
+  const entry = getPayrollCalendarEntry(year, month, settings);
   return { [entry.dateKey]: entry };
 }

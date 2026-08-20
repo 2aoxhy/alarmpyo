@@ -121,7 +121,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
             ? '짧게 누르면 하루 일정을 편집합니다. 길게 누르면 변경하거나 공유할 날짜를 선택합니다.'
             : '일정 적용 시작일 이후 날짜만 편집할 수 있습니다.'
       }
-      accessibilityLabel={`${formatKoreanDate(cell.dateKey, true)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday.accessibilityLabel}` : ''}${payrollEntry ? `, ${payrollEntry.accessibilityLabel}` : ''}, ${scheduleDate ? shift?.name ?? '일정 없음' : '일정 적용 시작일 이전 날짜'}${dayExceptionLabel ? `, 예외 일정 ${dayExceptionLabel}` : ''}${hasNote ? ', 메모 있음' : ''}${hasOverride ? ', 직접 변경한 날' : ''}`}
+      accessibilityLabel={`${formatKoreanDate(cell.dateKey, true)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday.accessibilityLabel}` : ''}${payrollEntry ? `, ${payrollEntry.accessibilityLabel}` : ''}, ${scheduleDate ? shift?.name ?? '일정 없음' : '일정 적용 시작일 이전 날짜'}${shift?.id.startsWith('substitute-') ? ', 특근' : ''}${dayExceptionLabel ? `, 예외 일정 ${dayExceptionLabel}` : ''}${hasNote ? ', 메모 있음' : ''}${hasOverride ? ', 직접 변경한 날' : ''}`}
       accessibilityRole="button"
       accessibilityState={{ disabled: !scheduleDate, selected: isSelected }}
       accessibilityActions={
@@ -250,7 +250,15 @@ export const CalendarDayCell = memo(function CalendarDayCell({
               {shift || dayExceptionLabel ? (
                 <StatusBadge
                   backgroundColor={
-                    exceptionAppearance?.softColor ?? shiftAppearance!.softColor
+                    exceptionAppearance?.softColor ??
+                    (shift?.id.startsWith('substitute-')
+                      ? palette.surfaceSoft
+                      : shiftAppearance!.softColor)
+                  }
+                  borderColor={
+                    !dayException && shift?.id.startsWith('substitute-')
+                      ? shiftAppearance!.accentColor
+                      : undefined
                   }
                   icon={
                     dayExceptionLabel ? (
@@ -335,7 +343,15 @@ export const CalendarDayCell = memo(function CalendarDayCell({
               {shift || dayExceptionLabel ? (
                 <StatusBadge
                   backgroundColor={
-                    exceptionAppearance?.softColor ?? shiftAppearance!.softColor
+                    exceptionAppearance?.softColor ??
+                    (shift?.id.startsWith('substitute-')
+                      ? palette.surfaceSoft
+                      : shiftAppearance!.softColor)
+                  }
+                  borderColor={
+                    !dayException && shift?.id.startsWith('substitute-')
+                      ? shiftAppearance!.accentColor
+                      : undefined
                   }
                   icon={
                     dayExceptionLabel ? (
@@ -346,7 +362,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
                           size={13}
                         />
                       ) : null
-                    ) : shift!.id.startsWith('substitute-') ? null : (
+                    ) : (
                       <AnimatedShiftIcon
                         animated={false}
                         color={shiftAppearance!.accentColor}

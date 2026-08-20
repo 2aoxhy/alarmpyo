@@ -4,10 +4,16 @@ const { native } = vi.hoisted(() => ({
   native: {
     getQuickTimerStatusAsync: vi.fn(),
     scheduleQuickTimerAsync: vi.fn(),
+    pauseQuickTimerAsync: vi.fn(),
+    resumeQuickTimerAsync: vi.fn(),
+    resetQuickTimerAsync: vi.fn(),
     cancelQuickTimerAsync: vi.fn(),
   } as {
     getQuickTimerStatusAsync?: ReturnType<typeof vi.fn>;
     scheduleQuickTimerAsync?: ReturnType<typeof vi.fn>;
+    pauseQuickTimerAsync?: ReturnType<typeof vi.fn>;
+    resumeQuickTimerAsync?: ReturnType<typeof vi.fn>;
+    resetQuickTimerAsync?: ReturnType<typeof vi.fn>;
     cancelQuickTimerAsync?: ReturnType<typeof vi.fn>;
   },
 }));
@@ -21,11 +27,14 @@ import {
   cancelQuickTimer,
   getQuickTimerStatus,
   normalizeQuickTimerStatus,
+  pauseQuickTimer,
+  resetQuickTimer,
+  resumeQuickTimer,
   scheduleQuickTimer,
   type QuickTimerDuration,
 } from '../quick-timer-service';
 
-function scheduledStatus(durationMinutes: 30 | 60 = 30) {
+function scheduledStatus(durationMinutes: 30 | 45 | 60 = 30) {
   return {
     supported: true,
     state: 'scheduled',
@@ -44,6 +53,9 @@ describe('빠른 타이머 서비스', () => {
   beforeEach(() => {
     native.getQuickTimerStatusAsync = vi.fn();
     native.scheduleQuickTimerAsync = vi.fn();
+    native.pauseQuickTimerAsync = vi.fn();
+    native.resumeQuickTimerAsync = vi.fn();
+    native.resetQuickTimerAsync = vi.fn();
     native.cancelQuickTimerAsync = vi.fn();
   });
 
@@ -58,9 +70,24 @@ describe('빠른 타이머 서비스', () => {
       }),
     ).toMatchObject({
       supported: true,
-      state: 'error',
+      state: 'scheduled',
+      active: true,
+      durationMinutes: 45,
+    });
+    expect(
+      normalizeQuickTimerStatus({
+        ...scheduledStatus(45),
+        state: 'paused',
+        active: false,
+        fireAt: 0,
+        remainingMillis: 12_000,
+      }),
+    ).toMatchObject({
+      supported: true,
+      state: 'paused',
       active: false,
-      durationMinutes: null,
+      durationMinutes: 45,
+      remainingMillis: 12_000,
     });
     expect(normalizeQuickTimerStatus(null)).toMatchObject({
       supported: false,
@@ -69,8 +96,8 @@ describe('빠른 타이머 서비스', () => {
     });
   });
 
-  it('30분·60분 예약과 취소만 네이티브 모듈에 전달해요', async () => {
-    native.scheduleQuickTimerAsync!.mockResolvedValue(scheduledStatus(60));
+  it('30분·45분·60분 예약과 취소만 네이티브 모듈에 전달해요', async () => {
+    native.scheduleQuickTimerAsync!.mockResolvedValue(scheduledStatus(45));
     native.cancelQuickTimerAsync!.mockResolvedValue({
       ...scheduledStatus(60),
       state: 'idle',
@@ -81,15 +108,43 @@ describe('빠른 타이머 서비스', () => {
       remainingMillis: 0,
     });
 
-    await expect(scheduleQuickTimer(60)).resolves.toMatchObject({
+    await expect(scheduleQuickTimer(45)).resolves.toMatchObject({
       active: true,
-      durationMinutes: 60,
+      durationMinutes: 45,
     });
-    expect(native.scheduleQuickTimerAsync).toHaveBeenCalledWith(60);
+    expect(native.scheduleQuickTimerAsync).toHaveBeenCalledWith(45);
     await expect(cancelQuickTimer()).resolves.toMatchObject({ active: false });
     await expect(
-      scheduleQuickTimer(45 as QuickTimerDuration),
-    ).rejects.toThrow('30분 또는 60분');
+      scheduleQuickTimer(15 as QuickTimerDuration),
+    ).rejects.toThrow('30분, 45분 또는 60분');
+  });
+
+  it('일시정지·재개·초기화를 순서대로 직렬화해요', async () => {
+    const paused = {
+      ...scheduledStatus(45),
+      state: 'paused',
+      active: false,
+      fireAt: 0,
+      remainingMillis: 10_000,
+    };
+    native.pauseQuickTimerAsync!.mockResolvedValue(paused);
+    native.resumeQuickTimerAsync!.mockResolvedValue(scheduledStatus(45));
+    native.resetQuickTimerAsync!.mockResolvedValue({
+      ...scheduledStatus(45),
+      state: 'idle',
+      active: false,
+      durationMinutes: null,
+      startedAt: 0,
+      fireAt: 0,
+      remainingMillis: 0,
+    });
+
+    await expect(pauseQuickTimer()).resolves.toMatchObject({ state: 'paused' });
+    await expect(resumeQuickTimer()).resolves.toMatchObject({ state: 'scheduled' });
+    await expect(resetQuickTimer()).resolves.toMatchObject({ state: 'idle' });
+    expect(native.pauseQuickTimerAsync).toHaveBeenCalledOnce();
+    expect(native.resumeQuickTimerAsync).toHaveBeenCalledOnce();
+    expect(native.resetQuickTimerAsync).toHaveBeenCalledOnce();
   });
 
   it('구형 APK처럼 메서드가 하나라도 없으면 지원하지 않는 상태로 폴백해요', async () => {
