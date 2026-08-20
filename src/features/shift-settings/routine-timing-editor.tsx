@@ -1,13 +1,13 @@
-import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import {
   DisclosureRow,
   StatusBanner,
 } from '@/design-system';
+import { triggerSelectionFeedback } from '@/features/feedback/feedback-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { WorkRoutineProfiles, WorkRoutineTiming } from '@/models/app-data';
@@ -57,7 +57,7 @@ export function RoutineTimingEditor({
       [key]: profile[key] + amount,
     };
     if (!isValidWorkRoutineTiming(next)) return;
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     onChange(next);
   };
   const rows: readonly {
@@ -82,7 +82,7 @@ export function RoutineTimingEditor({
       ) : null}
 
       {expanded ? (
-        <Card density="compact" style={styles.body}>
+        <View style={styles.body}>
           {!valid ? (
             <StatusBanner
               message="기상 시각은 출발보다 빨라야 합니다."
@@ -146,13 +146,13 @@ export function RoutineTimingEditor({
             }
             label="기본 시간으로 되돌리기"
             onPress={() => {
-              void Haptics.selectionAsync();
+              void triggerSelectionFeedback();
               onChange({ ...defaultProfile });
             }}
             size="compact"
             variant="ghost"
           />
-        </Card>
+        </View>
       ) : null}
     </View>
   );
@@ -200,6 +200,10 @@ function createStyles(palette: AppPalette) {
     },
     body: {
       gap: spacing.medium,
+      paddingVertical: spacing.small,
+      paddingLeft: spacing.medium,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.controlLine,
     },
     row: {
       minHeight: 64,
@@ -240,7 +244,8 @@ function createStyles(palette: AppPalette) {
       backgroundColor: palette.surfaceSoft,
     },
     stepButtonDisabled: {
-      opacity: 0.42,
+      borderColor: palette.line,
+      backgroundColor: palette.disabledSurface,
     },
     stepButtonPressed: {
       opacity: 0.68,

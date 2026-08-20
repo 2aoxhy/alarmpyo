@@ -177,9 +177,15 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(contrastRatio(border!, background!)).toBeGreaterThanOrEqual(3);
   });
 
-  it('근무 의미색은 대비가 충분한 작은 아이콘에만 사용해요', () => {
+  it('근무 의미색은 대비가 충분한 3dp 의미선과 작은 아이콘에만 사용해요', () => {
     const colors = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/values/colors.xml',
+    );
+    const widgetLayout = readSource(
+      'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_compact.xml',
+    );
+    const providerSource = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoShiftWidgetProvider.kt',
     );
     const drawableNames = ['day', 'night', 'off', 'training', 'reserve', 'unknown'];
 
@@ -201,11 +207,17 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     });
     const background = colorMap.get('alarmpyo_widget_card_background');
     expect(background).toBeDefined();
-    drawableNames.forEach((name) => {
+    [...drawableNames, 'evening', 'custom'].forEach((name) => {
       const iconColor = colorMap.get(`alarmpyo_widget_icon_${name}`);
       expect(iconColor).toBeDefined();
       expect(contrastRatio(iconColor!, background!)).toBeGreaterThanOrEqual(3);
     });
+    expect(widgetLayout).toContain('android:id="@+id/alarmpyo_widget_meaning_line"');
+    expect(widgetLayout).toContain('android:layout_width="3dp"');
+    expect(providerSource).toContain('AlarmPyoWidgetVisual.CUSTOM');
+    expect(providerSource).toContain('setColorFilter');
+    expect(providerSource).toContain('setBackgroundColor');
+    expect(providerSource).toContain('contrastRatio(candidate, it) >= 3.0');
   });
 
   it('Android 15 생성형 미리보기는 실제 바인더를 재사용하고 실패를 저장 실패로 전파하지 않아요', () => {

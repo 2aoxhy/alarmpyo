@@ -809,8 +809,8 @@ function createV20Data() {
   return { ...data, version: 20, settings };
 }
 
-describe('v1~v20 전체 마이그레이션 회귀', () => {
-  it('지원하는 모든 이전 버전을 v21 기본 구조로 한 번만 승격합니다', () => {
+describe('v1~v21 전체 마이그레이션·직렬화 회귀', () => {
+  it('모든 지원 버전을 v21 canonical 자료로 한 번만 승격하고 왕복합니다', () => {
     const current = createDefaultAppData('2026-07-11');
     const legacyCurrent = (version: 13 | 14 | 15 | 19) => ({
       ...current,
@@ -837,12 +837,15 @@ describe('v1~v20 전체 마이그레이션 회귀', () => {
       [18, createV18Data(true)],
       [19, legacyCurrent(19)],
       [20, createV20Data()],
+      [21, current],
     ];
 
     sources.forEach(([version, source]) => {
       const parsed = validateAndMigrateAppData(source);
-      expect(parsed.migratedFromVersion, `v${version}`).toBe(version);
-      expect(parsed.requiresPersistence, `v${version}`).toBe(true);
+      expect(parsed.migratedFromVersion, `v${version}`).toBe(
+        version === 21 ? null : version,
+      );
+      expect(parsed.requiresPersistence, `v${version}`).toBe(version !== 21);
       expect(parsed.data.version, `v${version}`).toBe(21);
       expect(parsed.data.payrollSettings, `v${version}`).toEqual({
         day: 21,
@@ -854,6 +857,16 @@ describe('v1~v20 전체 마이그레이션 회귀', () => {
       expect(parsed.data.settings.dismissedUpdateVersionCode, `v${version}`).toBeNull();
       expect(parseAppDataJson(serializeAppData(parsed.data)).data, `v${version}`).toEqual(
         parsed.data,
+      );
+      const backup = exportAppDataToJson(
+        parsed.data,
+        new Date('2026-08-21T00:00:00.000Z'),
+        { pretty: false },
+      );
+      const imported = previewAppDataImport(backup);
+      expect(imported.data, `v${version} backup`).toEqual(parsed.data);
+      expect(serializeAppData(imported.data), `v${version} canonical`).toBe(
+        serializeAppData(parsed.data),
       );
     });
   });

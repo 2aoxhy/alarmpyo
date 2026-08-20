@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V13 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
+  it('V14 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V13',
+      release: 'V14',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V13',
+      release: 'V14',
       status: 'recapture-required',
       target: {
         width: 1080,

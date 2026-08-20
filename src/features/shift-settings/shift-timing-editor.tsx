@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -7,13 +6,14 @@ import {
   SelectionCard,
   SelectionIndicator,
 } from '@/components/selection-controls';
-import { AppText, Card } from '@/components/ui-kit';
+import { AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import {
   DAY_SHIFT_END_MINUTES,
   NIGHT_SHIFT_END_MINUTES,
 } from '@/constants/shift-schedule';
 import { fontFamily } from '@/constants/typography';
+import { triggerSelectionFeedback } from '@/features/feedback/feedback-controller';
 import {
   AppField,
   SegmentedControl,
@@ -118,7 +118,7 @@ export function ShiftTimingEditor({
       <ToggleRow
         icon="alarm-outline"
         onValueChange={(alarmEnabled) => {
-          void Haptics.selectionAsync();
+          void triggerSelectionFeedback();
           onChange({ alarmEnabled });
         }}
         subtitle="설정한 기상 시각을 수면 가이드와 출근 루틴에도 사용합니다."
@@ -152,7 +152,7 @@ export function ShiftTimingEditor({
                 key={minutes}
                 accessibilityLabel={`${optionTime ?? '기상 시각 확인 필요'}, 근무 시작 ${formatDuration(minutes)} 전 기상`}
                 onPress={() => {
-                  void Haptics.selectionAsync();
+                  void triggerSelectionFeedback();
                   onChange({ alarmMinutesBefore: minutes });
                 }}
                 selected={selected}
@@ -201,13 +201,13 @@ export function ShiftTimingEditor({
   );
 
   return (
-    <Card style={styles.card}>
+    <View style={styles.card}>
       {substituteMode && onSubstituteModeChange ? (
         <SegmentedControl
           label="특근 종류"
           onChange={(value) => {
             if (value === substituteMode) return;
-            void Haptics.selectionAsync();
+            void triggerSelectionFeedback();
             onSubstituteModeChange(value);
           }}
           options={[
@@ -342,7 +342,7 @@ export function ShiftTimingEditor({
 
       {showTime && showWake && !wakeFirst ? <View style={styles.divider} /> : null}
       {showWake && !wakeFirst ? renderWakeSettings() : null}
-    </Card>
+    </View>
   );
 }
 
@@ -350,6 +350,10 @@ function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     card: {
       gap: spacing.large,
+      paddingVertical: spacing.small,
+      paddingLeft: spacing.medium,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.controlLine,
     },
     header: {
       flexDirection: 'row',

@@ -10,9 +10,50 @@ export type FloatingTabBarHorizontalLayout = {
   outerMargin: number;
 };
 
+export type FloatingTabBarGeometry = {
+  left: number;
+  right: number;
+  sideGuard: number;
+  width: number;
+};
+
 const BASE_HEIGHT = 68;
 const MIN_BOTTOM = 8;
 const CONTENT_GAP = 8;
+const MAX_WIDTH = 560;
+
+function finiteNonNegative(value: number) {
+  return Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
+/**
+ * 좌우 안전 영역이 달라도 하단 메뉴의 중심을 화면 중심축에 고정합니다.
+ * 더 큰 안전 영역을 양쪽에 동일하게 적용해 노치나 제스처 영역을 침범하지 않습니다.
+ */
+export function resolveFloatingTabBarGeometry(
+  windowWidth: number,
+  leftInset: number,
+  rightInset: number,
+  outerMargin: number,
+  maxWidth = MAX_WIDTH,
+): FloatingTabBarGeometry {
+  const safeWindowWidth = finiteNonNegative(windowWidth);
+  const sideGuard = Math.max(
+    finiteNonNegative(leftInset),
+    finiteNonNegative(rightInset),
+    finiteNonNegative(outerMargin),
+  );
+  const availableWidth = Math.max(safeWindowWidth - sideGuard * 2, 0);
+  const width = Math.min(availableWidth, finiteNonNegative(maxWidth));
+  const symmetricInset = (safeWindowWidth - width) / 2;
+
+  return {
+    left: symmetricInset,
+    right: symmetricInset,
+    sideGuard,
+    width,
+  };
+}
 
 export function resolveFloatingTabBarHorizontalLayout(
   windowWidth: number,

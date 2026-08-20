@@ -9,7 +9,7 @@ import {
   canDismissPlayUpdate,
   getPlayUpdateProgress,
   type PlayUpdateStatus,
-} from '@/services/play-app-update-service';
+} from '@/services/play-app-update-policy';
 
 type PlayUpdateBannerProps = {
   busy: boolean;

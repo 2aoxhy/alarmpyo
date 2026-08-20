@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
-  AccessibilityInfo,
   ActivityIndicator,
-  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -13,25 +11,12 @@ import { spacing, type AppPalette } from '@/constants/app-theme';
 import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
+import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
 import { PlayUpdateBanner } from '@/features/update/play-update-banner';
-import { useAppLifecycle } from '@/hooks/use-app-active';
 import { useAppTheme } from '@/hooks/use-app-theme';
-import { useAlarmRuntimeStatus } from '@/hooks/use-alarm-runtime-status';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import {
-  isSleepReminderNativeSupported,
-} from '@/services/sleep-reminder-service';
-import { openGooglePlayListing } from '@/services/app-distribution';
-import {
-  completeFlexiblePlayUpdate,
-  getPlayUpdateStatusForTransition,
-  shouldPollPlayUpdate,
-  shouldShowPlayUpdate,
-  startFlexiblePlayUpdate,
-  type PlayUpdateStatus,
-} from '@/services/play-app-update-service';
 import { getSleepReminderScheduleSignature } from '@/services/sleep-reminder-planner';
 import {
   buildTodayAlarmPlanSummary,
@@ -51,32 +36,36 @@ export default function TodayScreen() {
   const largeText = fontScale >= 1.25;
   const compactHome = windowWidth < 420 || largeText;
   const screenActive = useScreenActive();
-  const appLifecycle = useAppLifecycle();
   const now = useNow(screenActive);
   const today = toDateKey(now);
   const { data, ready, getShiftForDate } = useAppStoreData();
   const { dismissPlayUpdate } = useAppStoreActions();
-  const [playUpdateStatus, setPlayUpdateStatus] =
-    useState<PlayUpdateStatus | null>(null);
-  const [playUpdateBusy, setPlayUpdateBusy] = useState(false);
   const {
     alarmAutoCheckState,
     alarmSyncStatus,
     sleepReminderSyncStatus,
     sleepReminderSyncRevision,
   } = useAppStoreStatus();
-  const sleepReminderSupported =
-    Platform.OS === 'android' && isSleepReminderNativeSupported();
-  const runtimeStatus = useAlarmRuntimeStatus({
+  const {
+    alarmPlatformSupported,
+    dismissPlayUpdate: dismissUpdate,
+    installPlayUpdate,
+    playUpdateBusy,
+    playUpdateStatus,
+    runtimeStatus,
+    sleepReminderSupported,
+    startPlayUpdate,
+  } = useTodayRuntimeController({
     enabled: ready && screenActive,
-    includeSleepReminder:
-      data.settings.sleepReminderEnabled && sleepReminderSupported,
-    revisionKey: [
+    dismissedUpdateVersionCode: data.settings.dismissedUpdateVersionCode,
+    sleepReminderEnabled: data.settings.sleepReminderEnabled,
+    runtimeRevisionKey: [
       data.settings.lastNotificationSyncAt ?? '',
       data.settings.sleepReminderEnabled
         ? `${getSleepReminderScheduleSignature(data)}:${sleepReminderSyncRevision}`
         : 'sleep-disabled',
     ].join(':'),
+    dismissUpdate: dismissPlayUpdate,
   });
   const alarmStatus = runtimeStatus.alarmStatus;
   const alarmStatusError = runtimeStatus.alarmStatusError;
@@ -97,132 +86,6 @@ export default function TodayScreen() {
     [data, getShiftForDate, today],
   );
 
-  useEffect(() => {
-    if (!ready || !screenActive) return;
-    let cancelled = false;
-    void getPlayUpdateStatusForTransition(appLifecycle.transitionId).then(
-      (status) => {
-        if (cancelled) return;
-        setPlayUpdateStatus(
-          shouldShowPlayUpdate(
-            status,
-            data.settings.dismissedUpdateVersionCode,
-          )
-            ? status
-            : null,
-        );
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appLifecycle.transitionId,
-    ready,
-    screenActive,
-    data.settings.dismissedUpdateVersionCode,
-  ]);
-
-  useEffect(() => {
-    if (
-      !screenActive ||
-      playUpdateBusy ||
-      !playUpdateStatus ||
-      !shouldPollPlayUpdate(playUpdateStatus)
-    ) {
-      return;
-    }
-    let cancelled = false;
-    const timeout = setTimeout(() => {
-      void getPlayUpdateStatusForTransition(
-        appLifecycle.transitionId,
-        true,
-      ).then((status) => {
-        if (!cancelled) {
-          setPlayUpdateStatus(
-            shouldShowPlayUpdate(
-              status,
-              data.settings.dismissedUpdateVersionCode,
-            )
-              ? status
-              : null,
-          );
-        }
-      });
-    }, 1_500);
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [
-    appLifecycle.transitionId,
-    playUpdateBusy,
-    playUpdateStatus,
-    screenActive,
-    data.settings.dismissedUpdateVersionCode,
-  ]);
-
-  const startPlayUpdate = async () => {
-    if (!playUpdateStatus || playUpdateBusy) return;
-    setPlayUpdateBusy(true);
-    try {
-      if (!playUpdateStatus.flexibleAllowed) {
-        await openGooglePlayListing();
-        return;
-      }
-      const status = await startFlexiblePlayUpdate();
-      setPlayUpdateStatus(
-        shouldShowPlayUpdate(
-          status,
-          data.settings.dismissedUpdateVersionCode,
-        )
-          ? status
-          : null,
-      );
-      if (status.state === 'failed') {
-        void AccessibilityInfo.announceForAccessibility(
-          '업데이트를 시작하지 못했습니다. 다시 시도할 수 있습니다.',
-        );
-      }
-    } catch {
-      void AccessibilityInfo.announceForAccessibility(
-        'Google Play 업데이트를 열지 못했습니다.',
-      );
-    } finally {
-      setPlayUpdateBusy(false);
-    }
-  };
-
-  const installPlayUpdate = async () => {
-    if (!playUpdateStatus || playUpdateBusy) return;
-    setPlayUpdateBusy(true);
-    try {
-      const status = await completeFlexiblePlayUpdate();
-      setPlayUpdateStatus(
-        shouldShowPlayUpdate(
-          status,
-          data.settings.dismissedUpdateVersionCode,
-        )
-          ? status
-          : null,
-      );
-    } finally {
-      setPlayUpdateBusy(false);
-    }
-  };
-
-  const dismissUpdate = async () => {
-    const versionCode = playUpdateStatus?.availableVersionCode ?? 0;
-    if (versionCode <= 0 || playUpdateBusy) return;
-    setPlayUpdateBusy(true);
-    try {
-      const saved = await dismissPlayUpdate(versionCode);
-      if (saved) setPlayUpdateStatus(null);
-    } finally {
-      setPlayUpdateBusy(false);
-    }
-  };
-
   if (!ready) {
     return (
       <Screen contentStyle={styles.loading} scroll={false}>
@@ -241,7 +104,7 @@ export default function TodayScreen() {
     alarmStatusError,
     alarmAutoCheckStatus: alarmAutoCheckState.status,
     alarmSyncFailed: alarmSyncStatus === 'error',
-    alarmPlatformSupported: Platform.OS === 'android',
+    alarmPlatformSupported,
     sleepReminderStatus,
     sleepReminderStatusError,
     sleepReminderSupported,
@@ -281,6 +144,7 @@ export default function TodayScreen() {
         largeText={largeText}
         now={now}
         screenActive={screenActive}
+        shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}
       />
 

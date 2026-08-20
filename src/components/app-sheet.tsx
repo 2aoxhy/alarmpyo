@@ -15,13 +15,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton, AppText } from '@/components/ui-kit';
 import { colorWithAlpha, type AppPalette } from '@/constants/app-theme';
-import { radius, space } from '@/design-system';
+import { createSemanticColors, radius, space } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 type FocusTarget = React.ElementRef<typeof Pressable>;
 
-type AppSheetProps = PropsWithChildren<{
+export type AppSheetProps = PropsWithChildren<{
   onClose: () => void;
   returnFocusRef?: RefObject<FocusTarget | null>;
   title: string;
@@ -52,8 +53,9 @@ export function AppSheet({
   const insets = useSafeAreaInsets();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const titleFocus = useWebFocusVisible();
   const sheetRef = useRef<View>(null);
-  const titleRef = useRef<React.ElementRef<typeof AppText>>(null);
+  const titleRef = useRef<FocusTarget>(null);
   const previousWebFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const wide = width >= 600;
@@ -171,13 +173,19 @@ export function AppSheet({
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator>
-            <AppText
+            <Pressable
               ref={titleRef}
               accessibilityRole="header"
-              style={styles.title}
-              variant="heading">
-              {title}
-            </AppText>
+              onBlur={titleFocus.onBlur}
+              onFocus={titleFocus.onFocus}
+              style={[
+                styles.titleFocusTarget,
+                titleFocus.focusVisible && styles.webFocusVisible,
+              ]}>
+              <AppText style={styles.title} variant="heading">
+                {title}
+              </AppText>
+            </Pressable>
             {children}
           </ScrollView>
           <AppButton label="닫기" onPress={onClose} variant="secondary" />
@@ -187,7 +195,7 @@ export function AppSheet({
   );
 }
 
-function createStyles(palette: AppPalette) {
+function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
@@ -222,5 +230,18 @@ function createStyles(palette: AppPalette) {
     },
     content: { gap: space.md, paddingBottom: space.sm },
     title: { textAlign: 'center' },
+    titleFocusTarget: {
+      alignSelf: 'stretch',
+      borderRadius: radius.sm,
+    },
+    webFocusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: createSemanticColors(palette, isDark).focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
   });
 }

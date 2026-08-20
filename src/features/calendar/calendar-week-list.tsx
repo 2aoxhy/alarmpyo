@@ -229,6 +229,7 @@ function CalendarWeekListRow({
       }
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={selectionMode ? 'checkbox' : 'button'}
+      aria-checked={selectionMode ? selected : undefined}
       accessibilityState={
         selectionMode
           ? { checked: selected, disabled: interactionDisabled }
@@ -542,7 +543,7 @@ function createStyles(palette: AppPalette) {
         ? {
             zIndex: 2,
             outlineColor: palette.focus,
-            outlineOffset: -2,
+            outlineOffset: 2,
             outlineStyle: 'solid',
             outlineWidth: 2,
           }

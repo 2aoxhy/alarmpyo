@@ -18,7 +18,7 @@ AlarmPyo의 첫 EAS Android 키스토어는 내부 canary 빌드에서 생성했
 
 direct 공개 기능과 운영 승격을 수행하지 않는 비공개 EAS internal canary APK는 계속 사용할 수 있습니다. Play는 활성 정책의 일반 AAB 경로를 사용하며, 제출 불가 draft AAB 부트스트랩 예외는 다시 사용할 수 없습니다. 관련 명령은 정책이 인증서 미확정 상태로 돌아가지 않는 한 실패해야 합니다. 절차와 사용 범위는 [`internal-canary-apk-ko.md`](internal-canary-apk-ko.md)와 [`google-play-release-runbook-ko.md`](google-play-release-runbook-ko.md)를 따릅니다.
 
-direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정합니다. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였습니다. 현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며 V10은 internal 검증 계보로 유지합니다. V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에서 활성화했지만 Alpha 초안은 승격하지 않았고, 현재 소스의 후속 후보는 `V13 · 1.0.13(13)`입니다. V09는 사용하지 않으며 V13 검증이 완료될 때까지 V08 Alpha를 유지합니다. `1.0.0(1)` 내부 canary는 공개 후보로 재사용하지 않습니다.
+direct 정책 형식은 [`release-policy.schema.json`](release-policy.schema.json), Play 정책 형식은 [`play-release-policy.schema.json`](play-release-policy.schema.json)에 고정합니다. 첫 공개 후보는 `1.0.1`, Android `versionCode`는 `2`, iOS `buildNumber`는 `2`였습니다. V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에 배포했습니다. V13 · `1.0.13(13)`은 2026-08-21 Play internal과 Alpha에 배포되었으며, 현재 소스의 후속 후보는 `V14 · 1.0.14(14)`입니다. V09는 사용하지 않습니다. `1.0.0(1)` 내부 canary는 공개 후보로 재사용하지 않습니다.
 
 ## 차단 해제 조건
 

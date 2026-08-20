@@ -27,4 +27,12 @@ describe('공통 하단 시트 접근성 계약', () => {
     expect(sheet).toContain('AccessibilityInfo.setAccessibilityFocus(node)');
     expect(sheet).toContain('returnFocusRef?.current');
   });
+
+  it('처음 포커스되는 제목에도 공통 2px 의미 포커스 표시를 적용해요', () => {
+    expect(sheet).toContain('const titleFocus = useWebFocusVisible();');
+    expect(sheet).toContain('titleFocus.focusVisible && styles.webFocusVisible');
+    expect(sheet).toContain('outlineColor: createSemanticColors(palette, isDark).focus');
+    expect(sheet).toContain('outlineOffset: 2');
+    expect(sheet).toContain('outlineWidth: 2');
+  });
 });

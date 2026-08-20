@@ -3,10 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import {
-  getShiftSkyGradient,
-  ShiftSkyAnimation,
-} from '@/components/shift-sky-animation';
+import { ShiftSkyAnimation } from '@/components/shift-sky-animation';
 import { AppText } from '@/components/ui-kit';
 import {
   colorWithAlpha,
@@ -16,8 +13,12 @@ import {
 } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { shouldStackHeroFooter } from '@/design-system';
-import type { DayExceptionType } from '@/models/app-data';
+import {
+  resolveShiftHeroTheme,
+  resolveShiftVisualRole,
+  shouldStackHeroFooter,
+} from '@/design-system';
+import type { DayExceptionType, ShiftType } from '@/models/app-data';
 import { formatKoreanDate } from '@/utils/date';
 import { getDayExceptionLabel } from '@/utils/day-exception';
 
@@ -32,6 +33,7 @@ type TodayHeroProps = {
   largeText: boolean;
   now: Date;
   screenActive: boolean;
+  shift: ShiftType | null;
   statusLabel: string;
 };
 
@@ -46,17 +48,19 @@ export function TodayHero({
   largeText,
   now,
   screenActive,
+  shift,
   statusLabel,
 }: TodayHeroProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
-  const heroGradient = getShiftSkyGradient(now.getHours());
+  const visualRole = resolveShiftVisualRole(shift, Boolean(activeException));
+  const heroTheme = resolveShiftHeroTheme(visualRole, shift?.color);
   const stackFooter = shouldStackHeroFooter(width, fontScale) || largeText;
 
   return (
     <LinearGradient
-      colors={heroGradient}
+      colors={heroTheme.gradient}
       end={{ x: 1, y: 1 }}
       start={{ x: 0, y: 0 }}
       style={[
@@ -64,11 +68,19 @@ export function TodayHero({
         compact && styles.heroCompact,
         largeText && styles.heroLargeText,
       ]}>
-      <ShiftSkyAnimation active={screenActive} now={now} />
+      <ShiftSkyAnimation
+        active={screenActive}
+        artwork={heroTheme.artwork}
+        now={now}
+      />
       <View pointerEvents="none" style={styles.heroScrim} />
+      <View
+        pointerEvents="none"
+        style={[styles.heroAccent, { backgroundColor: heroTheme.accent }]}
+      />
 
       <View style={styles.heroStatus}>
-        <View style={styles.statusDot} />
+        <View style={[styles.statusDot, { backgroundColor: heroTheme.accent }]} />
         <AppText
           color={palette.white}
           numberOfLines={largeText ? undefined : 1}
@@ -159,6 +171,15 @@ const createStyles = (_palette: AppPalette) =>
       left: 0,
       backgroundColor: 'rgba(0, 0, 0, 0.28)',
     },
+    heroAccent: {
+      position: 'absolute',
+      top: 28,
+      bottom: 28,
+      left: 0,
+      width: 3,
+      borderTopRightRadius: 3,
+      borderBottomRightRadius: 3,
+    },
     heroStatus: {
       position: 'relative',
       zIndex: 1,
@@ -177,7 +198,6 @@ const createStyles = (_palette: AppPalette) =>
       height: 8,
       flexShrink: 0,
       borderRadius: 4,
-      backgroundColor: '#FFFFFF',
     },
     heroCopy: {
       position: 'relative',
@@ -217,7 +237,7 @@ const createStyles = (_palette: AppPalette) =>
     heroFooterCopyCompact: { flex: 0 },
     heroEdit: {
       minWidth: 96,
-      minHeight: 44,
+      minHeight: 48,
       flexShrink: 0,
       flexDirection: 'row',
       alignItems: 'center',

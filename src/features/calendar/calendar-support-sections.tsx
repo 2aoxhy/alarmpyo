@@ -8,13 +8,9 @@ import {
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
-import {
-  AppText,
-  Card,
-  ListRow,
-  MenuGroup,
-} from '@/components/ui-kit';
+import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { Surface } from '@/design-system';
 import type { ShiftType } from '@/models/app-data';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -43,7 +39,7 @@ export function CalendarHolidayNotice({ status, visibleYear }: HolidayNoticeProp
   if (status.source === 'official') return null;
 
   return (
-    <Card style={styles.holidayNotice}>
+    <Surface tone="muted" style={styles.holidayNotice}>
       <View style={styles.holidayNoticeIcon}>
         <AppIcon
           color={palette.amber}
@@ -63,7 +59,7 @@ export function CalendarHolidayNotice({ status, visibleYear }: HolidayNoticeProp
             : `자동 계산은 ${status.supportedStartYear}~${status.supportedEndYear}년을 지원합니다. ${visibleYear}년은 공휴일 이름과 공휴일에 따른 급여일 조정을 확정하지 않습니다.`}
         </AppText>
       </View>
-    </Card>
+    </Surface>
   );
 }
 
@@ -85,7 +81,7 @@ export function CalendarLargeTextStatusSummary({
   if (entries.length === 0) return null;
 
   return (
-    <Card style={styles.largeTextSummary}>
+    <Surface style={styles.largeTextSummary}>
       <View style={styles.largeTextSummaryHeader}>
         <AppIcon accessible={false} color={palette.indigoDark} name="alert-circle-outline" size={22} />
         <View style={styles.largeTextSummaryCopy}>
@@ -128,7 +124,7 @@ export function CalendarLargeTextStatusSummary({
           </View>
         ))}
       </View>
-    </Card>
+    </Surface>
   );
 }
 
@@ -148,20 +144,37 @@ export function CalendarMenuSections({
 
   if (!showCompactKey) {
     return (
-      <MenuGroup title="달력 안내">
-        <ListRow
-          elementRef={triggerRef}
-          icon="ellipse-outline"
-          onPress={onOpenLegend}
-          subtitle="근무·날짜 정보·특별 일정 표시를 확인합니다."
-          title="표시 안내"
-          trailing={
-            <AppText variant="label" color={palette.indigoDark}>
-              보기
+      <Pressable
+        ref={triggerRef}
+        accessibilityHint="근무·날짜 정보·특별 일정 표시를 확인합니다."
+        accessibilityLabel="달력 표시 안내 열기"
+        accessibilityRole="button"
+        onPress={onOpenLegend}
+        style={({ pressed }) => [
+          styles.guideRow,
+          pressed && styles.compactKeyPressed,
+        ]}>
+        <View style={styles.compactKeyTitle}>
+          <AppIcon
+            accessible={false}
+            color={palette.indigoDark}
+            name="ellipse-outline"
+            size={20}
+          />
+          <View style={styles.guideCopy}>
+            <AppText variant="label">표시 안내</AppText>
+            <AppText tone="secondary" variant="caption">
+              근무·날짜 정보·특별 일정 표시를 확인합니다.
             </AppText>
-          }
+          </View>
+        </View>
+        <AppIcon
+          accessible={false}
+          color={palette.inkMuted}
+          name="chevron-forward"
+          size={18}
         />
-      </MenuGroup>
+      </Pressable>
     );
   }
 
@@ -543,6 +556,20 @@ function createStyles(palette: AppPalette) {
       borderRadius: radii.medium,
       backgroundColor: palette.surface,
     },
+    guideRow: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.medium,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: palette.line,
+      backgroundColor: palette.surface,
+    },
+    guideCopy: { minWidth: 0, flex: 1, gap: 2 },
     compactKeyPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
     compactKeyHeader: {
       minHeight: 28,
@@ -574,10 +601,9 @@ function createStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      borderRadius: radii.pill,
-      paddingHorizontal: 10,
+      paddingHorizontal: 2,
       paddingVertical: 4,
-      backgroundColor: palette.surfaceSoft,
+      backgroundColor: palette.transparent,
     },
     legendSections: { gap: spacing.xlarge },
     legendSection: { gap: spacing.small },

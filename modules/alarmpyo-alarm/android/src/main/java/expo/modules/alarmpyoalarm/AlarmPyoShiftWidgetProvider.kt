@@ -7,6 +7,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -238,10 +239,11 @@ internal object AlarmPyoShiftWidgetUpdater {
     context.packageName,
     R.layout.alarmpyo_shift_widget_compact
   ).also { views ->
-    bindState(views, state, fontScale, heightMode)
+    bindState(context, views, state, fontScale, heightMode)
   }
 
   private fun bindState(
+    context: Context,
     views: RemoteViews,
     state: AlarmPyoWidgetViewState,
     fontScale: Float,
@@ -329,8 +331,11 @@ internal object AlarmPyoShiftWidgetUpdater {
     views.setContentDescription(R.id.alarmpyo_widget_root, state.contentDescription)
 
     val assets = visualAssets(state.visual)
+    val meaningAccent = meaningAccent(context, state, assets)
     views.setInt(R.id.alarmpyo_widget_card, "setBackgroundResource", assets.background)
     views.setImageViewResource(R.id.alarmpyo_widget_shift_icon, assets.icon)
+    views.setInt(R.id.alarmpyo_widget_shift_icon, "setColorFilter", meaningAccent)
+    views.setInt(R.id.alarmpyo_widget_meaning_line, "setBackgroundColor", meaningAccent)
   }
 
   private fun compactDateText(dateText: String): String =
@@ -352,28 +357,83 @@ internal object AlarmPyoShiftWidgetUpdater {
   private fun visualAssets(visual: AlarmPyoWidgetVisual): WidgetVisualAssets = when (visual) {
     AlarmPyoWidgetVisual.DAY -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_day_background,
-      R.drawable.alarmpyo_widget_ic_sun
+      R.drawable.alarmpyo_widget_ic_sun,
+      R.color.alarmpyo_widget_icon_day
+    )
+    AlarmPyoWidgetVisual.EVENING -> WidgetVisualAssets(
+      R.drawable.alarmpyo_widget_day_background,
+      R.drawable.alarmpyo_widget_ic_evening,
+      R.color.alarmpyo_widget_icon_evening
     )
     AlarmPyoWidgetVisual.NIGHT -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_night_background,
-      R.drawable.alarmpyo_widget_ic_moon
+      R.drawable.alarmpyo_widget_ic_moon,
+      R.color.alarmpyo_widget_icon_night
+    )
+    AlarmPyoWidgetVisual.CUSTOM -> WidgetVisualAssets(
+      R.drawable.alarmpyo_widget_unknown_background,
+      R.drawable.alarmpyo_widget_ic_custom,
+      R.color.alarmpyo_widget_icon_custom
     )
     AlarmPyoWidgetVisual.TRAINING -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_training_background,
-      R.drawable.alarmpyo_widget_ic_training
+      R.drawable.alarmpyo_widget_ic_training,
+      R.color.alarmpyo_widget_icon_training
     )
     AlarmPyoWidgetVisual.RESERVE -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_reserve_background,
-      R.drawable.alarmpyo_widget_ic_reserve
+      R.drawable.alarmpyo_widget_ic_reserve,
+      R.color.alarmpyo_widget_icon_reserve
     )
     AlarmPyoWidgetVisual.OFF -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_off_background,
-      R.drawable.alarmpyo_widget_ic_off
+      R.drawable.alarmpyo_widget_ic_off,
+      R.color.alarmpyo_widget_icon_off
     )
     AlarmPyoWidgetVisual.UNKNOWN -> WidgetVisualAssets(
       R.drawable.alarmpyo_widget_unknown_background,
-      R.drawable.alarmpyo_widget_ic_unknown
+      R.drawable.alarmpyo_widget_ic_unknown,
+      R.color.alarmpyo_widget_icon_unknown
     )
+  }
+
+  private fun meaningAccent(
+    context: Context,
+    state: AlarmPyoWidgetViewState,
+    assets: WidgetVisualAssets
+  ): Int {
+    if (state.visual != AlarmPyoWidgetVisual.CUSTOM) return context.getColor(assets.accent)
+    val candidate = state.accentColor
+      ?.takeIf { CUSTOM_ACCENT_REGEX.matches(it) }
+      ?.let { runCatching { Color.parseColor(it) }.getOrNull() }
+    if (candidate != null) {
+      val backgrounds = intArrayOf(
+        context.getColor(R.color.alarmpyo_widget_card_background),
+        context.getColor(R.color.alarmpyo_widget_card_background_soft)
+      )
+      if (backgrounds.all { contrastRatio(candidate, it) >= 3.0 }) return candidate
+    }
+    return context.getColor(R.color.alarmpyo_widget_icon_custom)
+  }
+
+  private fun contrastRatio(first: Int, second: Int): Double {
+    val brighter = maxOf(relativeLuminance(first), relativeLuminance(second))
+    val darker = minOf(relativeLuminance(first), relativeLuminance(second))
+    return (brighter + 0.05) / (darker + 0.05)
+  }
+
+  private fun relativeLuminance(color: Int): Double {
+    fun channel(value: Int): Double {
+      val normalized = value / 255.0
+      return if (normalized <= 0.04045) {
+        normalized / 12.92
+      } else {
+        Math.pow((normalized + 0.055) / 1.055, 2.4)
+      }
+    }
+    return channel(Color.red(color)) * 0.2126 +
+      channel(Color.green(color)) * 0.7152 +
+      channel(Color.blue(color)) * 0.0722
   }
 
   private fun openAppIntent(context: Context): PendingIntent {
@@ -436,6 +496,9 @@ internal object AlarmPyoShiftWidgetUpdater {
 
   private data class WidgetVisualAssets(
     val background: Int,
-    val icon: Int
+    val icon: Int,
+    val accent: Int
   )
+
+  private val CUSTOM_ACCENT_REGEX = Regex("^#[0-9A-Fa-f]{6}$")
 }

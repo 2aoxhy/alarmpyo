@@ -26,6 +26,8 @@ export type ShiftSkyAnimationProps = {
   hour?: number;
   /** 화면과 앱이 모두 활성 상태일 때만 전환을 재생합니다. */
   active?: boolean;
+  /** 실제 적용 근무가 정한 장면입니다. 중립 장면만 현재 시각을 따릅니다. */
+  artwork?: 'sun' | 'moon' | 'neutral';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -130,13 +132,24 @@ export function getShiftSkyMotionProgress(now: Date, hour?: number) {
 }
 
 /**
- * 홈 근무 카드 뒤에 표시하는 시간대 장식입니다.
- * 실제 근무 종류 아이콘과 관계없이 현재 시각만으로 해와 달의 장면을 정합니다.
+ * 홈 근무 카드 뒤에 표시하는 장식입니다.
+ * 실제 적용 근무의 장면을 우선하고 중립 장면만 현재 시각을 따릅니다.
  */
-export function ShiftSkyAnimation({ active = true, now, hour, style }: ShiftSkyAnimationProps) {
+export function ShiftSkyAnimation({
+  active = true,
+  artwork = 'neutral',
+  now,
+  hour,
+  style,
+}: ShiftSkyAnimationProps) {
   const currentTime = now ?? new Date();
   const currentHour = normalizeHour(hour ?? currentTime.getHours());
-  const phase = getShiftSkyPhase(currentHour);
+  const phase =
+    artwork === 'sun'
+      ? 'day'
+      : artwork === 'moon'
+        ? 'night'
+        : getShiftSkyPhase(currentHour);
   const transitionPhase = phase !== 'day' && phase !== 'night';
   const targetProgress = getShiftSkyMotionProgress(currentTime, hour);
   const scene = SCENES[phase];

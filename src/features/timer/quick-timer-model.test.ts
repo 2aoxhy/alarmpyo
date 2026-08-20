@@ -115,7 +115,7 @@ describe('빠른 타이머 화면 모델', () => {
     expect(resolveQuickTimerCountdownSize(320, 2)).toBe(21);
     expect(resolveQuickTimerCountdownSize(320, 3)).toBe(21);
     expect(resolveQuickTimerCountdownSize(412, 2)).toBe(30);
-    expect(resolveQuickTimerCountdownSize(412, 1)).toBe(34);
+    expect(resolveQuickTimerCountdownSize(412, 1)).toBe(48);
   });
 
   it('필요한 권한별로 한 가지 해결 안내를 제공해요', () => {

@@ -8,13 +8,14 @@ import {
 } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { AppText, Card } from '@/components/ui-kit';
+import { AppText } from '@/components/ui-kit';
 import {
   radii,
   spacing,
   type AppPalette,
 } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
+import { Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { AppData } from '@/models/app-data';
@@ -186,7 +187,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
 
   return (
     <View {...(showMonthGrid ? swipeViewProps : {})}>
-      <Card style={styles.card}>
+      <Surface style={styles.card}>
         <View {...(!showMonthGrid ? swipeViewProps : {})}>
           <CalendarMonthHeader
             canGoNextMonth={canGoNextMonth}
@@ -223,7 +224,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
             todayBlink={todayBlink}
           />
         )}
-      </Card>
+      </Surface>
     </View>
   );
 });
@@ -360,7 +361,7 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'space-between',
       paddingHorizontal: spacing.medium,
       paddingVertical: 10,
-      backgroundColor: palette.indigoSoft,
+      backgroundColor: palette.surfaceSoft,
       borderBottomWidth: 1,
       borderBottomColor: palette.line,
     },
@@ -395,7 +396,9 @@ function createStyles(palette: AppPalette) {
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.line,
+      backgroundColor: palette.surfaceSoft,
     },
     navButtonDisabled: { backgroundColor: palette.disabledSurface },
     weekdayRow: {

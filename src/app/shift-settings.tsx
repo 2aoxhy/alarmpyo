@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -7,6 +6,10 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { DisclosureRow, SegmentedControl, StatusBanner } from '@/design-system';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import {
   RoutineTimingEditor,
 } from '@/features/shift-settings/routine-timing-editor';
@@ -360,9 +363,7 @@ export default function ShiftSettingsScreen() {
       setSavedSnapshot(
         createShiftSettingsSnapshot(normalizedDrafts, workRoutineProfiles),
       );
-      void Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      );
+      void triggerNotificationFeedback('success');
     } finally {
       setSaving(false);
     }
@@ -402,7 +403,7 @@ export default function ShiftSettingsScreen() {
     (option) => option.value !== 'substitute',
   );
   const togglePanel = (panel: SettingsPanel) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     if (panel === 'routine' && editorSection === 'substitute') {
       setEditorSection(substituteMode);
     }
@@ -421,7 +422,7 @@ export default function ShiftSettingsScreen() {
       <SegmentedControl
         label="근무 종류"
         onChange={(section) => {
-          void Haptics.selectionAsync();
+          void triggerSelectionFeedback();
           setEditorSection(section);
         }}
         options={sectionOptions}
@@ -476,7 +477,7 @@ export default function ShiftSettingsScreen() {
       <SegmentedControl
         label="근무 종류"
         onChange={(section) => {
-          void Haptics.selectionAsync();
+          void triggerSelectionFeedback();
           setEditorSection(section);
         }}
         options={routineSectionOptions}
@@ -559,6 +560,7 @@ export default function ShiftSettingsScreen() {
             expanded={activePanel === 'pattern'}
             icon="repeat-outline"
             onPress={() => togglePanel('pattern')}
+            style={styles.disclosure}
             subtitle={patternSummary}
             title="근무 방식"
           />
@@ -577,6 +579,7 @@ export default function ShiftSettingsScreen() {
             expanded={activePanel === 'time'}
             icon="time-outline"
             onPress={() => togglePanel('time')}
+            style={styles.disclosure}
             subtitle={timeSummary}
             title="근무 시간"
           />
@@ -587,6 +590,7 @@ export default function ShiftSettingsScreen() {
             expanded={activePanel === 'routine'}
             icon="alarm-outline"
             onPress={() => togglePanel('routine')}
+            style={styles.disclosure}
             subtitle={routineSummary}
             title="기상·출근 루틴"
           />
@@ -596,6 +600,7 @@ export default function ShiftSettingsScreen() {
             expanded={activePanel === 'payroll'}
             icon="calendar-outline"
             onPress={() => togglePanel('payroll')}
+            style={styles.disclosure}
             subtitle={payrollSummary}
             title="급여일"
           />
@@ -628,23 +633,31 @@ export default function ShiftSettingsScreen() {
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     screen: {
-      gap: spacing.xlarge,
+      gap: spacing.large,
       paddingTop: spacing.small,
     },
     intro: {
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: spacing.small,
-      paddingHorizontal: spacing.small,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.mint,
     },
     centerText: {
-      textAlign: 'center',
+      textAlign: 'left',
     },
     section: {
-      gap: spacing.small,
+      gap: spacing.medium,
+    },
+    disclosure: {
+      borderWidth: 1,
+      borderColor: palette.line,
     },
     editorBody: {
       gap: spacing.medium,
-      paddingTop: spacing.tiny,
+      paddingHorizontal: spacing.small,
+      paddingBottom: spacing.small,
     },
   });
 }

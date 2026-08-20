@@ -49,7 +49,6 @@ export const size = {
 export const interaction = {
   pressedOpacity: 0.76,
   emphasizedPressedOpacity: 0.82,
-  disabledOpacity: 0.64,
   loadingOpacity: 0.72,
 } as const;
 
@@ -188,7 +187,7 @@ export function createSemanticColors(
     textDisabled: palette.disabledInk,
     border: palette.line,
     borderStrong: palette.controlLine,
-    focus: isDark ? palette.lilac : palette.indigo,
+    focus: palette.focus,
     accent: palette.indigo,
     accentStrong: palette.indigoDark,
     accentSoft: palette.indigoSoft,

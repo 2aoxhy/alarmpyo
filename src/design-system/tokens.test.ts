@@ -18,10 +18,10 @@ describe('design-system tokens', () => {
     const dark = createSemanticColors(darkPalette, true);
 
     expect(light.background).toBe(lightPalette.canvas);
-    expect(light.focus).toBe(lightPalette.indigo);
+    expect(light.focus).toBe(lightPalette.focus);
     expect(light.onPositive).toBe(lightPalette.white);
     expect(dark.background).toBe(darkPalette.canvas);
-    expect(dark.focus).toBe(darkPalette.lilac);
+    expect(dark.focus).toBe(darkPalette.focus);
     expect(dark.accent).toBe(darkPalette.indigo);
     expect(dark.onAccent).toBe(darkPalette.white);
     expect(dark.onPositive).toBe(darkPalette.canvas);
@@ -52,7 +52,6 @@ describe('design-system tokens', () => {
 
   it('상호작용 상태는 글자를 읽을 수 있는 범위로 통일해요', () => {
     expect(interaction.pressedOpacity).toBeGreaterThanOrEqual(0.7);
-    expect(interaction.disabledOpacity).toBeGreaterThanOrEqual(0.6);
     expect(interaction.loadingOpacity).toBeGreaterThanOrEqual(0.7);
   });
 });

@@ -50,7 +50,7 @@ export default function SettingsHome() {
         </AppText>
       </View>
 
-      <MenuGroup centered title="근무와 알람">
+      <MenuGroup title="근무와 알람">
         <ListRow
           icon="repeat-outline"
           onPress={() => router.push('/shift-settings')}
@@ -66,7 +66,7 @@ export default function SettingsHome() {
         />
       </MenuGroup>
 
-      <MenuGroup centered title="앱">
+      <MenuGroup title="앱">
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
@@ -87,11 +87,15 @@ export default function SettingsHome() {
 
 const createStyles = (_palette: AppPalette) =>
   StyleSheet.create({
-    screenContent: { gap: spacing.medium },
-    header: {
-      alignItems: 'center',
-      gap: spacing.tiny,
-      paddingBottom: spacing.small,
+    screenContent: {
+      gap: spacing.large,
+      paddingTop: spacing.medium,
     },
-    headerDescription: { textAlign: 'center' },
+    header: {
+      alignItems: 'flex-start',
+      gap: spacing.tiny,
+      paddingHorizontal: spacing.tiny,
+      paddingBottom: spacing.tiny,
+    },
+    headerDescription: { textAlign: 'left' },
   });

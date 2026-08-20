@@ -1,6 +1,15 @@
 import type { AppData } from '../models/app-data';
 import { resolveAlarmSettingsForShift } from './pattern-engine';
 
+const BUILT_IN_WIDGET_SHIFT_IDS = new Set([
+  'day',
+  'evening',
+  'night',
+  'off',
+  'substitute-day',
+  'substitute-night',
+]);
+
 /** 위젯 스냅샷의 일정·다음 알람·표시 선택을 바꿀 수 있는 입력만 직렬화해요. */
 export function getWidgetScheduleSignature(data: AppData): string {
   const includesNextAlarm = data.settings.widgetDisplayOptions.nextAlarm;
@@ -25,6 +34,9 @@ export function getWidgetScheduleSignature(data: AppData): string {
         endMinutes: shift.endMinutes,
         endsNextDay: shift.endsNextDay,
         isOff: shift.isOff,
+        ...(!shift.isOff && !BUILT_IN_WIDGET_SHIFT_IDS.has(shift.id)
+          ? { color: shift.color }
+          : {}),
         ...(includesNextAlarm
           ? {
               alarmEnabled: alarmSettings.alarmEnabled,

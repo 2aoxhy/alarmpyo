@@ -42,6 +42,69 @@ class AlarmPyoWidgetFormatterTest {
   }
 
   @Test
+  fun `uses the evening visual role for an active evening shift`() {
+    val snapshot = AlarmPyoWidgetSnapshot(
+      generatedAt = timestamp(2026, 7, 13, 16, 0),
+      entries = listOf(
+        entry("2026-07-13", "evening", "오후", 14 * 60 + 45, 23 * 60 + 45)
+      )
+    )
+
+    val state = AlarmPyoWidgetFormatter.format(
+      snapshot,
+      timestamp(2026, 7, 13, 16, 0),
+      seoul
+    )
+
+    assertEquals("오후 근무 중", state.titleText)
+    assertEquals(AlarmPyoWidgetVisual.EVENING, state.visual)
+  }
+
+  @Test
+  fun `keeps custom daytime and overnight shifts neutral with their saved accent`() {
+    val daytime = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry(
+            "2026-07-13",
+            "custom-early",
+            "맞춤 오전",
+            6 * 60,
+            14 * 60,
+            accentColor = "#AABBCC"
+          )
+        )
+      ),
+      timestamp(2026, 7, 13, 10, 0),
+      seoul
+    )
+    val overnight = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry(
+            "2026-07-13",
+            "custom-overnight",
+            "맞춤 심야",
+            22 * 60,
+            6 * 60,
+            endsNextDay = true,
+            accentColor = "#89CEFF"
+          )
+        )
+      ),
+      timestamp(2026, 7, 13, 23, 0),
+      seoul
+    )
+
+    assertEquals(AlarmPyoWidgetVisual.CUSTOM, daytime.visual)
+    assertEquals("#AABBCC", daytime.accentColor)
+    assertEquals(AlarmPyoWidgetVisual.CUSTOM, overnight.visual)
+    assertEquals("#89CEFF", overnight.accentColor)
+  }
+
+  @Test
   fun `keeps an overnight shift active after midnight`() {
     val snapshot = AlarmPyoWidgetSnapshot(
       generatedAt = timestamp(2026, 7, 14, 2, 10),
@@ -342,6 +405,17 @@ class AlarmPyoWidgetFormatterTest {
   }
 
   @Test
+  fun `snapshot v2 preserves optional custom accents and ignores malformed hints`() {
+    val parsed = AlarmPyoWidgetSnapshot.fromJson(
+      """{"version":2,"displayOptions":{"todayShift":false,"nextShift":false,"nextAlarm":true},"alarms":[{"alarmAt":1000,"shiftTypeId":"custom","shiftName":"맞춤","accentColor":"#89ceff"}],"entries":[{"dateKey":"2026-07-13","shiftTypeId":"custom","shiftName":"맞춤","accentColor":"not-a-color","startMinutes":420,"endMinutes":1080,"isOff":false}]}"""
+    )
+
+    assertNotNull(parsed)
+    assertNull(parsed?.entries?.first()?.accentColor)
+    assertEquals("#89CEFF", parsed?.alarms?.first()?.accentColor)
+  }
+
+  @Test
   fun `accepts yesterday plus 366 days and a full year of alarm candidates`() {
     val entries = JSONArray()
     val alarms = JSONArray()
@@ -393,7 +467,8 @@ class AlarmPyoWidgetFormatterTest {
     endMinutes: Int?,
     endsNextDay: Boolean = false,
     isOff: Boolean = false,
-    isOverride: Boolean = false
+    isOverride: Boolean = false,
+    accentColor: String? = null
   ) = AlarmPyoWidgetEntry(
     dateKey = dateKey,
     shiftTypeId = shiftTypeId,
@@ -402,7 +477,8 @@ class AlarmPyoWidgetFormatterTest {
     endMinutes = endMinutes,
     endsNextDay = endsNextDay,
     isOff = isOff,
-    isOverride = isOverride
+    isOverride = isOverride,
+    accentColor = accentColor
   )
 
   private fun timestamp(

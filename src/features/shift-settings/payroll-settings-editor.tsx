@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
-import { AccessibilityInfo, Platform, StyleSheet, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { AppField, SegmentedControl, StatusBanner } from '@/design-system';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -22,6 +28,8 @@ export function PayrollSettingsEditor({
   value,
 }: PayrollSettingsEditorProps) {
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
+  const stacked = width < 360 || fontScale >= 1.4;
   const [dayText, setDayText] = useState(String(value.day));
   const [adjustment, setAdjustment] = useState<PayrollAdjustment>(
     value.adjustment,
@@ -63,7 +71,7 @@ export function PayrollSettingsEditor({
   };
 
   return (
-    <Card style={styles.card}>
+    <View style={styles.card}>
       <AppText tone="secondary" variant="caption">
         달력에 표시할 지급일을 설정합니다. 해당 월에 없는 날짜는 말일을 사용합니다.
       </AppText>
@@ -112,11 +120,20 @@ export function PayrollSettingsEditor({
             3개월 미리보기
           </AppText>
           {preview.map((item) => (
-            <View key={item.monthLabel} style={styles.previewRow}>
+            <View
+              key={item.monthLabel}
+              style={[
+                styles.previewRow,
+                stacked && styles.previewRowStacked,
+              ]}>
               <AppText style={styles.previewMonth} variant="caption">
                 {item.monthLabel}
               </AppText>
-              <View style={styles.previewDate}>
+              <View
+                style={[
+                  styles.previewDate,
+                  stacked && styles.previewDateStacked,
+                ]}>
                 <AppText variant="label">{item.paydayLabel}</AppText>
                 {item.adjusted ? (
                   <AppText tone="secondary" variant="caption">
@@ -151,13 +168,19 @@ export function PayrollSettingsEditor({
         onPress={() => void save()}
         size="compact"
       />
-    </Card>
+    </View>
   );
 }
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
-    card: { gap: spacing.large },
+    card: {
+      gap: spacing.large,
+      paddingVertical: spacing.small,
+      paddingLeft: spacing.medium,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.controlLine,
+    },
     dayInput: {
       color: palette.ink,
       fontSize: 19,
@@ -183,7 +206,12 @@ function createStyles(palette: AppPalette) {
       borderTopColor: palette.line,
       paddingTop: spacing.small,
     },
+    previewRowStacked: {
+      alignItems: 'flex-start',
+      flexDirection: 'column',
+    },
     previewMonth: { minWidth: 92 },
     previewDate: { minWidth: 120, alignItems: 'flex-end', gap: 1 },
+    previewDateStacked: { width: '100%', alignItems: 'flex-start' },
   });
 }

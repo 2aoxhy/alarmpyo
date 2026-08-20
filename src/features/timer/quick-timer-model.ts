@@ -1,10 +1,9 @@
-import type {
-  QuickTimerRequiredAction,
-  QuickTimerStatus,
-} from '../../services/quick-timer-service';
+import type { QuickTimerStatus } from './quick-timer-controller';
+
+type QuickTimerRequiredAction = QuickTimerStatus['requiredAction'];
 
 const SECOND_MS = 1_000;
-const COUNTDOWN_BASE_SIZE = 34;
+const COUNTDOWN_BASE_SIZE = 48;
 const COUNTDOWN_HORIZONTAL_RESERVE = 88;
 const COUNTDOWN_WIDTH_FACTOR = 5.3;
 

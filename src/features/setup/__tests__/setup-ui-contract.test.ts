@@ -41,10 +41,15 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
 
   it('근무 방식만 바꿀 때 저장된 주간 시간을 기본값으로 덮어쓰지 않아요', () => {
     const pattern = source('src/app/pattern.tsx');
+    const controller = source(
+      'src/features/setup/work-pattern-editor-controller.ts',
+    );
 
     expect(pattern).toContain('<PatternSequenceEditor onChange={changeSequence} sequence={draft.sequence}');
     expect(pattern).toContain('sourceTimes');
     expect(pattern).toContain('buildWorkPatternMutation');
+    expect(pattern).toContain("createWorkPatternEditorController('edit')");
+    expect(controller).toContain('disableAlarmsOnChange = mode === \'initial\'');
     expect(pattern).not.toContain('DAY_SHIFT_START_MINUTES');
     expect(pattern).not.toContain('DAY_SHIFT_END_MINUTES');
   });
@@ -78,7 +83,7 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
     expect(setup).toContain('const [draft, setDraft] = useState<WorkPatternDraft>');
     expect(setup).toContain('if (effectiveAlarmsWanted)');
     expect(setup).toContain('disabled={!scheduleSafety.canEnableAlarms}');
-    expect(setup).toContain('alarmsWanted: false');
+    expect(setup).toContain("createWorkPatternEditorController('initial')");
     expect(setup).toContain('!scheduleSafety.canSave');
     expect(setup).toContain('지금 건너뛰어도 설정의 알람에서 나중에 켤 수 있습니다.');
   });
@@ -97,10 +102,11 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
   it('긴 회사 순서는 가상화하고 현재 항목 상태를 TalkBack에 한 번만 전달해요', () => {
     const components = source('src/features/setup/setup-components.tsx');
 
-    expect(components).toContain('sequence.length > 8');
     expect(components).toContain('<FlatList');
     expect(components).toContain('`${index + 1}/${sequence.length}, ${SEQUENCE_LABELS[id]}`');
-    expect(components).toContain('selected\n        semanticColor=');
+    expect(components).toContain('selected={activeIndex === index}');
+    expect(components).toContain('선택한 날짜의 근무만 변경합니다.');
+    expect(components).toContain('accessibilityRole="radiogroup"');
     expect(components).not.toContain('selected={false}');
     expect(components).not.toContain('선택됨`');
   });
@@ -149,23 +155,38 @@ describe('첫 설정과 근무 시간 편집 계약', () => {
     expect(setup).toContain('설정 후 데이터 메뉴에서 외부 백업을 만들 수 있습니다.');
   });
 
-  it('로고 전환 뒤 최초 설정에 블러 처리한 홈 배경과 저장 진행 상태를 표시합니다', () => {
+  it('로고 전환 뒤 최초 설정에 브랜드 헤일로와 저장 진행 상태를 표시합니다', () => {
     const setup = source('src/app/setup.tsx');
     const onboarding = source(
       'src/features/setup/setup-onboarding-surface.tsx',
     );
     const launch = source('src/components/launch-transition-overlay.tsx');
 
-    expect(setup).toContain('background={<SetupBlurredHomeBackdrop />}');
+    expect(setup).toContain('background={<SetupBrandHaloBackdrop />}');
     expect(setup).toContain('<SetupApplyingOverlay visible={saving} />');
     expect(setup).toContain('오늘 근무는 어떻게 되십니까?');
     expect(setup).toContain('actionLabel="다시 시도"');
-    expect(onboarding).toContain('filter: [{ blur: 12 }, { saturate: 0.35 }]');
+    expect(onboarding).toContain('export function SetupBrandHaloBackdrop()');
+    expect(onboarding).toContain("colors={['#123D36', '#152433', '#101214']}");
+    expect(onboarding).not.toContain('filter: [{ blur:');
     expect(onboarding).toContain('if (!visible || reduceMotion || !appActive) return;');
     expect(onboarding).not.toContain('docs/design-qa');
     expect(launch).toContain('markFade: 440');
     expect(launch).toContain('wordmarkFade: 440');
     expect(launch).toContain('fullMotionHold: 440');
     expect(launch).toContain('fullMotionExit: 300');
+  });
+
+  it('시간 오류는 포커스를 벗어나거나 다음·저장을 누른 뒤에만 표시합니다', () => {
+    const setup = source('src/app/setup.tsx');
+    const pattern = source('src/app/pattern.tsx');
+    const components = source('src/features/setup/setup-components.tsx');
+
+    expect(setup).toContain('setRevealValidation(true)');
+    expect(pattern).toContain('setRevealValidation(true)');
+    expect(components).toContain("touchedFields.has('start')");
+    expect(components).toContain("touchedFields.has('end')");
+    expect(components).toContain('showStartError && styles.invalidInput');
+    expect(components).toContain('showEndError && styles.invalidInput');
   });
 });

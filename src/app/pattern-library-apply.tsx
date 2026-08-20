@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -6,9 +5,13 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useAppDialog } from '@/components/app-dialog';
 import { DatePickerField } from '@/components/date-picker-field';
 import { SelectionPill } from '@/components/selection-controls';
-import { AppButton, AppText, Card, Screen, SectionHeader } from '@/components/ui-kit';
+import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner } from '@/design-system';
+import { PageHeader, StatusBanner, Surface } from '@/design-system';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import { PatternApplicationPreview } from '@/features/pattern-library/pattern-application-preview';
 import {
   adaptPatternApplicationPreviewRows,
@@ -114,7 +117,7 @@ export default function PatternLibraryApplyScreen() {
       setSelectionInitialized(true);
     }
     setMode(nextMode);
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
   };
 
   const togglePreservedDate = (dateKey: string) => {
@@ -137,7 +140,7 @@ export default function PatternLibraryApplyScreen() {
         overridePolicy,
       });
       if (result.status === 'success') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void triggerNotificationFeedback('success');
         showDialog(
           '패턴을 적용했습니다',
           result.clearedOverrideDateKeys.length > 0
@@ -193,7 +196,7 @@ export default function PatternLibraryApplyScreen() {
   if (!entry || !preview) {
     return (
       <Screen>
-        <SectionHeader centered title="패턴 적용" />
+        <PageHeader title="패턴 적용" />
         <StatusBanner
           actionLabel="보관함으로 이동"
           message="적용할 패턴과 날짜를 확인해야 합니다."
@@ -220,7 +223,10 @@ export default function PatternLibraryApplyScreen() {
           />
         }
         safeAreaEdges={['left', 'right']}>
-        <SectionHeader centered title="적용 전 비교" />
+        <PageHeader
+          subtitle="적용일이 포함된 달력에서 현재 일정과 적용 후 일정을 비교합니다."
+          title="적용 전 비교"
+        />
         <View style={styles.intro}>
           <AppText accessibilityRole="header" variant="heading">
             {entry.name}
@@ -236,7 +242,7 @@ export default function PatternLibraryApplyScreen() {
           tone="info"
         />
 
-        <Card style={styles.sectionCard}>
+        <Surface style={styles.sectionCard} tone="muted">
           <AppText accessibilityRole="header" variant="label">
             적용일
           </AppText>
@@ -251,7 +257,7 @@ export default function PatternLibraryApplyScreen() {
             today={today}
             value={effectiveDate}
           />
-        </Card>
+        </Surface>
 
         <View style={styles.policySection}>
           <AppText accessibilityRole="header" variant="heading">

@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import {
@@ -9,23 +9,15 @@ import {
 } from '@/components/backup-password-dialog';
 import { getBackupRestorePresentation } from '@/components/backup-restore-feedback';
 import { ListRow, MenuDivider, MenuGroup, Screen } from '@/components/ui-kit';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
-import type { AppDataImportPreview } from '@/services/app-data-service';
-import { exportBackupFile, pickBackupFile } from '@/services/backup-file-service';
 import {
-  decryptBackupContents,
-  encryptBackupContents,
-  isEncryptedBackupContents,
-} from '@/services/encrypted-backup-service';
-import {
-  pickWorkSettingsFile,
-  shareWorkSettingsFile,
-} from '@/services/work-settings-share-file-service';
-import {
-  doesWorkSettingsPreviewApplyEvening,
+  type AppDataImportPreview,
   type SharedShiftSettings,
   type WorkSettingsSharePreview,
-} from '@/services/work-settings-share-service';
+} from '@/features/data-settings/data-settings-controller';
+import { dataSettingsController } from '@/features/data-settings/data-settings-native-controller';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   useAppStoreActions,
   type PendingRestoreBackupPreview,
@@ -90,12 +82,9 @@ type EncryptedBackupRequest =
   | { mode: 'create' }
   | { mode: 'open'; contents: string; fileName: string };
 
-// 공유 API가 저장 완료를 알려 주지 않으므로 내보내기를 시도한 시각만 기록해요.
-const LAST_BACKUP_EXPORT_ATTEMPT_AT_KEY =
-  'alarmpyo:last-external-backup-export-attempt:v1';
-
 export default function DataSettingsScreen() {
   const { showDialog } = useAppDialog();
+  const styles = useThemedStyles(createStyles);
   const {
     applySharedWorkSettings,
     exportData,
@@ -161,24 +150,14 @@ export default function DataSettingsScreen() {
   }, [getLatestBackupPreview, getPendingRestoreBackupPreview]);
 
   const refreshBackupExportAttemptAt = useCallback(async () => {
-    try {
-      const value = await AsyncStorage.getItem(LAST_BACKUP_EXPORT_ATTEMPT_AT_KEY);
-      setLastBackupExportAttemptAt(
-        value && Number.isFinite(Date.parse(value)) ? value : null,
-      );
-    } catch {
-      setLastBackupExportAttemptAt(null);
-    }
+    setLastBackupExportAttemptAt(
+      await dataSettingsController.readLastBackupExportAttemptAt(),
+    );
   }, []);
 
   const recordBackupExportAttempt = useCallback(async () => {
-    const attemptedAt = new Date().toISOString();
+    const attemptedAt = await dataSettingsController.recordBackupExportAttempt();
     setLastBackupExportAttemptAt(attemptedAt);
-    try {
-      await AsyncStorage.setItem(LAST_BACKUP_EXPORT_ATTEMPT_AT_KEY, attemptedAt);
-    } catch {
-      // 내보내기 화면은 이미 닫혔으므로 보조 시각 저장 실패로 되돌리지 않아요.
-    }
   }, []);
 
   useFocusEffect(
@@ -207,7 +186,7 @@ export default function DataSettingsScreen() {
     fileName: string,
   ) => {
     const { summary } = preview;
-    const eveningLine = doesWorkSettingsPreviewApplyEvening(preview)
+    const eveningLine = dataSettingsController.doesWorkSettingsPreviewApplyEvening(preview)
       ? formatSharedShiftLine('오후', summary.evening)
       : '오후 · 현재 휴대전화 설정 유지 (구형 파일에는 오후 설정이 없습니다)';
     const lines = [
@@ -277,7 +256,9 @@ export default function DataSettingsScreen() {
   const sendWorkSettings = async () => {
     if (!beginOperation('send-settings')) return;
     try {
-      const fileName = await shareWorkSettingsFile(exportSharedWorkSettings());
+      const fileName = await dataSettingsController.shareWorkSettingsFile(
+        exportSharedWorkSettings(),
+      );
       showDialog(
         '근무 설정 파일을 준비했습니다',
         `${fileName} 파일의 공유 화면을 닫았습니다. 앱을 선택한 경우에만 파일이 전달됩니다. 개인 일정과 메모는 포함하지 않았습니다.`,
@@ -299,7 +280,7 @@ export default function DataSettingsScreen() {
   const receiveWorkSettings = async () => {
     if (!beginOperation('receive-settings')) return;
     try {
-      const picked = await pickWorkSettingsFile();
+      const picked = await dataSettingsController.pickWorkSettingsFile();
       if (!picked) return;
       confirmWorkSettings(
         previewSharedWorkSettings(picked.contents),
@@ -322,7 +303,7 @@ export default function DataSettingsScreen() {
   const saveFullBackup = async () => {
     if (!beginOperation('export-backup')) return;
     try {
-      const { fileName } = await exportBackupFile(exportData());
+      const { fileName } = await dataSettingsController.exportBackupFile(exportData());
       await recordBackupExportAttempt();
       showDialog(
         '백업 내보내기 화면을 닫았습니다',
@@ -370,8 +351,13 @@ export default function DataSettingsScreen() {
 
     try {
       if (request.mode === 'create') {
-        const encrypted = await encryptBackupContents(exportData(), password);
-        const { fileName } = await exportBackupFile(encrypted, { encrypted: true });
+        const encrypted = await dataSettingsController.encryptBackupContents(
+          exportData(),
+          password,
+        );
+        const { fileName } = await dataSettingsController.exportBackupFile(encrypted, {
+          encrypted: true,
+        });
         await recordBackupExportAttempt();
         setEncryptedBackupRequest(null);
         showDialog(
@@ -381,7 +367,10 @@ export default function DataSettingsScreen() {
         return;
       }
 
-      const decrypted = await decryptBackupContents(request.contents, password);
+      const decrypted = await dataSettingsController.decryptBackupContents(
+        request.contents,
+        password,
+      );
       const preview = previewImportData(decrypted);
       setEncryptedBackupRequest(null);
       confirmFullBackup(preview, request.fileName);
@@ -432,9 +421,12 @@ export default function DataSettingsScreen() {
   const loadFullBackup = async () => {
     if (!beginOperation('select-backup')) return;
     try {
-      const picked = await pickBackupFile();
+      const picked = await dataSettingsController.pickBackupFile();
       if (!picked) return;
-      if (picked.encrypted || isEncryptedBackupContents(picked.contents)) {
+      if (
+        picked.encrypted ||
+        dataSettingsController.isEncryptedBackupContents(picked.contents)
+      ) {
         setEncryptedBackupRequest({
           mode: 'open',
           contents: picked.contents,
@@ -674,7 +666,9 @@ export default function DataSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: '데이터 관리' }} />
-      <Screen safeAreaEdges={['left', 'right']}>
+      <Screen
+        contentStyle={styles.screenContent}
+        safeAreaEdges={['left', 'right']}>
         <MenuGroup title="근무 설정 공유">
           <ListRow
             disabled={busy && activeOperation !== 'send-settings'}
@@ -798,7 +792,7 @@ export default function DataSettingsScreen() {
           ) : null}
         </MenuGroup>
 
-        <MenuGroup title="위험 작업">
+        <MenuGroup style={styles.dangerSection} title="위험 작업">
           <ListRow
             destructive
             disabled={busy && activeOperation !== 'reset-data'}
@@ -821,4 +815,19 @@ export default function DataSettingsScreen() {
       />
     </>
   );
+}
+
+function createStyles(palette: AppPalette) {
+  return StyleSheet.create({
+    screenContent: {
+      gap: spacing.large,
+      paddingTop: spacing.small,
+      paddingBottom: spacing.xxlarge,
+    },
+    dangerSection: {
+      paddingLeft: spacing.small,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.danger,
+    },
+  });
 }

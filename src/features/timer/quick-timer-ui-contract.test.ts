@@ -12,6 +12,7 @@ function source(path: string): string {
 describe('빠른 타이머 화면 계약', () => {
   const tabs = source('src/app/(tabs)/_layout.tsx');
   const timer = source('src/app/(tabs)/timer.tsx');
+  const controller = source('src/features/timer/quick-timer-controller.ts');
   const countdown = source('src/features/timer/quick-timer-countdown.tsx');
   const settings = source('src/components/settings-home.tsx');
 
@@ -30,7 +31,7 @@ describe('빠른 타이머 화면 계약', () => {
   });
 
   it('30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
-    expect(timer).toContain('QUICK_TIMER_DURATIONS.map');
+    expect(timer).toContain('quickTimerController.durations.map');
     expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
     expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
     expect(timer).toContain('현재 타이머를 취소하고');
@@ -38,14 +39,21 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('실행 중에는 일시정지·초기화, 일시정지 중에는 재개를 제공합니다', () => {
     expect(timer).toContain("status.state === 'paused'");
-    expect(timer).toContain('pauseQuickTimer()');
-    expect(timer).toContain('resumeQuickTimer()');
-    expect(timer).toContain('resetQuickTimer()');
+    expect(timer).toContain('quickTimerController.pause()');
+    expect(timer).toContain('quickTimerController.resume()');
+    expect(timer).toContain('quickTimerController.reset()');
     expect(timer).toContain("label={paused ? '타이머 재개' : '일시정지'}");
     expect(timer).toContain("label={ringing ? '타이머 종료' : '초기화'}");
     expect(countdown).toContain('재개하면 남은 시간부터 다시 시작합니다.');
     expect(countdown).toContain('paused\n    ? anchor.remainingMillis');
     expect(countdown).toContain('if (!active || !screenActive) return;');
+  });
+
+  it('화면은 네이티브 서비스 대신 기능 controller만 사용합니다', () => {
+    expect(timer).not.toContain("@/services/quick-timer-service");
+    expect(timer).toContain("@/features/timer/quick-timer-controller");
+    expect(controller).toContain("from '../../services/quick-timer-service'");
+    expect(controller).toContain('createQuickTimerController');
   });
 
   it('활성 화면에서만 monotonic 남은 시간을 갱신하고 카운트다운을 자동 낭독하지 않아요', () => {

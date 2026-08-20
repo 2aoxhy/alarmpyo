@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -7,6 +6,10 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import { AdditionalSettingsSection } from '@/features/day-editor/additional-settings-section';
 import {
   areDayAlarmOverridesEqual,
@@ -247,7 +250,7 @@ export default function DayEditorScreen() {
           );
 
   const toggleAdditionalPanel = (panel: AdditionalPanel) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     setAdditionalPanel((current) => (current === panel ? null : panel));
   };
 
@@ -364,7 +367,7 @@ export default function DayEditorScreen() {
   };
 
   const choose = (value: DaySelection) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     if (dayException !== null) setDayException(null);
     if (value === selection) return;
     setSelection(value);
@@ -374,7 +377,7 @@ export default function DayEditorScreen() {
   };
 
   const chooseSubstituteMode = (mode: SubstituteMode) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     if (dayException !== null) setDayException(null);
     setSubstituteMode(mode);
     const value = mode === 'night' ? SUBSTITUTE_NIGHT_ID : SUBSTITUTE_DAY_ID;
@@ -385,7 +388,7 @@ export default function DayEditorScreen() {
   };
 
   const chooseDayException = (value: DayExceptionType | null) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     setDayException(value);
   };
 
@@ -398,7 +401,7 @@ export default function DayEditorScreen() {
     ) {
       return;
     }
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     setStartTime(formatTimeInput(selectedShift.startMinutes));
     setEndTime(formatTimeInput(selectedShift.endMinutes));
   };
@@ -456,7 +459,7 @@ export default function DayEditorScreen() {
         return;
       }
       allowNavigation.current = true;
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void triggerNotificationFeedback('success');
       goBack();
     } finally {
       setSaving(false);
@@ -556,7 +559,7 @@ export default function DayEditorScreen() {
       <AdditionalSettingsSection
         expanded={additionalSettingsExpanded}
         onToggle={() => {
-          void Haptics.selectionAsync();
+          void triggerSelectionFeedback();
           setAdditionalSettingsExpanded((value) => !value);
         }}
         summary={additionalSettingsSummary}>

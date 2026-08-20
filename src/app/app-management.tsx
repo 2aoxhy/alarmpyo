@@ -8,14 +8,13 @@ import {
   MenuGroup,
   Screen,
 } from '@/components/ui-kit';
-import { getCurrentAppUpdateLabel } from '@/constants/app-release';
 import { spacing, type AppPalette } from '@/constants/app-theme';
+import { getAppManagementPresentation } from '@/features/app-management/app-management-controller';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { getAppDistribution } from '@/services/app-distribution';
 
 export default function AppManagementScreen() {
   const styles = useThemedStyles(createStyles);
-  const playDistribution = getAppDistribution() === 'play';
+  const { appUpdateLabel, playDistribution } = getAppManagementPresentation();
 
   return (
     <>
@@ -53,7 +52,7 @@ export default function AppManagementScreen() {
         </MenuGroup>
 
         <AppText tone="tertiary" style={styles.centerText} variant="caption">
-          알람표 · {getCurrentAppUpdateLabel()}
+          알람표 · {appUpdateLabel}
         </AppText>
       </Screen>
     </>

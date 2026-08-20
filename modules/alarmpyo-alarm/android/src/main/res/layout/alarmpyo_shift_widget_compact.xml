@@ -185,4 +185,16 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
+    <!-- A narrow semantic rail keeps shift color separate from the neutral card. -->
+    <FrameLayout
+        android:id="@+id/alarmpyo_widget_meaning_line"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@color/alarmpyo_widget_icon_unknown"
+        android:importantForAccessibility="no" />
 </FrameLayout>

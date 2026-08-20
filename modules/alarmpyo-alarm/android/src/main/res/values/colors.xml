@@ -3,11 +3,12 @@
     <!-- Shared AlarmPyo palette -->
     <color name="alarmpyo_background">#101214</color>
     <color name="alarmpyo_accent">#58D9BC</color>
-    <color name="alarmpyo_day">#087568</color>
-    <color name="alarmpyo_night">#3A414A</color>
-    <color name="alarmpyo_off">#3A4352</color>
-    <color name="alarmpyo_training">#1F7695</color>
-    <color name="alarmpyo_reserve">#607342</color>
+    <color name="alarmpyo_day">#0E4B43</color>
+    <color name="alarmpyo_evening">#4A3518</color>
+    <color name="alarmpyo_night">#112B46</color>
+    <color name="alarmpyo_off">#2A2F35</color>
+    <color name="alarmpyo_training">#173650</color>
+    <color name="alarmpyo_reserve">#313819</color>
     <color name="alarmpyo_unknown">#424A54</color>
 
     <!-- Shared content and surface colors -->
@@ -26,10 +27,12 @@
     <color name="alarmpyo_widget_panel_border">#737D89</color>
     <color name="alarmpyo_widget_card_border">#737D89</color>
     <color name="alarmpyo_widget_icon_day">#7AE6D0</color>
+    <color name="alarmpyo_widget_icon_evening">#F0C36A</color>
     <color name="alarmpyo_widget_icon_night">#9AC7FF</color>
     <color name="alarmpyo_widget_icon_off">#D9DDE3</color>
     <color name="alarmpyo_widget_icon_training">#89CEFF</color>
     <color name="alarmpyo_widget_icon_reserve">#D5E477</color>
     <color name="alarmpyo_widget_icon_reserve_detail">#181B1F</color>
     <color name="alarmpyo_widget_icon_unknown">#B5BDC8</color>
+    <color name="alarmpyo_widget_icon_custom">#C8CED6</color>
 </resources>

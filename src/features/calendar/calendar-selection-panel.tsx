@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText } from '@/components/ui-kit';
-import { spacing, type AppPalette } from '@/constants/app-theme';
+import { AppText } from '@/components/ui-kit';
+import { type AppPalette } from '@/constants/app-theme';
+import { Button, radius, space } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { formatCalendarSelectionPanelCount } from './calendar-selection-presentation';
@@ -79,7 +80,7 @@ export function CalendarSelectionPanel({
           styles.actions,
           stackActions && styles.actionsStacked,
         ]}>
-        <AppButton
+        <Button
           disabled={bulkSaving || selectedCount === 0}
           icon="options-outline"
           label="일괄 변경하기"
@@ -90,7 +91,7 @@ export function CalendarSelectionPanel({
             stackActions && styles.actionStacked,
           ]}
         />
-        <AppButton
+        <Button
           disabled={selectedCount === 0}
           icon="share-outline"
           label="일정 공유하기"
@@ -109,21 +110,21 @@ export function CalendarSelectionPanel({
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     panel: {
-      gap: spacing.medium,
-      padding: spacing.large,
+      gap: space.md,
+      padding: space.lg,
       borderWidth: 1,
-      borderRadius: 20,
+      borderRadius: radius.lg,
       borderColor: palette.controlLine,
       backgroundColor: palette.indigoSoft,
     },
     panelCompact: {
-      gap: spacing.small,
-      padding: spacing.medium,
+      gap: space.sm,
+      padding: space.md,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.medium,
+      gap: space.md,
     },
     icon: {
       width: 44,
@@ -143,7 +144,7 @@ function createStyles(palette: AppPalette) {
       borderRadius: 14,
       backgroundColor: palette.surface,
     },
-    actions: { flexDirection: 'row', gap: spacing.small },
+    actions: { flexDirection: 'row', gap: space.sm },
     actionsStacked: { flexDirection: 'column' },
     action: { flex: 1 },
     actionStacked: { width: '100%', flex: 0 },

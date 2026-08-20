@@ -10,10 +10,22 @@ import {
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { AppText, Screen } from '@/components/ui-kit';
+import type { AppPalette } from '@/constants/app-theme';
 import { alarmCopy } from '@/content/alarm-copy';
-import { StatusBanner } from '@/design-system';
+import {
+  Button,
+  PageHeader,
+  StatusBanner,
+  Surface,
+  radius,
+  space,
+} from '@/design-system';
+import {
+  quickTimerController,
+  type QuickTimerDuration,
+  type QuickTimerStatus,
+} from '@/features/timer/quick-timer-controller';
 import {
   createQuickTimerCountdownAnchor,
   formatQuickTimerTarget,
@@ -29,16 +41,6 @@ import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import {
-  getQuickTimerStatus,
-  pauseQuickTimer,
-  QUICK_TIMER_DURATIONS,
-  resetQuickTimer,
-  resumeQuickTimer,
-  scheduleQuickTimer,
-  type QuickTimerDuration,
-  type QuickTimerStatus,
-} from '@/services/quick-timer-service';
 
 const FIRE_SETTLE_POLL_INTERVAL_MS = 750;
 const FIRE_SETTLE_MAX_ATTEMPTS = 8;
@@ -100,7 +102,7 @@ export default function TimerScreen() {
     if (showLoading) setLoading(true);
     setLoadError(false);
     try {
-      const nextStatus = await getQuickTimerStatus();
+      const nextStatus = await quickTimerController.getStatus();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
       return nextStatus;
@@ -194,7 +196,7 @@ export default function TimerScreen() {
     setSchedulingDuration(durationMinutes);
     setLoadError(false);
     try {
-      const nextStatus = await scheduleQuickTimer(durationMinutes);
+      const nextStatus = await quickTimerController.schedule(durationMinutes);
       if (!mountedRef.current) return;
       const observedClock = observeStatus(nextStatus);
       if (nextStatus.state === 'action-required') {
@@ -258,7 +260,7 @@ export default function TimerScreen() {
     setBusyAction('pause');
     setLoadError(false);
     try {
-      const nextStatus = await pauseQuickTimer();
+      const nextStatus = await quickTimerController.pause();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
       if (nextStatus.state !== 'paused') {
@@ -282,7 +284,7 @@ export default function TimerScreen() {
     setBusyAction('resume');
     setLoadError(false);
     try {
-      const nextStatus = await resumeQuickTimer();
+      const nextStatus = await quickTimerController.resume();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
       if (!nextStatus.active || nextStatus.state !== 'scheduled') {
@@ -306,7 +308,7 @@ export default function TimerScreen() {
     setBusyAction('reset');
     setLoadError(false);
     try {
-      const nextStatus = await resetQuickTimer();
+      const nextStatus = await quickTimerController.reset();
       if (!mountedRef.current) return;
       observeStatus(nextStatus);
       if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
@@ -345,23 +347,17 @@ export default function TimerScreen() {
 
   return (
     <Screen contentStyle={styles.screenContent}>
-      <View style={styles.header}>
-        <View style={styles.headerIcon}>
-          <AppIcon accessible={false} color={palette.indigoDark} name="timer" size={27} />
-        </View>
-        <AppText accessibilityRole="header" variant="title">
-          타이머
-        </AppText>
-        <AppText tone="secondary" style={styles.centerText}>
-          지금부터 30분·45분·60분 뒤에 알람음과 진동으로 알립니다.
-        </AppText>
-      </View>
+      <PageHeader
+        align="center"
+        subtitle="30분·45분·60분 뒤 알람음과 진동으로 알립니다."
+        title="타이머"
+      />
 
       {loading && status === null ? (
-        <Card style={styles.loadingCard}>
+        <Surface style={styles.loadingSurface}>
           <ActivityIndicator color={palette.indigoDark} size="small" />
           <AppText tone="secondary">타이머 상태를 확인하고 있습니다.</AppText>
-        </Card>
+        </Surface>
       ) : null}
 
       {!loading && status && !status.supported ? (
@@ -397,7 +393,13 @@ export default function TimerScreen() {
       ) : null}
 
       {hasTimer ? (
-        <Card style={styles.activeCard}>
+        <Surface tone="selected" style={styles.timerSurface}>
+          <View style={styles.timerStatusRow}>
+            <View style={[styles.statusDot, paused && styles.statusDotPaused]} />
+            <AppText color={paused ? palette.amber : palette.mint} variant="label">
+              {paused ? '일시정지' : ringing ? '울림 중' : '실행 중'}
+            </AppText>
+          </View>
           {countdownAnchor ? (
             <QuickTimerCountdown
               active={active}
@@ -413,7 +415,7 @@ export default function TimerScreen() {
           ) : null}
           <View style={[styles.timerActions, stackPresets && styles.timerActionsStacked]}>
             {!ringing ? (
-              <AppButton
+              <Button
                 accessibilityHint={
                   paused
                     ? '저장된 남은 시간부터 타이머를 다시 시작합니다.'
@@ -427,7 +429,7 @@ export default function TimerScreen() {
                 style={stackPresets ? styles.timerActionStacked : styles.timerAction}
               />
             ) : null}
-            <AppButton
+            <Button
               accessibilityHint="남은 시간을 지우고 예약된 타이머 알람을 종료합니다."
               disabled={busyAction !== null}
               icon="refresh-outline"
@@ -440,12 +442,12 @@ export default function TimerScreen() {
           </View>
           {!ringing && status.state !== 'action-required' ? (
             <View style={styles.changeSection}>
-              <AppText tone="secondary" style={styles.centerText} variant="caption">
+              <AppText tone="secondary" variant="label">
                 다른 시간으로 변경
               </AppText>
               <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
-                {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
-                  <AppButton
+                {quickTimerController.durations.map((durationMinutes) => (
+                  <Button
                     accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 변경합니다.`}
                     accessibilityLabel={`${durationMinutes}분 타이머로 변경`}
                     disabled={busyAction !== null}
@@ -455,26 +457,29 @@ export default function TimerScreen() {
                     loading={schedulingDuration === durationMinutes}
                     onPress={() => selectDuration(durationMinutes, Date.now())}
                     style={stackPresets ? styles.presetButtonStacked : styles.presetButton}
-                    variant="secondary"
+                    variant="ghost"
                   />
                 ))}
               </View>
             </View>
           ) : null}
-        </Card>
+        </Surface>
       ) : canShowIdleControls ? (
-        <Card style={styles.idleCard}>
+        <Surface style={styles.timerSurface}>
           <View style={styles.idleCopy}>
+            <View style={styles.idleIcon}>
+              <AppIcon accessible={false} color={palette.indigoDark} name="timer" size={28} />
+            </View>
             <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              알림 시간을 선택하십시오
+              시간을 선택하십시오
             </AppText>
             <AppText tone="secondary" style={styles.centerText} variant="body">
               한 번에 하나의 타이머만 실행할 수 있습니다.
             </AppText>
           </View>
           <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
-            {QUICK_TIMER_DURATIONS.map((durationMinutes) => (
-              <AppButton
+            {quickTimerController.durations.map((durationMinutes) => (
+              <Button
                 accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울립니다.`}
                 accessibilityLabel={`${durationMinutes}분 타이머 시작`}
                 disabled={busyAction !== null || status.state === 'action-required'}
@@ -487,11 +492,11 @@ export default function TimerScreen() {
               />
             ))}
           </View>
-        </Card>
+        </Surface>
       ) : null}
 
       {supported ? (
-        <Card density="compact" style={styles.infoCard}>
+        <Surface density="compact" tone="muted" style={styles.infoSurface}>
           <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={22} />
           <View style={styles.infoCopy}>
             <AppText variant="label">알람음·진동</AppText>
@@ -499,7 +504,7 @@ export default function TimerScreen() {
               화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용합니다.
             </AppText>
           </View>
-        </Card>
+        </Surface>
       ) : null}
     </Screen>
   );
@@ -507,50 +512,63 @@ export default function TimerScreen() {
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
-    screenContent: { gap: spacing.large },
-    header: {
-      alignItems: 'center',
-      gap: spacing.small,
-      paddingBottom: spacing.small,
-    },
-    headerIcon: {
-      width: 52,
-      height: 52,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-    },
+    screenContent: { gap: space.lg, paddingTop: space.sm },
     centerText: { textAlign: 'center' },
-    loadingCard: {
+    loadingSurface: {
       minHeight: 120,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.medium,
+      gap: space.md,
     },
-    activeCard: { gap: spacing.large },
-    timerActions: { flexDirection: 'row', gap: spacing.small },
+    timerSurface: {
+      minHeight: 286,
+      justifyContent: 'center',
+      gap: space.xl,
+      paddingVertical: space.xl,
+    },
+    timerStatusRow: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+    },
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: radius.full,
+      backgroundColor: palette.mint,
+    },
+    statusDotPaused: { backgroundColor: palette.amber },
+    timerActions: { flexDirection: 'row', gap: space.sm },
     timerActionsStacked: { flexDirection: 'column' },
     timerAction: { flex: 1 },
     timerActionStacked: { width: '100%' },
     changeSection: {
-      gap: spacing.small,
-      paddingTop: spacing.small,
+      gap: space.sm,
+      paddingTop: space.lg,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: palette.line,
     },
-    idleCard: { gap: spacing.large },
-    idleCopy: { gap: spacing.small },
-    presetButtons: { flexDirection: 'row', gap: spacing.small },
+    idleCopy: { alignItems: 'center', gap: space.sm },
+    idleIcon: {
+      width: 56,
+      height: 56,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.lg,
+      backgroundColor: palette.indigoSoft,
+    },
+    presetButtons: { flexDirection: 'row', gap: space.sm },
     presetButtonsStacked: { flexDirection: 'column' },
     presetButton: { minHeight: 64, flex: 1 },
     presetButtonStacked: { width: '100%', minHeight: 64 },
-    infoCard: {
+    infoSurface: {
       minHeight: 76,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.medium,
+      gap: space.md,
+      borderWidth: 0,
     },
-    infoCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
+    infoCopy: { minWidth: 0, flex: 1, gap: space.xs },
   });
 }

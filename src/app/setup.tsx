@@ -10,9 +10,9 @@ import {
 
 import { useAppDialog } from '@/components/app-dialog';
 import { DatePickerField } from '@/components/date-picker-field';
-import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
+import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner, ToggleRow } from '@/design-system';
+import { StatusBanner, Surface, ToggleRow } from '@/design-system';
 import {
   RotationPositionPicker,
   PatternSequenceEditor,
@@ -25,7 +25,7 @@ import {
 } from '@/features/setup/setup-components';
 import {
   SetupApplyingOverlay,
-  SetupBlurredHomeBackdrop,
+  SetupBrandHaloBackdrop,
 } from '@/features/setup/setup-onboarding-surface';
 import {
   applySetupPresetSuggestions,
@@ -37,7 +37,6 @@ import {
   type SetupWorkTimeValues,
 } from '@/features/setup/setup-flow';
 import {
-  activeShiftIds,
   buildWorkPatternMutation,
   createInitialWorkPatternDraft,
   createWorkPatternSummarySignature,
@@ -47,6 +46,7 @@ import {
   type EditableWorkShiftId,
   type WorkPatternDraft,
 } from '@/features/setup/work-pattern-draft';
+import { createWorkPatternEditorController } from '@/features/setup/work-pattern-editor-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
@@ -60,9 +60,6 @@ import {
 import { useAppStore } from '@/store/app-store';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
-  getPositionAfterReferenceDateChange,
-  getWorkPatternCategoryId,
-  getWorkPatternPresetId,
   getWorkPatternPreset,
   type BaseWorkShiftId,
   type WorkPatternCategoryId,
@@ -92,6 +89,10 @@ export default function SetupScreen() {
   const [initialWorkPatternDraft] = useState<WorkPatternDraft>(() =>
     createInitialWorkPatternDraft({ shiftTypes: data.shiftTypes, today }),
   );
+  const editorController = useMemo(
+    () => createWorkPatternEditorController('initial'),
+    [],
+  );
   const [draft, setDraft] = useState<WorkPatternDraft>(() => initialWorkPatternDraft);
   const [step, setStep] = useState<SetupScreenStep>(1);
   const [draftReady, setDraftReady] = useState(false);
@@ -100,6 +101,7 @@ export default function SetupScreen() {
   const [openEditor, setOpenEditor] = useState<'sequence' | 'times' | null>(null);
   const [saving, setSaving] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [revealValidation, setRevealValidation] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const [focusShiftTypeId, setFocusShiftTypeId] = useState<EditableWorkShiftId | null>(null);
   const issueHeadingRef = useRef<View>(null);
@@ -222,6 +224,7 @@ export default function SetupScreen() {
   }, [focusRequest, focusShiftTypeId, step]);
 
   const focusFirstIssue = (checked = validation) => {
+    setRevealValidation(true);
     const target = getFirstWorkPatternIssueTarget(checked);
     if (!target) return;
     setStep(target.step);
@@ -246,11 +249,6 @@ export default function SetupScreen() {
     [validation.activeShiftIds, workTimeValues],
   );
 
-  const invalidateSummary = (next: WorkPatternDraft): WorkPatternDraft => ({
-    ...next,
-    summaryConfirmation: null,
-  });
-
   const selectPreset = (nextPresetId: WorkPatternPresetId) => {
     const nextSequence = [...getWorkPatternPreset(nextPresetId).shiftTypeIds];
     const eveningActivated =
@@ -261,21 +259,13 @@ export default function SetupScreen() {
       values: workTimeValues,
     });
     setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        categoryId: getWorkPatternCategoryId(nextPresetId),
-        presetId: nextPresetId,
+      editorController.selectPreset(current, nextPresetId, {
         sequence: nextSequence,
-        position: null,
         times: {
           day: { start: nextTimes.dayStart, end: nextTimes.dayEnd },
           evening: { start: nextTimes.eveningStart, end: nextTimes.eveningEnd },
           night: { start: nextTimes.nightStart, end: nextTimes.nightEnd },
         },
-        alarmsWanted: false,
-        reviewedShiftIds: eveningActivated
-          ? current.reviewedShiftIds.filter((id) => id !== 'evening')
-          : current.reviewedShiftIds,
       }),
     );
     if (eveningActivated) setOpenEditor('times');
@@ -287,33 +277,13 @@ export default function SetupScreen() {
       return;
     }
     if (draft.categoryId !== nextCategoryId) {
-      setDraft((current) =>
-        invalidateSummary({
-          ...current,
-          categoryId: nextCategoryId,
-          presetId: null,
-          position: null,
-        }),
-      );
+      setDraft((current) => editorController.selectCategory(current, nextCategoryId));
     }
   };
 
   const changeSequence = (next: BaseWorkShiftId[]) => {
     const eveningActivated = !draft.sequence.includes('evening') && next.includes('evening');
-    const detectedPresetId = getWorkPatternPresetId(next);
-    setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        sequence: [...next],
-        presetId: detectedPresetId,
-        categoryId: getWorkPatternCategoryId(detectedPresetId),
-        position: null,
-        alarmsWanted: false,
-        reviewedShiftIds: eveningActivated
-          ? current.reviewedShiftIds.filter((id) => id !== 'evening')
-          : current.reviewedShiftIds,
-      }),
-    );
+    setDraft((current) => editorController.changeSequence(current, next));
     if (eveningActivated) setOpenEditor('times');
   };
 
@@ -323,14 +293,7 @@ export default function SetupScreen() {
     value: string,
   ) => {
     setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        times: {
-          ...current.times,
-          [shiftTypeId]: { ...current.times[shiftTypeId], [field]: value },
-        },
-        alarmsWanted: false,
-      }),
+      editorController.changeTime(current, shiftTypeId, field, value),
     );
   };
 
@@ -341,16 +304,7 @@ export default function SetupScreen() {
   };
 
   const changeReferenceDate = (nextDate: string) => {
-    setDraft((current) => ({
-      ...current,
-      position: getPositionAfterReferenceDateChange({
-        currentDate: current.referenceDate,
-        nextDate,
-        selectedPosition: current.position,
-      }),
-      scheduleStartDate: nextDate,
-      referenceDate: nextDate,
-    }));
+    setDraft((current) => editorController.changeReferenceDate(current, nextDate));
   };
 
   const save = async () => {
@@ -454,13 +408,12 @@ export default function SetupScreen() {
       return;
     }
     if (step === 2) {
-      setDraft((current) => {
-        const reviewed = [
-          ...new Set([...current.reviewedShiftIds, ...activeShiftIds(current.sequence)]),
-        ];
-        const next = { ...current, reviewedShiftIds: reviewed };
-        return { ...next, summaryConfirmation: createWorkPatternSummarySignature(next) };
-      });
+      setRevealValidation(true);
+      if (stepTwoBlockingIssues.length > 0) {
+        focusFirstIssue();
+        return;
+      }
+      setDraft((current) => editorController.confirmSummary(current));
       setOpenEditor(null);
       setStep(3);
     }
@@ -484,8 +437,7 @@ export default function SetupScreen() {
           (step === 1
             ? presetId === null
             : step === 2
-              ? saving ||
-                stepTwoBlockingIssues.length > 0
+              ? saving
               : saving)
         }
         label={
@@ -509,7 +461,7 @@ export default function SetupScreen() {
 
   return (
     <Screen
-      background={<SetupBlurredHomeBackdrop />}
+      background={<SetupBrandHaloBackdrop />}
       key={step}
       contentStyle={styles.screenContent}
       footer={footer}>
@@ -564,7 +516,7 @@ export default function SetupScreen() {
             </AppText>
           </View>
 
-          <Card style={styles.setupCard}>
+          <Surface style={styles.setupCard}>
             <View style={styles.summaryHeading}>
               <View style={styles.summaryCopy}>
                 <AppText accessibilityRole="header" variant="label">
@@ -651,6 +603,7 @@ export default function SetupScreen() {
                     markWorkTimeEdited('nightStart');
                     changeTime('night', 'start', value);
                   }}
+                  revealErrors={revealValidation}
                   showDay={validation.activeShiftIds.includes('day')}
                   showEvening={validation.activeShiftIds.includes('evening')}
                   showNight={validation.activeShiftIds.includes('night')}
@@ -659,16 +612,17 @@ export default function SetupScreen() {
               </View>
             ) : null}
 
-            <StatusBanner
-              icon={sequenceConfirmed && workTimesConfirmed ? 'checkmark-circle' : 'alert-circle-outline'}
-              message={
-                sequenceConfirmed && workTimesConfirmed
-                  ? '확인한 순서와 시간입니다.'
-                  : '아래의 “이대로 사용”을 누르면 순서와 시간을 한 번에 확인합니다.'
-              }
-              tone="info"
-            />
-          </Card>
+          </Surface>
+
+          <StatusBanner
+            icon={sequenceConfirmed && workTimesConfirmed ? 'checkmark-circle' : 'alert-circle-outline'}
+            message={
+              sequenceConfirmed && workTimesConfirmed
+                ? '확인한 순서와 시간입니다.'
+                : '아래의 “이대로 사용”을 누르면 순서와 시간을 한 번에 확인합니다.'
+            }
+            tone="info"
+          />
 
           {!scheduleSafety.canSave ? (
             <StatusBanner
@@ -704,7 +658,7 @@ export default function SetupScreen() {
             </AppText>
           </View>
 
-          <Card style={styles.setupCard}>
+          <Surface style={styles.setupCard}>
             <View style={styles.sectionCopy}>
               <AppText accessibilityRole="header" variant="label">일정 적용 시작일</AppText>
               <AppText variant="caption" tone="secondary">
@@ -745,7 +699,7 @@ export default function SetupScreen() {
                 </View>
               </>
             ) : null}
-          </Card>
+          </Surface>
 
           <SetupPreview items={preview} shiftTypes={data.shiftTypes} today={today} />
 
@@ -761,7 +715,7 @@ export default function SetupScreen() {
           ) : null}
 
           {Platform.OS === 'android' ? (
-            <Card density="compact" style={styles.alarmCard}>
+            <Surface density="compact" style={styles.alarmCard} tone="muted">
               <ToggleRow
                 disabled={!scheduleSafety.canEnableAlarms}
                 icon="alarm-outline"
@@ -776,17 +730,17 @@ export default function SetupScreen() {
                 title="근무 알람 준비하기"
                 value={effectiveAlarmsWanted}
               />
-            </Card>
+            </Surface>
           ) : null}
 
-          <Card style={styles.storageCard}>
+          <Surface style={styles.storageCard} tone="muted">
             <AppText accessibilityRole="header" variant="label">
               자료는 이 휴대폰에만 저장됩니다
             </AppText>
             <AppText tone="secondary" variant="caption">
               서버로 전송하지 않습니다. 앱을 삭제하면 근무표·메모·설정도 함께 삭제됩니다. 설정 후 데이터 메뉴에서 외부 백업을 만들 수 있습니다.
             </AppText>
-          </Card>
+          </Surface>
         </View>
       ) : null}
       <SetupApplyingOverlay visible={saving} />

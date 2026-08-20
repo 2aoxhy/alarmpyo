@@ -396,16 +396,8 @@ class AlarmPyoAlarmActivity : Activity() {
     val alarmDate = Date(displayAlarmAt)
     timeText.text = SimpleDateFormat("HH:mm", Locale.KOREA).format(alarmDate)
     dateText.text = SimpleDateFormat("M월 d일 EEEE", Locale.KOREA).format(alarmDate)
-    val shiftAccentResource = when (newPlan.shiftTypeId) {
-      "day", "substitute-day" -> R.color.alarmpyo_day
-      "night", "substitute-night" -> R.color.alarmpyo_night
-      "exception-training" -> R.color.alarmpyo_training
-      "exception-reserve" -> R.color.alarmpyo_reserve
-      "off" -> R.color.alarmpyo_off
-      "substitute" -> R.color.alarmpyo_unknown
-      else -> R.color.alarmpyo_accent
-    }
-    val shiftAccent = alarmpyoColor(shiftAccentResource)
+    val shiftVisualStyle = AlarmPyoShiftVisualPolicy.resolve(newPlan.shiftTypeId)
+    val shiftAccent = alarmpyoColor(shiftVisualStyle.accent)
     shiftBadgeText.text = when {
       source == AlarmPyoAlarmSource.TIMER ->
         AlarmPyoQuickTimerPresentation.badge(newPlan.isSingleRepeat())
@@ -415,15 +407,7 @@ class AlarmPyoAlarmActivity : Activity() {
       newPlan.shiftName.isNotBlank() -> newPlan.shiftName
       else -> "출근 준비"
     }
-    shiftBadgeText.setTextColor(
-      alarmpyoColor(
-        if (shiftAccentResource == R.color.alarmpyo_accent) {
-          R.color.alarmpyo_background
-        } else {
-          R.color.alarmpyo_text_primary
-        }
-      )
-    )
+    shiftBadgeText.setTextColor(alarmpyoColor(shiftVisualStyle.foreground))
     shiftBadgeText.background = roundedShape(shiftAccent, dp(99).toFloat())
     shiftText.text = when {
       source == AlarmPyoAlarmSource.TIMER -> AlarmPyoQuickTimerPresentation.message(newPlan)

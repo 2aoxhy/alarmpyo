@@ -10,7 +10,7 @@ import {
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -191,7 +191,7 @@ export function AlarmSoundSettings() {
   const actionsDisabled = loading || busyAction !== null;
 
   return (
-    <Card style={styles.card}>
+    <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.icon}>
           <AppIcon
@@ -282,13 +282,18 @@ export function AlarmSoundSettings() {
           </View>
         </>
       ) : null}
-    </Card>
+    </View>
   );
 }
 
 const createStyles = (palette: AppPalette) =>
   StyleSheet.create({
-    card: { gap: spacing.medium },
+    card: {
+      gap: spacing.medium,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
     header: {
       minWidth: 0,
       flexDirection: 'row',

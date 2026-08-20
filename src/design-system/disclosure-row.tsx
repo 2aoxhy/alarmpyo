@@ -61,18 +61,25 @@ export function DisclosureRow({
       ]}
       testID={testID}>
       {icon ? (
-        <View style={styles.iconTile}>
-          <AppIcon accessible={false} color={colors.accentStrong} name={icon} size={size.iconMedium} />
+        <View style={[styles.iconTile, disabled && styles.iconTileDisabled]}>
+          <AppIcon
+            accessible={false}
+            color={disabled ? colors.textDisabled : colors.accentStrong}
+            name={icon}
+            size={size.iconMedium}
+          />
         </View>
       ) : null}
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text style={[styles.title, disabled && styles.textDisabled]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.subtitle, disabled && styles.textDisabled]}>{subtitle}</Text>
+        ) : null}
       </View>
       <View style={styles.trailing}>
         <AppIcon
           accessible={false}
-          color={colors.textSoft}
+          color={disabled ? colors.textDisabled : colors.textSoft}
           name={expanded === undefined ? 'chevron-forward' : expanded ? 'chevron-up' : 'chevron-down'}
           size={size.iconSmall}
         />
@@ -101,7 +108,9 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       opacity: interaction.pressedOpacity,
     },
     disabled: {
-      opacity: interaction.disabledOpacity,
+      backgroundColor: colors.surfaceDisabled,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     iconTile: {
       width: size.minimumTouchTarget,
@@ -110,6 +119,9 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       justifyContent: 'center',
       borderRadius: radius.sm,
       backgroundColor: colors.surfaceMuted,
+    },
+    iconTileDisabled: {
+      backgroundColor: colors.surfaceDisabled,
     },
     textContainer: {
       flex: 1,
@@ -125,6 +137,9 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       ...typeScale.caption,
       color: colors.textMuted,
       includeFontPadding: false,
+    },
+    textDisabled: {
+      color: colors.textDisabled,
     },
     trailing: {
       width: size.minimumTouchTarget,

@@ -1,77 +1,37 @@
-import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import {
   AppButton,
   AppText,
-  Card,
   MenuDivider,
   MenuGroup,
   Screen,
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner } from '@/design-system';
+import { StatusBanner, Surface } from '@/design-system';
 import {
   formatPatternSequence,
   formatPatternSource,
 } from '@/features/pattern-library/pattern-library-model';
+import {
+  isPatternIntegrityError,
+  patternImportErrorCopy,
+  usePatternLibraryController,
+  type ValidatedPatternDescriptor,
+} from '@/features/pattern-library/pattern-library-controller';
 import { PatternVaultCard } from '@/features/pattern-library/pattern-vault-card';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PatternVaultEntry } from '@/models/app-data';
 import {
-  fetchOfficialShiftPatternsOnDemand,
-  type OfficialPatternFetchResult,
-} from '@/services/official-shift-pattern-service';
-import {
-  pickAndValidateShiftPatternFile,
-  shareShiftPatternFile,
-} from '@/services/shift-pattern-file-service';
-import {
   isPatternVaultEntryApplied,
 } from '@/services/pattern-vault-service';
-import {
-  serializeUserShiftPattern,
-  ShiftPatternError,
-  type ValidatedPatternDescriptor,
-} from '@/services/shift-pattern-schema';
 import { useAppStore } from '@/store/app-store';
 import { formatKoreanDate } from '@/utils/date';
 
-type BusyOperation =
-  | 'file-import'
-  | 'rollback'
-  | `official-save:${string}`
-  | `delete:${string}`
-  | `share:${string}`;
-
-function isIntegrityError(error: ShiftPatternError): boolean {
-  return [
-    'invalid-hash',
-    'invalid-signature',
-    'unknown-key',
-    'official-contract-mismatch',
-    'reserved-official-id',
-  ].includes(error.code);
-}
-
-function patternImportErrorCopy(error: unknown): { title: string; message: string } {
-  if (error instanceof ShiftPatternError) {
-    if (isIntegrityError(error)) {
-      return {
-        title: '패턴 안전성을 확인하지 못했습니다',
-        message: `${error.message} 공식 패턴을 사용자 패턴으로 바꾸어 열지 않았습니다.`,
-      };
-    }
-    return { title: '패턴 파일을 가져오지 못했습니다', message: error.message };
-  }
-  return {
-    title: '패턴 파일을 가져오지 못했습니다',
-    message: '파일을 확인한 뒤 다시 시도해야 합니다.',
-  };
-}
+type BusyOperation = 'rollback' | `delete:${string}`;
 
 function formatPatternAppliedAt(value: string): string {
   const timestamp = new Date(value);
@@ -97,99 +57,51 @@ export default function PatternLibraryScreen() {
   const { fontScale, width } = useWindowDimensions();
   const stackActions = width <= 320 || fontScale >= 1.5;
   const [busyOperation, setBusyOperation] = useState<BusyOperation | null>(null);
-  const [officialLoading, setOfficialLoading] = useState(false);
-  const [officialResults, setOfficialResults] = useState<OfficialPatternFetchResult[] | null>(
-    null,
-  );
-  const initialFetchStarted = useRef(false);
-  const fetchControllerRef = useRef<AbortController | null>(null);
-  const deferredAbortRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const screenActiveRef = useRef(false);
-
-  const refreshOfficialPatterns = useCallback(async (source: 'entry' | 'manual') => {
-    if (fetchControllerRef.current) return;
-    const controller = new AbortController();
-    fetchControllerRef.current = controller;
-    setOfficialLoading(true);
-    try {
-      const results = await fetchOfficialShiftPatternsOnDemand({ signal: controller.signal });
-      if (screenActiveRef.current) setOfficialResults(results);
-      if (source === 'manual' && screenActiveRef.current) {
-        const successCount = results.filter((result) => result.status === 'ready').length;
-        void Haptics.notificationAsync(
-          successCount === results.length
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning,
-        );
-      }
-    } finally {
-      if (fetchControllerRef.current === controller) fetchControllerRef.current = null;
-      if (screenActiveRef.current) {
-        setOfficialLoading(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    screenActiveRef.current = true;
-    if (deferredAbortRef.current) {
-      clearTimeout(deferredAbortRef.current);
-      deferredAbortRef.current = null;
-    }
-    if (!initialFetchStarted.current) {
-      initialFetchStarted.current = true;
-      void refreshOfficialPatterns('entry');
-    }
-    return () => {
-      screenActiveRef.current = false;
-      deferredAbortRef.current = setTimeout(() => {
-        fetchControllerRef.current?.abort();
-        fetchControllerRef.current = null;
-      }, 0);
-    };
-  }, [refreshOfficialPatterns]);
+  const {
+    busyOperation: runtimeBusyOperation,
+    importPatternFile: pickAndImportPatternFile,
+    notifySuccess,
+    officialLoading,
+    officialResults,
+    refreshOfficialPatterns,
+    saveOfficialPattern: saveOfficialPatternThroughController,
+    sharePattern: sharePatternThroughController,
+  } = usePatternLibraryController({ importValidatedPattern });
+  const anyBusyOperation = busyOperation ?? runtimeBusyOperation;
 
   const saveOfficialPattern = async (descriptor: ValidatedPatternDescriptor) => {
-    const operation: BusyOperation = `official-save:${descriptor.id}`;
-    if (busyOperation) return;
-    setBusyOperation(operation);
-    try {
-      const result = await importValidatedPattern(descriptor);
-      if (result.status === 'saved' || result.status === 'unchanged') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showDialog(
-          '공식 패턴을 보관했습니다',
-          '근무표에는 아직 적용하지 않았습니다. 보관함에서 적용 전 비교를 확인할 수 있습니다.',
-          undefined,
-          { tone: 'success' },
-        );
-        return;
-      }
+    if (anyBusyOperation) return;
+    const result = await saveOfficialPatternThroughController(descriptor);
+    if (!result) return;
+    if (result.status === 'saved' || result.status === 'unchanged') {
       showDialog(
-        '공식 패턴을 보관하지 못했습니다',
-        result.reason === 'vault-full'
-          ? '보관함에서 사용하지 않는 패턴을 정리해야 합니다.'
-          : '현재 자료는 유지했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+        '공식 패턴을 보관했습니다',
+        '근무표에는 아직 적용하지 않았습니다. 보관함에서 적용 전 비교를 확인할 수 있습니다.',
         undefined,
-        { tone: 'danger' },
+        { tone: 'success' },
       );
-    } finally {
-      setBusyOperation(null);
+      return;
     }
+    showDialog(
+      '공식 패턴을 보관하지 못했습니다',
+      result.reason === 'vault-full'
+        ? '보관함에서 사용하지 않는 패턴을 정리해야 합니다.'
+        : '현재 자료는 유지했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+      undefined,
+      { tone: 'danger' },
+    );
   };
 
   const importPatternFile = async () => {
-    if (busyOperation) return;
-    setBusyOperation('file-import');
-    try {
-      const picked = await pickAndValidateShiftPatternFile();
-      if (!picked) return;
-      const result = await importValidatedPattern(picked.pattern);
+    if (anyBusyOperation) return;
+    const outcome = await pickAndImportPatternFile();
+    if (outcome.status === 'cancelled') return;
+    if (outcome.status === 'completed') {
+      const { fileName, result } = outcome;
       if (result.status === 'saved' || result.status === 'unchanged') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         showDialog(
           '패턴 파일을 보관했습니다',
-          `${picked.fileName} 파일을 검증했습니다. 근무표에는 아직 적용하지 않았습니다.`,
+          `${fileName} 파일을 검증했습니다. 근무표에는 아직 적용하지 않았습니다.`,
           undefined,
           { tone: 'success' },
         );
@@ -204,40 +116,29 @@ export default function PatternLibraryScreen() {
       showDialog('패턴 파일을 보관하지 못했습니다', reason, undefined, {
         tone: 'danger',
       });
-    } catch (error) {
-      const copy = patternImportErrorCopy(error);
+      return;
+    }
+    if (outcome.status === 'error') {
+      const copy = patternImportErrorCopy(outcome.error);
       showDialog(copy.title, copy.message, undefined, { tone: 'danger' });
-    } finally {
-      setBusyOperation(null);
     }
   };
 
   const sharePattern = async (entry: PatternVaultEntry) => {
-    const operation: BusyOperation = `share:${entry.id}`;
-    if (busyOperation) return;
-    setBusyOperation(operation);
-    try {
-      const contents = serializeUserShiftPattern({
-        id: entry.id,
-        name: entry.name,
-        author: entry.author,
-        sourceVersion: entry.sourceVersion,
-        anchorDate: entry.anchorDate,
-        shiftCodes: [...entry.shiftCodes],
-        createdAt: entry.createdAt,
-      });
-      const result = await shareShiftPatternFile(contents);
+    if (anyBusyOperation) return;
+    const outcome = await sharePatternThroughController(entry);
+    if (outcome.status === 'completed') {
       showDialog(
         '패턴 공유 화면을 닫았습니다',
-        `${result.fileName} 파일을 준비했습니다. 선택한 앱이나 저장 위치에서 파일을 확인해야 합니다.`,
+        `${outcome.fileName} 파일을 준비했습니다. 선택한 앱이나 저장 위치에서 파일을 확인해야 합니다.`,
       );
-    } catch (error) {
-      const copy = patternImportErrorCopy(error);
+      return;
+    }
+    if (outcome.status === 'error') {
+      const copy = patternImportErrorCopy(outcome.error);
       showDialog('패턴 파일을 보내지 못했습니다', copy.message, undefined, {
         tone: 'danger',
       });
-    } finally {
-      setBusyOperation(null);
     }
   };
 
@@ -276,12 +177,12 @@ export default function PatternLibraryScreen() {
   };
 
   const rollback = async () => {
-    if (busyOperation) return;
+    if (anyBusyOperation) return;
     setBusyOperation('rollback');
     try {
       const result = await rollbackLastPatternApplication();
       if (result.status === 'success') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void notifySuccess();
         showDialog(
           '이전 패턴으로 되돌렸습니다',
           '직전 적용을 취소하고 정리했던 직접 수정도 복구했습니다.',
@@ -341,17 +242,17 @@ export default function PatternLibraryScreen() {
 
         <View style={[styles.topActions, stackActions && styles.topActionsStacked]}>
           <AppButton
-            disabled={busyOperation !== null}
+            disabled={anyBusyOperation !== null}
             icon="add"
             label="내 패턴 만들기"
             onPress={() => router.push('/pattern-library-edit' as never)}
             style={styles.topAction}
           />
           <AppButton
-            disabled={busyOperation !== null}
+            disabled={anyBusyOperation !== null}
             icon="download-outline"
             label="파일 가져오기"
-            loading={busyOperation === 'file-import'}
+            loading={runtimeBusyOperation === 'file-import'}
             onPress={() => void importPatternFile()}
             style={styles.topAction}
             variant="secondary"
@@ -389,7 +290,7 @@ export default function PatternLibraryScreen() {
         {officialResults?.map((result) => {
           const stored = data.patternVault.find((entry) => entry.id === result.id);
           if (result.status === 'error') {
-            const integrityFailure = isIntegrityError(result.error);
+            const integrityFailure = isPatternIntegrityError(result.error);
             return (
               <StatusBanner
                 key={result.id}
@@ -408,7 +309,7 @@ export default function PatternLibraryScreen() {
             stored.sourceVersion === result.pattern.sourceVersion &&
             stored.shiftCodes.join('\u0000') === result.pattern.shiftCodes.join('\u0000');
           return (
-            <Card key={result.id} style={styles.officialCard}>
+            <Surface key={result.id} style={styles.officialCard}>
               <View style={styles.officialCopy}>
                 <View style={styles.verifiedRow}>
                   <AppText tone="secondary" variant="caption">
@@ -429,15 +330,15 @@ export default function PatternLibraryScreen() {
               </View>
               {!alreadyStored ? (
                 <AppButton
-                  disabled={busyOperation !== null}
+                  disabled={anyBusyOperation !== null}
                   icon="shield-outline"
                   label="검증본 보관"
-                  loading={busyOperation === `official-save:${result.id}`}
+                  loading={runtimeBusyOperation === `official-save:${result.id}`}
                   onPress={() => void saveOfficialPattern(result.pattern)}
                   variant="secondary"
                 />
               ) : null}
-            </Card>
+            </Surface>
           );
         })}
 
@@ -459,7 +360,7 @@ export default function PatternLibraryScreen() {
           data.patternVault.map((entry) => (
             <PatternVaultCard
               active={isPatternVaultEntryApplied(data, entry)}
-              busy={busyOperation !== null}
+              busy={anyBusyOperation !== null}
               entry={entry}
               key={entry.id}
               onApply={() =>
@@ -507,7 +408,7 @@ export default function PatternLibraryScreen() {
 
         <AppButton
           accessibilityHint="직전 패턴 적용과 그때 제거한 직접 수정을 복구합니다."
-          disabled={history.length === 0 || busyOperation !== null}
+          disabled={history.length === 0 || anyBusyOperation !== null}
           icon="arrow-undo-outline"
           label="마지막 패턴 적용 되돌리기"
           loading={busyOperation === 'rollback'}

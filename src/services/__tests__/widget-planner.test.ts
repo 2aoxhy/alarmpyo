@@ -177,6 +177,54 @@ describe('buildAlarmPyoWidgetSnapshot', () => {
     });
   });
 
+  it('사용자 근무는 시간대와 무관하게 저장 강조색을 snapshot v2 시각 힌트로 전달해요', () => {
+    const data = createDefaultAppData('2026-07-13');
+    const base = data.shiftTypes.find((shift) => shift.id === 'day')!;
+    data.shiftTypes.push(
+      {
+        ...base,
+        id: 'custom-early',
+        name: '맞춤 오전',
+        shortName: '맞오',
+        color: '#AABBCC',
+        startMinutes: 6 * 60,
+        endMinutes: 14 * 60,
+        endsNextDay: false,
+      },
+      {
+        ...base,
+        id: 'custom-overnight',
+        name: '맞춤 심야',
+        shortName: '맞심',
+        color: '#89CEFF',
+        startMinutes: 22 * 60,
+        endMinutes: 6 * 60,
+        endsNextDay: true,
+      },
+    );
+    data.pattern.shiftTypeIds = ['custom-early', 'custom-overnight'];
+    data.settings.setupCompleted = true;
+    data.settings.notificationsEnabled = true;
+    data.settings.widgetDisplayOptions.nextAlarm = true;
+
+    const snapshot = buildAlarmPyoWidgetSnapshot(
+      data,
+      (dateKey) => resolveShiftFromAppData(data, dateKey),
+      { now: new Date(2026, 6, 13, 4), horizonDays: 2 },
+    );
+    const serialized = JSON.parse(serializeAlarmPyoWidgetSnapshot(snapshot));
+
+    expect(serialized.version).toBe(2);
+    expect(serialized.entries).toMatchObject([
+      { shiftTypeId: 'custom-early', accentColor: '#AABBCC' },
+      { shiftTypeId: 'custom-overnight', accentColor: '#89CEFF' },
+    ]);
+    expect(serialized.alarms[0]).toMatchObject({
+      shiftTypeId: 'custom-early',
+      accentColor: '#AABBCC',
+    });
+  });
+
   it('지나치게 큰 계산 범위를 거부합니다', () => {
     const data = createDefaultAppData('2026-07-13');
     expect(() =>

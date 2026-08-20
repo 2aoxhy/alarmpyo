@@ -79,7 +79,11 @@ export function SegmentedControl<Value extends string>({
             ]}>
             <Text
               numberOfLines={2}
-              style={[styles.label, selected && styles.labelSelected]}>
+              style={[
+                styles.label,
+                selected && styles.labelSelected,
+                optionDisabled && styles.labelDisabled,
+              ]}>
               {option.label}
             </Text>
           </Pressable>
@@ -128,7 +132,8 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       opacity: interaction.pressedOpacity,
     },
     optionDisabled: {
-      opacity: interaction.disabledOpacity,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceDisabled,
     },
     label: {
       ...typeScale.label,
@@ -137,6 +142,9 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
     },
     labelSelected: {
       color: colors.accentStrong,
+    },
+    labelDisabled: {
+      color: colors.textDisabled,
     },
   });
 }

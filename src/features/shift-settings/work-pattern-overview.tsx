@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { ShiftChip } from '@/components/shift-chip';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -39,7 +39,7 @@ export function WorkPatternOverview({
       : getWorkPatternPreset(presetId).description;
 
   return (
-    <Card style={styles.card}>
+    <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerIcon}>
           <AppIcon
@@ -59,7 +59,11 @@ export function WorkPatternOverview({
         </View>
       </View>
 
-      <View style={styles.previewHeading}>
+      <View
+        style={[
+          styles.previewHeading,
+          stacked && styles.previewHeadingStacked,
+        ]}>
         <AppText variant="label">미리 보기</AppText>
         <AppText tone="secondary" variant="caption">
           {overview.preview.length}일 일정
@@ -102,7 +106,7 @@ export function WorkPatternOverview({
           variant="ghost"
         />
       ) : null}
-    </Card>
+    </View>
   );
 }
 
@@ -110,7 +114,10 @@ function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     card: {
       gap: spacing.medium,
-      padding: spacing.medium,
+      paddingVertical: spacing.small,
+      paddingLeft: spacing.medium,
+      borderLeftWidth: 2,
+      borderLeftColor: palette.controlLine,
     },
     header: {
       flexDirection: 'row',
@@ -137,6 +144,10 @@ function createStyles(palette: AppPalette) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.small,
+    },
+    previewHeadingStacked: {
+      alignItems: 'flex-start',
+      flexDirection: 'column',
     },
     previewGrid: {
       flexDirection: 'row',

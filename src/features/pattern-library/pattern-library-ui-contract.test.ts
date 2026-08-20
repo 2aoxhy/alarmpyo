@@ -24,6 +24,27 @@ describe('pattern accessibility and responsive contract', () => {
     expect(editor).toContain('accessibilityRole="radiogroup"');
   });
 
+  it('virtualizes 1 to 42 days as a strip and edits only the selected day', () => {
+    const editor = source('pattern-sequence-day-editor.tsx');
+    const route = appSource('pattern-library-edit.tsx');
+
+    expect(editor).toContain('export const PatternSequenceStrip');
+    expect(editor).toContain('<FlatList');
+    expect(editor).toContain('initialNumToRender={8}');
+    expect(route).toContain('<PatternSequenceStrip');
+    expect(route).toContain('selectedIndex={activeIndex}');
+    expect(route).toContain('code={draft.shiftCodes[activeIndex]}');
+    expect(route).not.toContain('renderItem={({ index, item }) => (');
+  });
+
+  it('shows pattern-name errors only after blur or save', () => {
+    const route = appSource('pattern-library-edit.tsx');
+    expect(route).toContain('const [nameTouched, setNameTouched] = useState(false)');
+    expect(route).toContain('const [submitAttempted, setSubmitAttempted] = useState(false)');
+    expect(route).toContain('onBlur={() => setNameTouched(true)}');
+    expect(route).toContain('(nameTouched || submitAttempted)');
+  });
+
   it('exposes selection state through radio or checkbox state only once', () => {
     const editor = source('pattern-sequence-day-editor.tsx');
     const preview = source('pattern-application-preview.tsx');
@@ -81,19 +102,21 @@ describe('pattern accessibility and responsive contract', () => {
 
   it('fetches official patterns only from screen entry or the refresh action', () => {
     const library = appSource('pattern-library.tsx');
-    expect(library).toContain("refreshOfficialPatterns('entry')");
+    const controller = source('pattern-library-controller.ts');
+    expect(controller).toContain("refreshOfficialPatterns('entry')");
     expect(library).toContain("refreshOfficialPatterns('manual')");
-    expect(library).toContain('const [officialLoading, setOfficialLoading] = useState(false)');
-    expect(library).not.toContain("setBusyOperation('official-fetch')");
-    expect(library).not.toContain('setInterval(');
-    expect(library).not.toContain('AppState');
+    expect(controller).toContain('const [officialLoading, setOfficialLoading] = useState(false)');
+    expect(controller).not.toContain("setBusyOperation('official-fetch')");
+    expect(controller).not.toContain('setInterval(');
+    expect(controller).not.toContain('AppState');
   });
 
   it('keeps import, storage, preview, and application as separate actions', () => {
     const library = appSource('pattern-library.tsx');
+    const controller = source('pattern-library-controller.ts');
     const apply = appSource('pattern-library-apply.tsx');
-    expect(library).toContain('pickAndValidateShiftPatternFile');
-    expect(library).toContain('importValidatedPattern');
+    expect(controller).toContain('pickAndValidateShiftPatternFile');
+    expect(controller).toContain('importValidatedPattern');
     expect(library).not.toContain('applyPatternFromVault');
     expect(apply).toContain('previewPatternApplication');
     expect(apply).toContain('applyPatternFromVault');

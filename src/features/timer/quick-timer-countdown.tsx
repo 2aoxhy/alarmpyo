@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui-kit';
+import { space } from '@/design-system';
 
 import {
   formatQuickTimerCountdown,
@@ -88,8 +89,9 @@ function QuickTimerCountdownView({
               targetAt,
               clock.wall,
             )}에 울립니다. ${getQuickTimerRemainingLabel(remainingMillis)}`
-      }>
-      <AppText tone="secondary" style={styles.centerText} variant="label">
+      }
+      style={styles.root}>
+      <AppText tone="secondary" style={styles.timerLabel} variant="label">
         {label}
       </AppText>
       <AppText
@@ -117,10 +119,18 @@ function QuickTimerCountdownView({
 export const QuickTimerCountdown = memo(QuickTimerCountdownView);
 
 const styles = StyleSheet.create({
+  root: {
+    alignItems: 'stretch',
+    gap: space.sm,
+  },
   centerText: {
     textAlign: 'center',
   },
+  timerLabel: {
+    textAlign: 'center',
+  },
   countdown: {
+    marginVertical: space.xs,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },

@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -11,9 +10,13 @@ import {
 
 import { useAppDialog } from '@/components/app-dialog';
 import { DatePickerField } from '@/components/date-picker-field';
-import { AppButton, AppText, Card, Screen, SectionHeader } from '@/components/ui-kit';
+import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner } from '@/design-system';
+import { PageHeader, StatusBanner, Surface } from '@/design-system';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import {
   PatternSequenceEditor,
   RotationPositionPicker,
@@ -24,7 +27,6 @@ import {
 } from '@/features/setup/setup-components';
 import { validateSetupInput } from '@/features/setup/setup-flow';
 import {
-  activeShiftIds,
   buildWorkPatternMutation,
   createExistingWorkPatternDraft,
   createWorkPatternSummarySignature,
@@ -37,16 +39,13 @@ import {
   type EditableWorkShiftId,
   type WorkPatternDraft,
 } from '@/features/setup/work-pattern-draft';
+import { createWorkPatternEditorController } from '@/features/setup/work-pattern-editor-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStore } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
-  getPositionAfterReferenceDateChange,
-  getWorkPatternCategoryId,
-  getWorkPatternPreset,
-  getWorkPatternPresetId,
   type BaseWorkShiftId,
   type WorkPatternCategoryId,
   type WorkPatternPresetId,
@@ -71,9 +70,14 @@ export default function PatternEditorScreen() {
     createExistingWorkPatternDraft({ data, today }),
   );
   const [draft, setDraft] = useState<WorkPatternDraft>(() => initialDraft);
+  const editorController = useMemo(
+    () => createWorkPatternEditorController('edit'),
+    [],
+  );
   const [step, setStep] = useState<Step>(1);
   const [openEditor, setOpenEditor] = useState<Editor>(null);
   const [saving, setSaving] = useState(false);
+  const [revealValidation, setRevealValidation] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const [focusShiftTypeId, setFocusShiftTypeId] = useState<EditableWorkShiftId | null>(null);
   const issueHeadingRef = useRef<View>(null);
@@ -149,6 +153,7 @@ export default function PatternEditorScreen() {
   const focusFirstIssue = (
     checked: ReturnType<typeof validateWorkPatternDraft> = validation,
   ) => {
+    setRevealValidation(true);
     const target = getFirstWorkPatternIssueTarget(checked);
     if (!target) return;
     setStep(target.step);
@@ -193,29 +198,13 @@ export default function PatternEditorScreen() {
     [hasUnsavedChanges, navigation, saving, showDialog],
   );
 
-  const invalidateSummary = (next: WorkPatternDraft): WorkPatternDraft => ({
-    ...next,
-    summaryConfirmation: null,
-  });
-
   const selectPreset = (presetId: WorkPatternPresetId) => {
-    const nextSequence = [...getWorkPatternPreset(presetId).shiftTypeIds];
+    const nextSequence = editorController.selectPreset(draft, presetId).sequence;
     const eveningActivated =
       !draft.sequence.includes('evening') && nextSequence.includes('evening');
-    setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        presetId,
-        categoryId: getWorkPatternCategoryId(presetId),
-        sequence: nextSequence,
-        position: null,
-        reviewedShiftIds: eveningActivated
-          ? current.reviewedShiftIds.filter((id) => id !== 'evening')
-          : current.reviewedShiftIds,
-      }),
-    );
+    setDraft((current) => editorController.selectPreset(current, presetId));
     if (eveningActivated) setOpenEditor('times');
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
   };
 
   const selectCategory = (categoryId: WorkPatternCategoryId) => {
@@ -224,32 +213,13 @@ export default function PatternEditorScreen() {
       return;
     }
     if (draft.categoryId !== categoryId) {
-      setDraft((current) =>
-        invalidateSummary({
-          ...current,
-          categoryId,
-          presetId: null,
-          position: null,
-        }),
-      );
+      setDraft((current) => editorController.selectCategory(current, categoryId));
     }
   };
 
   const changeSequence = (sequence: BaseWorkShiftId[]) => {
     const eveningActivated = !draft.sequence.includes('evening') && sequence.includes('evening');
-    const presetId = getWorkPatternPresetId(sequence);
-    setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        sequence,
-        presetId,
-        categoryId: getWorkPatternCategoryId(presetId),
-        position: null,
-        reviewedShiftIds: eveningActivated
-          ? current.reviewedShiftIds.filter((id) => id !== 'evening')
-          : current.reviewedShiftIds,
-      }),
-    );
+    setDraft((current) => editorController.changeSequence(current, sequence));
     if (eveningActivated) setOpenEditor('times');
   };
 
@@ -259,33 +229,21 @@ export default function PatternEditorScreen() {
     value: string,
   ) => {
     setDraft((current) =>
-      invalidateSummary({
-        ...current,
-        times: {
-          ...current.times,
-          [shiftTypeId]: { ...current.times[shiftTypeId], [field]: value },
-        },
-      }),
+      editorController.changeTime(current, shiftTypeId, field, value),
     );
   };
 
   const changeStartDate = (nextDate: string) => {
-    setDraft((current) => ({
-      ...current,
-      position: getPositionAfterReferenceDateChange({
-        currentDate: current.referenceDate,
-        nextDate,
-        selectedPosition: current.position,
-      }),
-      scheduleStartDate: nextDate,
-      referenceDate: nextDate,
-    }));
+    setDraft((current) => editorController.changeReferenceDate(current, nextDate));
   };
 
   const confirmSummary = () => {
-    const reviewed = [...new Set([...draft.reviewedShiftIds, ...activeShiftIds(draft.sequence)])];
-    const next = { ...draft, reviewedShiftIds: reviewed };
-    setDraft({ ...next, summaryConfirmation: createWorkPatternSummarySignature(next) });
+    setRevealValidation(true);
+    if (summaryBlockingIssues.length > 0) {
+      focusFirstIssue();
+      return;
+    }
+    setDraft(editorController.confirmSummary(draft));
     setOpenEditor(null);
     setStep(3);
   };
@@ -331,7 +289,7 @@ export default function PatternEditorScreen() {
         return;
       }
       if (outcome.issue === 'alarm-sync-partial') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        void triggerNotificationFeedback('warning');
         showDialog(
           '근무표는 저장되었습니다',
           '알람을 근무표에 맞춰 다시 예약하지 못했습니다. 알람만 다시 예약할 수 있습니다.',
@@ -360,7 +318,7 @@ export default function PatternEditorScreen() {
                     return;
                   }
                   allowNavigation.current = true;
-                  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  void triggerNotificationFeedback('success');
                   goBack();
                 });
               },
@@ -371,7 +329,7 @@ export default function PatternEditorScreen() {
         return;
       }
       allowNavigation.current = true;
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void triggerNotificationFeedback('success');
       goBack();
     } catch {
       const outcome = resolveWorkPatternSaveOutcome({
@@ -454,7 +412,7 @@ export default function PatternEditorScreen() {
   if (data.appliedPatternSource !== 'legacy') {
     return (
       <Screen contentStyle={styles.screen} safeAreaEdges={['left', 'right']}>
-        <SectionHeader centered title="근무 방식 설정" />
+        <PageHeader title="근무 방식 설정" />
         <StatusBanner
           actionLabel="패턴 보관함 열기"
           message="보관함에서 적용한 패턴은 주대·야대를 포함할 수 있어 기본 근무 방식 편집기에서 변경하지 않습니다. 보관함에서 패턴을 편집하거나 다른 패턴의 달력 비교를 확인해야 합니다. 현재 근무표는 변경하지 않았습니다."
@@ -480,7 +438,7 @@ export default function PatternEditorScreen() {
       <AppButton
         disabled={
           saving ||
-          (step === 1 ? draft.presetId === null : step === 2 ? summaryBlockingIssues.length > 0 : !validation.canSave || !hasUnsavedChanges)
+          (step === 1 ? draft.presetId === null : step === 2 ? false : !validation.canSave || !hasUnsavedChanges)
         }
         label={step === 1 ? '순서와 시간 확인' : step === 2 ? '이대로 사용' : '저장'}
         loading={saving}
@@ -507,11 +465,17 @@ export default function PatternEditorScreen() {
 
   return (
     <Screen contentStyle={styles.screen} footer={footer} safeAreaEdges={['left', 'right']}>
-      <SectionHeader
-        action="패턴 보관함"
-        centered
-        onAction={() => router.push('/pattern-library' as never)}
+      <PageHeader
+        subtitle="회사 순서와 시간을 필요한 만큼만 수정합니다."
         title="근무 방식 설정"
+        trailing={
+          <AppButton
+            label="보관함"
+            onPress={() => router.push('/pattern-library' as never)}
+            size="compact"
+            variant="ghost"
+          />
+        }
       />
       <SetupProgress compact={width <= 320 || fontScale >= 1.3} step={step} />
 
@@ -547,7 +511,7 @@ export default function PatternEditorScreen() {
             </AppText>
           </View>
 
-          <Card style={styles.card}>
+          <Surface style={styles.card}>
             <View style={styles.summaryHeading}>
               <View style={styles.summaryCopy}>
                 <AppText variant="label">회사 근무 순서</AppText>
@@ -611,16 +575,17 @@ export default function PatternEditorScreen() {
                 onChangeEveningStart={(value) => changeTime('evening', 'start', value)}
                 onChangeNightEnd={(value) => changeTime('night', 'end', value)}
                 onChangeNightStart={(value) => changeTime('night', 'start', value)}
+                revealErrors={revealValidation}
                 showDay={validation.activeShiftIds.includes('day')}
                 showEvening={validation.activeShiftIds.includes('evening')}
                 showNight={validation.activeShiftIds.includes('night')}
                 stackTimeInputs={stackFooter}
               />
             ) : null}
-          </Card>
+          </Surface>
 
           {unresolvedLegacyIds.length > 0 && patternIdentityChanged && !draft.legacyMappingConfirmed ? (
-            <Card style={styles.card}>
+            <View style={styles.legacySection}>
               <StatusBanner
                 icon="alert-circle-outline"
                 message="이전 버전의 오후 근무가 포함되어 있습니다. 새 순서로 바꾸려면 기존 오후 근무를 현재 오후 근무에 명시적으로 연결해야 합니다."
@@ -631,7 +596,7 @@ export default function PatternEditorScreen() {
                 onPress={() => setDraft((current) => ({ ...current, legacyMappingConfirmed: true }))}
                 variant="secondary"
               />
-            </Card>
+            </View>
           ) : null}
 
           {!validation.safety.canSave ? (
@@ -672,7 +637,7 @@ export default function PatternEditorScreen() {
               선택한 날짜의 실제 근무를 맞추면 이후 일정이 자동으로 이어집니다.
             </AppText>
           </View>
-          <Card style={styles.card}>
+          <Surface style={styles.card}>
             <AppText variant="label">일정 적용 시작일</AppText>
             <DatePickerField
               accessibilityLabel="일정 적용 시작일"
@@ -694,7 +659,7 @@ export default function PatternEditorScreen() {
                 />
               </>
             ) : null}
-          </Card>
+          </Surface>
 
           {patternIdentityChanged && futureScheduleOverrideCount > 0 ? (
             <StatusBanner
@@ -730,6 +695,7 @@ function createStyles(palette: AppPalette) {
     stepContent: { gap: spacing.medium },
     heading: { gap: spacing.tiny },
     card: { gap: spacing.medium, padding: spacing.medium },
+    legacySection: { gap: spacing.medium },
     summaryHeading: {
       flexDirection: 'row',
       flexWrap: 'wrap',

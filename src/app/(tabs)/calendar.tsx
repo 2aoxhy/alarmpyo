@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -20,6 +19,10 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppSheet } from '@/components/app-sheet';
 import { Screen } from '@/components/ui-kit';
 import { spacing } from '@/constants/app-theme';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import {
   CalendarDateSummarySheet,
   type CalendarDateScheduleSummary,
@@ -303,7 +306,7 @@ export default function CalendarScreen() {
     setLegendOpen(false);
     setSummaryDateKey(null);
     setSelectionArmed(true);
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     AccessibilityInfo.announceForAccessibility(
       calendarLayout.presentation === 'month-grid'
         ? '일정 선택을 시작했습니다. 날짜를 누르거나 손가락을 끌어 선택해야 합니다.'
@@ -398,7 +401,7 @@ export default function CalendarScreen() {
   };
 
   const toggleDateSelection = useCallback((dateKey: string) => {
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
     setSelectionArmed(true);
     selectionAnnouncementRef.current = { dateKey, began: false };
     setSelectedDateKeys((current) => {
@@ -410,7 +413,7 @@ export default function CalendarScreen() {
 
   const beginDateSelection = useCallback(
     (dateKey: string) => {
-      void Haptics.selectionAsync();
+      void triggerSelectionFeedback();
       setSelectionArmed(true);
       const baseSelectedDateKeys = selectedDateKeysRef.current;
       calendarDragSessionRef.current = {
@@ -434,7 +437,7 @@ export default function CalendarScreen() {
 
   const beginListDateSelection = useCallback(
     (dateKey: string) => {
-      void Haptics.selectionAsync();
+      void triggerSelectionFeedback();
       setSelectionArmed(true);
       calendarDragSessionRef.current = null;
       selectionAnnouncementRef.current = { dateKey, began: true };
@@ -587,7 +590,7 @@ export default function CalendarScreen() {
         if (amount === 0) return;
 
         changeMonth(amount);
-        void Haptics.selectionAsync();
+        void triggerSelectionFeedback();
       },
       onResponderTerminate: () => {
         calendarSwipeStartRef.current = null;
@@ -673,9 +676,7 @@ export default function CalendarScreen() {
         }
         const count = selectedDateKeys.length;
         clearDateSelection();
-        void Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success,
-        );
+        void triggerNotificationFeedback('success');
         AccessibilityInfo.announceForAccessibility(
           `${count}일 일정을 변경했습니다. 적용 내용은 ${label}입니다.`,
         );

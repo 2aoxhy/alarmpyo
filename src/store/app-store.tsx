@@ -1,13 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
   PropsWithChildren,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { withAlarmRuntimeState } from '@/application/app-data-mutations';
@@ -44,6 +45,11 @@ import {
   selectNoteForDate,
   selectShiftForDate,
 } from '@/application/app-store-selectors';
+import {
+  createAppSelectorSource,
+  type AppSelectorEquality,
+  type AppSelectorSource,
+} from '@/application/runtime/app-selector-source';
 import {
   analyzeAppDataScheduleSafety,
   enforceAppDataScheduleSafety,
@@ -86,6 +92,10 @@ import type {
   WidgetDisplayOptions,
   WorkRoutineProfiles,
 } from '@/models/app-data';
+import {
+  createNativeAppRuntimeController,
+  type NativeAppRuntimeController,
+} from '@/infrastructure/runtime/native-app-runtime';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import {
   appDataFromImportPreview,
@@ -101,10 +111,6 @@ import {
   withoutAlarmRuntimeState,
   type AppDataImportPreview,
 } from '@/services/app-data-service';
-import {
-  readDeviceSafetyBackup,
-  writeDeviceSafetyBackup,
-} from '@/services/device-safety-backup-service';
 import { quarantineCorruptAppData } from '@/services/corrupt-data-quarantine-service';
 import { getCheckedBackupContentsByteSize } from '@/services/backup-file-policy';
 import {
@@ -133,11 +139,8 @@ import {
 } from '@/services/app-storage-service';
 import {
   cancelAllAlarmPyoAlarms,
-  getAlarmPyoAlarmStatus,
-  requestAlarmPyoAlarmPermissions,
   resetAlarmPyoRuntime,
   scheduleAlarmPyoTestAlarm,
-  syncAlarmPyoAlarms,
 } from '@/services/alarmpyo-alarm-service';
 import {
   buildAlarmPyoAlarmPlan,
@@ -152,8 +155,6 @@ import {
 } from '@/services/sleep-reminder-planner';
 import {
   cancelAlarmPyoSleepReminders,
-  requestAlarmPyoSleepReminderPermission,
-  syncAlarmPyoSleepReminders,
 } from '@/services/sleep-reminder-service';
 import { cancelQuickTimer } from '@/services/quick-timer-service';
 import { resetAlarmSound } from '@/services/alarm-sound-service';
@@ -294,9 +295,29 @@ export function resolveShiftFromData(data: AppData, dateKey: string): ShiftType 
 const AppStoreDataContext = createContext<AppStoreDataState | null>(null);
 const AppStoreStatusContext = createContext<AppStoreStatusState | null>(null);
 const AppStoreActionsContext = createContext<AppStoreActions | null>(null);
+const AppStoreSelectorContext = createContext<AppSelectorSource<AppStore> | null>(null);
+const AppRuntimeContext = createContext<NativeAppRuntimeController | null>(null);
+
+function AppStoreSelectorProvider({
+  children,
+  value,
+}: PropsWithChildren<{ value: AppStore }>) {
+  const [source] = useState(() => createAppSelectorSource(value));
+
+  useLayoutEffect(() => {
+    source.setSnapshot(value);
+  }, [source, value]);
+
+  return (
+    <AppStoreSelectorContext.Provider value={source}>
+      {children}
+    </AppStoreSelectorContext.Provider>
+  );
+}
 
 export function AppStoreProvider({ children }: PropsWithChildren) {
   const appLifecycle = useAppLifecycle();
+  const [runtime] = useState(createNativeAppRuntimeController);
   const [data, setData] = useState<AppData>(() => createDefaultData());
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -317,7 +338,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const [corruptBackupKey, setCorruptBackupKey] = useState<string | null>(null);
   const [alarmAutoCheckState, setAlarmAutoCheckState] =
     useState<AlarmAutoCheckState>({ checkedAt: null, status: 'idle' });
-  const [storageWriter] = useState(() => createSerializedStorageWriter(AsyncStorage));
+  const [storageWriter] = useState(() =>
+    createSerializedStorageWriter(runtime.dataRepository),
+  );
   const [appDataWriter] = useState(() =>
     createLatestStorageValueCoordinator(storageWriter, APP_DATA_STORAGE_KEY),
   );
@@ -497,19 +520,19 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     lastPersistedAutomaticSaveSignatureRef.current = null;
 
     let result = await loadAppDataFromStorage(
-      AsyncStorage,
+      runtime.dataRepository,
       createDefaultData(),
-      new Date(),
+      runtime.now(),
       quarantineCorruptAppData,
     );
-    let deviceBackup: Awaited<ReturnType<typeof readDeviceSafetyBackup>> = null;
+    let deviceBackup: Awaited<ReturnType<typeof runtime.readLatestBackup>> = null;
     const shouldInspectDeviceBackup =
       (result.ok && result.source === 'empty') ||
       (!result.ok &&
         (result.reason === 'corrupt' || result.reason === 'recovery-required'));
     if (shouldInspectDeviceBackup) {
       try {
-        deviceBackup = await readDeviceSafetyBackup();
+        deviceBackup = await runtime.readLatestBackup();
       } catch {
         // 독립 파일 백업을 읽지 못해도 AsyncStorage의 정상 백업을 계속 확인합니다.
       }
@@ -523,9 +546,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         ? exportAppDataToJson(deviceBackup.data, new Date(deviceBackup.exportedAt))
         : serializeAppData(deviceBackup.data);
       result = await loadAppDataFromStorage(
-        AsyncStorage,
+        runtime.dataRepository,
         createDefaultData(),
-        new Date(),
+        runtime.now(),
         quarantineCorruptAppData,
         {
           missingPrimaryRecoveryCandidates: [
@@ -541,9 +564,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           const recoveredSnapshot = serializeAppData(deviceBackup.data);
           await storageWriter.write(APP_DATA_STORAGE_KEY, recoveredSnapshot);
           result = await loadAppDataFromStorage(
-            AsyncStorage,
+            runtime.dataRepository,
             createDefaultData(),
-            new Date(),
+            runtime.now(),
             quarantineCorruptAppData,
           );
           recoveredFromDeviceBackup = result.ok;
@@ -561,18 +584,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     }
     const matchingLastKnownGoodSnapshot = result.ok
       ? await findMatchingLastKnownGoodSnapshot(
-          AsyncStorage,
+          runtime.dataRepository,
           result.persistedSnapshot,
         )
       : null;
     const explicitResetMarkerPending = result.ok
-      ? result.source === 'reset' || await hasExplicitResetMarker(AsyncStorage).catch(() => false)
+      ? result.source === 'reset' || await hasExplicitResetMarker(runtime.dataRepository).catch(() => false)
       : false;
     if (!mountedRef.current || loadAttemptRef.current !== attempt) return false;
     let resetCleanupCompleted = true;
     if (result.ok) {
       await reconcilePendingRestoreBackup(
-        AsyncStorage,
+        runtime.dataRepository,
         storageWriter,
         result.data,
       );
@@ -634,7 +657,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     }
     reportUnsafeAlarmSchedule(loadedScheduleSafety);
     return true;
-  }, [appDataWriter, reportSaveIssue, reportUnsafeAlarmSchedule, storageWriter]);
+  }, [appDataWriter, reportSaveIssue, reportUnsafeAlarmSchedule, runtime, storageWriter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void loadData(), 0);
@@ -694,11 +717,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       const status = await applyNativeAlarmSnapshot({
         notificationsEnabled: syncSnapshot.settings.notificationsEnabled,
         plan,
-        synchronize: (alarms) => syncAlarmPyoAlarms(
+        synchronize: (alarms) => runtime.synchronizeAlarms(
           alarms,
           preparedMetadata ?? buildAlarmPyoAlarmSyncMetadata(),
         ),
-        cancelAll: cancelAllAlarmPyoAlarms,
+        cancelAll: () => runtime.cancelAllAlarms(),
       });
       if (
         status.supported &&
@@ -717,7 +740,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       ) {
         throw new Error('알람 예약 내용이 계획과 일치하지 않습니다.');
       }
-      lastTimeZoneOffsetRef.current = new Date().getTimezoneOffset();
+      lastTimeZoneOffsetRef.current = runtime.now().getTimezoneOffset();
       lastAlarmSyncSignatureRef.current = signature;
       if (failedAlarmSyncSignatureRef.current === signature) {
         failedAlarmSyncSignatureRef.current = null;
@@ -735,7 +758,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         return withAlarmRuntimeState(
           safeCurrent,
           status.scheduledCount,
-          new Date().toISOString(),
+          runtime.now().toISOString(),
         );
       });
       return true;
@@ -748,13 +771,14 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     clearReportedSaveIssues,
     reportAlarmSyncFailure,
     reportUnsafeAlarmSchedule,
+    runtime,
     updateData,
   ]);
 
   const syncSleepRemindersForSnapshot = useCallback(
     (snapshot: AppData, force = false): Promise<boolean> => {
       const signature = getSleepReminderScheduleSignature(snapshot);
-      const syncNow = new Date();
+      const syncNow = runtime.now();
       const projectionKey = getSleepReminderProjectionKey(syncNow);
       const attempt = sleepReminderSyncAttemptRef.current + 1;
       sleepReminderSyncAttemptRef.current = attempt;
@@ -788,11 +812,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               snapshot.settings.sleepReminderEnabled &&
               snapshot.settings.setupCompleted
             ) {
-              await syncAlarmPyoSleepReminders(
+              await runtime.synchronizeSleepReminders(
                 buildSleepReminderPlans(snapshot, { now: syncNow }),
               );
             } else {
-              await cancelAlarmPyoSleepReminders();
+              await runtime.cancelAllSleepReminders();
             }
             if (mountedRef.current) {
               setSleepReminderSyncRevision((current) => current + 1);
@@ -834,7 +858,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       sleepReminderSyncTailRef.current = task;
       return task;
     },
-    [clearReportedSaveIssues],
+    [clearReportedSaveIssues, runtime],
   );
 
   const reportSleepReminderSaveFailure = useCallback((revision: number) => {
@@ -868,7 +892,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (previous.ok && next.ok) {
         try {
           pendingRestoreProtected = await protectPendingRestoreBackupBeforeDataChange(
-            AsyncStorage,
+            runtime.dataRepository,
             storageWriter,
             previous.value.data,
             next.value.data,
@@ -946,9 +970,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     let resetMarkerCleared = true;
     if (savedData !== null) {
       try {
-        deviceBackupSaved = await writeDeviceSafetyBackup(
-          savedData,
-        );
+        deviceBackupSaved = await runtime.writeBackup(savedData);
       } catch {
         deviceBackupSaved = false;
       }
@@ -993,6 +1015,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     recordSaveOutcome,
     reportSaveIssue,
     reportSaveSuccess,
+    runtime,
     storageWriter,
   ]);
 
@@ -1703,17 +1726,17 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
-  const getAlarmStatus = useCallback(async () => getAlarmPyoAlarmStatus(), []);
+  const getAlarmStatus = useCallback(() => runtime.readAlarmStatus(), [runtime]);
 
   const requestAlarmAccess = useCallback(async () => {
-    const status = await requestAlarmPyoAlarmPermissions();
+    const status = await runtime.requestAlarmPermissions();
     return (
       status.supported &&
       status.exactAlarmAllowed &&
       status.fullScreenAllowed &&
       status.notificationsAllowed
     );
-  }, []);
+  }, [runtime]);
 
   const resyncAlarms = useCallback(async (force = false) => {
     if (!readyRef.current) return false;
@@ -1752,7 +1775,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
               storedScheduledCount: syncSnapshot.settings.scheduledNotificationCount,
               lastSyncAt: syncSnapshot.settings.lastNotificationSyncAt,
             }),
-          readStatus: getAlarmPyoAlarmStatus,
+          readStatus: () => runtime.readAlarmStatus(),
           createPlan: () => buildAlarmPyoAlarmPlan(
             syncSnapshot,
             (dateKey) => resolveShiftFromData(syncSnapshot, dateKey),
@@ -1913,6 +1936,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     mutationCoordinator,
     reportAlarmSyncFailure,
     reportUnsafeAlarmSchedule,
+    runtime,
     syncAlarmsForSnapshot,
     updateData,
   ]);
@@ -1938,7 +1962,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       reportAlarmEnableBlocked();
       return false;
     }
-    const status = await requestAlarmPyoAlarmPermissions();
+    const status = await runtime.requestAlarmPermissions();
     if (!status.supported) return false;
 
     // 사용자가 알람을 켜려는 의사와 Android 전달 권한의 준비 상태는 별개입니다.
@@ -1971,6 +1995,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     mutationCoordinator,
     replaceDataAndPersistInternal,
     reportAlarmEnableBlocked,
+    runtime,
   ]);
 
   const disableAlarms = useCallback(async () => {
@@ -2003,18 +2028,18 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!saved) return false;
 
       if (enabled) {
-        await requestAlarmPyoSleepReminderPermission().catch(() => undefined);
+        await runtime.requestSleepReminderPermission().catch(() => undefined);
       }
       // 알림 권한이 없어도 설정 저장은 성공입니다. 권한이 준비되면
       // 앱 복귀 동기화가 같은 14일 계획을 다시 전달합니다.
       await syncSleepRemindersForSnapshot(dataRef.current, true);
       return true;
     },
-    [replaceDataAndPersist, syncSleepRemindersForSnapshot],
+    [replaceDataAndPersist, runtime, syncSleepRemindersForSnapshot],
   );
 
   const sendTestAlarm = useCallback(async () => {
-    const status = await requestAlarmPyoAlarmPermissions();
+    const status = await runtime.requestAlarmPermissions();
     if (
       !status.supported ||
       !status.exactAlarmAllowed ||
@@ -2025,7 +2050,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     }
     await scheduleAlarmPyoTestAlarm(5);
     return true;
-  }, []);
+  }, [runtime]);
 
   const exportData = useCallback(() => {
     if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 내보낼 수 있습니다.');
@@ -2176,7 +2201,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (!readyRef.current) throw new Error('근무표를 모두 불러온 뒤 백업할 수 있습니다.');
     try {
       const backup = await writeAutomaticBackup(storageWriter, dataRef.current);
-      const deviceBackupSaved = await writeDeviceSafetyBackup(dataRef.current);
+      const deviceBackupSaved = await runtime.writeBackup(dataRef.current);
       if (!deviceBackupSaved) {
         throw new Error('기기 안전 백업 파일을 만들지 못했습니다.');
       }
@@ -2185,7 +2210,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       // 사용자가 시작한 백업은 호출한 화면에서 작업 맥락에 맞게 안내합니다.
       throw new Error('안전 백업을 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.');
     }
-  }, [storageWriter]);
+  }, [runtime, storageWriter]);
 
   const createBackup = useCallback(() => {
     if (backupRequestRef.current !== null) return backupRequestRef.current;
@@ -2414,14 +2439,14 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   );
 
   const getLatestBackupPreview = useCallback(async () => {
-    const raw = await readAutomaticBackup(AsyncStorage);
+    const raw = await readAutomaticBackup(runtime.dataRepository);
     return raw === null ? null : previewAppDataImport(raw);
-  }, []);
+  }, [runtime]);
 
   const getPendingRestoreBackupPreview = useCallback(async () => {
     if (!readyRef.current) return null;
     const pending = await readPendingRestoreBackup(
-      AsyncStorage,
+      runtime.dataRepository,
       getPersistedDataForPendingRestore(),
     );
     if (pending === null) return null;
@@ -2429,19 +2454,19 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       ...previewAppDataImport(pending.backup),
       recoveryState: pending.recoveryState,
     };
-  }, [getPersistedDataForPendingRestore]);
+  }, [getPersistedDataForPendingRestore, runtime]);
 
   const retryPendingRestoreBackup = useCallback(async (allowUnverified = false) => {
     if (!readyRef.current) return { status: 'unavailable' } as const;
     return mutationCoordinator.run(() =>
       retryPendingRestoreBackupCommit(
-        AsyncStorage,
+        runtime.dataRepository,
         storageWriter,
         getPersistedDataForPendingRestore(),
         { allowUnverified },
       ),
     );
-  }, [getPersistedDataForPendingRestore, mutationCoordinator, storageWriter]);
+  }, [getPersistedDataForPendingRestore, mutationCoordinator, runtime, storageWriter]);
 
   const getRecoveryBackupPreview = useCallback(async () => {
     if (loadFailureReason === 'recovery-required') {
@@ -2449,9 +2474,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       return raw === null ? null : previewAppDataImport(raw);
     }
     if (loadFailureReason !== 'corrupt' || corruptBackupKey === null) return null;
-    const raw = await readRecoveryBackup(AsyncStorage);
+    const raw = await readRecoveryBackup(runtime.dataRepository);
     return raw === null ? null : previewAppDataImport(raw);
-  }, [corruptBackupKey, loadFailureReason]);
+  }, [corruptBackupKey, loadFailureReason, runtime]);
 
   const restoreRecoveryBackup = useCallback(async () => {
     if (
@@ -2507,7 +2532,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         try {
           if (
             await readPendingRestoreBackup(
-              AsyncStorage,
+              runtime.dataRepository,
               getPersistedDataForPendingRestore(),
             )
           ) {
@@ -2572,6 +2597,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     mutationCoordinator,
     replaceDataAndPersistDetailedInternal,
     reportUnsafeAlarmSchedule,
+    runtime,
     storageWriter,
   ]);
 
@@ -2797,15 +2823,53 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     ],
   );
 
-  return (
-    <AppStoreDataContext.Provider value={dataValue}>
-      <AppStoreStatusContext.Provider value={statusValue}>
-        <AppStoreActionsContext.Provider value={actionsValue}>
-          {children}
-        </AppStoreActionsContext.Provider>
-      </AppStoreStatusContext.Provider>
-    </AppStoreDataContext.Provider>
+  const storeValue = useMemo<AppStore>(
+    () => ({ ...dataValue, ...statusValue, ...actionsValue }),
+    [actionsValue, dataValue, statusValue],
   );
+
+  return (
+    <AppRuntimeContext.Provider value={runtime}>
+      <AppStoreSelectorProvider value={storeValue}>
+        <AppStoreDataContext.Provider value={dataValue}>
+          <AppStoreStatusContext.Provider value={statusValue}>
+            <AppStoreActionsContext.Provider value={actionsValue}>
+              {children}
+            </AppStoreActionsContext.Provider>
+          </AppStoreStatusContext.Provider>
+        </AppStoreDataContext.Provider>
+      </AppStoreSelectorProvider>
+    </AppRuntimeContext.Provider>
+  );
+}
+
+export function useAppSelector<TSelected>(
+  selector: (store: AppStore) => TSelected,
+  equality: AppSelectorEquality<TSelected> = Object.is,
+): TSelected {
+  const source = useContext(AppStoreSelectorContext);
+  if (!source) throw new Error('앱 선택자 저장소가 준비되지 않았습니다.');
+
+  const subscription = useMemo(
+    () => source.createSubscription(selector, equality),
+    [equality, selector, source],
+  );
+  useEffect(() => subscription.destroy, [subscription]);
+  return useSyncExternalStore(
+    subscription.subscribe,
+    subscription.getSnapshot,
+    subscription.getSnapshot,
+  );
+}
+
+export function useAppCommands(): AppStoreActions {
+  return useAppStoreActions();
+}
+
+export function useAppRuntimeController(): NativeAppRuntimeController {
+  const runtime = useContext(AppRuntimeContext);
+  if (!runtime) throw new Error('앱 실행 환경이 준비되지 않았습니다.');
+  return runtime;
 }
 
 export function useAppStoreData() {

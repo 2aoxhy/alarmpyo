@@ -12,6 +12,7 @@ import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
+  resolveFloatingTabBarGeometry,
   resolveFloatingTabBarHorizontalLayout,
   resolveFloatingTabBarLayout,
 } from '@/utils/floating-tab-bar';
@@ -22,11 +23,12 @@ export default function TabsLayout() {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const horizontalLayout = resolveFloatingTabBarHorizontalLayout(windowWidth, 4);
-  const leftInset = Math.max(insets.left, horizontalLayout.outerMargin);
-  const rightInset = Math.max(insets.right, horizontalLayout.outerMargin);
-  const availableWidth = Math.max(windowWidth - leftInset - rightInset, 0);
-  const tabBarWidth = Math.min(availableWidth, 560);
-  const tabBarLeft = leftInset + (availableWidth - tabBarWidth) / 2;
+  const tabBarGeometry = resolveFloatingTabBarGeometry(
+    windowWidth,
+    insets.left,
+    insets.right,
+    horizontalLayout.outerMargin,
+  );
   const effectiveFontScale = Math.min(Math.max(fontScale, 1), 2);
   const tabBarLayout = resolveFloatingTabBarLayout(
     effectiveFontScale,
@@ -82,9 +84,13 @@ export default function TabsLayout() {
           {
             bottom: tabBarLayout.bottom,
             height: tabBarLayout.height,
-            left: tabBarLeft,
+            left: tabBarGeometry.left,
             paddingHorizontal: horizontalLayout.horizontalPadding,
-            width: tabBarWidth,
+            // React Navigation의 웹 기본값(right: 0)을 남기면 width/left와
+            // 과도하게 제약되어 RTL·일부 웹 레이아웃에서 한쪽으로 밀립니다.
+            // 같은 inset을 양쪽에 명시해 화면 중심축을 기준으로 고정합니다.
+            right: tabBarGeometry.right,
+            width: tabBarGeometry.width,
           },
         ],
       }}>

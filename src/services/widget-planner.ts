@@ -22,6 +22,8 @@ export type AlarmPyoWidgetEntry = {
   dateKey: string;
   shiftTypeId: string;
   shiftName: string;
+  /** V14 visual-only hint. Snapshot v2 readers safely ignore this optional field. */
+  accentColor?: string;
   startMinutes: number | null;
   endMinutes: number | null;
   endsNextDay: boolean;
@@ -43,6 +45,8 @@ export type AlarmPyoWidgetAlarm = {
   alarmAt: number;
   shiftTypeId: string;
   shiftName: string;
+  /** Saved custom-shift accent; built-in roles continue to use native semantic colors. */
+  accentColor?: string;
 };
 
 export type BuildAlarmPyoWidgetSnapshotOptions = {
@@ -63,6 +67,23 @@ function isDateOverride(data: AppData, dateKey: string): boolean {
     Object.prototype.hasOwnProperty.call(data.dayExceptions, dateKey) ||
     Object.prototype.hasOwnProperty.call(data.alarmOverrides, dateKey)
   );
+}
+
+const BUILT_IN_WIDGET_SHIFT_IDS = new Set([
+  'day',
+  'evening',
+  'night',
+  'off',
+  'substitute-day',
+  'substitute-night',
+]);
+
+function customShiftAccent(shift: ShiftType | null | undefined): string | undefined {
+  if (!shift || shift.isOff || BUILT_IN_WIDGET_SHIFT_IDS.has(shift.id)) {
+    return undefined;
+  }
+  const color = shift.color.trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : undefined;
 }
 
 function toWidgetEntry(
@@ -90,12 +111,17 @@ function toWidgetEntry(
     };
   }
 
+  const accentColor = dayException
+    ? undefined
+    : customShiftAccent(effectiveShift);
+
   return {
     dateKey,
     shiftTypeId: dayException ? `exception-${dayException}` : effectiveShift.id,
     shiftName:
       (exceptionName ?? effectiveShift.name.trim()) ||
       (effectiveShift.isOff ? '휴무' : '근무'),
+    ...(accentColor ? { accentColor } : {}),
     startMinutes: effectiveShift.startMinutes,
     endMinutes: effectiveShift.endMinutes,
     endsNextDay: effectiveShift.endsNextDay,
@@ -145,11 +171,17 @@ export function buildAlarmPyoWidgetSnapshot(
     generatedAt: now.getTime(),
     setupCompleted: data.settings.setupCompleted,
     displayOptions: { ...data.settings.widgetDisplayOptions },
-    alarms: alarmPlans.map((alarm) => ({
-      alarmAt: alarm.alarmAt,
-      shiftTypeId: alarm.shiftTypeId,
-      shiftName: alarm.shiftName,
-    })),
+    alarms: alarmPlans.map((alarm) => {
+      const accentColor = customShiftAccent(
+        data.shiftTypes.find((shift) => shift.id === alarm.shiftTypeId),
+      );
+      return {
+        alarmAt: alarm.alarmAt,
+        shiftTypeId: alarm.shiftTypeId,
+        shiftName: alarm.shiftName,
+        ...(accentColor ? { accentColor } : {}),
+      };
+    }),
     entries: Array.from({ length: entryCount }, (_, offset) => {
       const dateKey = addDays(firstDateKey, offset);
       return toWidgetEntry(data, dateKey, resolveShift(dateKey));

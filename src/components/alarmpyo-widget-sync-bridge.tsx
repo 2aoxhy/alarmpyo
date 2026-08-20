@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import { resolveShiftFromAppData } from '@/services/app-data-service';
-import { isAlarmPyoWidgetInstalled, syncAlarmPyoWidget } from '@/services/alarmpyo-alarm-service';
 import { buildAlarmPyoWidgetSnapshot } from '@/services/widget-planner';
 import { getScheduleProjectionTimeZoneSignature } from '@/services/schedule-projection-cache';
 import {
@@ -14,8 +13,27 @@ import {
   type WidgetSyncCoordinator,
 } from '@/services/widget-sync-policy';
 import { getWidgetScheduleSignature } from '@/services/widget-schedule-signature';
-import { useAppStoreData } from '@/store/app-store';
+import {
+  useAppRuntimeController,
+  useAppSelector,
+  type AppStore,
+} from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
+
+type WidgetStoreState = Pick<AppStore, 'data' | 'ready'>;
+
+function selectWidgetStoreState(store: AppStore): WidgetStoreState {
+  return { data: store.data, ready: store.ready };
+}
+
+function isSameWidgetStoreState(
+  previous: WidgetStoreState,
+  next: WidgetStoreState,
+): boolean {
+  return previous.ready === next.ready &&
+    getWidgetScheduleSignature(previous.data) ===
+      getWidgetScheduleSignature(next.data);
+}
 
 /**
  * 앱 데이터가 실제로 바뀌거나 앱을 다시 사용하는 날이 바뀔 때만
@@ -24,7 +42,11 @@ import { toDateKey } from '@/utils/date';
  * JS 타이머나 백그라운드 폴링이 필요하지 않습니다.
  */
 export function AlarmPyoWidgetSyncBridge() {
-  const { data, ready } = useAppStoreData();
+  const { data, ready } = useAppSelector(
+    selectWidgetStoreState,
+    isSameWidgetStoreState,
+  );
+  const runtime = useAppRuntimeController();
   const appLifecycle = useAppLifecycle();
   const latestDataRef = useRef(data);
   const widgetSyncCoordinatorRef = useRef<WidgetSyncCoordinator | null>(null);
@@ -55,11 +77,11 @@ export function AlarmPyoWidgetSyncBridge() {
       // 설치 여부를 먼저 확인해 위젯을 쓰지 않는 휴대폰에서는 장기 근무표 계산과
       // JSON 직렬화를 하지 않아요. 앱으로 돌아오면 다시 확인하므로 새로 설치한
       // 위젯은 기존 근무 데이터가 바뀌지 않았어도 즉시 스냅샷을 받아요.
-      const now = new Date();
+      const now = runtime.now();
       const generatedDateKey = toDateKey(now);
       const supportsGeneratedPreview =
         typeof Platform.Version === 'number' && Platform.Version >= 35;
-      const installed = await isAlarmPyoWidgetInstalled();
+      const installed = await runtime.isWidgetInstalled();
       if (cancelled) return;
       const preflight = {
         installed,
@@ -84,7 +106,7 @@ export function AlarmPyoWidgetSyncBridge() {
             widgetSyncCoordinatorRef.current?.sync(
               snapshot,
               generatedDateKey,
-              syncAlarmPyoWidget,
+              (preparedSnapshot) => runtime.synchronizeWidget(preparedSnapshot),
             ) ?? 'failed',
           () => cancelled,
         );
@@ -104,6 +126,7 @@ export function AlarmPyoWidgetSyncBridge() {
     appLifecycle.active,
     appLifecycle.transitionId,
     ready,
+    runtime,
     widgetScheduleSignature,
   ]);
 

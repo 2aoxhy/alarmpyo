@@ -12,10 +12,11 @@ function source(path: string) {
 describe('웹 키보드 포커스 접근성 계약', () => {
   it('공통 버튼과 목록 행에 focus-visible 외곽선을 연결해요', () => {
     const uiKit = source('src/components/ui-kit.tsx');
+    const button = source('src/design-system/button.tsx');
 
-    expect(uiKit).toContain('const buttonFocus = useWebFocusVisible();');
+    expect(button).toContain('const focus = useWebFocusVisible();');
     expect(uiKit).toContain('const rowFocus = useWebFocusVisible();');
-    expect(uiKit).toContain('buttonFocus.focusVisible && !blocked && styles.webFocusVisible');
+    expect(button).toContain('focus.focusVisible && !blocked && styles.focusVisible');
     expect(uiKit).toContain(
       'rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible',
     );
@@ -37,6 +38,7 @@ describe('웹 키보드 포커스 접근성 계약', () => {
 
   it('외곽선은 웹에서만 의미 기반 focus 색상과 2px 너비를 사용해요', () => {
     const uiKit = source('src/components/ui-kit.tsx');
+    const button = source('src/design-system/button.tsx');
     const banner = source('src/components/save-error-banner.tsx');
     const hook = source('src/hooks/use-web-focus-visible.ts');
 
@@ -46,6 +48,10 @@ describe('웹 키보드 포커스 접근성 계약', () => {
       expect(component).toContain("outlineStyle: 'solid'");
       expect(component).toContain('outlineWidth: 2');
     }
+    expect(button).toContain("Platform.OS === 'web'");
+    expect(button).toContain('outlineColor: colors.focus');
+    expect(button).toContain("outlineStyle: 'solid'");
+    expect(button).toContain('outlineWidth: 2');
     expect(hook).toContain("matches.call(target, ':focus-visible')");
     expect(hook).toContain("if (Platform.OS !== 'web') return;");
   });

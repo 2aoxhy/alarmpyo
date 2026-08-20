@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Animated,
   Easing,
@@ -16,37 +17,24 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
-export function SetupBlurredHomeBackdrop() {
+/**
+ * 첫 설정 뒤에 실제 화면을 흉내 내지 않고 브랜드의 빛만 남깁니다.
+ * 장식은 접근성 트리에서 제외하고 설정 내용의 대비를 방해하지 않습니다.
+ */
+export function SetupBrandHaloBackdrop() {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <View style={styles.homePreview}>
-        <View style={styles.previewDate} />
-        <View style={styles.previewHero}>
-          <View style={styles.previewStatus} />
-          <View style={styles.previewHeroTitle} />
-          <View style={styles.previewHeroDetail} />
-          <View style={styles.previewHeroFooter} />
-        </View>
-        <View style={styles.previewSectionTitle} />
-        <View style={styles.previewGuideCard}>
-          <View style={styles.previewGuideIcon} />
-          <View style={styles.previewGuideCopy}>
-            <View style={styles.previewGuideTitle} />
-            <View style={styles.previewGuideLine} />
-          </View>
-        </View>
-        <View style={styles.previewGuideCard}>
-          <View style={styles.previewGuideIcon} />
-          <View style={styles.previewGuideCopy}>
-            <View style={styles.previewGuideTitle} />
-            <View style={styles.previewGuideLineShort} />
-          </View>
-        </View>
-        <View style={styles.previewTabBar} />
-      </View>
-      <View style={styles.homePreviewScrim} />
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={['#123D36', '#152433', '#101214']}
+        end={{ x: 0.78, y: 1 }}
+        start={{ x: 0.2, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.brandHaloMint} />
+      <View style={styles.brandHaloBlue} />
+      <View style={styles.brandHaloScrim} />
     </View>
   );
 }
@@ -129,113 +117,34 @@ export function SetupApplyingOverlay({ visible }: { visible: boolean }) {
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
-    homePreview: {
-      flex: 1,
-      gap: spacing.large,
-      paddingHorizontal: spacing.large,
-      paddingTop: 54,
-      opacity: 0.58,
-      filter: [{ blur: 12 }, { saturate: 0.35 }],
-      transform: [{ scale: 1.06 }],
-    },
-    previewDate: {
-      width: 184,
-      height: 22,
-      alignSelf: 'center',
-      borderRadius: 11,
-      backgroundColor: palette.inkMuted,
-    },
-    previewHero: {
-      minHeight: 224,
-      gap: spacing.medium,
-      borderRadius: 26,
-      backgroundColor: palette.surfaceSoft,
-      padding: spacing.large,
-    },
-    previewStatus: {
-      width: 116,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: palette.controlLine,
-    },
-    previewHeroTitle: {
-      width: '72%',
-      height: 42,
-      borderRadius: 12,
-      backgroundColor: palette.ink,
-    },
-    previewHeroDetail: {
-      width: '58%',
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: palette.inkMuted,
-    },
-    previewHeroFooter: {
-      height: 66,
-      marginTop: 'auto',
-      borderRadius: 18,
-      backgroundColor: palette.surface,
-    },
-    previewSectionTitle: {
-      width: 132,
-      height: 26,
-      alignSelf: 'center',
-      borderRadius: 13,
-      backgroundColor: palette.ink,
-    },
-    previewGuideCard: {
-      minHeight: 90,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.medium,
-      borderRadius: 22,
-      backgroundColor: palette.surface,
-      padding: spacing.medium,
-    },
-    previewGuideIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 15,
-      backgroundColor: palette.surfaceSoft,
-    },
-    previewGuideCopy: { flex: 1, gap: spacing.small },
-    previewGuideTitle: {
-      width: '58%',
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: palette.ink,
-    },
-    previewGuideLine: {
-      width: '92%',
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: palette.inkMuted,
-    },
-    previewGuideLineShort: {
-      width: '70%',
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: palette.inkMuted,
-    },
-    previewTabBar: {
+    brandHaloMint: {
       position: 'absolute',
-      right: spacing.medium,
-      bottom: 20,
-      left: spacing.medium,
-      height: 82,
-      borderWidth: 1,
-      borderColor: palette.line,
-      borderRadius: 28,
-      backgroundColor: palette.surface,
+      top: -132,
+      left: -116,
+      width: 330,
+      height: 330,
+      borderRadius: 165,
+      backgroundColor: '#58D9BC',
+      opacity: 0.08,
     },
-    homePreviewScrim: {
+    brandHaloBlue: {
+      position: 'absolute',
+      top: 112,
+      right: -156,
+      width: 360,
+      height: 360,
+      borderRadius: 180,
+      backgroundColor: '#89CEFF',
+      opacity: 0.055,
+    },
+    brandHaloScrim: {
       position: 'absolute',
       top: 0,
       right: 0,
       bottom: 0,
       left: 0,
       backgroundColor: palette.canvas,
-      opacity: 0.8,
+      opacity: 0.78,
     },
     applyOverlay: {
       flex: 1,

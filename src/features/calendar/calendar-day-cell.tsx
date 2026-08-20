@@ -145,6 +145,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
       }
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={selectionMode ? 'checkbox' : 'button'}
+      aria-checked={selectionMode ? isSelected : undefined}
       accessibilityState={
         selectionMode
           ? { checked: isSelected, disabled: !scheduleDate }
@@ -641,7 +642,7 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
         ? {
             zIndex: 3,
             outlineColor: palette.focus,
-            outlineOffset: -2,
+            outlineOffset: 2,
             outlineStyle: 'solid',
             outlineWidth: 2,
           }

@@ -3,8 +3,9 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'reac
 
 import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
-import { AppText, Card } from '@/components/ui-kit';
+import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -177,7 +178,7 @@ export function PatternApplicationPreview({
         </View>
       </View>
 
-      <Card style={styles.calendarCard}>
+      <Surface style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <MonthNavigationButton
             disabled={visibleMonthIndex <= 0}
@@ -265,9 +266,9 @@ export function PatternApplicationPreview({
             <AppText tone="secondary" variant="caption">선택한 날짜</AppText>
           </View>
         </View>
-      </Card>
+      </Surface>
 
-      <Card style={styles.detailCard}>
+      <Surface style={styles.detailCard} tone="muted">
         <View style={styles.detailHeading}>
           <AppText accessibilityRole="header" variant="heading">
             {selectedRow.dateLabel}
@@ -323,7 +324,7 @@ export function PatternApplicationPreview({
               : '이 날짜의 직접 수정을 제거합니다.'}
           </AppText>
         ) : null}
-      </Card>
+      </Surface>
     </View>
   );
 }

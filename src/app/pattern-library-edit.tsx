@@ -1,12 +1,15 @@
-import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
-import { AppButton, AppText, Screen, SectionHeader } from '@/components/ui-kit';
+import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { AppField, StatusBanner } from '@/design-system';
+import { AppField, PageHeader, StatusBanner, Surface } from '@/design-system';
+import {
+  triggerNotificationFeedback,
+  triggerSelectionFeedback,
+} from '@/features/feedback/feedback-controller';
 import {
   createPatternDraft,
   formatPatternSequence,
@@ -14,7 +17,10 @@ import {
   validatePatternDraft,
   type PatternDraft,
 } from '@/features/pattern-library/pattern-library-model';
-import { PatternSequenceDayEditor } from '@/features/pattern-library/pattern-sequence-day-editor';
+import {
+  PatternSequenceDayEditor,
+  PatternSequenceStrip,
+} from '@/features/pattern-library/pattern-sequence-day-editor';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PatternShiftCode } from '@/models/app-data';
 import { useAppStore } from '@/store/app-store';
@@ -30,9 +36,14 @@ export default function PatternLibraryEditScreen() {
   const [initialDraft] = useState<PatternDraft>(() => createPatternDraft(editing));
   const [draft, setDraft] = useState<PatternDraft>(() => initialDraft);
   const [saving, setSaving] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const allowNavigation = useRef(false);
   const validation = useMemo(() => validatePatternDraft(draft), [draft]);
   const changed = JSON.stringify(initialDraft) !== JSON.stringify(draft);
+
+  const activeIndex = Math.min(selectedIndex, draft.shiftCodes.length - 1);
 
   useEffect(
     () =>
@@ -68,7 +79,7 @@ export default function PatternLibraryEditScreen() {
         itemIndex === index ? code : item,
       ),
     }));
-    void Haptics.selectionAsync();
+    void triggerSelectionFeedback();
   };
 
   const removeDay = (index: number) => {
@@ -76,14 +87,17 @@ export default function PatternLibraryEditScreen() {
       ...current,
       shiftCodes: current.shiftCodes.filter((_, itemIndex) => itemIndex !== index),
     }));
+    setSelectedIndex((current) => Math.max(0, Math.min(current, draft.shiftCodes.length - 2)));
   };
 
   const addDay = () => {
     if (draft.shiftCodes.length >= MAX_PATTERN_LENGTH) return;
+    setSelectedIndex(draft.shiftCodes.length);
     setDraft((current) => ({ ...current, shiftCodes: [...current.shiftCodes, 'OFF'] }));
   };
 
   const save = async () => {
+    setSubmitAttempted(true);
     if (!validation.valid || saving) {
       if (validation.message) {
         showDialog('패턴을 확인해야 합니다', validation.message, undefined, {
@@ -102,7 +116,7 @@ export default function PatternLibraryEditScreen() {
       });
       if (result.status === 'saved' || result.status === 'unchanged') {
         allowNavigation.current = true;
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void triggerNotificationFeedback('success');
         router.back();
         return;
       }
@@ -123,7 +137,7 @@ export default function PatternLibraryEditScreen() {
   if (id && (!editing || editing.source !== 'user')) {
     return (
       <Screen>
-        <SectionHeader centered title="패턴 편집" />
+        <PageHeader title="패턴 편집" />
         <StatusBanner
           actionLabel="보관함으로 이동"
           message="편집할 수 있는 내 패턴을 찾지 못했습니다."
@@ -142,7 +156,7 @@ export default function PatternLibraryEditScreen() {
         contentStyle={styles.screen}
         footer={
           <AppButton
-            disabled={!changed || !validation.valid || saving}
+            disabled={!changed || saving}
             icon="checkmark"
             label={saving ? '저장 중' : '패턴 저장'}
             loading={saving}
@@ -150,64 +164,69 @@ export default function PatternLibraryEditScreen() {
           />
         }
         safeAreaEdges={['left', 'right']}
-        scroll={false}>
-        <FlatList
-          contentContainerStyle={styles.listContent}
-          data={draft.shiftCodes}
-          keyboardShouldPersistTaps="handled"
-          keyExtractor={(_, index) => `pattern-day-${index}`}
-          ListFooterComponent={
+        scroll>
+        <PageHeader
+          subtitle="날짜를 고른 뒤 그날의 근무만 수정합니다."
+          title={editing ? '패턴 편집' : '내 패턴 만들기'}
+        />
+        <StatusBanner
+          message="이 패턴은 근무 순서만 포함합니다. 근무 시간, 알람, 권한 설정은 변경하지 않습니다."
+          title="설정 보호"
+          tone="info"
+        />
+        <AppField
+          autoCapitalize="none"
+          errorText={
+            (nameTouched || submitAttempted) && validation.issue === 'name-required'
+              ? validation.message ?? undefined
+              : undefined
+          }
+          helperText="나중에 구분할 수 있는 이름을 입력합니다."
+          label="패턴 이름"
+          maxLength={80}
+          onBlur={() => setNameTouched(true)}
+          onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
+          placeholder="예: 우리 회사 6일 순환"
+          required
+          value={draft.name}
+        />
+        <Surface density="compact" tone="muted" style={styles.summary}>
+          <AppText variant="label">근무 순서 · {draft.shiftCodes.length}/42일</AppText>
+          <AppText tone="secondary" variant="caption">
+            {formatPatternSequence(draft.shiftCodes)}
+          </AppText>
+        </Surface>
+        <View style={styles.sequenceSection}>
+          <View style={styles.sequenceHeading}>
+            <View style={styles.sequenceHeadingCopy}>
+              <AppText accessibilityRole="header" variant="heading">날짜별 근무</AppText>
+              <AppText tone="secondary" variant="caption">
+                {activeIndex + 1}/{draft.shiftCodes.length}일을 편집합니다.
+              </AppText>
+            </View>
             <AppButton
               accessibilityHint="패턴 끝에 휴무 하루를 추가합니다."
               disabled={draft.shiftCodes.length >= MAX_PATTERN_LENGTH}
               icon="add"
-              label={
-                draft.shiftCodes.length >= MAX_PATTERN_LENGTH
-                  ? '42일 최대'
-                  : '날짜 추가'
-              }
+              label={draft.shiftCodes.length >= MAX_PATTERN_LENGTH ? '42일 최대' : '날짜 추가'}
               onPress={addDay}
+              size="compact"
               variant="secondary"
             />
-          }
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <SectionHeader centered title={editing ? '패턴 편집' : '내 패턴 만들기'} />
-              <StatusBanner
-                message="이 패턴은 근무 순서만 포함합니다. 근무 시간, 알람, 권한 설정은 변경하지 않습니다."
-                title="설정 보호"
-                tone="info"
-              />
-              <AppField
-                autoCapitalize="none"
-                errorText={validation.issue === 'name-required' ? validation.message ?? undefined : undefined}
-                helperText="나중에 구분할 수 있는 이름을 입력합니다."
-                label="패턴 이름"
-                maxLength={80}
-                onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
-                placeholder="예: 우리 회사 6일 순환"
-                required
-                value={draft.name}
-              />
-              <View style={styles.summary}>
-                <AppText variant="label">근무 순서 · {draft.shiftCodes.length}/42일</AppText>
-                <AppText tone="secondary" variant="caption">
-                  {formatPatternSequence(draft.shiftCodes)}
-                </AppText>
-              </View>
-            </View>
-          }
-          renderItem={({ index, item }) => (
-            <PatternSequenceDayEditor
-              code={item}
-              index={index}
-              onChange={changeCode}
-              onRemove={removeDay}
-              total={draft.shiftCodes.length}
-            />
-          )}
-          showsVerticalScrollIndicator
-        />
+          </View>
+          <PatternSequenceStrip
+            codes={draft.shiftCodes}
+            onSelect={setSelectedIndex}
+            selectedIndex={activeIndex}
+          />
+          <PatternSequenceDayEditor
+            code={draft.shiftCodes[activeIndex]}
+            index={activeIndex}
+            onChange={changeCode}
+            onRemove={removeDay}
+            total={draft.shiftCodes.length}
+          />
+        </View>
       </Screen>
     </>
   );
@@ -216,19 +235,7 @@ export default function PatternLibraryEditScreen() {
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     screen: {
-      minHeight: 0,
-      flex: 1,
-      paddingHorizontal: 0,
-      paddingTop: 0,
-    },
-    listContent: {
-      paddingHorizontal: spacing.large,
-      paddingTop: spacing.large,
-      paddingBottom: spacing.xlarge,
-    },
-    header: {
       gap: spacing.large,
-      marginBottom: spacing.large,
     },
     summary: {
       gap: spacing.small,
@@ -238,5 +245,14 @@ function createStyles(palette: AppPalette) {
       borderRadius: 18,
       backgroundColor: palette.surfaceSoft,
     },
+    sequenceSection: { gap: spacing.medium },
+    sequenceHeading: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.medium,
+    },
+    sequenceHeadingCopy: { minWidth: 180, flex: 1, gap: spacing.tiny },
   });
 }

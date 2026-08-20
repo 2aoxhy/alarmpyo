@@ -181,4 +181,30 @@ describe('위젯 일정 서명', () => {
       getWidgetScheduleSignature(first),
     );
   });
+
+  it('사용자 근무의 저장 강조색이 바뀌면 위젯 의미선을 다시 동기화해요', () => {
+    const original = createDefaultAppData('2026-07-11');
+    const customShift = {
+      ...original.shiftTypes.find((shift) => shift.id === 'day')!,
+      id: 'custom-shift',
+      name: '사용자 근무',
+      shortName: '사용',
+      color: '#89CEFF',
+    };
+    const withCustom = {
+      ...original,
+      pattern: { ...original.pattern, shiftTypeIds: [customShift.id] },
+      shiftTypes: [...original.shiftTypes, customShift],
+    };
+    const recolored = {
+      ...withCustom,
+      shiftTypes: withCustom.shiftTypes.map((shift) =>
+        shift.id === customShift.id ? { ...shift, color: '#F0C36A' } : shift,
+      ),
+    };
+
+    expect(getWidgetScheduleSignature(recolored)).not.toBe(
+      getWidgetScheduleSignature(withCustom),
+    );
+  });
 });

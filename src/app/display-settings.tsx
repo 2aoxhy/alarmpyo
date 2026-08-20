@@ -1,14 +1,13 @@
 import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { ToggleRow } from '@/design-system';
+import { useDisplaySettingsController } from '@/features/display-settings/display-settings-controller';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { WidgetDisplayOptions } from '@/models/app-data';
-import { requestPreparedAlarmPyoWidgetPin } from '@/services/widget-pin-service';
 import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
 
 const WIDGET_OPTIONS: readonly {
@@ -25,31 +24,30 @@ export default function DisplaySettingsScreen() {
   const { data } = useAppStoreData();
   const { toggleWidgetDisplayOption } = useAppStoreActions();
   const styles = useThemedStyles(createStyles);
-  const [widgetPinBusy, setWidgetPinBusy] = useState(false);
-  const androidWidgetSupported = Platform.OS === 'android';
+  const {
+    androidWidgetSupported,
+    requestWidget,
+    widgetPinBusy,
+  } = useDisplaySettingsController(data);
 
-  const requestWidget = async () => {
-    if (widgetPinBusy || !androidWidgetSupported) return;
-    setWidgetPinBusy(true);
-    try {
-      const result = await requestPreparedAlarmPyoWidgetPin(data);
-      if (result.status === 'requested') return;
-      if (result.status === 'installed') {
+  const handleWidgetRequest = async () => {
+    const result = await requestWidget();
+    if (result.status === 'requested' || result.status === 'ignored') return;
+    if (result.status === 'installed') {
         showDialog('이미 추가되어 있습니다', '홈 화면에서 알람표 위젯을 확인해야 합니다.');
         return;
-      }
+    }
+    if (result.status === 'manual') {
       showDialog(
         '홈 화면에서 직접 추가해야 합니다',
         '홈 화면을 길게 누른 뒤 위젯 목록에서 알람표를 선택해야 합니다.',
       );
-    } catch {
-      showDialog(
-        '위젯 추가 요청을 열지 못했습니다',
-        '잠시 후 다시 시도하거나 홈 화면의 위젯 목록에서 알람표를 선택해야 합니다.',
-      );
-    } finally {
-      setWidgetPinBusy(false);
+      return;
     }
+    showDialog(
+      '위젯 추가 요청을 열지 못했습니다',
+      '잠시 후 다시 시도하거나 홈 화면의 위젯 목록에서 알람표를 선택해야 합니다.',
+    );
   };
 
   return (
@@ -110,7 +108,7 @@ export default function DisplaySettingsScreen() {
           icon="add"
           label="홈 화면에 추가하기"
           loading={widgetPinBusy}
-          onPress={() => void requestWidget()}
+          onPress={() => void handleWidgetRequest()}
           variant="secondary"
         />
       </Card>

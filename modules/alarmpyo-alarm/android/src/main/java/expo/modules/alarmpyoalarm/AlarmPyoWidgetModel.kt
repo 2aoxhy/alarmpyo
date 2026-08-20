@@ -15,7 +15,8 @@ internal data class AlarmPyoWidgetEntry(
   val endsNextDay: Boolean,
   val isOff: Boolean,
   val isOverride: Boolean,
-  val exceptionName: String? = null
+  val exceptionName: String? = null,
+  val accentColor: String? = null
 )
 
 internal data class AlarmPyoWidgetDisplayOptions(
@@ -29,7 +30,8 @@ internal data class AlarmPyoWidgetDisplayOptions(
 internal data class AlarmPyoWidgetAlarm(
   val alarmAt: Long,
   val shiftTypeId: String,
-  val shiftName: String
+  val shiftName: String,
+  val accentColor: String? = null
 )
 
 internal data class AlarmPyoWidgetSnapshot(
@@ -77,7 +79,8 @@ internal data class AlarmPyoWidgetSnapshot(
                   .trim()
                   .take(20)
                   .ifBlank { null }
-              }
+              },
+              accentColor = item.optionalAccentColor("accentColor")
             )
           )
         }
@@ -108,7 +111,8 @@ internal data class AlarmPyoWidgetSnapshot(
               AlarmPyoWidgetAlarm(
                 alarmAt = alarmAt,
                 shiftTypeId = item.optString("shiftTypeId").trim().take(64),
-                shiftName = item.optString("shiftName").trim().take(30)
+                shiftName = item.optString("shiftName").trim().take(30),
+                accentColor = item.optionalAccentColor("accentColor")
               )
             )
           }
@@ -126,13 +130,23 @@ internal data class AlarmPyoWidgetSnapshot(
     private fun JSONObject.optionalMinutes(key: String): Int? =
       if (!has(key) || isNull(key)) null else getInt(key).also { require(it in 0..1439) }
 
+    private fun JSONObject.optionalAccentColor(key: String): String? =
+      if (!has(key) || isNull(key)) {
+        null
+      } else {
+        optString(key).trim().uppercase(Locale.ROOT).takeIf(ACCENT_COLOR_REGEX::matches)
+      }
+
     private val DATE_KEY_REGEX = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+    private val ACCENT_COLOR_REGEX = Regex("^#[0-9A-F]{6}$")
   }
 }
 
 internal enum class AlarmPyoWidgetVisual {
   DAY,
+  EVENING,
   NIGHT,
+  CUSTOM,
   TRAINING,
   RESERVE,
   OFF,
@@ -159,7 +173,8 @@ internal data class AlarmPyoWidgetViewState(
   val secondaryLabel: String? = null,
   val secondaryText: String? = null,
   val bottomSectionKind: AlarmPyoWidgetSectionKind = AlarmPyoWidgetSectionKind.GENERIC,
-  val secondarySectionKind: AlarmPyoWidgetSectionKind = AlarmPyoWidgetSectionKind.GENERIC
+  val secondarySectionKind: AlarmPyoWidgetSectionKind = AlarmPyoWidgetSectionKind.GENERIC,
+  val accentColor: String? = null
 )
 
 private data class ShiftWindow(
@@ -174,7 +189,8 @@ private data class WidgetDisplayBlock(
   val title: String,
   val detail: String,
   val compactText: String,
-  val visual: AlarmPyoWidgetVisual
+  val visual: AlarmPyoWidgetVisual,
+  val accentColor: String? = null
 )
 
 internal object AlarmPyoWidgetFormatter {
@@ -311,7 +327,8 @@ internal object AlarmPyoWidgetFormatter {
             title = todayState.titleText,
             detail = todayState.scheduleText,
             compactText = "${todayState.titleText} · ${todayState.scheduleText}",
-            visual = todayState.visual
+            visual = todayState.visual,
+            accentColor = todayState.accentColor
           )
         )
       }
@@ -333,6 +350,7 @@ internal object AlarmPyoWidgetFormatter {
       bottomText = secondary?.compactText.orEmpty(),
       bottomSectionKind = secondary?.sectionKind ?: AlarmPyoWidgetSectionKind.GENERIC,
       visual = primary.visual,
+      accentColor = primary.accentColor,
       contentDescription = description,
       secondaryLabel = tertiary?.label,
       secondaryText = tertiary?.compactText,
@@ -365,7 +383,8 @@ internal object AlarmPyoWidgetFormatter {
       title = "$day $shift",
       detail = "$clock 시작",
       compactText = "$day $shift · $clock",
-      visual = visualFor(entry)
+      visual = visualFor(entry),
+      accentColor = entry.accentColor
     )
   }
 
@@ -393,7 +412,8 @@ internal object AlarmPyoWidgetFormatter {
       title = "$day $clock",
       detail = "$shift 알람",
       compactText = "$day $clock · $shift",
-      visual = visualForAlarm(nextAlarm)
+      visual = visualForAlarm(nextAlarm),
+      accentColor = nextAlarm.accentColor
     )
   }
 
@@ -413,6 +433,7 @@ internal object AlarmPyoWidgetFormatter {
       bottomLabel = "다음 근무",
       bottomText = nextWork?.let { formatNextWork(it, nowMillis, timeZone) } ?: "예정 없음",
       visual = visualFor(entry),
+      accentColor = entry.accentColor,
       nextRefreshAt = nextWork?.startAt?.plus(1_000L),
       extraDescription = "퇴근까지 ${formatRemaining(active.endAt - nowMillis)}"
     )
@@ -432,6 +453,7 @@ internal object AlarmPyoWidgetFormatter {
     bottomLabel = "다음 근무",
     bottomText = formatNextWork(ShiftWindow(entry, startAt, startAt), nowMillis, timeZone),
     visual = visualFor(entry),
+    accentColor = entry.accentColor,
     nextRefreshAt = startAt + 1_000L,
     extraDescription = "출근까지 ${formatRemaining(startAt - nowMillis)}"
   )
@@ -451,6 +473,7 @@ internal object AlarmPyoWidgetFormatter {
       bottomLabel = "다음 근무",
       bottomText = nextWork?.let { formatNextWork(it, nowMillis, timeZone) } ?: "예정 없음",
       visual = visualFor(entry),
+      accentColor = entry.accentColor,
       nextRefreshAt = nextWork?.startAt?.plus(1_000L),
       extraDescription = if (nextWork?.entry?.isOverride == true) "직접 변경한 다음 근무" else null
     )
@@ -470,6 +493,7 @@ internal object AlarmPyoWidgetFormatter {
     bottomLabel = "다음 근무",
     bottomText = nextWork?.let { formatNextWork(it, nowMillis, timeZone) } ?: "일정 확인 필요",
     visual = visualFor(entry),
+    accentColor = entry.accentColor,
     nextRefreshAt = nextWork?.startAt?.plus(1_000L)
   )
 
@@ -502,7 +526,8 @@ internal object AlarmPyoWidgetFormatter {
     bottomText: String,
     visual: AlarmPyoWidgetVisual,
     nextRefreshAt: Long?,
-    extraDescription: String? = null
+    extraDescription: String? = null,
+    accentColor: String? = null
   ): AlarmPyoWidgetViewState {
     val description = listOfNotNull(
       dateText,
@@ -521,7 +546,8 @@ internal object AlarmPyoWidgetFormatter {
       bottomText = bottomText,
       visual = visual,
       contentDescription = description,
-      nextRefreshAt = nextRefreshAt
+      nextRefreshAt = nextRefreshAt,
+      accentColor = accentColor
     )
   }
 
@@ -569,7 +595,10 @@ internal object AlarmPyoWidgetFormatter {
     alarm.shiftTypeId == "exception-reserve" -> AlarmPyoWidgetVisual.RESERVE
     alarm.shiftTypeId == "night" ||
       alarm.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.NIGHT
-    else -> AlarmPyoWidgetVisual.DAY
+    alarm.shiftTypeId == "evening" -> AlarmPyoWidgetVisual.EVENING
+    alarm.shiftTypeId == "day" ||
+      alarm.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.DAY
+    else -> AlarmPyoWidgetVisual.CUSTOM
   }
 
   private fun visualFor(entry: AlarmPyoWidgetEntry): AlarmPyoWidgetVisual = when {
@@ -577,9 +606,11 @@ internal object AlarmPyoWidgetFormatter {
     entry.shiftTypeId == "exception-reserve" -> AlarmPyoWidgetVisual.RESERVE
     entry.isOff -> AlarmPyoWidgetVisual.OFF
     entry.shiftTypeId == "night" ||
-      entry.shiftTypeId == "substitute-night" ||
-      entry.endsNextDay -> AlarmPyoWidgetVisual.NIGHT
-    else -> AlarmPyoWidgetVisual.DAY
+      entry.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.NIGHT
+    entry.shiftTypeId == "evening" -> AlarmPyoWidgetVisual.EVENING
+    entry.shiftTypeId == "day" ||
+      entry.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.DAY
+    else -> AlarmPyoWidgetVisual.CUSTOM
   }
 
   private fun formatSchedule(entry: AlarmPyoWidgetEntry): String {

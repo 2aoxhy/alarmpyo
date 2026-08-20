@@ -1,7 +1,8 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
+import { Surface } from '@/design-system';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PatternVaultEntry } from '@/models/app-data';
 
@@ -29,7 +30,7 @@ export function PatternVaultCard({
   const stackActions = width <= 360 || fontScale >= 1.3;
 
   return (
-    <Card style={[styles.card, active && styles.cardActive]}>
+    <Surface tone={active ? 'selected' : 'base'} style={[styles.card, active && styles.cardActive]}>
       <View style={styles.heading}>
         <View style={styles.headingCopy}>
           <View style={styles.eyebrow}>
@@ -100,7 +101,7 @@ export function PatternVaultCard({
           />
         ) : null}
       </View>
-    </Card>
+    </Surface>
   );
 }
 
@@ -113,7 +114,6 @@ function createStyles(palette: AppPalette) {
     cardActive: {
       borderWidth: 2,
       borderColor: palette.selectionBorder,
-      backgroundColor: palette.selectionSurface,
     },
     heading: {
       flexDirection: 'row',

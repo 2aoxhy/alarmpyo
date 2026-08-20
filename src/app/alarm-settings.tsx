@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { useAppDialog } from "@/components/app-dialog";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
@@ -18,7 +18,6 @@ import {
 import {
   AppButton,
   AppText,
-  Card,
   ListRow,
   MenuDivider,
   MenuGroup,
@@ -29,6 +28,13 @@ import { alarmCopy } from "@/content/alarm-copy";
 import { DisclosureRow, StatusBanner, ToggleRow } from "@/design-system";
 import { AlarmPermissionChecklist } from "@/features/alarm/alarm-permission-checklist";
 import { AlarmSoundSettings } from "@/features/alarm/alarm-sound-settings";
+import {
+  useAlarmSettingsRuntimeController,
+  type AlarmPyoAlarmEventType,
+  type AlarmPyoAlarmHistoryEvent,
+  type AlarmPyoAlarmStatus,
+  type AlarmPyoPermissionSettingsTarget,
+} from "@/features/alarm/alarm-settings-runtime-controller";
 import { SleepReminderToggle } from "@/features/alarm/sleep-reminder-toggle";
 import {
   resolveAlarmScheduleEmptyCopy,
@@ -36,7 +42,6 @@ import {
   resolveVisibleAlarmAutoCheckStatus,
 } from "@/features/alarm/alarm-settings-view-model";
 import { formatWakeTimeSummary } from "@/features/shift-settings/shift-settings-model";
-import { useAlarmRuntimeStatus } from "@/hooks/use-alarm-runtime-status";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useNow } from "@/hooks/use-now";
 import { useScreenActive } from "@/hooks/use-screen-active";
@@ -46,15 +51,6 @@ import {
 } from "@/services/alarm-planner";
 import { resolveAlarmHealthState } from "@/services/alarm-access-summary";
 import { getCachedFutureAlarmProjection } from "@/services/schedule-projection-cache";
-import {
-  openAlarmPyoAlarmPermissionSettings,
-  openAlarmPyoPermissionSettings,
-  type AlarmPyoAlarmEventType,
-  type AlarmPyoAlarmHistoryEvent,
-  type AlarmPyoAlarmStatus,
-  type AlarmPyoPermissionSettingsTarget,
-} from "@/services/alarmpyo-alarm-service";
-import { isSleepReminderNativeSupported } from "@/services/sleep-reminder-service";
 import { getSleepReminderScheduleSignature } from "@/services/sleep-reminder-planner";
 import { useAppStore, useAppStoreData } from "@/store/app-store";
 import { formatAlarmCountdown } from "@/utils/date";
@@ -221,14 +217,16 @@ export default function AlarmSettingsScreen() {
   const [managementOpen, setManagementOpen] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const alarmPlatformSupported = Platform.OS === "android";
-  const sleepReminderSupported =
-    alarmPlatformSupported && isSleepReminderNativeSupported();
   const alarmSyncVersion = data.settings.lastNotificationSyncAt;
-  const runtimeStatus = useAlarmRuntimeStatus({
+  const {
+    alarmPlatformSupported,
+    sleepReminderSupported,
+    runtimeStatus,
+    openAlarmPermissionSettings,
+    openPermissionSettings,
+  } = useAlarmSettingsRuntimeController({
     enabled: screenActive,
-    includeSleepReminder:
-      sleepReminderSupported && data.settings.sleepReminderEnabled,
+    sleepReminderEnabled: data.settings.sleepReminderEnabled,
     revisionKey: [
       alarmSyncVersion ?? "",
       data.settings.sleepReminderEnabled
@@ -332,7 +330,7 @@ export default function AlarmSettingsScreen() {
 
   const openAlarmSettings = useCallback(async () => {
     try {
-      await openAlarmPyoAlarmPermissionSettings();
+      await openAlarmPermissionSettings();
     } catch {
       showDialog(
         "설정을 열지 못했습니다",
@@ -341,7 +339,7 @@ export default function AlarmSettingsScreen() {
         { tone: "danger" },
       );
     }
-  }, [showDialog]);
+  }, [openAlarmPermissionSettings, showDialog]);
 
   const openPermissionTarget = useCallback(async (
     target: AlarmPyoPermissionSettingsTarget,
@@ -351,7 +349,7 @@ export default function AlarmSettingsScreen() {
     const setBusy = sleepTarget ? setSleepReminderBusy : setAlarmBusy;
     setBusy(true);
     try {
-      const result = await openAlarmPyoPermissionSettings(target);
+      const result = await openPermissionSettings(target);
       if (!result.opened) throw new Error("unsupported");
     } catch {
       const copy = target === "do-not-disturb"
@@ -377,7 +375,7 @@ export default function AlarmSettingsScreen() {
     } finally {
       setBusy(false);
     }
-  }, [alarmBusy, showDialog, sleepReminderBusy]);
+  }, [alarmBusy, openPermissionSettings, showDialog, sleepReminderBusy]);
 
   const toggleAlarms = async (enabled: boolean) => {
     if (alarmBusy) return;
@@ -629,7 +627,7 @@ export default function AlarmSettingsScreen() {
       active={screenActive && data.settings.notificationsEnabled}>
       <Stack.Screen options={{ title: "알람" }} />
       <Screen contentStyle={styles.screenContent} safeAreaEdges={['left', 'right']}>
-        <Card elevated style={styles.statusCard}>
+        <View style={styles.statusCard}>
           <ToggleRow
             disabled={alarmBusy || !alarmPlatformSupported}
             icon="alarm-outline"
@@ -669,7 +667,7 @@ export default function AlarmSettingsScreen() {
               variant="secondary"
             />
           ) : null}
-        </Card>
+        </View>
 
         {data.settings.notificationsEnabled || scheduledCount > 0 ? (
           <MenuGroup title="다음 알람">
@@ -732,7 +730,10 @@ export default function AlarmSettingsScreen() {
                 : "options-outline"
             }
             onPress={() => setManagementOpen((open) => !open)}
-            style={styles.detailsDisclosure}
+            style={[
+              styles.detailsDisclosure,
+              managementOpen && styles.detailsDisclosureOpen,
+            ]}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
                 ? `알람음·진동 · 시험 · 권한 · 기록 ${recentAlarmEvents.length}개`
@@ -753,7 +754,7 @@ export default function AlarmSettingsScreen() {
               ) : null}
               <AlarmSoundSettings />
 
-              <Card style={styles.testCard}>
+              <View style={styles.testCard}>
                 <View style={styles.testHeader}>
                   <View style={styles.testIcon}>
                     <AppIcon
@@ -781,10 +782,10 @@ export default function AlarmSettingsScreen() {
                   style={styles.fullWidthButton}
                   variant="secondary"
                 />
-              </Card>
+              </View>
 
               {alarmPlatformSupported ? (
-                <Card density="compact" style={styles.detailsCard}>
+                <View style={styles.detailsCard}>
                   <ListRow
                     allowSubtitleWrapping
                     expanded={permissionsOpen}
@@ -848,7 +849,7 @@ export default function AlarmSettingsScreen() {
                       )}
                     </View>
                   ) : null}
-                </Card>
+                </View>
               ) : null}
             </View>
           ) : null}
@@ -1063,7 +1064,14 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       paddingTop: spacing.small,
       paddingBottom: spacing.xxlarge,
     },
-    statusCard: { gap: spacing.medium },
+    statusCard: {
+      gap: spacing.medium,
+      padding: spacing.medium,
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: radii.large,
+      backgroundColor: palette.surface,
+    },
     alarmToggle: {
       minHeight: 60,
       paddingHorizontal: 0,
@@ -1071,7 +1079,12 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       backgroundColor: palette.transparent,
     },
     fullWidthButton: { width: "100%" },
-    testCard: { gap: spacing.medium },
+    testCard: {
+      gap: spacing.medium,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
     testHeader: {
       minWidth: 0,
       flexDirection: "row",
@@ -1087,13 +1100,31 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       justifyContent: "center",
       backgroundColor: palette.indigoSoft,
     },
-    detailsSection: { gap: spacing.small },
+    detailsSection: { gap: 0 },
     detailsDisclosure: {
       borderWidth: 1,
       borderColor: palette.line,
     },
-    managementBody: { gap: spacing.medium },
-    detailsCard: { gap: 0 },
+    detailsDisclosureOpen: {
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+    },
+    managementBody: {
+      gap: spacing.medium,
+      paddingHorizontal: spacing.medium,
+      paddingBottom: spacing.medium,
+      borderWidth: 1,
+      borderTopWidth: 0,
+      borderColor: palette.line,
+      borderBottomLeftRadius: radii.large,
+      borderBottomRightRadius: radii.large,
+      backgroundColor: palette.surface,
+    },
+    detailsCard: {
+      gap: 0,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
     nestedDetail: {
       gap: spacing.small,
       paddingHorizontal: spacing.small,

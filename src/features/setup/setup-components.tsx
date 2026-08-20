@@ -4,6 +4,7 @@ import {
   Platform,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -13,9 +14,10 @@ import {
   AnimatedShiftIcon,
   getShiftIconKind,
 } from '@/components/animated-shift-icon';
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
+import { Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { ShiftType } from '@/models/app-data';
@@ -307,10 +309,13 @@ export function PatternSequenceEditor({
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const rotate = (index: number) => {
-    const current = sequence[index];
-    const next = SEQUENCE_ORDER[(SEQUENCE_ORDER.indexOf(current) + 1) % SEQUENCE_ORDER.length];
-    onChange(sequence.map((id, itemIndex) => (itemIndex === index ? next : id)));
+  const { fontScale, width } = useWindowDimensions();
+  const stackOptions = width <= 320 || fontScale >= 1.5;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const activeIndex = Math.min(selectedIndex, sequence.length - 1);
+
+  const changeSelectedDay = (next: BaseWorkShiftId) => {
+    onChange(sequence.map((id, index) => (index === activeIndex ? next : id)));
   };
 
   const renderSequenceItem = ({ item: id, index }: { item: BaseWorkShiftId; index: number }) => {
@@ -323,13 +328,12 @@ export function PatternSequenceEditor({
     const appearance = getShiftAppearance(shift, palette, isDark);
     return (
       <SelectionPill
-        accessibilityHint="누르면 주간, 오후, 야간, 휴무 순서로 변경됩니다."
         accessibilityLabel={`${index + 1}/${sequence.length}, ${SEQUENCE_LABELS[id]}`}
-        accessibilityRole="button"
+        accessibilityRole="radio"
         key={`sequence-slot-${index}`}
         label={`${index + 1}일 ${SEQUENCE_LABELS[id]}`}
-        onPress={() => rotate(index)}
-        selected
+        onPress={() => setSelectedIndex(index)}
+        selected={activeIndex === index}
         semanticColor={appearance.accentColor}
         showCheck={false}
         style={styles.sequenceItem}
@@ -339,44 +343,68 @@ export function PatternSequenceEditor({
 
   return (
     <View style={styles.sequenceEditor}>
-      {sequence.length > 8 ? (
-        <FlatList
-          accessibilityLabel={`${sequence.length}일 근무 순서`}
-          data={sequence}
-          horizontal
-          initialNumToRender={8}
-          keyExtractor={(_, index) => `sequence-slot-${index}`}
-          maxToRenderPerBatch={8}
-          removeClippedSubviews={Platform.OS === 'android'}
-          renderItem={renderSequenceItem}
-          showsHorizontalScrollIndicator={false}
-          style={styles.sequenceList}
-          contentContainerStyle={styles.sequenceListContent}
-          windowSize={3}
-        />
-      ) : (
-        <View accessibilityRole="list" style={styles.sequenceGrid}>
-          {sequence.map((id, index) => renderSequenceItem({ item: id, index }))}
+      <FlatList
+        accessibilityLabel={`${sequence.length}일 근무 순서`}
+        accessibilityRole="radiogroup"
+        contentContainerStyle={styles.sequenceListContent}
+        data={sequence}
+        horizontal
+        initialNumToRender={8}
+        keyExtractor={(_, index) => `sequence-slot-${index}`}
+        maxToRenderPerBatch={8}
+        removeClippedSubviews={Platform.OS === 'android'}
+        renderItem={renderSequenceItem}
+        showsHorizontalScrollIndicator={false}
+        style={styles.sequenceList}
+        windowSize={3}
+      />
+      <View style={styles.selectedDayEditor}>
+        <View style={styles.sectionCopy}>
+          <AppText variant="label">{activeIndex + 1}/{sequence.length}일 근무</AppText>
+          <AppText variant="caption" tone="secondary">
+            선택한 날짜의 근무만 변경합니다.
+          </AppText>
         </View>
-      )}
+        <View
+          accessibilityLabel={`${activeIndex + 1}일 근무 종류`}
+          accessibilityRole="radiogroup"
+          style={[styles.selectedDayOptions, stackOptions && styles.selectedDayOptionsStacked]}>
+          {SEQUENCE_ORDER.map((id) => (
+            <SelectionPill
+              accessibilityRole="radio"
+              key={id}
+              label={SEQUENCE_LABELS[id]}
+              onPress={() => changeSelectedDay(id)}
+              selected={sequence[activeIndex] === id}
+              style={[styles.selectedDayOption, stackOptions && styles.selectedDayOptionStacked]}
+            />
+          ))}
+        </View>
+      </View>
       <View style={styles.sequenceActions}>
         <AppButton
           disabled={sequence.length <= CUSTOM_PATTERN_MIN_DAYS}
           label="마지막 날 빼기"
-          onPress={() => onChange(sequence.slice(0, -1))}
+          onPress={() => {
+            onChange(sequence.slice(0, -1));
+            setSelectedIndex((current) => Math.min(current, sequence.length - 2));
+          }}
           size="compact"
           variant="secondary"
         />
         <AppButton
           disabled={sequence.length >= CUSTOM_PATTERN_MAX_DAYS}
           label="날짜 추가하기"
-          onPress={() => onChange([...sequence, 'off'])}
+          onPress={() => {
+            onChange([...sequence, 'off']);
+            setSelectedIndex(sequence.length);
+          }}
           size="compact"
           variant="secondary"
         />
       </View>
       <AppText variant="caption" tone="tertiary">
-        각 날짜를 누르면 주간 → 오후 → 야간 → 휴무 순서로 변경됩니다.
+        순서의 날짜를 선택한 뒤 아래에서 근무를 지정합니다.
       </AppText>
     </View>
   );
@@ -403,6 +431,7 @@ export function WorkTimeEditor({
   onChangeEveningStart,
   onChangeNightEnd,
   onChangeNightStart,
+  revealErrors = false,
   showDay = true,
   showEvening = false,
   showNight = true,
@@ -428,6 +457,7 @@ export function WorkTimeEditor({
   onChangeEveningStart: (value: string) => void;
   onChangeNightEnd: (value: string) => void;
   onChangeNightStart: (value: string) => void;
+  revealErrors?: boolean;
   showDay?: boolean;
   showEvening?: boolean;
   showNight?: boolean;
@@ -446,6 +476,7 @@ export function WorkTimeEditor({
           label="주간"
           onChangeEnd={onChangeDayEnd}
           onChangeStart={onChangeDayStart}
+          revealErrors={revealErrors}
           shiftId="day"
           shouldFocus={focusShiftTypeId === 'day'}
           stackInputs={stackTimeInputs}
@@ -463,6 +494,7 @@ export function WorkTimeEditor({
             label="오후"
             onChangeEnd={onChangeEveningEnd}
             onChangeStart={onChangeEveningStart}
+            revealErrors={revealErrors}
             shiftId="evening"
             shouldFocus={focusShiftTypeId === 'evening'}
             stackInputs={stackTimeInputs}
@@ -481,6 +513,7 @@ export function WorkTimeEditor({
             label="야간"
             onChangeEnd={onChangeNightEnd}
             onChangeStart={onChangeNightStart}
+            revealErrors={revealErrors}
             shiftId="night"
             shouldFocus={focusShiftTypeId === 'night'}
             stackInputs={stackTimeInputs}
@@ -500,6 +533,7 @@ function TimeInputRow({
   label,
   onChangeEnd,
   onChangeStart,
+  revealErrors,
   shiftId,
   shouldFocus,
   stackInputs,
@@ -512,6 +546,7 @@ function TimeInputRow({
   label: string;
   onChangeEnd: (value: string) => void;
   onChangeStart: (value: string) => void;
+  revealErrors: boolean;
   shiftId: 'day' | 'evening' | 'night';
   shouldFocus: boolean;
   stackInputs: boolean;
@@ -520,9 +555,17 @@ function TimeInputRow({
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [focusedField, setFocusedField] = useState<'start' | 'end' | null>(null);
+  const [touchedFields, setTouchedFields] = useState<ReadonlySet<'start' | 'end'>>(
+    () => new Set(),
+  );
   const startInputRef = useRef<TextInput>(null);
   const endInputRef = useRef<TextInput>(null);
   const lastFocusRequestRef = useRef(0);
+  const startInvalid = parseTimeInput(start) === null;
+  const endInvalid = parseTimeInput(end) === null;
+  const showStartError = startInvalid && (revealErrors || touchedFields.has('start'));
+  const showEndError = endInvalid && (revealErrors || touchedFields.has('end'));
+  const showDurationError = !duration && (revealErrors || touchedFields.size > 0);
 
   useEffect(() => {
     if (!shouldFocus || focusRequest <= 0 || lastFocusRequestRef.current === focusRequest) {
@@ -555,11 +598,13 @@ function TimeInputRow({
         </View>
         <AppText
           variant="caption"
-          color={duration ? palette.inkMuted : palette.danger}
+          color={showDurationError ? palette.danger : palette.inkMuted}
           style={styles.durationText}>
           {duration
             ? `${duration.endsNextDay ? '다음 날 종료 · ' : ''}${formatDuration(duration.durationMinutes)}`
-            : '시간을 확인해야 합니다.'}
+            : showDurationError
+              ? '시간을 확인해야 합니다.'
+              : '시작과 종료 시간을 입력합니다.'}
         </AppText>
       </View>
       <View style={[styles.timeControls, stackInputs && styles.timeControlsStacked]}>
@@ -570,6 +615,7 @@ function TimeInputRow({
           maxLength={5}
           onBlur={() => {
             setFocusedField(null);
+            setTouchedFields((current) => new Set(current).add('start'));
             onChangeStart(normalizeTimeInput(start));
           }}
           onChangeText={(value) => onChangeStart(formatTimeInputWhileTyping(value))}
@@ -582,7 +628,7 @@ function TimeInputRow({
           style={[
             styles.timeInput,
             focusedField === 'start' && { borderColor: color },
-            parseTimeInput(start) === null && styles.invalidInput,
+            showStartError && styles.invalidInput,
           ]}
           value={start}
         />
@@ -594,6 +640,7 @@ function TimeInputRow({
           maxLength={5}
           onBlur={() => {
             setFocusedField(null);
+            setTouchedFields((current) => new Set(current).add('end'));
             onChangeEnd(normalizeTimeInput(end));
           }}
           onChangeText={(value) => onChangeEnd(formatTimeInputWhileTyping(value))}
@@ -606,7 +653,7 @@ function TimeInputRow({
           style={[
             styles.timeInput,
             focusedField === 'end' && { borderColor: color },
-            parseTimeInput(end) === null && styles.invalidInput,
+            showEndError && styles.invalidInput,
           ]}
           value={end}
         />
@@ -685,7 +732,7 @@ export function SetupPreview({
   if (items.length === 0) return null;
 
   return (
-    <Card density="compact" style={styles.previewCard}>
+    <Surface density="compact" style={styles.previewCard} tone="muted">
       <View style={styles.sectionCopy}>
         <AppText accessibilityRole="header" variant="label">
           미리 보기
@@ -728,7 +775,7 @@ export function SetupPreview({
           );
         })}
       </View>
-    </Card>
+    </Surface>
   );
 }
 
@@ -829,7 +876,6 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     positionOptionCompact: { minWidth: 116, flexBasis: '44%' },
     positionCopy: { minWidth: 0, gap: 1 },
     sequenceEditor: { gap: spacing.small },
-    sequenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     sequenceList: { marginHorizontal: -spacing.tiny },
     sequenceListContent: { gap: spacing.small, paddingHorizontal: spacing.tiny },
     sequenceItem: {
@@ -837,6 +883,17 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 56,
       flexGrow: 1,
     },
+    selectedDayEditor: {
+      gap: spacing.medium,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+    },
+    selectedDayOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+    selectedDayOptionsStacked: { flexDirection: 'column', flexWrap: 'nowrap' },
+    selectedDayOption: { minWidth: 72, flex: 1 },
+    selectedDayOptionStacked: { width: '100%' },
     sequenceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     workTimes: { gap: spacing.medium },
     timeRow: { gap: spacing.small },

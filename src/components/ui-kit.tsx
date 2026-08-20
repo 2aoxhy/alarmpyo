@@ -25,17 +25,8 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
-import {
-  resolveAppButtonIcon,
-  resolveAppButtonLabel,
-  type AppButtonActionId,
-} from '@/components/app-button-policy';
 import { AppIcon, type AppIconName } from '@/components/app-icon';
-import {
-  colorWithAlpha,
-  shadow,
-  type AppPalette,
-} from '@/constants/app-theme';
+import { type AppPalette } from '@/constants/app-theme';
 import {
   createSemanticColors,
   interaction,
@@ -46,6 +37,9 @@ import {
   type TextTone,
   typeScale,
 } from '@/design-system/tokens';
+import { Button as DesignSystemButton } from '@/design-system/button';
+import { Heading } from '@/design-system/heading';
+import { Surface as DesignSystemSurface } from '@/design-system/surface';
 import { shouldReflowControl } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -113,7 +107,7 @@ export function Screen({
   footerBottomOffset = 0,
   maxContentWidth = 600,
   safeAreaEdges = DEFAULT_SCREEN_SAFE_AREA_EDGES,
-  showsVerticalScrollIndicator = true,
+  showsVerticalScrollIndicator = Platform.OS !== 'web',
 }: PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
@@ -156,7 +150,6 @@ export function Screen({
           {background}
         </View>
       ) : null}
-      <View style={styles.backgroundAccent} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoider}>
@@ -191,119 +184,9 @@ export function Screen({
   );
 }
 
-export function Card({
-  children,
-  style,
-  elevated = false,
-  density = 'regular',
-}: PropsWithChildren<{
-  style?: StyleProp<ViewStyle>;
-  elevated?: boolean;
-  density?: 'regular' | 'compact';
-}>) {
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View
-      style={[
-        styles.card,
-        density === 'compact' && styles.cardCompact,
-        elevated && styles.cardElevated,
-        style,
-      ]}>
-      {children}
-    </View>
-  );
-}
+export const Card = DesignSystemSurface;
 
-type ButtonProps = {
-  label: string;
-  onPress: () => void;
-  actionId?: AppButtonActionId;
-  icon?: AppIconName;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'destructive';
-  disabled?: boolean;
-  loading?: boolean;
-  size?: 'regular' | 'compact';
-  style?: StyleProp<ViewStyle>;
-  accessibilityLabel?: string;
-  accessibilityHint?: string;
-  testID?: string;
-};
-
-export function AppButton({
-  label,
-  onPress,
-  actionId,
-  icon,
-  variant = 'primary',
-  disabled = false,
-  loading = false,
-  size = 'regular',
-  style,
-  accessibilityLabel,
-  accessibilityHint,
-  testID,
-}: ButtonProps) {
-  const { palette } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  const buttonFocus = useWebFocusVisible();
-  const { fontScale, width } = useWindowDimensions();
-  const reflow = shouldReflowControl(width, fontScale);
-  const visibleLabel = resolveAppButtonLabel(label);
-  const visibleIcon = resolveAppButtonIcon(actionId, icon);
-  const blocked = disabled || loading;
-  const buttonStyle = {
-    primary: styles.buttonPrimary,
-    secondary: styles.buttonSecondary,
-    ghost: styles.buttonGhost,
-    danger: styles.buttonDanger,
-    destructive: styles.buttonDanger,
-  }[variant];
-  const activeForeground =
-    variant === 'primary'
-      ? palette.white
-      : variant === 'danger' || variant === 'destructive'
-        ? palette.danger
-        : palette.indigoDark;
-  const foreground = disabled ? palette.disabledInk : activeForeground;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityHint={accessibilityHint}
-      accessibilityLabel={accessibilityLabel ?? visibleLabel}
-      accessibilityState={{ disabled: blocked, busy: loading }}
-      android_ripple={{ color: colorWithAlpha(foreground, 0.14) }}
-      disabled={blocked}
-      onBlur={buttonFocus.onBlur}
-      onFocus={buttonFocus.onFocus}
-      onPress={onPress}
-      testID={testID}
-      style={({ pressed }) => [
-        styles.button,
-        size === 'compact' && styles.buttonCompact,
-        buttonStyle,
-        style,
-        pressed && !blocked && styles.buttonPressed,
-        disabled && styles.buttonDisabled,
-        loading && styles.buttonLoading,
-        buttonFocus.focusVisible && !blocked && styles.webFocusVisible,
-      ]}>
-      {loading ? (
-        <ActivityIndicator color={foreground} size="small" />
-      ) : visibleIcon ? (
-        <AppIcon accessible={false} color={foreground} name={visibleIcon} size={19} />
-      ) : null}
-      <Text
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        numberOfLines={reflow ? undefined : 2}
-        style={[styles.buttonLabel, { color: foreground }]}>
-        {visibleLabel}
-      </Text>
-    </Pressable>
-  );
-}
+export const AppButton = DesignSystemButton;
 
 export function SectionHeader({
   title,
@@ -326,12 +209,9 @@ export function SectionHeader({
     if (!hasAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderCenteredOnly]}>
-          <AppText
-            accessibilityRole="header"
-            variant="heading"
-            style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} style={styles.sectionHeaderTitleFull}>
             {title}
-          </AppText>
+          </Heading>
         </View>
       );
     }
@@ -339,12 +219,9 @@ export function SectionHeader({
     if (stackCenteredAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderStacked]}>
-          <AppText
-            accessibilityRole="header"
-            variant="heading"
-            style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} style={styles.sectionHeaderTitleFull}>
             {title}
-          </AppText>
+          </Heading>
           <Pressable
             accessibilityLabel={action!}
             accessibilityRole="button"
@@ -365,12 +242,9 @@ export function SectionHeader({
     return (
       <View style={[styles.sectionHeader, styles.sectionHeaderCentered]}>
         <View style={styles.sectionHeaderSide} />
-        <AppText
-          accessibilityRole="header"
-          variant="heading"
-          style={styles.sectionHeaderTitleCentered}>
+        <Heading level={3} style={styles.sectionHeaderTitleCentered}>
           {title}
-        </AppText>
+        </Heading>
         <View style={styles.sectionHeaderSide}>
           {hasAction ? (
             <Pressable
@@ -394,9 +268,9 @@ export function SectionHeader({
 
   return (
     <View style={styles.sectionHeader}>
-      <AppText accessibilityRole="header" variant="heading">
+      <Heading level={3}>
         {title}
-      </AppText>
+      </Heading>
       {action && onAction ? (
         <Pressable
           accessibilityLabel={action}
@@ -469,12 +343,20 @@ export function ListRow({
   const rowFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
-  const foreground = destructive ? palette.danger : palette.ink;
+  const foreground = disabled || loading
+    ? palette.disabledInk
+    : destructive
+      ? palette.danger
+      : palette.ink;
   const iconForeground = destructive
-    ? palette.danger
-    : isDark
-      ? palette.indigoDark
-      : palette.indigo;
+    ? disabled || loading
+      ? palette.disabledInk
+      : palette.danger
+    : disabled || loading
+      ? palette.disabledInk
+      : isDark
+        ? palette.indigoDark
+        : palette.indigo;
   return (
     <Pressable
       ref={elementRef}
@@ -572,17 +454,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     backgroundColor: palette.canvas,
     overflow: 'hidden',
   },
-  backgroundAccent: {
-    pointerEvents: 'none',
-    position: 'absolute',
-    top: -104,
-    right: -82,
-    width: 188,
-    height: 188,
-    borderRadius: 94,
-    backgroundColor: palette.lilacSoft,
-    opacity: isDark ? 0.34 : 0.62,
-  },
   keyboardAvoider: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
@@ -607,60 +478,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   textBase: {
     includeFontPadding: false,
   },
-  card: {
-    borderRadius: radius.lg,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.line,
-    padding: space.lg,
-  },
-  cardCompact: {
-    borderRadius: radius.lg,
-    paddingVertical: space.sm,
-  },
-  cardElevated:
-    Platform.OS === 'web'
-      ? {
-          boxShadow: `0 10px 28px ${colorWithAlpha(
-            palette.shadowColor,
-            isDark ? 0.28 : 0.12,
-          )}`,
-        }
-      : {
-          ...shadow,
-          shadowColor: palette.shadowColor,
-          shadowOpacity: isDark ? 0.24 : 0.12,
-          elevation: 4,
-        },
-  button: {
-    minHeight: controlSize.largeControl,
-    minWidth: 96,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: space.sm,
-    overflow: 'hidden',
-  },
-  buttonDisabled: {
-    borderWidth: 1,
-    borderColor: palette.line,
-    backgroundColor: palette.disabledSurface,
-  },
-  buttonLoading: {},
-  buttonLabel: {
-    ...typeScale.label,
-    minWidth: controlSize.regularControl,
-    flexShrink: 1,
-    includeFontPadding: false,
-    color: palette.white,
-    fontSize: 16,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  buttonPressed: { transform: [{ scale: 0.985 }] },
   webFocusVisible:
     Platform.OS === 'web'
       ? {
@@ -670,28 +487,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
           outlineWidth: 2,
         }
       : {},
-  buttonCompact: {
-    minHeight: controlSize.minimumTouchTarget,
-    minWidth: 88,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-  },
-  buttonPrimary: {
-    borderWidth: 1.5,
-    borderColor: palette.indigo,
-    backgroundColor: palette.indigo,
-  },
-  buttonSecondary: {
-    borderWidth: 1.5,
-    borderColor: palette.controlLine,
-    backgroundColor: palette.indigoSoft,
-  },
-  buttonGhost: { backgroundColor: palette.transparent },
-  buttonDanger: {
-    borderWidth: 1.5,
-    borderColor: palette.danger,
-    backgroundColor: palette.dangerSoft,
-  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -745,7 +540,10 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   },
   listRowReflow: { alignItems: 'flex-start' },
   rowPressed: { opacity: interaction.pressedOpacity },
-  rowDisabled: { opacity: interaction.disabledOpacity },
+  rowDisabled: {
+    borderRadius: radius.md,
+    backgroundColor: palette.disabledSurface,
+  },
   listRowText: {
     flex: 1,
     minWidth: 0,

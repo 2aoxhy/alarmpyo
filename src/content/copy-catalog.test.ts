@@ -89,7 +89,7 @@ describe('사용자 문구 카탈로그', () => {
     expect(readSource('src/features/update/play-app-update-screen.tsx')).toContain(
       'updateCopy.updateInPlay.text',
     );
-    expect(readSource('src/features/update/direct-app-update-screen.tsx')).toContain(
+    expect(readSource('src/features/update/direct-app-update-controller.ts')).toContain(
       'updateCopy.checkFailedTitle.text',
     );
   });

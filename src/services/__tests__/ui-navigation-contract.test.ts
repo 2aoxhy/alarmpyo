@@ -133,7 +133,8 @@ describe('핵심 화면 탐색 계약', () => {
 
     expect(calendarSupport).not.toContain('title="이달 요약"');
     expect(calendarSupport).not.toContain('title="달력 내보내기"');
-    expect(calendarSupport).toContain('title="표시 안내"');
+    expect(calendarSupport).toContain('accessibilityLabel="달력 표시 안내 열기"');
+    expect(calendarSupport).toContain('표시 안내');
     expect(calendar).toContain('<AppSheet');
     expect(calendar).toContain('<CalendarLegend');
     expect(calendar).toContain('visible={legendOpen}');
@@ -188,7 +189,7 @@ describe('핵심 화면 탐색 계약', () => {
     const datePicker = source('src/components/date-picker-field.web.tsx');
     const nativeDatePicker = source('src/components/date-picker-field.tsx');
 
-    expect(uiKit).toContain('showsVerticalScrollIndicator = true');
+    expect(uiKit).toContain("showsVerticalScrollIndicator = Platform.OS !== 'web'");
     expect(uiKit).toContain(
       'showsVerticalScrollIndicator={showsVerticalScrollIndicator}',
     );
@@ -308,9 +309,11 @@ describe('핵심 화면 탐색 계약', () => {
 
   it('오늘 화면만 활성 상태에서 수면 알림 건강 상태를 확인하고 설정 루트는 조회하지 않아요', () => {
     const today = source('src/app/(tabs)/index.tsx');
+    const todayRuntime = source('src/features/today/use-today-runtime-controller.ts');
     const settings = source('src/components/settings-home.tsx');
 
-    expect(today).toContain('useAlarmRuntimeStatus');
+    expect(todayRuntime).toContain('useAlarmRuntimeStatus');
+    expect(today).toContain('useTodayRuntimeController');
     expect(today).toContain('data.settings.sleepReminderEnabled');
     expect(today).toContain('sleepReminderStatusError');
     expect(settings).not.toContain('getAlarmPyoSleepReminderStatus');

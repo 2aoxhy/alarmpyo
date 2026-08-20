@@ -21,6 +21,10 @@ const monthCardSource = readFileSync(
   resolve(process.cwd(), 'src/features/calendar/calendar-month-card.tsx'),
   'utf8',
 );
+const dayCellSource = readFileSync(
+  resolve(process.cwd(), 'src/features/calendar/calendar-day-cell.tsx'),
+  'utf8',
+);
 
 function rowsFor(year: number, month: number) {
   const cells = buildCalendarGrid(year, month);
@@ -83,6 +87,8 @@ describe('달력 주차 목록', () => {
     expect(weekListSource).toContain('onBeginListSelection?.(cell.dateKey)');
     expect(weekListSource).not.toContain('onBeginSelection');
     expect(weekListSource).toContain("accessibilityRole={selectionMode ? 'checkbox' : 'button'}");
+    expect(weekListSource).toContain('aria-checked={selectionMode ? selected : undefined}');
+    expect(dayCellSource).toContain('aria-checked={selectionMode ? isSelected : undefined}');
     expect(weekListSource).toContain('{ checked: selected, disabled: interactionDisabled }');
     expect(weekListSource).not.toContain('accessibilityState={{ disabled: !scheduleActive, selected }}');
     expect(weekListSource).toContain('누르면 날짜 요약을 엽니다.');

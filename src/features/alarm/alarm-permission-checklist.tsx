@@ -73,7 +73,11 @@ export function AlarmPermissionChecklist({
         const copy = item.ready
           ? (item.readyCopy ?? "허용되어 있습니다")
           : "확인이 필요합니다";
-        const color = item.ready ? palette.mintDark : palette.danger;
+        const color = disabled
+          ? palette.disabledInk
+          : item.ready
+            ? palette.mintDark
+            : palette.danger;
         return (
           <Pressable
             accessible
@@ -88,6 +92,7 @@ export function AlarmPermissionChecklist({
               styles.row,
               reflow && styles.rowReflow,
               pressed && !disabled && styles.rowPressed,
+              disabled && styles.rowDisabled,
             ]}
           >
             <View
@@ -95,8 +100,12 @@ export function AlarmPermissionChecklist({
                 styles.icon,
                 {
                   backgroundColor: item.ready
-                    ? palette.mintSoft
-                    : palette.dangerSoft,
+                    ? disabled
+                      ? palette.disabledSurface
+                      : palette.mintSoft
+                    : disabled
+                      ? palette.disabledSurface
+                      : palette.dangerSoft,
                 },
               ]}
             >
@@ -124,7 +133,7 @@ export function AlarmPermissionChecklist({
             </View>
             <AppIcon
               accessible={false}
-              color={palette.inkMuted}
+              color={disabled ? palette.disabledInk : palette.inkMuted}
               name="chevron-forward"
               size={18}
             />
@@ -153,6 +162,9 @@ function createStyles(palette: AppPalette) {
       borderBottomColor: palette.line,
     },
     rowPressed: {
+      backgroundColor: palette.disabledSurface,
+    },
+    rowDisabled: {
       backgroundColor: palette.disabledSurface,
     },
     rowReflow: {

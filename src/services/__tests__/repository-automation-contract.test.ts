@@ -53,7 +53,7 @@ describe('저장소 자동화 계약', () => {
     expect(eas.build.base.autoIncrement).toBe(false);
   });
 
-  it('앱은 V13 1.0.13(13) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V14 1.0.14(14) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -65,28 +65,28 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.0.13');
+    expect(pkg.version).toBe('1.0.14');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.0.13',
-      androidVersionCode: 13,
-      iosBuildNumber: '13',
+      versionName: '1.0.14',
+      androidVersionCode: 14,
+      iosBuildNumber: '14',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      '현재 Play Alpha 최고 버전은 `V08 · 1.0.8(8)`이며 V10은 internal 검증 계보로 유지합니다.',
+      'V13 · `1.0.13(13)`은 2026-08-21 Play internal과 Alpha에 배포되었으며, 현재 소스의 후속 후보는 `V14 · 1.0.14(14)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
-      'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에서 활성화했지만 Alpha 초안은 승격하지 않았고, 현재 소스의 후속 후보는 `V13 · 1.0.13(13)`입니다.',
+      'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에 배포했습니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
-      'V09는 사용하지 않으며 V13 검증이 완료될 때까지 V08 Alpha를 유지합니다.',
+      'V09는 사용하지 않습니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console Alpha에 등록한 V08의 `versionCode: 8`이 현재 Alpha 계보의 최고값이며, V10은 internal 검증 계보로 유지합니다. V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 `versionCode: 12`는 Play internal에서 활성화했지만 Alpha 초안은 승격하지 않았고, 현재 V13 후보는 `versionCode: 13`입니다.',
+      'Play Console internal과 Alpha에 배포된 V13의 `versionCode: 13`이 현재 Play 계보의 최고값입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 13 번들',
+      '같은 versionCode 14 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -117,11 +117,11 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(12);
+    ).toBe(13);
     expect(
       json('docs/play-release-evidence.example.json')
         .highestExistingPlayVersionCode,
-    ).toBe(12);
+    ).toBe(13);
   });
 
   it('패턴 적용 안내는 달력의 변경 전·후 확인을 설명하고 42일 결과 비교로 제한하지 않습니다', () => {

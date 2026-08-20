@@ -1,7 +1,7 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { AppButton, AppText } from '@/components/ui-kit';
-import { spacing } from '@/constants/app-theme';
+import { AppText } from '@/components/ui-kit';
+import { Button, space } from '@/design-system';
 
 type Props = {
   onGoToday: () => void;
@@ -26,7 +26,7 @@ export function CalendarScreenHeader({
       </AppText>
       <View style={[styles.actions, stackHeader && styles.actionsStacked]}>
         {!selectionMode ? (
-          <AppButton
+          <Button
             accessibilityHint={
               supportsDragSelection
                 ? '날짜를 누르거나 손가락을 끌어 여러 일정을 선택합니다.'
@@ -41,7 +41,7 @@ export function CalendarScreenHeader({
             variant="secondary"
           />
         ) : null}
-        <AppButton
+        <Button
           accessibilityHint="오늘이 있는 달로 이동합니다."
           accessibilityLabel="오늘 날짜로 이동하기"
           icon="today-outline"
@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'nowrap',
-    rowGap: spacing.small,
-    gap: spacing.medium,
+    rowGap: space.sm,
+    gap: space.md,
   },
   headerStacked: {
     alignItems: 'stretch',
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     flexShrink: 1,
     justifyContent: 'flex-end',
-    gap: spacing.small,
+    gap: space.sm,
   },
   actionsStacked: {
     width: '100%',
