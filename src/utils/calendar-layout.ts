@@ -1,3 +1,5 @@
+import { formatCompactTime, type CalendarCell } from './date';
+
 export type CalendarLayout = {
   badgeUsesCompactLabel: boolean;
   cellMinHeight: number;
@@ -6,14 +8,104 @@ export type CalendarLayout = {
   gridWidth: number;
   monthHeaderMinHeight: number;
   needsHorizontalScroll: boolean;
+  presentation: 'month-grid' | 'week-list';
   screenInset: number;
 };
 
 const MAX_CONTENT_WIDTH = 720;
 const MIN_SCREEN_INSET = 4;
 const MAX_SCREEN_INSET = 12;
-const MIN_TOUCH_TARGET_SIZE = 48;
-const MIN_GRID_WIDTH = MIN_TOUCH_TARGET_SIZE * 7;
+const MIN_MONTH_GRID_WIDTH = 336;
+const WEEK_LIST_FONT_SCALE = 1.4;
+
+export type CalendarWeekListDay = {
+  cell: CalendarCell;
+  weekdayIndex: number;
+};
+
+export type CalendarWeekListGroup = {
+  days: readonly CalendarWeekListDay[];
+  label: string;
+  weekNumber: number;
+};
+
+type CalendarWeekListShiftTiming = Readonly<{
+  endMinutes: number | null;
+  endsNextDay: boolean;
+  isOff: boolean;
+  startMinutes: number | null;
+}>;
+
+export type CalendarWeekListMetadataKind =
+  | 'holiday'
+  | 'payday'
+  | 'note'
+  | 'override';
+
+export type CalendarWeekListMetadataItem = Readonly<{
+  kind: CalendarWeekListMetadataKind;
+  label: string;
+}>;
+
+export function buildCalendarWeekListMetadata(input: {
+  hasNote: boolean;
+  hasOverride: boolean;
+  holidayFullLabel: string | null;
+  payrollFullLabel: string | null;
+}): CalendarWeekListMetadataItem[] {
+  const items: CalendarWeekListMetadataItem[] = [];
+  if (input.holidayFullLabel) {
+    items.push({
+      kind: 'holiday',
+      label: `공휴일 · ${input.holidayFullLabel}`,
+    });
+  }
+  if (input.payrollFullLabel) {
+    items.push({
+      kind: 'payday',
+      label: `급여일 · ${input.payrollFullLabel}`,
+    });
+  }
+  if (input.hasNote) items.push({ kind: 'note', label: '메모 있음' });
+  if (input.hasOverride) {
+    items.push({ kind: 'override', label: '직접 변경' });
+  }
+  return items;
+}
+
+export function buildCalendarWeekListGroups(
+  cellRows: readonly (readonly CalendarCell[])[],
+): CalendarWeekListGroup[] {
+  return cellRows.flatMap((row, rowIndex) => {
+    const days = row.flatMap((cell, weekdayIndex) =>
+      cell.inCurrentMonth ? [{ cell, weekdayIndex }] : [],
+    );
+    if (days.length === 0) return [];
+
+    const firstDay = days[0].cell.day;
+    const lastDay = days[days.length - 1].cell.day;
+    const range =
+      firstDay === lastDay ? `${firstDay}일` : `${firstDay}–${lastDay}일`;
+    const weekNumber = rowIndex + 1;
+    return [{ days, label: `${weekNumber}주차 · ${range}`, weekNumber }];
+  });
+}
+
+export function formatCalendarWeekListTime(
+  shift: CalendarWeekListShiftTiming | null,
+): string | null {
+  if (
+    !shift ||
+    shift.isOff ||
+    shift.startMinutes === null ||
+    shift.endMinutes === null
+  ) {
+    return null;
+  }
+  return `${formatCompactTime(shift.startMinutes)}–${
+    shift.endsNextDay ? '다음 날 ' : ''
+  }${formatCompactTime(shift.endMinutes)}`;
+}
 
 /** 화면 폭이 커질수록 날짜 칸이 갑자기 좁아지지 않도록 연속적인 여백을 계산해요. */
 export function resolveCalendarLayout(
@@ -33,13 +125,16 @@ export function resolveCalendarLayout(
     ),
   );
   const visibleGridWidth = Math.max(contentWidth - screenInset * 2, 0);
-  // 320dp 화면에서는 7개의 48dp 터치 영역이 물리적으로 들어가지 않으므로,
-  // 날짜 영역에만 짧은 가로 탐색을 허용해 인접 날짜의 터치 영역이 겹치지 않게 해요.
-  const gridWidth = Math.max(visibleGridWidth, MIN_GRID_WIDTH);
-  const cellWidth = gridWidth / 7;
   const safeFontScale = Number.isFinite(fontScale)
     ? Math.min(Math.max(fontScale, 1), 2)
     : 1;
+  const presentation =
+    visibleGridWidth >= MIN_MONTH_GRID_WIDTH &&
+    safeFontScale < WEEK_LIST_FONT_SCALE
+      ? 'month-grid'
+      : 'week-list';
+  const gridWidth = visibleGridWidth;
+  const cellWidth = gridWidth / 7;
   const effectiveCellWidth = cellWidth / safeFontScale;
   const calendarGrowth = Math.round((safeFontScale - 1) * 22);
   const normalizedRowCount = Math.min(Math.max(Math.round(rowCount), 4), 6);
@@ -53,7 +148,8 @@ export function resolveCalendarLayout(
     dayBadgeSize: 27 + Math.round((safeFontScale - 1) * 9),
     gridWidth,
     monthHeaderMinHeight: 82 + calendarGrowth,
-    needsHorizontalScroll: visibleGridWidth < MIN_GRID_WIDTH,
+    needsHorizontalScroll: false,
+    presentation,
     screenInset,
   };
 }

@@ -12,14 +12,25 @@ describe('달력 반응형 배치', () => {
     });
   });
 
-  it('320dp 화면에서도 날짜마다 겹치지 않는 48dp 터치 폭을 확보해요', () => {
+  it('336dp 미만의 사용 가능 폭에서는 가로 스크롤 대신 주차 목록을 사용합니다', () => {
     const narrow = resolveCalendarLayout(320, 1);
 
-    expect(narrow.cellWidth).toBeGreaterThanOrEqual(48);
-    expect(narrow.gridWidth).toBeGreaterThanOrEqual(48 * 7);
-    expect(narrow.needsHorizontalScroll).toBe(true);
+    expect(narrow.presentation).toBe('week-list');
+    expect(narrow.needsHorizontalScroll).toBe(false);
+    expect(narrow.gridWidth).toBeLessThan(336);
     expect(resolveCalendarLayout(360, 1).cellWidth).toBeGreaterThan(49);
+    expect(resolveCalendarLayout(360, 1).presentation).toBe('month-grid');
     expect(resolveCalendarLayout(360, 1).needsHorizontalScroll).toBe(false);
+  });
+
+  it('월간 격자는 사용 가능 폭 336dp와 글자 140% 기준을 모두 충족해야 합니다', () => {
+    expect(resolveCalendarLayout(346, 1).presentation).toBe('week-list');
+    const firstMonthGrid = resolveCalendarLayout(347, 1);
+    expect(firstMonthGrid.presentation).toBe('month-grid');
+    expect(firstMonthGrid.cellWidth).toBeGreaterThanOrEqual(48);
+    expect(resolveCalendarLayout(360, 1.39).presentation).toBe('month-grid');
+    expect(resolveCalendarLayout(360, 1.4).presentation).toBe('week-list');
+    expect(resolveCalendarLayout(720, 2).presentation).toBe('week-list');
   });
 
   it('큰 글씨에서는 셀과 월 머리글 높이를 함께 늘려요', () => {
@@ -29,6 +40,7 @@ describe('달력 반응형 배치', () => {
     expect(large.cellMinHeight).toBeGreaterThan(normal.cellMinHeight);
     expect(large.monthHeaderMinHeight).toBeGreaterThan(normal.monthHeaderMinHeight);
     expect(large.dayBadgeSize).toBeGreaterThan(normal.dayBadgeSize);
+    expect(large.presentation).toBe('week-list');
   });
 
   it('6주인 달은 셀을 조금 더 촘촘하게 표시해요', () => {

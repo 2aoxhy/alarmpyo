@@ -1,5 +1,10 @@
 import type { Ref } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
@@ -129,30 +134,104 @@ export function CalendarLargeTextStatusSummary({
 
 type MenuProps = {
   onOpenLegend: () => void;
+  showCompactKey?: boolean;
   triggerRef?: Ref<React.ElementRef<typeof Pressable>>;
 };
 
 export function CalendarMenuSections({
   onOpenLegend,
+  showCompactKey = true,
   triggerRef,
 }: MenuProps) {
   const { palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
+  if (!showCompactKey) {
+    return (
+      <MenuGroup title="달력 안내">
+        <ListRow
+          elementRef={triggerRef}
+          icon="ellipse-outline"
+          onPress={onOpenLegend}
+          subtitle="근무·날짜 정보·특별 일정 표시를 확인합니다."
+          title="표시 안내"
+          trailing={
+            <AppText variant="label" color={palette.indigoDark}>
+              보기
+            </AppText>
+          }
+        />
+      </MenuGroup>
+    );
+  }
 
   return (
-    <MenuGroup title="달력 메뉴">
-      <ListRow
-        elementRef={triggerRef}
-        icon="ellipse-outline"
-        onPress={onOpenLegend}
-        subtitle="근무·급여·예외 일정 표시를 확인합니다."
-        title="표시 안내"
-        trailing={
-          <AppText variant="label" color={palette.indigoDark}>
-            보기
+    <Pressable
+      ref={triggerRef}
+      accessibilityHint="전체 표시 안내를 엽니다."
+      accessibilityLabel="달력 표시 안내. 공은 공휴일, 급은 급여일, 점은 메모, 굵은 선은 직접 변경한 날을 표시합니다."
+      accessibilityRole="button"
+      onPress={onOpenLegend}
+      style={({ pressed }) => [
+        styles.compactKeyCard,
+        pressed && styles.compactKeyPressed,
+      ]}>
+      <View style={styles.compactKeyHeader}>
+        <View style={styles.compactKeyTitle}>
+          <AppIcon
+            accessible={false}
+            color={palette.indigoDark}
+            name="ellipse-outline"
+            size={20}
+          />
+          <AppText variant="label">표시 안내</AppText>
+        </View>
+        <View style={styles.compactKeyAction}>
+          <AppText color={palette.indigoDark} variant="label">
+            전체 보기
           </AppText>
-        }
-      />
-    </MenuGroup>
+          <AppIcon
+            accessible={false}
+            color={palette.indigoDark}
+            name="chevron-forward"
+            size={17}
+          />
+        </View>
+      </View>
+      <View accessible={false} style={styles.compactKeyItems}>
+        <CompactKeyItem kind="holiday" label="공휴일" palette={palette} styles={styles} />
+        <CompactKeyItem kind="payday" label="급여일" palette={palette} styles={styles} />
+        <CompactKeyItem kind="note" label="메모" palette={palette} styles={styles} />
+        <CompactKeyItem kind="override" label="직접 변경" palette={palette} styles={styles} />
+      </View>
+    </Pressable>
+  );
+}
+
+type CompactKeyKind =
+  | 'holiday'
+  | 'note'
+  | 'override'
+  | 'payday'
+  | 'selected'
+  | 'today';
+
+function CompactKeyItem({
+  kind,
+  label,
+  palette,
+  styles,
+}: {
+  kind: CompactKeyKind;
+  label: string;
+  palette: AppPalette;
+  styles: CalendarSupportStyles;
+}) {
+  return (
+    <View accessible={false} style={styles.compactKeyItem}>
+      <CalendarLegendMarker kind={kind} palette={palette} styles={styles} />
+      <AppText variant="caption">{label}</AppText>
+    </View>
   );
 }
 
@@ -164,99 +243,234 @@ type LegendProps = {
 export function CalendarLegend({ isDark, shiftTypes }: LegendProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
+  const singleColumn = width < 360 || fontScale >= 1.3;
 
   return (
-    <View style={styles.legend}>
-      {shiftTypes.map((shift) => {
-        const appearance = getShiftAppearance(shift, palette, isDark);
-        return (
-          <View
-            key={shift.id}
-            style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
-            <AnimatedShiftIcon
-              animated={false}
-              color={appearance.accentColor}
-              kind={getShiftIconKind(shift.id, shift.isOff)}
-              size={16}
-            />
-            <AppText variant="caption" color={appearance.accentColor}>
-              {shift.name}
-            </AppText>
-          </View>
-        );
-      })}
-      <View style={[styles.legendItem, styles.overrideLegendItem]}>
-        <View style={styles.overrideLegend} />
-        <AppText variant="caption" tone="secondary">
-          직접 변경한 날
-        </AppText>
-      </View>
-      <View
-        accessible
-        accessibilityLabel="공. 공휴일을 표시합니다."
-        style={[styles.legendItem, styles.holidayLegendItem]}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.holidayLegendMarker}>
-          <AppText
-            color={palette.canvas}
-            style={styles.legendMarkerText}
-            variant="caption">
-            공
-          </AppText>
+    <View style={styles.legendSections}>
+      <LegendSection title="근무" styles={styles}>
+        <View style={styles.legendRows}>
+          {shiftTypes.map((shift) => {
+            const appearance = getShiftAppearance(shift, palette, isDark);
+            return (
+              <View
+                accessible
+                accessibilityLabel={`${shift.name} 근무 표시입니다.`}
+                key={shift.id}
+                style={[
+                  styles.legendRow,
+                  !singleColumn && styles.legendRowGrid,
+                  { backgroundColor: appearance.softColor },
+                ]}>
+                <AnimatedShiftIcon
+                  animated={false}
+                  color={appearance.accentColor}
+                  kind={getShiftIconKind(shift.id, shift.isOff)}
+                  size={17}
+                />
+                <AppText
+                  color={appearance.accentColor}
+                  style={styles.legendCopy}
+                  variant="caption">
+                  {shift.name}
+                </AppText>
+              </View>
+            );
+          })}
         </View>
-        <AppText variant="caption" color={palette.coral}>
-          공휴일
-        </AppText>
-      </View>
-      <View
-        accessible
-        accessibilityLabel={`급은 급여일, 급 별표는 예상 급여일을 표시합니다. ${CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}에도 표시합니다.`}
-        style={[styles.legendItem, styles.paydayLegendItem]}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.paydayLegendMarkers}>
-          <View style={styles.paydayLegendMarker}>
+      </LegendSection>
+
+      <LegendSection title="날짜 정보" styles={styles}>
+        <View style={styles.legendRows}>
+          <View
+            accessible
+            accessibilityLabel="공. 공휴일을 표시합니다."
+            style={[styles.legendRow, styles.holidayLegendItem]}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.holidayLegendMarker}>
+              <AppText
+                color={palette.canvas}
+                style={styles.legendMarkerText}
+                variant="caption">
+                공
+              </AppText>
+            </View>
             <AppText
-              color={palette.canvas}
-              style={styles.legendMarkerText}
+              color={palette.coral}
+              style={styles.legendCopy}
               variant="caption">
-              급
+              공휴일
             </AppText>
           </View>
-          <View style={styles.paydayLegendMarker}>
+          <View
+            accessible
+            accessibilityLabel={`급은 급여일, 급 별표는 예상 급여일을 표시합니다. ${CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}에도 표시합니다.`}
+            style={[styles.legendRow, styles.paydayLegendItem]}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.paydayLegendMarkers}>
+              <View style={styles.paydayLegendMarker}>
+                <AppText
+                  color={palette.canvas}
+                  style={styles.legendMarkerText}
+                  variant="caption">
+                  급
+                </AppText>
+              </View>
+              <View style={styles.paydayLegendMarker}>
+                <AppText
+                  color={palette.canvas}
+                  style={styles.legendMarkerText}
+                  variant="caption">
+                  급*
+                </AppText>
+              </View>
+            </View>
             <AppText
-              color={palette.canvas}
-              style={styles.legendMarkerText}
+              color={palette.amber}
+              style={styles.legendCopy}
               variant="caption">
-              급*
+              급여일 · 급* 예상 급여일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
             </AppText>
           </View>
         </View>
-        <AppText
-          color={palette.amber}
-          style={styles.legendCopy}
-          variant="caption">
-          급여일 · 급* 예상 급여일 · {CALENDAR_PAYDAY_OVERLAP_LEGEND_LABEL}
-        </AppText>
-      </View>
-      {DAY_EXCEPTION_TYPES.map((type) => {
-        const appearance = getDayExceptionAppearance(type, palette);
-        return (
-          <View
-            key={type}
-            style={[styles.legendItem, { backgroundColor: appearance.softColor }]}>
-            <AppIcon color={appearance.accentColor} name={appearance.iconName} size={16} />
-            <AppText variant="caption" color={appearance.accentColor}>
-              {appearance.label}
-            </AppText>
-          </View>
-        );
-      })}
+      </LegendSection>
+
+      <LegendSection title="특별 일정" styles={styles}>
+        <View style={styles.legendRows}>
+          {DAY_EXCEPTION_TYPES.map((type) => {
+            const appearance = getDayExceptionAppearance(type, palette);
+            return (
+              <View
+                accessible
+                accessibilityLabel={`${appearance.label} 특별 일정 표시입니다.`}
+                key={type}
+                style={[
+                  styles.legendRow,
+                  !singleColumn && styles.legendRowGrid,
+                  { backgroundColor: appearance.softColor },
+                ]}>
+                <AppIcon
+                  accessible={false}
+                  color={appearance.accentColor}
+                  name={appearance.iconName}
+                  size={17}
+                />
+                <AppText
+                  color={appearance.accentColor}
+                  style={styles.legendCopy}
+                  variant="caption">
+                  {appearance.label}
+                </AppText>
+              </View>
+            );
+          })}
+        </View>
+      </LegendSection>
+
+      <LegendSection title="화면 상태" styles={styles}>
+        <View style={styles.legendRows}>
+          {([
+            ['today', '오늘 날짜'],
+            ['selected', '선택한 날'],
+            ['override', '직접 변경한 날'],
+            ['note', '메모가 있는 날'],
+          ] as const).map(([kind, label]) => (
+            <View
+              accessible
+              accessibilityLabel={`${label} 표시입니다.`}
+              key={kind}
+              style={[
+                styles.legendRow,
+                !singleColumn && styles.legendRowGrid,
+                styles.screenStateLegendItem,
+              ]}>
+              <CalendarLegendMarker kind={kind} palette={palette} styles={styles} />
+              <AppText style={styles.legendCopy} variant="caption">
+                {label}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      </LegendSection>
     </View>
   );
+}
+
+type CalendarSupportStyles = ReturnType<typeof createStyles>;
+
+function LegendSection({
+  children,
+  styles,
+  title,
+}: {
+  children: React.ReactNode;
+  styles: CalendarSupportStyles;
+  title: string;
+}) {
+  return (
+    <View style={styles.legendSection}>
+      <AppText accessibilityRole="header" variant="label">
+        {title}
+      </AppText>
+      {children}
+    </View>
+  );
+}
+
+function CalendarLegendMarker({
+  kind,
+  palette,
+  styles,
+}: {
+  kind: CompactKeyKind;
+  palette: AppPalette;
+  styles: CalendarSupportStyles;
+}) {
+  if (kind === 'today') {
+    return (
+      <View accessible={false} style={styles.todayLegendMarker}>
+        <AppText color={palette.canvas} style={styles.legendMarkerText} variant="caption">
+          20
+        </AppText>
+      </View>
+    );
+  }
+  if (kind === 'selected') {
+    return (
+      <View accessible={false} style={styles.selectedLegendMarker}>
+        <AppIcon
+          accessible={false}
+          color={palette.canvas}
+          name="checkmark"
+          size={11}
+          strokeWidth={2.4}
+        />
+      </View>
+    );
+  }
+  if (kind === 'holiday' || kind === 'payday') {
+    return (
+      <View
+        accessible={false}
+        style={
+          kind === 'holiday'
+            ? styles.holidayLegendMarker
+            : styles.paydayLegendMarker
+        }>
+        <AppText color={palette.canvas} style={styles.legendMarkerText} variant="caption">
+          {kind === 'holiday' ? '공' : '급'}
+        </AppText>
+      </View>
+    );
+  }
+  if (kind === 'note') {
+    return <View accessible={false} style={styles.noteLegendMarker} />;
+  }
+  return <View accessible={false} style={styles.overrideLegend} />;
 }
 
 function createStyles(palette: AppPalette) {
@@ -321,22 +535,111 @@ function createStyles(palette: AppPalette) {
       borderRadius: radii.pill,
       backgroundColor: palette.amber,
     },
-    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    legendItem: {
+    compactKeyCard: {
+      gap: spacing.medium,
+      padding: spacing.large,
+      borderWidth: 1,
+      borderColor: palette.controlLine,
+      borderRadius: radii.medium,
+      backgroundColor: palette.surface,
+    },
+    compactKeyPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+    compactKeyHeader: {
+      minHeight: 28,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.small,
+    },
+    compactKeyTitle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+    },
+    compactKeyAction: {
+      flexShrink: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.tiny,
+    },
+    compactKeyItems: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    compactKeyItem: {
       maxWidth: '100%',
-      minHeight: 30,
+      minHeight: 32,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
       borderRadius: radii.pill,
       paddingHorizontal: 10,
+      paddingVertical: 4,
+      backgroundColor: palette.surfaceSoft,
     },
-    overrideLegendItem: { backgroundColor: palette.surfaceSoft },
+    legendSections: { gap: spacing.xlarge },
+    legendSection: { gap: spacing.small },
+    legendRows: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.small,
+    },
+    legendRow: {
+      width: '100%',
+      maxWidth: '100%',
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: radii.small,
+      backgroundColor: palette.surfaceSoft,
+    },
+    legendRowGrid: {
+      width: undefined,
+      flexBasis: '46%',
+      flexGrow: 1,
+    },
+    screenStateLegendItem: { backgroundColor: palette.surfaceSoft },
     overrideLegend: {
       width: 14,
       height: 3,
+      flexShrink: 0,
       borderRadius: 2,
       backgroundColor: palette.mint,
+    },
+    todayLegendMarker: {
+      minWidth: 24,
+      height: 24,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+      borderRadius: 8,
+      backgroundColor: palette.mint,
+    },
+    selectedLegendMarker: {
+      width: 18,
+      height: 18,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: palette.selectionBorder,
+      borderRadius: radii.pill,
+      backgroundColor: palette.white,
+    },
+    noteLegendMarker: {
+      width: 8,
+      height: 8,
+      flexShrink: 0,
+      borderRadius: radii.pill,
+      backgroundColor: palette.coral,
     },
     holidayLegendItem: { backgroundColor: palette.coralSoft },
     holidayLegendMarker: {

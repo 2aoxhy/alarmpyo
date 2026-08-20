@@ -5,6 +5,7 @@ import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { formatCalendarSelectionPanelCount } from './calendar-selection-presentation';
 
 type Props = {
   bulkSaving: boolean;
@@ -13,6 +14,7 @@ type Props = {
   onChange: () => void;
   onShare: () => void;
   selectedCount: number;
+  selectedInMonthCount?: number;
   stackActions: boolean;
 };
 
@@ -23,10 +25,15 @@ export function CalendarSelectionPanel({
   onChange,
   onShare,
   selectedCount,
+  selectedInMonthCount = selectedCount,
   stackActions,
 }: Props) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const countCopy = formatCalendarSelectionPanelCount(
+    selectedCount,
+    selectedInMonthCount,
+  );
 
   return (
     <View
@@ -39,7 +46,11 @@ export function CalendarSelectionPanel({
           <AppIcon color={palette.indigoDark} name="checkmark-circle" size={23} />
         </View>
         <View style={styles.copy}>
-          <AppText variant="heading">{selectedCount}일 선택</AppText>
+          <AppText
+            accessibilityLabel={`전체 ${selectedCount}일, 이 달 ${selectedInMonthCount}일`}
+            variant="heading">
+            {countCopy}
+          </AppText>
           <AppText tone="secondary" variant="caption">
             {compact
               ? '날짜를 눌러 선택하거나 해제합니다.'

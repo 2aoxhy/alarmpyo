@@ -1,47 +1,54 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing } from '@/constants/app-theme';
 
 type Props = {
-  onCancelSelection: () => void;
   onGoToday: () => void;
   onStartSelection: () => void;
   selectionMode: boolean;
+  supportsDragSelection: boolean;
 };
 
 export function CalendarScreenHeader({
-  onCancelSelection,
   onGoToday,
   onStartSelection,
   selectionMode,
+  supportsDragSelection,
 }: Props) {
+  const { fontScale } = useWindowDimensions();
+  const stackHeader = fontScale >= 1.4;
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, stackHeader && styles.headerStacked]}>
       <AppText accessibilityRole="header" variant="title">
         달력
       </AppText>
-      <View style={styles.actions}>
-        <AppButton
-          accessibilityHint={
-            selectionMode
-              ? '선택한 날짜를 모두 해제하고 일반 달력으로 돌아갑니다.'
-              : '날짜를 누르거나 손가락을 끌어 여러 일정을 선택합니다.'
-          }
-          accessibilityLabel={selectionMode ? '일정 선택 취소하기' : '일정 선택 시작하기'}
-          icon={selectionMode ? 'close' : 'checkmark-circle'}
-          label={selectionMode ? '선택 취소하기' : '일정 선택하기'}
-          onPress={selectionMode ? onCancelSelection : onStartSelection}
-          size="compact"
-          variant="secondary"
-        />
+      <View style={[styles.actions, stackHeader && styles.actionsStacked]}>
+        {!selectionMode ? (
+          <AppButton
+            accessibilityHint={
+              supportsDragSelection
+                ? '날짜를 누르거나 손가락을 끌어 여러 일정을 선택합니다.'
+                : '날짜를 하나씩 눌러 여러 일정을 선택합니다.'
+            }
+            accessibilityLabel="여러 날짜 선택 시작하기"
+            icon="checkmark-circle"
+            label="선택"
+            onPress={onStartSelection}
+            size="compact"
+            style={stackHeader && styles.actionStacked}
+            variant="secondary"
+          />
+        ) : null}
         <AppButton
           accessibilityHint="오늘이 있는 달로 이동합니다."
           accessibilityLabel="오늘 날짜로 이동하기"
           icon="today-outline"
-          label="오늘로 이동하기"
+          label="오늘"
           onPress={onGoToday}
           size="compact"
+          style={stackHeader && styles.actionStacked}
           variant="secondary"
         />
       </View>
@@ -55,15 +62,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     rowGap: spacing.small,
     gap: spacing.medium,
   },
+  headerStacked: {
+    alignItems: 'stretch',
+    flexWrap: 'wrap',
+  },
   actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     flexShrink: 1,
     justifyContent: 'flex-end',
     gap: spacing.small,
+  },
+  actionsStacked: {
+    width: '100%',
+    flexWrap: 'nowrap',
+    justifyContent: 'flex-start',
+  },
+  actionStacked: {
+    minHeight: 48,
+    flex: 1,
   },
 });

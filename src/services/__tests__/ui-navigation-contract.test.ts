@@ -61,16 +61,14 @@ describe('핵심 화면 탐색 계약', () => {
     expect(today).toContain('일정 수정하기`');
   });
 
-  it('달력은 상단 일정 선택과 취소 동작을 함께 제공해요', () => {
+  it('달력은 상단에서 선택을 시작하고 취소는 선택 패널에만 둡니다', () => {
     const calendarHeader = source(
       'src/features/calendar/calendar-screen-header.tsx',
     );
-    expect(calendarHeader).toContain(
-      "selectionMode ? '선택 취소하기' : '일정 선택하기'",
-    );
-    expect(calendarHeader).toContain(
-      'onPress={selectionMode ? onCancelSelection : onStartSelection}',
-    );
+    expect(calendarHeader).toContain('label="선택"');
+    expect(calendarHeader).toContain('onPress={onStartSelection}');
+    expect(calendarHeader).toContain('supportsDragSelection');
+    expect(calendarHeader).not.toContain('onCancelSelection');
   });
 
   it('데이터 화면을 기본·고급·위험 작업으로 나눠요', () => {
@@ -122,9 +120,8 @@ describe('핵심 화면 탐색 계약', () => {
     const calendarSupport = source(
       'src/features/calendar/calendar-support-sections.tsx',
     );
-    expect(calendarHeader).toContain(
-      "label={selectionMode ? '선택 취소하기' : '일정 선택하기'}",
-    );
+    expect(calendarHeader).toContain('label="선택"');
+    expect(calendarHeader).not.toContain('선택 취소');
     expect(calendarSupport).not.toContain('title="일정 선택"');
   });
 
@@ -143,13 +140,15 @@ describe('핵심 화면 탐색 계약', () => {
     expect(calendarSupport).not.toContain('legendExpanded ?');
   });
 
-  it('좁은 달력은 가로 탐색 단서를 보이고 월 이동은 한 번만 알립니다', () => {
+  it('좁은 달력은 주차 목록을 사용하고 월 경계는 한 번만 알립니다', () => {
     const calendar = source('src/app/(tabs)/calendar.tsx');
     const monthCard = source('src/features/calendar/calendar-month-card.tsx');
 
-    expect(monthCard).toContain('좌우로 밀어 토요일까지 확인해야 합니다');
-    expect(monthCard).toContain('showsHorizontalScrollIndicator');
+    expect(monthCard).toContain('<CalendarWeekList');
+    expect(monthCard).not.toContain('ScrollView');
     expect(monthCard).not.toContain('accessibilityLiveRegion="polite"');
+    expect(calendar).toContain('lastAnnouncedMonthBoundaryRef');
+    expect(calendar).toContain('shouldAnnounceCalendarMonthBoundary');
     expect(calendar).toContain('`${formatMonthTitle(next.year, next.month)}로 이동하고 오늘 날짜를 강조했습니다.`');
     expect(calendar).toContain("'오늘 날짜를 강조했습니다.'");
   });

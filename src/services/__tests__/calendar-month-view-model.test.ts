@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AppData } from '../../models/app-data';
-import { buildCalendarMonthViewModel } from '../calendar-month-view-model';
+import {
+  buildCalendarMonthViewModel,
+  selectCalendarProjectionData,
+} from '../calendar-month-view-model';
 import { createDefaultWorkRoutineProfiles } from '../work-routine-settings';
 
 const data: AppData = {
@@ -100,6 +103,79 @@ describe('달력 월 화면 계산 모델', () => {
     ).toBe(true);
     expect(model.selectableDateKeySet.has('2026-07-01')).toBe(true);
     expect(model.monthlySummary.workdayCount).toBeGreaterThan(0);
+    expect(model.month).toEqual({ year: 2026, month: 6 });
+    expect(model.monthKey).toBe('2026-07');
+    expect(model.weekSections).toHaveLength(5);
+    expect(model.weekSections.every((week) => week.days.length === 7)).toBe(true);
+    expect(model.daysByDate.get('2026-06-30')).toMatchObject({
+      inCurrentMonth: false,
+      effectiveDay: null,
+      isSelectable: false,
+    });
+    expect(model.currentMonthDateKeys).toHaveLength(31);
+    expect(model.dateSummaries).toHaveLength(31);
+    expect(model.dateSummaryByDate.size).toBe(31);
+  });
+
+  it('기본 근무와 실제 근무·시간, 직접 변경, 전체 메모를 함께 제공합니다', () => {
+    const model = buildCalendarMonthViewModel({
+      data: {
+        ...data,
+        timeOverrides: {
+          '2026-07-01': {
+            shiftTypeId: 'day',
+            startMinutes: 480,
+            endMinutes: 1020,
+            endsNextDay: false,
+          },
+        },
+        notes: { '2026-07-01': '교대 전에 장비를 확인합니다.' },
+      },
+      year: 2026,
+      month: 6,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(model.daysByDate.get('2026-07-01')).toMatchObject({
+      hasDirectScheduleOverride: true,
+      hasShiftOverride: false,
+      hasTimeOverride: true,
+      hasNote: true,
+      note: '교대 전에 장비를 확인합니다.',
+      basePatternDay: { shift: { id: 'day', startMinutes: 420 } },
+      effectiveDay: {
+        scheduledShift: { id: 'day', startMinutes: 480 },
+        shift: { id: 'day', startMinutes: 480 },
+      },
+    });
+    expect(
+      model.dateSummaries.find((summary) => summary.dateKey === '2026-07-01'),
+    ).toMatchObject({
+      basePatternShift: { id: 'day', startMinutes: 420 },
+      scheduledShift: { id: 'day', startMinutes: 480 },
+      effectiveShift: { id: 'day', startMinutes: 480 },
+      hasDirectScheduleOverride: true,
+      hasTimeOverride: true,
+      note: '교대 전에 장비를 확인합니다.',
+    });
+  });
+
+  it('달력 투영 입력에서 알람·설정·보관소 등 무관한 저장 필드를 제외합니다', () => {
+    const projection = selectCalendarProjectionData(data);
+
+    expect(Object.keys(projection).sort()).toEqual([
+      'dayExceptions',
+      'notes',
+      'overrides',
+      'pattern',
+      'payrollSettings',
+      'shiftTypes',
+      'timeOverrides',
+    ]);
+    expect(projection).not.toHaveProperty('alarmOverrides');
+    expect(projection).not.toHaveProperty('patternVault');
+    expect(projection).not.toHaveProperty('settings');
   });
 
   it('저장된 급여일과 조정 정책을 달력 표시에 반영합니다', () => {

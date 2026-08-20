@@ -12,6 +12,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
+  type ViewProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,20 +20,30 @@ import { useAppDialog } from '@/components/app-dialog';
 import { AppSheet } from '@/components/app-sheet';
 import { Screen } from '@/components/ui-kit';
 import { spacing } from '@/constants/app-theme';
+import {
+  CalendarDateSummarySheet,
+  type CalendarDateScheduleSummary,
+  type CalendarDateSummaryData,
+} from '@/features/calendar/calendar-date-summary-sheet';
+import { resolveCalendarDateDirectChange } from '@/features/calendar/calendar-date-summary-presentation';
 import { CalendarMonthCard } from '@/features/calendar/calendar-month-card';
 import { CalendarScreenHeader } from '@/features/calendar/calendar-screen-header';
 import { CalendarSelectionPanel } from '@/features/calendar/calendar-selection-panel';
 import {
   CalendarHolidayNotice,
   CalendarLegend,
-  CalendarLargeTextStatusSummary,
   CalendarMenuSections,
 } from '@/features/calendar/calendar-support-sections';
+import { resolveCalendarDateAtPoint } from '@/features/calendar/calendar-drag-geometry';
+import { resolveCalendarSelectionCountViewModel } from '@/features/calendar/calendar-selection-presentation';
 import { usesSimplifiedCalendar } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useScreenActive } from '@/hooks/use-screen-active';
-import { buildCalendarMonthViewModel } from '@/services/calendar-month-view-model';
+import {
+  buildCalendarMonthViewModel,
+  type CalendarProjectionData,
+} from '@/services/calendar-month-view-model';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import { buildScheduleShareText } from '@/services/schedule-share-service';
 import {
@@ -42,10 +53,15 @@ import {
 import {
   formatKoreanDate,
   formatMonthTitle,
-  moveMonth,
   parseDateKey,
   toDateKey,
 } from '@/utils/date';
+import {
+  moveCalendarMonthWithinRange,
+  resolveCalendarMonthNavigationState,
+  shouldAnnounceCalendarMonthBoundary,
+} from '@/utils/calendar-month';
+import { getDayExceptionLabel } from '@/utils/day-exception';
 import {
   resolveCalendarDragSelection,
   toggleCalendarDateSelection,
@@ -86,11 +102,13 @@ export default function CalendarScreen() {
   });
   const [bulkSaving, setBulkSaving] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [summaryDateKey, setSummaryDateKey] = useState<string | null>(null);
   const [selectionArmed, setSelectionArmed] = useState(false);
   const [selectedDateKeys, setSelectedDateKeys] = useState<readonly string[]>([]);
   const selectedDateKeysRef = useRef<readonly string[]>([]);
   const calendarGridRef = useRef<View>(null);
   const legendTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
+  const summaryTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const calendarGridFrameRef = useRef<CalendarGridFrame>({ x: 0, y: 0, width: 0 });
   const calendarRowLayoutsRef = useRef<Record<number, CalendarRowLayout>>({});
   const calendarDragSessionRef = useRef<CalendarDragSession | null>(null);
@@ -100,8 +118,31 @@ export default function CalendarScreen() {
     dateKey: string;
     began: boolean;
   } | null>(null);
+  const lastAnnouncedMonthBoundaryRef = useRef<
+    'minimum' | 'maximum' | null
+  >(null);
   const { data } = useAppStoreData();
   const { saveDays } = useAppStoreActions();
+  const calendarProjectionData = useMemo<CalendarProjectionData>(
+    () => ({
+      dayExceptions: data.dayExceptions,
+      notes: data.notes,
+      overrides: data.overrides,
+      pattern: data.pattern,
+      payrollSettings: data.payrollSettings,
+      shiftTypes: data.shiftTypes,
+      timeOverrides: data.timeOverrides,
+    }),
+    [
+      data.dayExceptions,
+      data.notes,
+      data.overrides,
+      data.pattern,
+      data.payrollSettings,
+      data.shiftTypes,
+      data.timeOverrides,
+    ],
+  );
   const selectedDateKeySet = useMemo(() => new Set(selectedDateKeys), [selectedDateKeys]);
   const selectionMode = selectionArmed || selectedDateKeys.length > 0;
   const simplifiedCalendar = usesSimplifiedCalendar(fontScale);
@@ -114,6 +155,9 @@ export default function CalendarScreen() {
   const {
     calendarLayout,
     cellRows,
+    currentMonthDateKeys,
+    dateSummaryByDate,
+    daysByDate,
     effectiveDays,
     holidayDataStatus,
     holidays,
@@ -125,14 +169,68 @@ export default function CalendarScreen() {
   } = useMemo(
     () =>
       buildCalendarMonthViewModel({
-        data,
+        data: calendarProjectionData,
         year: visibleMonth.year,
         month: visibleMonth.month,
         windowWidth,
         fontScale,
       }),
-    [data, fontScale, visibleMonth.month, visibleMonth.year, windowWidth],
+    [calendarProjectionData, fontScale, visibleMonth.month, visibleMonth.year, windowWidth],
   );
+  const selectionCount = useMemo(
+    () =>
+      resolveCalendarSelectionCountViewModel(
+        selectedDateKeys,
+        currentMonthDateKeys,
+      ),
+    [currentMonthDateKeys, selectedDateKeys],
+  );
+  const monthNavigation = useMemo(
+    () => resolveCalendarMonthNavigationState(visibleMonth),
+    [visibleMonth],
+  );
+  const summaryData = useMemo<CalendarDateSummaryData | null>(() => {
+    if (!summaryDateKey) return null;
+    const day = daysByDate.get(summaryDateKey);
+    const summary = dateSummaryByDate.get(summaryDateKey);
+    if (!day || !summary) return null;
+
+    const actualLabel = summary.dayException
+      ? getDayExceptionLabel(summary.dayException)
+      : summary.effectiveShift?.name ?? null;
+    const toSchedule = (
+      label: string | null,
+      shift: typeof summary.effectiveShift,
+    ): CalendarDateScheduleSummary | null =>
+      label
+        ? {
+            endsNextDay: shift?.endsNextDay ?? false,
+            endMinutes: shift?.endMinutes ?? null,
+            label,
+            startMinutes: shift?.startMinutes ?? null,
+          }
+        : null;
+    const directChange = resolveCalendarDateDirectChange({
+      hasSpecialSchedule: Boolean(summary.dayException),
+      hasShiftOverride: summary.hasShiftOverride,
+      hasTimeOverride: summary.hasTimeOverride,
+    });
+
+    return {
+      actualSchedule: toSchedule(actualLabel, summary.effectiveShift),
+      baseSchedule: toSchedule(
+        summary.basePatternShift?.name ?? null,
+        summary.basePatternShift,
+      ),
+      dateKey: summaryDateKey,
+      directChange,
+      editable: summary.scheduleActive,
+      holiday: day.holiday,
+      isToday: summaryDateKey === today,
+      note: summary.note,
+      payrollEntry: day.payrollEntry,
+    };
+  }, [dateSummaryByDate, daysByDate, summaryDateKey, today]);
 
   useEffect(() => {
     if (!screenActive) return;
@@ -203,12 +301,15 @@ export default function CalendarScreen() {
 
   const startDateSelection = useCallback(() => {
     setLegendOpen(false);
+    setSummaryDateKey(null);
     setSelectionArmed(true);
     void Haptics.selectionAsync();
     AccessibilityInfo.announceForAccessibility(
-      '일정 선택을 시작했습니다. 날짜를 누르거나 손가락을 끌어 선택해야 합니다.',
+      calendarLayout.presentation === 'month-grid'
+        ? '일정 선택을 시작했습니다. 날짜를 누르거나 손가락을 끌어 선택해야 합니다.'
+        : '일정 선택을 시작했습니다. 날짜를 하나씩 눌러 선택해야 합니다.',
     );
-  }, []);
+  }, [calendarLayout.presentation]);
 
   const cancelDateSelection = useCallback(() => {
     clearDateSelection();
@@ -221,7 +322,9 @@ export default function CalendarScreen() {
     selectionAnnouncementRef.current = null;
     if (pending.began) {
       AccessibilityInfo.announceForAccessibility(
-        `${formatKoreanDate(pending.dateKey)}부터 일정 선택을 시작했습니다. 다른 날짜를 누르거나 손가락을 끌어 추가할 수 있습니다.`,
+        calendarLayout.presentation === 'month-grid'
+          ? `${formatKoreanDate(pending.dateKey)}부터 일정 선택을 시작했습니다. 다른 날짜를 누르거나 손가락을 끌어 추가할 수 있습니다.`
+          : `${formatKoreanDate(pending.dateKey)}부터 일정 선택을 시작했습니다. 다른 날짜를 하나씩 눌러 추가할 수 있습니다.`,
       );
       return;
     }
@@ -231,7 +334,7 @@ export default function CalendarScreen() {
         ? `${formatKoreanDate(pending.dateKey)}을 선택했습니다. 선택한 날짜는 ${selectedDateKeys.length}일입니다.`
         : `${formatKoreanDate(pending.dateKey)} 선택을 해제했습니다. 선택한 날짜는 ${selectedDateKeys.length}일입니다.`,
     );
-  }, [selectedDateKeySet, selectedDateKeys.length]);
+  }, [calendarLayout.presentation, selectedDateKeySet, selectedDateKeys.length]);
 
   useEffect(() => {
     if (!screenActive || !selectionMode || Platform.OS === 'web') return;
@@ -245,15 +348,35 @@ export default function CalendarScreen() {
 
   const changeMonth = useCallback(
     (amount: number) => {
-      const next = moveMonth(visibleMonth.year, visibleMonth.month, amount);
-      clearDateSelection();
+      const result = moveCalendarMonthWithinRange(visibleMonth, amount);
+      if (result.status === 'boundary') {
+        if (
+          shouldAnnounceCalendarMonthBoundary(
+            lastAnnouncedMonthBoundaryRef.current,
+            result.boundary,
+          )
+        ) {
+          lastAnnouncedMonthBoundaryRef.current = result.boundary;
+          AccessibilityInfo.announceForAccessibility(
+            result.boundary === 'minimum'
+              ? '지원하는 첫 달입니다.'
+              : '지원하는 마지막 달입니다.',
+          );
+        }
+        return visibleMonth;
+      }
+      const next = result.month;
+      lastAnnouncedMonthBoundaryRef.current = null;
+      calendarDragSessionRef.current = null;
+      calendarRowLayoutsRef.current = {};
+      setSummaryDateKey(null);
       setVisibleMonth(next);
       AccessibilityInfo.announceForAccessibility(
         `${formatMonthTitle(next.year, next.month)}로 이동했습니다.`,
       );
       return next;
     },
-    [clearDateSelection, visibleMonth.month, visibleMonth.year],
+    [visibleMonth],
   );
 
   const goToday = () => {
@@ -261,7 +384,10 @@ export default function CalendarScreen() {
     const next = { year: now.getFullYear(), month: now.getMonth() };
     const monthChanged =
       visibleMonth.year !== next.year || visibleMonth.month !== next.month;
-    clearDateSelection();
+    calendarDragSessionRef.current = null;
+    lastAnnouncedMonthBoundaryRef.current = null;
+    calendarRowLayoutsRef.current = {};
+    setSummaryDateKey(null);
     setVisibleMonth(next);
     setTodayBlinkRequest((request) => request + 1);
     AccessibilityInfo.announceForAccessibility(
@@ -306,6 +432,23 @@ export default function CalendarScreen() {
     [selectableDateKeys],
   );
 
+  const beginListDateSelection = useCallback(
+    (dateKey: string) => {
+      void Haptics.selectionAsync();
+      setSelectionArmed(true);
+      calendarDragSessionRef.current = null;
+      selectionAnnouncementRef.current = { dateKey, began: true };
+      setSelectedDateKeys((current) => {
+        const next = current.includes(dateKey)
+          ? current
+          : [...current, dateKey].sort();
+        selectedDateKeysRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
   const pressCalendarDate = useCallback(
     (dateKey: string) => {
       if (longPressedDateKeyRef.current === dateKey) {
@@ -316,7 +459,7 @@ export default function CalendarScreen() {
         toggleDateSelection(dateKey);
         return;
       }
-      router.push({ pathname: '/day/[date]', params: { date: dateKey } });
+      setSummaryDateKey(dateKey);
     },
     [selectionMode, toggleDateSelection],
   );
@@ -329,29 +472,14 @@ export default function CalendarScreen() {
 
   const findDraggedDateKey = useCallback(
     (pageX: number, pageY: number) => {
-      const gridFrame = calendarGridFrameRef.current;
-      const locationX = pageX - gridFrame.x;
-      const locationY = pageY - gridFrame.y;
-      if (
-        gridFrame.width <= 0 ||
-        locationX < 0 ||
-        locationX >= gridFrame.width
-      ) {
-        return null;
-      }
-
-      const rowIndex = cellRows.findIndex((_, index) => {
-        const layout = calendarRowLayoutsRef.current[index];
-        return Boolean(
-          layout && locationY >= layout.y && locationY < layout.y + layout.height,
-        );
+      return resolveCalendarDateAtPoint({
+        cellRows,
+        gridFrame: calendarGridFrameRef.current,
+        pageX,
+        pageY,
+        rowLayouts: calendarRowLayoutsRef.current,
+        selectableDateKeySet,
       });
-      if (rowIndex < 0) return null;
-
-      const weekdayIndex = Math.min(6, Math.floor(locationX / (gridFrame.width / 7)));
-      const cell = cellRows[rowIndex]?.[weekdayIndex];
-      if (!cell?.inCurrentMonth || !selectableDateKeySet.has(cell.dateKey)) return null;
-      return cell.dateKey;
     },
     [cellRows, selectableDateKeySet],
   );
@@ -395,6 +523,88 @@ export default function CalendarScreen() {
       }
     }, 0);
   }, []);
+
+  const calendarGridViewProps = useMemo<ViewProps>(
+    () => ({
+      onMoveShouldSetResponder: () => calendarDragSessionRef.current !== null,
+      onMoveShouldSetResponderCapture: () =>
+        calendarDragSessionRef.current !== null,
+      onResponderGrant: (event) => {
+        updateDateDrag(event.nativeEvent.pageX, event.nativeEvent.pageY);
+      },
+      onResponderMove: (event) => {
+        updateDateDrag(event.nativeEvent.pageX, event.nativeEvent.pageY);
+      },
+      onResponderRelease: finishDateDrag,
+      onResponderTerminate: finishDateDrag,
+      onResponderTerminationRequest: () =>
+        calendarDragSessionRef.current === null,
+      onTouchStart: measureCalendarGrid,
+      onTouchEndCapture: finishDateDrag,
+    }),
+    [finishDateDrag, measureCalendarGrid, updateDateDrag],
+  );
+  const onCalendarGridLayout = useCallback<
+    NonNullable<ViewProps['onLayout']>
+  >(
+    (event) => {
+      calendarGridFrameRef.current = {
+        ...calendarGridFrameRef.current,
+        width: event.nativeEvent.layout.width,
+      };
+      measureCalendarGrid();
+    },
+    [measureCalendarGrid],
+  );
+  const onCalendarRowLayout = useCallback(
+    (rowIndex: number, layout: CalendarRowLayout) => {
+      calendarRowLayoutsRef.current[rowIndex] = layout;
+    },
+    [],
+  );
+  const calendarSwipeViewProps = useMemo<ViewProps>(
+    () => ({
+      onMoveShouldSetResponderCapture: (event) => {
+        const start = calendarSwipeStartRef.current;
+        if (!start || selectionMode) return false;
+        return isCalendarHorizontalSwipe({
+          dx: event.nativeEvent.pageX - start.pageX,
+          dy: event.nativeEvent.pageY - start.pageY,
+        });
+      },
+      onResponderRelease: (event) => {
+        const start = calendarSwipeStartRef.current;
+        calendarSwipeStartRef.current = null;
+        if (!start || selectionMode) return;
+
+        const elapsed = Math.max(Date.now() - start.startedAt, 1);
+        const dx = event.nativeEvent.pageX - start.pageX;
+        const amount = resolveCalendarSwipeMonthOffset({
+          dx,
+          dy: event.nativeEvent.pageY - start.pageY,
+          vx: dx / elapsed,
+        });
+        if (amount === 0) return;
+
+        changeMonth(amount);
+        void Haptics.selectionAsync();
+      },
+      onResponderTerminate: () => {
+        calendarSwipeStartRef.current = null;
+      },
+      onResponderTerminationRequest: () => true,
+      onTouchStart: (event) => {
+        calendarSwipeStartRef.current = selectionMode
+          ? null
+          : {
+              pageX: event.nativeEvent.pageX,
+              pageY: event.nativeEvent.pageY,
+              startedAt: Date.now(),
+            };
+      },
+    }),
+    [changeMonth, selectionMode],
+  );
 
   const shareSelectedSchedules = useCallback(
     async (message: string) => {
@@ -684,142 +894,90 @@ export default function CalendarScreen() {
     showDialog,
   ]);
 
+  const closeDateSummary = useCallback(() => {
+    setSummaryDateKey(null);
+  }, []);
+
+  const editSummaryDate = useCallback(() => {
+    const dateKey = summaryDateKey;
+    if (!dateKey) return;
+    setSummaryDateKey(null);
+    router.push({ pathname: '/day/[date]', params: { date: dateKey } });
+  }, [summaryDateKey]);
+
   return (
     <>
       <Screen
-      contentStyle={[screenStyles.screen, { paddingHorizontal: calendarLayout.screenInset }]}
-      footerBottomOffset={selectionMode ? selectionTabBarOffset : 0}
-      footer={
-        selectionMode ? (
-          <CalendarSelectionPanel
-            bulkSaving={bulkSaving}
-            compact={compactSelectionPanel}
-            onCancel={cancelDateSelection}
-            onChange={openBulkChangeDialog}
-            onShare={openScheduleShareDialog}
-            selectedCount={selectedDateKeys.length}
-            stackActions={stackSelectionActions}
-          />
-        ) : undefined
-      }
-      maxContentWidth={720}>
-      <CalendarScreenHeader
-        onCancelSelection={cancelDateSelection}
-        onGoToday={goToday}
+        contentStyle={[
+          screenStyles.screen,
+          { paddingHorizontal: calendarLayout.screenInset },
+        ]}
+        footerBottomOffset={selectionMode ? selectionTabBarOffset : 0}
+        footer={
+          selectionMode ? (
+            <CalendarSelectionPanel
+              bulkSaving={bulkSaving}
+              compact={compactSelectionPanel}
+              onCancel={cancelDateSelection}
+              onChange={openBulkChangeDialog}
+              onShare={openScheduleShareDialog}
+              selectedCount={selectedDateKeys.length}
+              selectedInMonthCount={selectionCount.currentMonthCount}
+              stackActions={stackSelectionActions}
+            />
+          ) : undefined
+        }
+        maxContentWidth={720}>
+        <CalendarScreenHeader
+          onGoToday={goToday}
         onStartSelection={startDateSelection}
         selectionMode={selectionMode}
-      />
-
-      <CalendarMonthCard
-        calendarLayout={calendarLayout}
-        cellRows={cellRows}
-        effectiveDays={effectiveDays}
-        fontScale={fontScale}
-        gridRef={calendarGridRef}
-        gridViewProps={{
-          onMoveShouldSetResponder: () => calendarDragSessionRef.current !== null,
-          onMoveShouldSetResponderCapture: () =>
-            calendarDragSessionRef.current !== null,
-          onResponderGrant: (event) => {
-            updateDateDrag(event.nativeEvent.pageX, event.nativeEvent.pageY);
-          },
-          onResponderMove: (event) => {
-            updateDateDrag(event.nativeEvent.pageX, event.nativeEvent.pageY);
-          },
-          onResponderRelease: finishDateDrag,
-          onResponderTerminate: finishDateDrag,
-          onResponderTerminationRequest: () =>
-            calendarDragSessionRef.current === null,
-          onTouchStart: measureCalendarGrid,
-          onTouchEndCapture: finishDateDrag,
-        }}
-        holidays={holidays}
-        isDark={isDark}
-        monthlyWorkdayCount={monthlySummary.workdayCount}
-        notes={data.notes}
-        onBeginSelection={beginDateSelection}
-        onChangeMonth={changeMonth}
-        onGridLayout={(event) => {
-          calendarGridFrameRef.current = {
-            ...calendarGridFrameRef.current,
-            width: event.nativeEvent.layout.width,
-          };
-          measureCalendarGrid();
-        }}
-        onPressDate={pressCalendarDate}
-        onRowLayout={(rowIndex, layout) => {
-          calendarRowLayoutsRef.current[rowIndex] = layout;
-        }}
-        overrides={data.overrides}
-        payrollEntries={payrollEntries}
-        selectedDateKeySet={selectedDateKeySet}
-        selectionMode={selectionMode}
-        simplified={simplifiedCalendar}
-        swipeViewProps={{
-          onMoveShouldSetResponderCapture: (event) => {
-            const start = calendarSwipeStartRef.current;
-            if (!start || selectionMode) return false;
-            return isCalendarHorizontalSwipe({
-              dx: event.nativeEvent.pageX - start.pageX,
-              dy: event.nativeEvent.pageY - start.pageY,
-            });
-          },
-          onResponderRelease: (event) => {
-            const start = calendarSwipeStartRef.current;
-            calendarSwipeStartRef.current = null;
-            if (!start || selectionMode) return;
-
-            const elapsed = Math.max(Date.now() - start.startedAt, 1);
-            const dx = event.nativeEvent.pageX - start.pageX;
-            const amount = resolveCalendarSwipeMonthOffset({
-              dx,
-              dy: event.nativeEvent.pageY - start.pageY,
-              vx: dx / elapsed,
-            });
-            if (amount === 0) return;
-
-            changeMonth(amount);
-            void Haptics.selectionAsync();
-          },
-          onResponderTerminate: () => {
-            calendarSwipeStartRef.current = null;
-          },
-          onResponderTerminationRequest: () => true,
-          onTouchStart: (event) => {
-            calendarSwipeStartRef.current = selectionMode
-              ? null
-              : {
-                  pageX: event.nativeEvent.pageX,
-                  pageY: event.nativeEvent.pageY,
-                  startedAt: Date.now(),
-                };
-          },
-        }}
-        timeOverrides={data.timeOverrides}
-        today={today}
-        todayBlink={todayBlink}
-        visibleMonth={visibleMonth}
-      />
-
-      {simplifiedCalendar ? (
-        <CalendarLargeTextStatusSummary
-          dateKeys={cellRows.flatMap((row) =>
-            row.filter((cell) => cell.inCurrentMonth).map((cell) => cell.dateKey),
-          )}
-          holidays={holidays}
-          payrollEntries={payrollEntries}
+        supportsDragSelection={calendarLayout.presentation === 'month-grid'}
         />
-      ) : null}
 
-      <CalendarHolidayNotice
-        status={holidayDataStatus}
-        visibleYear={visibleMonth.year}
-      />
+        <CalendarMonthCard
+          calendarLayout={calendarLayout}
+          canGoNextMonth={monthNavigation.canMoveNext}
+          canGoPreviousMonth={monthNavigation.canMovePrevious}
+          cellRows={cellRows}
+          effectiveDays={effectiveDays}
+          fontScale={fontScale}
+          gridRef={calendarGridRef}
+          gridViewProps={calendarGridViewProps}
+          holidays={holidays}
+          isDark={isDark}
+          monthlyWorkdayCount={monthlySummary.workdayCount}
+          notes={data.notes}
+          onBeginListSelection={beginListDateSelection}
+          onBeginSelection={beginDateSelection}
+          onChangeMonth={changeMonth}
+          onGridLayout={onCalendarGridLayout}
+          onPressDate={pressCalendarDate}
+          onRowLayout={onCalendarRowLayout}
+          overrides={data.overrides}
+          payrollEntries={payrollEntries}
+          selectedDateKeySet={selectedDateKeySet}
+          selectionMode={selectionMode}
+          simplified={simplifiedCalendar}
+          summaryDateKey={summaryDateKey}
+          summaryTriggerRef={summaryTriggerRef}
+          swipeViewProps={calendarSwipeViewProps}
+          timeOverrides={data.timeOverrides}
+          today={today}
+          todayBlink={todayBlink}
+          visibleMonth={visibleMonth}
+        />
 
-      <CalendarMenuSections
-        onOpenLegend={() => setLegendOpen(true)}
-        triggerRef={legendTriggerRef}
-      />
+        <CalendarHolidayNotice
+          status={holidayDataStatus}
+          visibleYear={visibleMonth.year}
+        />
+
+        <CalendarMenuSections
+          onOpenLegend={() => setLegendOpen(true)}
+          showCompactKey={calendarLayout.presentation === 'month-grid'}
+          triggerRef={legendTriggerRef}
+        />
 
       </Screen>
       <AppSheet
@@ -829,6 +987,13 @@ export default function CalendarScreen() {
         visible={legendOpen}>
         <CalendarLegend isDark={isDark} shiftTypes={data.shiftTypes} />
       </AppSheet>
+      <CalendarDateSummarySheet
+        data={summaryData}
+        onClose={closeDateSummary}
+        onEdit={editSummaryDate}
+        triggerRef={summaryTriggerRef}
+        visible={summaryDateKey !== null}
+      />
     </>
   );
 }

@@ -13,6 +13,10 @@ const monthCard = readFileSync(
   resolve(process.cwd(), 'src/features/calendar/calendar-month-card.tsx'),
   'utf8',
 );
+const weekList = readFileSync(
+  resolve(process.cwd(), 'src/features/calendar/calendar-week-list.tsx'),
+  'utf8',
+);
 const supportSections = readFileSync(
   resolve(process.cwd(), 'src/features/calendar/calendar-support-sections.tsx'),
   'utf8',
@@ -72,10 +76,15 @@ describe('달력 가시성 계약', () => {
     expect(dayCell).not.toContain('inactiveCell: { opacity:');
   });
 
-  it('좁은 화면의 가로 달력은 양쪽 가장자리 단서와 접근성 힌트를 제공해요', () => {
-    expect(monthCard).toContain('horizontalEdgeCueLeft');
-    expect(monthCard).toContain('horizontalEdgeCueRight');
-    expect(monthCard).toContain('좌우로 밀어 가려진 토요일까지 확인합니다.');
+  it('좁은 화면과 큰 글자에서는 가로 스크롤 없이 주차 목록을 표시합니다', () => {
+    expect(monthCard).toContain("calendarLayout.presentation === 'month-grid'");
+    expect(monthCard).toContain('<CalendarWeekList');
+    expect(monthCard).not.toContain('ScrollView');
+    expect(monthCard).not.toContain('horizontalEdgeCueLeft');
+    expect(monthCard).not.toContain('horizontalEdgeCueRight');
+    expect(monthCard).not.toContain('가려진 토요일');
+    expect(weekList).toContain('minHeight: 48');
+    expect(weekList).not.toContain('numberOfLines');
   });
 
   it('선택 범위와 선택 패널은 배경 대비 3대 1 이상의 강한 경계를 사용해요', () => {

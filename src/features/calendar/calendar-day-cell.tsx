@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type Ref } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
@@ -12,13 +12,13 @@ import type { AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import type { EffectiveDay } from '@/services/app-data-service';
+import { resolveCalendarDayViewModel } from '@/services/calendar-month-view-model';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import type { CalendarLayout } from '@/utils/calendar-layout';
 import {
   resolveCalendarSelectionSegment,
 } from '@/utils/calendar-selection';
 import type { CalendarCell } from '@/utils/date';
-import { formatKoreanDate } from '@/utils/date';
 import {
   getDayExceptionAppearance,
 } from '@/utils/day-exception-appearance';
@@ -30,6 +30,10 @@ import {
   resolveCalendarExceptionBadgeDisplay,
   resolveCalendarStatusDisplay,
 } from './calendar-day-status';
+import {
+  buildCalendarDayAccessibilityLabel,
+  isCalendarDayInteractionDisabled,
+} from './calendar-day-presentation';
 
 export type CalendarDayCellStyles = ReturnType<
   typeof createCalendarDayCellStyles
@@ -39,11 +43,13 @@ type Props = {
   calendarLayout: CalendarLayout;
   cell: CalendarCell;
   effectiveDay: EffectiveDay;
+  elementRef?: Ref<React.ElementRef<typeof Pressable>>;
   fontScale: number;
   hasNote: boolean;
   hasOverride: boolean;
   holiday: KoreanHolidayInfo | null;
   isDark: boolean;
+  isToday: boolean;
   onBeginSelection: (dateKey: string) => void;
   onPressDate: (dateKey: string) => void;
   palette: AppPalette;
@@ -53,7 +59,6 @@ type Props = {
   selectionMode: boolean;
   simplified: boolean;
   styles: CalendarDayCellStyles;
-  today: string;
   todayBlink: Animated.Value;
   weekdayIndex: number;
 };
@@ -62,11 +67,13 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   calendarLayout,
   cell,
   effectiveDay,
+  elementRef,
   fontScale,
   hasNote,
   hasOverride,
   holiday,
   isDark,
+  isToday,
   onBeginSelection,
   onPressDate,
   palette,
@@ -76,7 +83,6 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   selectionMode,
   simplified,
   styles,
-  today,
   todayBlink,
   weekdayIndex,
 }: Props) {
@@ -85,7 +91,6 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   const shiftAppearance = shift
     ? getShiftAppearance(shift, palette, isDark)
     : null;
-  const isToday = cell.dateKey === today;
   const isSelected = selectedDateKeySet.has(cell.dateKey);
   const selectionSegment = resolveCalendarSelectionSegment(
     row,
@@ -93,6 +98,10 @@ export const CalendarDayCell = memo(function CalendarDayCell({
     selectedDateKeySet,
   );
   const scheduleDate = effectiveDay.scheduleActive;
+  const interactionDisabled = isCalendarDayInteractionDisabled(
+    scheduleDate,
+    selectionMode,
+  );
   const dayException = effectiveDay.dayException;
   const dayExceptionLabel = dayException
     ? getDayExceptionLabel(dayException)
@@ -111,34 +120,57 @@ export const CalendarDayCell = memo(function CalendarDayCell({
   );
   const badgeMaxWidth = Math.max(calendarLayout.cellWidth - 8, 32);
   const calendarTextScale = compact ? 1.35 : 1.7;
+  const accessibilityLabel = buildCalendarDayAccessibilityLabel(
+    resolveCalendarDayViewModel({
+      cell,
+      effectiveDay,
+      hasDirectScheduleOverride: hasOverride,
+      hasNote,
+      holiday,
+      payrollEntry,
+    }),
+    { isToday },
+  );
 
   return (
     <Pressable
       accessibilityHint={
         scheduleDate && selectionMode
           ? '선택 목록에 추가하거나 선택을 해제합니다.'
-          : scheduleDate
-            ? '짧게 누르면 하루 일정을 편집합니다. 길게 누르면 변경하거나 공유할 날짜를 선택합니다.'
+          : !selectionMode && scheduleDate
+            ? '누르면 날짜 요약을 엽니다. 길게 누르면 변경하거나 공유할 날짜를 선택합니다.'
+            : !selectionMode
+              ? '누르면 날짜 요약을 엽니다.'
             : '일정 적용 시작일 이후 날짜만 편집할 수 있습니다.'
       }
-      accessibilityLabel={`${formatKoreanDate(cell.dateKey, true)}${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday.accessibilityLabel}` : ''}${payrollEntry ? `, ${payrollEntry.accessibilityLabel}` : ''}, ${scheduleDate ? shift?.name ?? '일정 없음' : '일정 적용 시작일 이전 날짜'}${shift?.id.startsWith('substitute-') ? ', 특근' : ''}${dayExceptionLabel ? `, 예외 일정 ${dayExceptionLabel}` : ''}${hasNote ? ', 메모 있음' : ''}${hasOverride ? ', 직접 변경한 날' : ''}`}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: !scheduleDate, selected: isSelected }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={selectionMode ? 'checkbox' : 'button'}
+      accessibilityState={
+        selectionMode
+          ? { checked: isSelected, disabled: !scheduleDate }
+          : undefined
+      }
       accessibilityActions={
         scheduleDate
           ? [{ name: 'longpress', label: '변경하거나 공유할 날짜로 선택하기' }]
           : undefined
       }
       delayLongPress={360}
-      disabled={!scheduleDate}
+      disabled={interactionDisabled}
+      ref={elementRef}
       onBlur={cellFocus.onBlur}
       onFocus={cellFocus.onFocus}
       onAccessibilityAction={(event) => {
-        if (event.nativeEvent.actionName === 'longpress') {
+        if (
+          event.nativeEvent.actionName === 'longpress' &&
+          scheduleDate
+        ) {
           onBeginSelection(cell.dateKey);
         }
       }}
-      onLongPress={() => onBeginSelection(cell.dateKey)}
+      onLongPress={
+        scheduleDate ? () => onBeginSelection(cell.dateKey) : undefined
+      }
       onPress={() => onPressDate(cell.dateKey)}
       style={({ pressed }) => [
         styles.cellWrapper,
@@ -151,7 +183,7 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           styles.selectedCellWrapperJoinedLeft,
         (selectionSegment === 'start' || selectionSegment === 'middle') &&
           styles.selectedCellWrapperJoinedRight,
-        cellFocus.focusVisible && scheduleDate && styles.cellFocusVisible,
+        cellFocus.focusVisible && !interactionDisabled && styles.cellFocusVisible,
         pressed &&
           (isSelected ? styles.selectedCellPressed : styles.cellPressed),
       ]}>
@@ -415,11 +447,13 @@ function areCalendarDayCellPropsEqual(previous: Props, next: Props): boolean {
     previous.calendarLayout === next.calendarLayout &&
     previous.cell === next.cell &&
     previous.effectiveDay === next.effectiveDay &&
+    previous.elementRef === next.elementRef &&
     previous.fontScale === next.fontScale &&
     previous.hasNote === next.hasNote &&
     previous.hasOverride === next.hasOverride &&
     previous.holiday === next.holiday &&
     previous.isDark === next.isDark &&
+    previous.isToday === next.isToday &&
     previous.onBeginSelection === next.onBeginSelection &&
     previous.onPressDate === next.onPressDate &&
     previous.palette === next.palette &&
@@ -428,7 +462,6 @@ function areCalendarDayCellPropsEqual(previous: Props, next: Props): boolean {
     previous.selectionMode === next.selectionMode &&
     previous.simplified === next.simplified &&
     previous.styles === next.styles &&
-    previous.today === next.today &&
     previous.todayBlink === next.todayBlink &&
     previous.weekdayIndex === next.weekdayIndex
   );
