@@ -219,6 +219,8 @@ export default function AlarmSettingsScreen() {
   const [testBusy, setTestBusy] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const alarmPlatformSupported = Platform.OS === "android";
   const sleepReminderSupported =
     alarmPlatformSupported && isSleepReminderNativeSupported();
@@ -259,6 +261,20 @@ export default function AlarmSettingsScreen() {
   }, [data.pattern.shiftTypeIds, data.shiftTypes]);
   const scheduledAlarms = alarmStatus?.scheduledAlarms ?? [];
   const recentAlarmEvents = alarmStatus?.recentEvents ?? [];
+  const readyPermissionCount = alarmStatus
+    ? [
+        alarmStatus.exactAlarmAllowed,
+        alarmStatus.fullScreenAllowed,
+        alarmStatus.notificationsAllowed,
+        alarmStatus.batteryOptimizationIgnored,
+      ].filter(Boolean).length
+    : null;
+  const permissionSummary =
+    readyPermissionCount === null
+      ? "상태를 확인하고 있습니다."
+      : readyPermissionCount === 4
+        ? "필요한 4개 항목이 준비되어 있습니다."
+        : `${readyPermissionCount}/4개 항목이 준비되어 있습니다.`;
   const nearestAlarm = scheduledAlarms[0];
   const scheduledCount =
     alarmStatus?.scheduledCount ?? data.settings.scheduledNotificationCount;
@@ -769,42 +785,69 @@ export default function AlarmSettingsScreen() {
 
               {alarmPlatformSupported ? (
                 <Card density="compact" style={styles.detailsCard}>
-                  <View style={styles.detailBlock}>
-                    <AppText variant="label">권한 상태</AppText>
-                    <AlarmPermissionChecklist
-                      disabled={alarmBusy || sleepReminderBusy}
-                      onOpenSettings={(target) => void openPermissionTarget(target)}
-                      status={alarmStatus}
-                    />
-                  </View>
+                  <ListRow
+                    allowSubtitleWrapping
+                    expanded={permissionsOpen}
+                    icon="shield-outline"
+                    onPress={() => setPermissionsOpen((open) => !open)}
+                    subtitle={permissionSummary}
+                    title="권한 상태"
+                    trailing={<DisclosureIcon open={permissionsOpen} />}
+                  />
+                  {permissionsOpen ? (
+                    <View style={styles.nestedDetail}>
+                      <AlarmPermissionChecklist
+                        disabled={alarmBusy || sleepReminderBusy}
+                        onOpenSettings={(target) =>
+                          void openPermissionTarget(target)
+                        }
+                        status={alarmStatus}
+                      />
+                    </View>
+                  ) : null}
                   <MenuDivider inset={false} />
-                  <View style={styles.detailBlock}>
-                    <AppText variant="label">알람 계획 유효 기간</AppText>
-                    <AppText tone="secondary" variant="caption">
-                      {formatAlarmPlanCoverage(alarmStatus?.plannedThroughAt ?? 0)}
-                    </AppText>
-                  </View>
-                  <MenuDivider inset={false} />
-                  <View style={styles.detailBlock}>
-                    <AppText variant="label">최근 알람 기록</AppText>
-                    {recentAlarmEvents.length > 0 ? (
-                      recentAlarmEvents.map((event, index) => (
-                        <AlarmHistoryRow
-                          event={event}
-                          key={event.id}
-                          separated={index > 0}
-                        />
-                      ))
-                    ) : (
-                      <AppText
-                        tone="secondary"
-                        style={styles.detailEmptyCopy}
-                        variant="caption"
-                      >
-                        아직 저장된 알람 기록이 없습니다.
-                      </AppText>
+                  <ListRow
+                    allowSubtitleWrapping
+                    icon="calendar-outline"
+                    subtitle={formatAlarmPlanCoverage(
+                      alarmStatus?.plannedThroughAt ?? 0,
                     )}
-                  </View>
+                    title="알람 계획"
+                  />
+                  <MenuDivider inset={false} />
+                  <ListRow
+                    allowSubtitleWrapping
+                    expanded={historyOpen}
+                    icon="time-outline"
+                    onPress={() => setHistoryOpen((open) => !open)}
+                    subtitle={
+                      recentAlarmEvents.length > 0
+                        ? `${recentAlarmEvents.length}개의 기록이 있습니다.`
+                        : "저장된 기록이 없습니다."
+                    }
+                    title="최근 알람 기록"
+                    trailing={<DisclosureIcon open={historyOpen} />}
+                  />
+                  {historyOpen ? (
+                    <View style={styles.nestedDetail}>
+                      {recentAlarmEvents.length > 0 ? (
+                        recentAlarmEvents.map((event, index) => (
+                          <AlarmHistoryRow
+                            event={event}
+                            key={event.id}
+                            separated={index > 0}
+                          />
+                        ))
+                      ) : (
+                        <AppText
+                          tone="secondary"
+                          style={styles.detailEmptyCopy}
+                          variant="caption">
+                          아직 저장된 알람 기록이 없습니다.
+                        </AppText>
+                      )}
+                    </View>
+                  ) : null}
                 </Card>
               ) : null}
             </View>
@@ -1050,8 +1093,12 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       borderColor: palette.line,
     },
     managementBody: { gap: spacing.medium },
-    detailsCard: { gap: spacing.large },
-    detailBlock: { gap: spacing.medium },
+    detailsCard: { gap: 0 },
+    nestedDetail: {
+      gap: spacing.small,
+      paddingHorizontal: spacing.small,
+      paddingBottom: spacing.small,
+    },
     detailEmptyCopy: { paddingVertical: spacing.medium },
     flexCopy: { minWidth: 0, flex: 1, gap: 3 },
     alarmRow: {

@@ -221,6 +221,25 @@ export function SelectionPill({
   );
 }
 
+export function SelectionIndicator({
+  selected,
+  testID,
+}: {
+  selected: boolean;
+  testID?: string;
+}) {
+  const { palette } = useAppTheme();
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={stylesShared.indicatorSlot}
+      testID={testID}>
+      {selected ? <SelectionCheck compact palette={palette} /> : null}
+    </View>
+  );
+}
+
 function SelectionCheck({
   compact = false,
   palette,
@@ -267,6 +286,13 @@ const stylesShared = StyleSheet.create({
     height: 24,
   },
   checkCompact: { width: 20, height: 20 },
+  indicatorSlot: {
+    width: 20,
+    height: 20,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 function createStyles(palette: AppPalette) {

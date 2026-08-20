@@ -30,7 +30,7 @@ export function parsePlayPhoneScreenshotArguments(argv) {
   }
   if (!sourceDirectory) {
     throw new Error(
-      '--source-dir로 V12 Play 설치본에서 다시 촬영한 WebP 4장의 폴더를 지정해야 합니다.',
+      '--source-dir로 V13 Play 설치본에서 다시 촬영한 WebP 4장의 폴더를 지정해야 합니다.',
     );
   }
   return { sourceDirectory: resolve(sourceDirectory) };
@@ -153,7 +153,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         console.log(`${screenshot.outputFile}: SHA-256 ${screenshot.sha256}`);
       }
       console.log(
-        'V12 실기기 스크린샷 4장을 불투명 RGB PNG로 준비했습니다. Play 등록 전 엄격 검사를 실행해야 합니다.',
+        'V13 실기기 스크린샷 4장을 불투명 RGB PNG로 준비했습니다. Play 등록 전 엄격 검사를 실행해야 합니다.',
       );
     })
     .catch((error) => {

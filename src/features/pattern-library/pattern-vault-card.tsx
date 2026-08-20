@@ -80,7 +80,7 @@ export function PatternVaultCard({
           />
         ) : null}
         <AppButton
-          accessibilityHint="향후 42일 변경 내용을 먼저 확인합니다."
+          accessibilityHint="적용일이 속한 달력에서 변경 내용을 먼저 확인합니다."
           disabled={busy || active}
           icon="checkmark"
           label={active ? '사용 중' : '적용 비교'}

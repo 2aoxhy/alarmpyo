@@ -4,10 +4,14 @@ import type { PatternVaultEntry } from '../../models/app-data';
 import { createDefaultAppData } from '../../services/app-data-service';
 
 import {
+  buildPatternPreviewMonths,
   buildPatternDiffRows,
   buildPatternOverridePolicy,
+  formatPatternCalendarShiftToken,
   formatPatternDayAccessibilityLabel,
   getPreservedOverrideDateKeys,
+  resolvePatternPreviewRow,
+  type PatternDiffRow,
   validatePatternDraft,
 } from './pattern-library-model';
 
@@ -22,6 +26,26 @@ const pattern: PatternVaultEntry = {
   createdAt: '2026-08-20T00:00:00.000Z',
   updatedAt: '2026-08-20T00:00:00.000Z',
 };
+
+function previewRow(
+  dateKey: string,
+  currentShiftTypeId: string,
+  nextShiftTypeId: string,
+): PatternDiffRow {
+  return {
+    dateKey,
+    dateLabel: dateKey,
+    currentShiftTypeId,
+    currentLabel: currentShiftTypeId,
+    currentTimeLabel: null,
+    nextShiftTypeId,
+    nextLabel: nextShiftTypeId,
+    nextTimeLabel: null,
+    changed: currentShiftTypeId !== nextShiftTypeId,
+    scheduledShiftChanged: currentShiftTypeId !== nextShiftTypeId,
+    hasDirectOverride: false,
+  };
+}
 
 describe('pattern library UI model', () => {
   it('accepts only named 1 through 42 day drafts', () => {
@@ -110,5 +134,38 @@ describe('pattern library UI model', () => {
     const label = formatPatternDayAccessibilityLabel(11, 42, 'NIGHT');
     expect(label).toBe('12/42, 야간');
     expect(label).not.toContain('선택됨');
+  });
+
+  it('groups only authoritative preview rows into calendar months', () => {
+    const rows = [
+      previewRow('2026-08-20', 'day', 'night'),
+      previewRow('2026-09-01', 'night', 'off'),
+      previewRow('2026-09-30', 'off', 'day'),
+      previewRow('2026-10-01', 'day', 'day'),
+    ];
+
+    expect(buildPatternPreviewMonths(rows)).toEqual([
+      { key: '2026-08', year: 2026, month: 7, label: '2026년 8월' },
+      { key: '2026-09', year: 2026, month: 8, label: '2026년 9월' },
+      { key: '2026-10', year: 2026, month: 9, label: '2026년 10월' },
+    ]);
+    expect(resolvePatternPreviewRow(rows, '2026-09-30')?.dateKey).toBe('2026-09-30');
+    expect(resolvePatternPreviewRow(rows, null)?.dateKey).toBe('2026-08-20');
+    expect(
+      resolvePatternPreviewRow(rows, '2026-10-31', '2026-09')?.dateKey,
+    ).toBe('2026-09-01');
+    expect(
+      resolvePatternPreviewRow(
+        [previewRow('2026-08-20', 'day', 'day'), previewRow('2026-09-01', 'day', 'night')],
+        null,
+      )?.dateKey,
+    ).toBe('2026-08-20');
+  });
+
+  it('uses compact shift tokens only for fixed-width calendar cells', () => {
+    expect(formatPatternCalendarShiftToken('day', '주간')).toBe('주');
+    expect(formatPatternCalendarShiftToken('substitute-night', '야간 대체근무')).toBe('야대');
+    expect(formatPatternCalendarShiftToken('custom', '장시간근무')).toBe('장시');
+    expect(formatPatternCalendarShiftToken(null, '일정 없음')).toBe('—');
   });
 });

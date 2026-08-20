@@ -1,8 +1,14 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import { AppIcon } from "@/components/app-icon";
 import { AppText } from "@/components/ui-kit";
 import { radii, spacing, type AppPalette } from "@/constants/app-theme";
+import { shouldReflowControl } from "@/design-system/responsive";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
 import type {
@@ -21,6 +27,8 @@ export function AlarmPermissionChecklist({
 }) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
+  const reflow = shouldReflowControl(width, fontScale) || fontScale >= 1.3;
 
   if (!status) {
     return (
@@ -78,6 +86,7 @@ export function AlarmPermissionChecklist({
             onPress={() => onOpenSettings(item.target)}
             style={({ pressed }) => [
               styles.row,
+              reflow && styles.rowReflow,
               pressed && !disabled && styles.rowPressed,
             ]}
           >
@@ -102,12 +111,17 @@ export function AlarmPermissionChecklist({
                 size={18}
               />
             </View>
-            <AppText style={styles.label} variant="label">
-              {item.label}
-            </AppText>
-            <AppText color={color} style={styles.value} variant="caption">
-              {copy}
-            </AppText>
+            <View style={[styles.copy, reflow && styles.copyReflow]}>
+              <AppText style={styles.label} variant="label">
+                {item.label}
+              </AppText>
+              <AppText
+                color={color}
+                style={[styles.value, reflow && styles.valueReflow]}
+                variant="caption">
+                {copy}
+              </AppText>
+            </View>
             <AppIcon
               accessible={false}
               color={palette.inkMuted}
@@ -141,6 +155,9 @@ function createStyles(palette: AppPalette) {
     rowPressed: {
       backgroundColor: palette.disabledSurface,
     },
+    rowReflow: {
+      alignItems: "flex-start",
+    },
     icon: {
       width: 32,
       height: 32,
@@ -149,14 +166,27 @@ function createStyles(palette: AppPalette) {
       justifyContent: "center",
       borderRadius: radii.small,
     },
-    label: {
+    copy: {
       minWidth: 0,
       flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.small,
+    },
+    copyReflow: {
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: 2,
+    },
+    label: {
+      minWidth: 0,
     },
     value: {
-      maxWidth: "42%",
       flexShrink: 1,
-      textAlign: "right",
+    },
+    valueReflow: {
+      width: "100%",
     },
   });
 }

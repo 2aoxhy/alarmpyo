@@ -4,17 +4,14 @@ import {
   getPayrollCalendarEntriesForMonth,
   getPayrollCalendarEntry,
   getPayrollSchedule,
-  getPayrollScheduleForWorkDate,
   resolvePayrollBusinessDay,
 } from '../payroll-schedule';
 
-describe('급여 산정기간', () => {
-  it('전월 16일부터 당월 15일까지 산정하고 당월 21일에 지급해요', () => {
+describe('급여 지급일', () => {
+  it('사용자가 지정한 당월 지급일을 계산합니다', () => {
     expect(getPayrollSchedule(2026, 6)).toEqual({
       salaryYear: 2026,
       salaryMonth: 6,
-      periodStartDateKey: '2026-06-16',
-      periodEndDateKey: '2026-07-15',
       regularPaydayDateKey: '2026-07-21',
       paydayDateKey: '2026-07-21',
       paydayAdjusted: false,
@@ -24,12 +21,10 @@ describe('급여 산정기간', () => {
     });
   });
 
-  it('1월 급여는 전년도 12월 16일부터 계산해요', () => {
+  it('1월 지급일도 해당 연도와 월만 사용합니다', () => {
     expect(getPayrollSchedule(2026, 0)).toEqual({
       salaryYear: 2026,
       salaryMonth: 0,
-      periodStartDateKey: '2025-12-16',
-      periodEndDateKey: '2026-01-15',
       regularPaydayDateKey: '2026-01-21',
       paydayDateKey: '2026-01-21',
       paydayAdjusted: false,
@@ -100,12 +95,6 @@ describe('급여 산정기간', () => {
     });
   });
 
-  it('15일과 16일의 근무는 서로 다른 달 급여에 포함해요', () => {
-    expect(getPayrollScheduleForWorkDate('2026-07-15').paydayDateKey).toBe('2026-07-21');
-    expect(getPayrollScheduleForWorkDate('2026-07-16').paydayDateKey).toBe('2026-08-21');
-    expect(getPayrollScheduleForWorkDate('2026-12-16').paydayDateKey).toBe('2027-01-21');
-  });
-
   it('공식 자료가 없는 연도는 반복 법정공휴일을 반영한 예상일로 구분해요', () => {
     expect(getPayrollSchedule(2028, 4)).toMatchObject({
       regularPaydayDateKey: '2028-05-21',
@@ -123,7 +112,6 @@ describe('급여 산정기간', () => {
 
   it('올바르지 않은 날짜와 월은 거부해요', () => {
     expect(() => getPayrollSchedule(2026, 12)).toThrow(RangeError);
-    expect(() => getPayrollScheduleForWorkDate('2026-02-30')).toThrow(RangeError);
     expect(() => resolvePayrollBusinessDay('날짜 없음')).toThrow(RangeError);
   });
 
@@ -162,10 +150,6 @@ describe('급여 산정기간', () => {
       day: 21,
       adjustment: 'previous-business-day',
     }).paydayDateKey).toBe('2021-09-17');
-    expect(getPayrollScheduleForWorkDate('2026-07-16', {
-      day: 31,
-      adjustment: 'fixed-date',
-    }).paydayDateKey).toBe('2026-08-31');
   });
 
   it('급여 설정 범위를 벗어나면 거부합니다', () => {

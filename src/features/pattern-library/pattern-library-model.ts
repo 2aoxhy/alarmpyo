@@ -13,6 +13,8 @@ import {
   differenceInCalendarDays,
   formatCompactTime,
   formatKoreanDate,
+  formatMonthTitle,
+  parseDateKey,
 } from '../../utils/date';
 
 export const MAX_PATTERN_LENGTH = 42;
@@ -70,6 +72,13 @@ export type PatternDiffRow = {
   changed: boolean;
   scheduledShiftChanged: boolean;
   hasDirectOverride: boolean;
+};
+
+export type PatternPreviewMonth = {
+  key: string;
+  year: number;
+  month: number;
+  label: string;
 };
 
 export function getPatternShiftOption(code: PatternShiftCode) {
@@ -196,6 +205,72 @@ export function adaptPatternApplicationPreviewRows(
     scheduledShiftChanged: row.scheduledShiftChanged,
     hasDirectOverride: row.hasDirectOverride,
   }));
+}
+
+export function getPatternPreviewMonthKey(dateKey: string): string {
+  return dateKey.slice(0, 7);
+}
+
+/** Store가 계산한 적용 미리보기 행만 월 단위 화면으로 묶습니다. */
+export function buildPatternPreviewMonths(
+  rows: readonly PatternDiffRow[],
+): PatternPreviewMonth[] {
+  const seen = new Set<string>();
+  const months: PatternPreviewMonth[] = [];
+  for (const row of rows) {
+    const key = getPatternPreviewMonthKey(row.dateKey);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const date = parseDateKey(row.dateKey);
+    months.push({
+      key,
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      label: formatMonthTitle(date.getFullYear(), date.getMonth()),
+    });
+  }
+  return months;
+}
+
+export function isPatternDiffRowChanged(row: PatternDiffRow): boolean {
+  return row.changed;
+}
+
+export function resolvePatternPreviewRow(
+  rows: readonly PatternDiffRow[],
+  requestedDateKey: string | null,
+  requestedMonthKey: string | null = null,
+): PatternDiffRow | null {
+  return (
+    rows.find((row) => row.dateKey === requestedDateKey) ??
+    rows.find(
+      (row) => getPatternPreviewMonthKey(row.dateKey) === requestedMonthKey,
+    ) ??
+    rows[0] ??
+    null
+  );
+}
+
+export function formatPatternCalendarShiftToken(
+  shiftTypeId: string | null,
+  label: string,
+): string {
+  if (shiftTypeId === null) return '—';
+  const knownToken: Readonly<Record<string, string>> = {
+    day: '주',
+    evening: '오',
+    night: '야',
+    off: '휴',
+    'substitute-day': '주대',
+    'substitute-night': '야대',
+    'exception-leave': '연',
+    'exception-training': '교',
+    'exception-reserve': '예',
+  };
+  return (
+    knownToken[shiftTypeId] ??
+    Array.from(label.replace(/\s+/g, '')).slice(0, 2).join('')
+  );
 }
 
 export function getPreservedOverrideDateKeys({

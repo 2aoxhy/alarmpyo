@@ -457,7 +457,7 @@ export default function PatternEditorScreen() {
         <SectionHeader centered title="근무 방식 설정" />
         <StatusBanner
           actionLabel="패턴 보관함 열기"
-          message="보관함에서 적용한 패턴은 주대·야대를 포함할 수 있어 기본 근무 방식 편집기에서 변경하지 않습니다. 보관함에서 패턴을 편집하거나 다른 패턴의 42일 비교를 확인해야 합니다. 현재 근무표는 변경하지 않았습니다."
+          message="보관함에서 적용한 패턴은 주대·야대를 포함할 수 있어 기본 근무 방식 편집기에서 변경하지 않습니다. 보관함에서 패턴을 편집하거나 다른 패턴의 달력 비교를 확인해야 합니다. 현재 근무표는 변경하지 않았습니다."
           onAction={() => router.replace('/pattern-library' as never)}
           title="보관함 패턴 사용 중"
           tone="info"

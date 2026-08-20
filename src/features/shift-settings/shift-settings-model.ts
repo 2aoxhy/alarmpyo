@@ -50,6 +50,29 @@ export type WorkScheduleOverview = {
   preview: WorkSchedulePreviewItem[];
 };
 
+export const LARGE_TEXT_SETTINGS_SCALE = 1.3;
+
+function finiteLayoutValue(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+export function shouldUseCompactShiftEditor(
+  width: number,
+  fontScale: number,
+): boolean {
+  return (
+    finiteLayoutValue(width, 360) < 380 ||
+    finiteLayoutValue(fontScale, 1) >= 1.25
+  );
+}
+
+export function resolveWakeTimeOptionColumns(
+  _width: number,
+  fontScale: number,
+): 1 | 2 {
+  return finiteLayoutValue(fontScale, 1) >= LARGE_TEXT_SETTINGS_SCALE ? 1 : 2;
+}
+
 export function formatAlarmOption(minutes: number): string {
   return minutes === 90 ? '90분 전' : `${formatDuration(minutes)} 전`;
 }

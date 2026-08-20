@@ -83,14 +83,12 @@ export function RoutineTimingEditor({
 
       {expanded ? (
         <Card density="compact" style={styles.body}>
-          <StatusBanner
-            message={
-              valid
-                ? '근무 시작을 기준으로 출근 준비 시간을 계산합니다.'
-                : '기상 시각은 출발보다 빨라야 합니다.'
-            }
-            tone={valid ? 'success' : 'danger'}
-          />
+          {!valid ? (
+            <StatusBanner
+              message="기상 시각은 출발보다 빨라야 합니다."
+              tone="danger"
+            />
+          ) : null}
 
           {rows.map((row) => {
             const current = profile[row.key];

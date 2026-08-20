@@ -11,6 +11,8 @@ import {
   formatWakeTimeSummary,
   getEditorSectionForDraftId,
   isShiftDraftValid,
+  resolveWakeTimeOptionColumns,
+  shouldUseCompactShiftEditor,
 } from './shift-settings-model';
 
 describe('shift settings model', () => {
@@ -51,6 +53,31 @@ describe('shift settings model', () => {
     expect(getEditorSectionForDraftId('night')).toBe('night');
     expect(getEditorSectionForDraftId('substitute-night')).toBe('substitute');
   });
+
+  it.each([320, 360, 412])(
+    '%idp에서 기상 시간 선택을 기본 2열로 유지해요',
+    (width) => {
+      expect(resolveWakeTimeOptionColumns(width, 1)).toBe(2);
+    },
+  );
+
+  it('일반 글자에서는 320·360dp만 입력 필드를 세로로 배치해요', () => {
+    expect(shouldUseCompactShiftEditor(320, 1)).toBe(true);
+    expect(shouldUseCompactShiftEditor(360, 1)).toBe(true);
+    expect(shouldUseCompactShiftEditor(412, 1)).toBe(false);
+  });
+
+  it.each([
+    [320, 1.3],
+    [360, 1.5],
+    [412, 2],
+  ])(
+    '%idp, 글자 %i배에서는 시간을 한 열로 재배치해요',
+    (width, fontScale) => {
+      expect(resolveWakeTimeOptionColumns(width, fontScale)).toBe(1);
+      expect(shouldUseCompactShiftEditor(width, fontScale)).toBe(true);
+    },
+  );
 
   it('근무 방식과 시작일을 유지한 미리 보기를 만들어요', () => {
     const data = createDefaultAppData('2026-08-09');

@@ -64,14 +64,9 @@ export function PayrollSettingsEditor({
 
   return (
     <Card style={styles.card}>
-      <View style={styles.intro}>
-        <AppText accessibilityRole="header" variant="heading">
-          급여일
-        </AppText>
-        <AppText tone="secondary" variant="caption">
-          달력에 표시할 회사 지급일을 설정합니다. 해당 월에 없는 날짜는 말일을 사용합니다.
-        </AppText>
-      </View>
+      <AppText tone="secondary" variant="caption">
+        달력에 표시할 지급일을 설정합니다. 해당 월에 없는 날짜는 말일을 사용합니다.
+      </AppText>
 
       <AppField
         accessibilityHint="1부터 31 사이의 숫자를 입력해야 합니다."
@@ -163,7 +158,6 @@ export function PayrollSettingsEditor({
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     card: { gap: spacing.large },
-    intro: { gap: spacing.tiny },
     dayInput: {
       color: palette.ink,
       fontSize: 19,

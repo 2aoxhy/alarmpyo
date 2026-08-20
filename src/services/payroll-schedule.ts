@@ -1,4 +1,4 @@
-import { addDays, isValidDateKey, parseDateKey, toDateKey } from '../utils/date';
+import { addDays, isValidDateKey, parseDateKey } from '../utils/date';
 import type { PayrollSettings } from '../models/app-data';
 import {
   getKoreanHoliday,
@@ -14,8 +14,6 @@ import {
 export type PayrollSchedule = {
   salaryYear: number;
   salaryMonth: number;
-  periodStartDateKey: string;
-  periodEndDateKey: string;
   regularPaydayDateKey: string;
   paydayDateKey: string;
   paydayAdjusted: boolean;
@@ -63,7 +61,7 @@ function formatMonthDay(dateKey: string): string {
   return `${Number(dateKey.slice(5, 7))}월 ${Number(dateKey.slice(8, 10))}일`;
 }
 
-/** 기준 지급일이 휴일이면 직전 평일까지 거슬러 올라가요. */
+/** 기준 지급일이 휴일이면 직전 영업일까지 거슬러 올라갑니다. */
 export function resolvePayrollBusinessDay(dateKey: string): string {
   if (!isValidDateKey(dateKey)) {
     throw new RangeError('급여 지급일이 올바르지 않습니다.');
@@ -81,7 +79,7 @@ export function resolvePayrollBusinessDay(dateKey: string): string {
   return paydayDateKey;
 }
 
-/** 해당 월에 지급되는 급여의 산정기간과 지급일을 계산해요. */
+/** 사용자가 지정한 월별 지급일과 휴일 조정 결과를 계산합니다. */
 export function getPayrollSchedule(
   year: number,
   month: number,
@@ -112,8 +110,6 @@ export function getPayrollSchedule(
   return {
     salaryYear: year,
     salaryMonth: month,
-    periodStartDateKey: toDateKey(new Date(year, month - 1, 16, 12)),
-    periodEndDateKey: toDateKey(new Date(year, month, 15, 12)),
     regularPaydayDateKey,
     paydayDateKey,
     paydayAdjusted: paydayDateKey !== regularPaydayDateKey,
@@ -128,27 +124,7 @@ export function getPayrollSchedule(
   };
 }
 
-/** 근무한 날짜가 어느 달 급여에 포함되는지 계산해요. */
-export function getPayrollScheduleForWorkDate(
-  dateKey: string,
-  settings: PayrollSettings = DEFAULT_PAYROLL_SETTINGS,
-): PayrollSchedule {
-  if (!isValidDateKey(dateKey)) {
-    throw new RangeError('근무 날짜가 올바르지 않습니다.');
-  }
-
-  const workDate = parseDateKey(dateKey);
-  const salaryMonth = new Date(
-    workDate.getFullYear(),
-    workDate.getMonth() + (workDate.getDate() >= 16 ? 1 : 0),
-    1,
-    12,
-  );
-
-  return getPayrollSchedule(salaryMonth.getFullYear(), salaryMonth.getMonth(), settings);
-}
-
-/** 달력 날짜 셀에서 바로 사용할 월급날 표시 정보를 만들어요. */
+/** 달력 날짜 셀에서 바로 사용할 월급날 표시 정보를 만듭니다. */
 export function getPayrollCalendarEntry(
   year: number,
   month: number,
@@ -178,7 +154,7 @@ export function getPayrollCalendarEntry(
   };
 }
 
-/** 선택한 달의 월급날을 날짜 키로 조회할 수 있게 반환해요. */
+/** 선택한 달의 월급날을 날짜 키로 조회할 수 있게 반환합니다. */
 export function getPayrollCalendarEntriesForMonth(
   year: number,
   month: number,

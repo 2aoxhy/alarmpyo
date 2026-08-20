@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V12 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
+  it('V13 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V12',
+      release: 'V13',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V12',
+      release: 'V13',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -354,7 +354,8 @@ describe('Google Play 등록 이미지', () => {
       '근무 기상 알람과 30분·45분·60분 소리·진동 타이머',
       '수면 준비 알림',
       '홈 화면 위젯',
-      '근무 패턴 파일 공유·적용 이력 복구',
+      '근무 패턴 적용 전 달력에서 변경 전·후 확인',
+      '파일 공유·적용 이력 복구',
       '근무표, 메모와 설정은 기기에 저장합니다',
     ]) {
       expect(fullDescription).toContain(phrase);

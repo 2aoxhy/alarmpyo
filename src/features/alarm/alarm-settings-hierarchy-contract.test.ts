@@ -9,6 +9,13 @@ const alarmSettings = readFileSync(
   resolve(process.cwd(), 'src/app/alarm-settings.tsx'),
   'utf8',
 );
+const permissionChecklist = readFileSync(
+  resolve(
+    process.cwd(),
+    'src/features/alarm/alarm-permission-checklist.tsx',
+  ),
+  'utf8',
+);
 
 describe('알람 설정 화면 정보 구조 계약', () => {
   it('상태, 필요한 다음 알람, 기상·수면 설정, 알람 관리 순서로 표시해요', () => {
@@ -46,13 +53,21 @@ describe('알람 설정 화면 정보 구조 계약', () => {
       '<AlarmPermissionChecklist',
     );
     const recentHistory = alarmSettings.indexOf(
-      '<AppText variant="label">최근 알람 기록</AppText>',
+      'title="최근 알람 기록"',
     );
 
     expect(alarmSettings).toContain(
       'const [managementOpen, setManagementOpen] = useState(false);',
     );
     expect(alarmSettings).toContain('expanded={managementOpen}');
+    expect(alarmSettings).toContain(
+      'const [permissionsOpen, setPermissionsOpen] = useState(false);',
+    );
+    expect(alarmSettings).toContain(
+      'const [historyOpen, setHistoryOpen] = useState(false);',
+    );
+    expect(alarmSettings).toContain('expanded={permissionsOpen}');
+    expect(alarmSettings).toContain('expanded={historyOpen}');
     expect(managementBody).toBeGreaterThan(-1);
     expect(sound).toBeGreaterThan(managementBody);
     expect(testAlarm).toBeGreaterThan(sound);
@@ -74,9 +89,8 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain(
       'openPermissionTarget("battery-optimization")',
     );
-    expect(alarmSettings).toContain(
-      'onOpenSettings={(target) => void openPermissionTarget(target)}',
-    );
+    expect(alarmSettings).toContain('onOpenSettings={(target) =>');
+    expect(alarmSettings).toContain('void openPermissionTarget(target)');
   });
 
   it('다음 알람에는 이날만 바꾼 기상 시각을 표시해요', () => {
@@ -99,6 +113,18 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     );
     expect(alarmSettings).toContain(
       '앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없습니다.',
+    );
+  });
+
+  it('권한 행은 큰 글자에서 재배치하고 TalkBack에 동작을 한 번 안내해요', () => {
+    expect(permissionChecklist).toContain(
+      'shouldReflowControl(width, fontScale) || fontScale >= 1.3',
+    );
+    expect(permissionChecklist).toContain(
+      'accessibilityLabel={`${item.label}. ${copy}. 설정 열기`}',
+    );
+    expect(permissionChecklist).toContain(
+      'accessibilityHint={`${item.label}에 해당하는 휴대폰 설정 화면을 엽니다.`}',
     );
   });
 });

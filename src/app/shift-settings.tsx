@@ -21,6 +21,7 @@ import {
   getEditorSectionForDraftId,
   hasInvalidDraftForSection,
   isShiftDraftValid,
+  shouldUseCompactShiftEditor,
   SUBSTITUTE_DAY_ID,
   SUBSTITUTE_NIGHT_ID,
   type EditorSection,
@@ -83,12 +84,16 @@ export default function ShiftSettingsScreen() {
   const [editorSection, setEditorSection] = useState<EditorSection>(
     activeWorkShiftIds[0] ?? 'day',
   );
+  const focusedPanel: Extract<SettingsPanel, 'time' | 'routine'> | null =
+    focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null;
+  const [showAllSettings, setShowAllSettings] = useState(focusedPanel === null);
   const [activePanel, setActivePanel] = useState<SettingsPanel | null>(() =>
-    focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null,
+    focusedPanel,
   );
   const [saving, setSaving] = useState(false);
-  const screenTitle =
-    focus === 'wake'
+  const screenTitle = showAllSettings
+    ? '근무표 설정'
+    : focus === 'wake'
       ? '기상 시간'
       : focus === 'time'
         ? '근무 시간'
@@ -96,7 +101,7 @@ export default function ShiftSettingsScreen() {
 
   const weekdayFixed =
     getWorkPatternKind(data.pattern.shiftTypeIds) === 'weekday';
-  const compactEditor = width < 380 || fontScale >= 1.25;
+  const compactEditor = shouldUseCompactShiftEditor(width, fontScale);
   const shiftLabels = { day: '주간', evening: '오후', night: '야간' } as const;
   const editorSections: readonly {
     label: string;
@@ -411,6 +416,106 @@ export default function ShiftSettingsScreen() {
     const invalidDraft = drafts.find((draft) => !isShiftDraftValid(draft));
     if (invalidDraft) focusDraft(invalidDraft.id, 'time');
   };
+  const timeEditor = (
+    <View style={styles.editorBody}>
+      <SegmentedControl
+        label="근무 종류"
+        onChange={(section) => {
+          void Haptics.selectionAsync();
+          setEditorSection(section);
+        }}
+        options={sectionOptions}
+        value={editorSection}
+      />
+
+      {editorSection !== 'substitute' && selectedShift && selectedDraft ? (
+        <ShiftTimingEditor
+          compact={compactEditor}
+          draft={selectedDraft}
+          onChange={(patch) => updateDraft(selectedShift.id, patch)}
+          shift={selectedShift}
+          showHeader={showAllSettings}
+          visibleSection="time"
+        />
+      ) : null}
+
+      {editorSection === 'substitute' &&
+      activeSubstitute &&
+      activeSubstituteDraft ? (
+        <ShiftTimingEditor
+          compact={compactEditor}
+          draft={activeSubstituteDraft}
+          onChange={(patch) => updateDraft(activeSubstitute.id, patch)}
+          onSubstituteModeChange={setSubstituteMode}
+          shift={activeSubstitute}
+          showHeader={showAllSettings}
+          substituteDayHasError={
+            substituteDay
+              ? !isShiftDraftValid(
+                  drafts.find((draft) => draft.id === substituteDay.id) ??
+                    activeSubstituteDraft,
+                )
+              : false
+          }
+          substituteMode={substituteMode}
+          substituteNightHasError={
+            substituteNight
+              ? !isShiftDraftValid(
+                  drafts.find((draft) => draft.id === substituteNight.id) ??
+                    activeSubstituteDraft,
+                )
+              : false
+          }
+          visibleSection="time"
+        />
+      ) : null}
+    </View>
+  );
+  const routineEditor = (
+    <View style={styles.editorBody}>
+      <SegmentedControl
+        label="근무 종류"
+        onChange={(section) => {
+          void Haptics.selectionAsync();
+          setEditorSection(section);
+        }}
+        options={routineSectionOptions}
+        value={editorSection}
+      />
+
+      {editorSection !== 'substitute' && selectedDraft ? (
+        <>
+          {selectedShift ? (
+            <ShiftTimingEditor
+              compact={compactEditor}
+              draft={selectedDraft}
+              onChange={(patch) => updateDraft(selectedShift.id, patch)}
+              shift={selectedShift}
+              showHeader={showAllSettings}
+              visibleSection="wake"
+            />
+          ) : null}
+          <RoutineTimingEditor
+            alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
+            compact={compactEditor}
+            expanded
+            kind={editorSection}
+            onChange={(profile) =>
+              updateRoutineProfile(editorSection, profile)
+            }
+            onExpandedChange={() => undefined}
+            profile={workRoutineProfiles[editorSection]}
+            showDisclosure={false}
+            startMinutes={parseTimeInput(selectedDraft.start)}
+          />
+        </>
+      ) : null}
+
+      <AppText tone="secondary" variant="caption">
+        주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.
+      </AppText>
+    </View>
+  );
 
   return (
     <>
@@ -427,13 +532,29 @@ export default function ShiftSettingsScreen() {
             onPress={() => void saveAll()}
           />
         }>
-        <View style={styles.intro}>
-          <AppText tone="secondary" style={styles.centerText} variant="body">
-            현재 설정을 확인하고 필요한 항목만 열어 수정해야 합니다.
-          </AppText>
-        </View>
+        {showAllSettings ? (
+          <View style={styles.intro}>
+            <AppText tone="secondary" style={styles.centerText} variant="body">
+              필요한 항목만 열어 수정합니다.
+            </AppText>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
+          {!showAllSettings && focusedPanel === 'time' ? timeEditor : null}
+          {!showAllSettings && focusedPanel === 'routine' ? routineEditor : null}
+          {!showAllSettings && focusedPanel ? (
+            <AppButton
+              accessibilityHint="근무 방식, 근무 시간, 기상·출근 루틴과 급여일 설정을 모두 표시합니다."
+              icon="options-outline"
+              label="전체 설정 보기"
+              onPress={() => setShowAllSettings(true)}
+              variant="ghost"
+            />
+          ) : null}
+
+          {showAllSettings ? (
+            <>
           <DisclosureRow
             expanded={activePanel === 'pattern'}
             icon="repeat-outline"
@@ -460,71 +581,7 @@ export default function ShiftSettingsScreen() {
             title="근무 시간"
           />
 
-          {activePanel === 'time' ? (
-            <View style={styles.editorBody}>
-              <SegmentedControl
-                label="근무 종류"
-                onChange={(section) => {
-                  void Haptics.selectionAsync();
-                  setEditorSection(section);
-                }}
-                options={sectionOptions}
-                value={editorSection}
-              />
-
-              {editorSection !== 'substitute' &&
-              selectedShift &&
-              selectedDraft ? (
-                <>
-                  <ShiftTimingEditor
-                    compact={compactEditor}
-                    draft={selectedDraft}
-                    onChange={(patch) => updateDraft(selectedShift.id, patch)}
-                    shift={selectedShift}
-                    visibleSection="time"
-                  />
-                </>
-              ) : null}
-
-              {editorSection === 'substitute' &&
-              activeSubstitute &&
-              activeSubstituteDraft ? (
-                <>
-                  <ShiftTimingEditor
-                    compact={compactEditor}
-                    draft={activeSubstituteDraft}
-                    onChange={(patch) =>
-                      updateDraft(activeSubstitute.id, patch)
-                    }
-                    onSubstituteModeChange={(mode) => {
-                      setSubstituteMode(mode);
-                    }}
-                    shift={activeSubstitute}
-                    substituteDayHasError={
-                      substituteDay
-                        ? !isShiftDraftValid(
-                            drafts.find(
-                              (draft) => draft.id === substituteDay.id,
-                            ) ?? activeSubstituteDraft,
-                          )
-                        : false
-                    }
-                    substituteMode={substituteMode}
-                    substituteNightHasError={
-                      substituteNight
-                        ? !isShiftDraftValid(
-                            drafts.find(
-                              (draft) => draft.id === substituteNight.id,
-                            ) ?? activeSubstituteDraft,
-                          )
-                        : false
-                    }
-                    visibleSection="time"
-                  />
-                </>
-              ) : null}
-            </View>
-          ) : null}
+          {activePanel === 'time' ? timeEditor : null}
 
           <DisclosureRow
             expanded={activePanel === 'routine'}
@@ -533,52 +590,7 @@ export default function ShiftSettingsScreen() {
             subtitle={routineSummary}
             title="기상·출근 루틴"
           />
-          {activePanel === 'routine' ? (
-            <View style={styles.editorBody}>
-              <SegmentedControl
-                label="근무 종류"
-                onChange={(section) => {
-                  void Haptics.selectionAsync();
-                  setEditorSection(section);
-                }}
-                options={routineSectionOptions}
-                value={editorSection}
-              />
-
-              {editorSection !== 'substitute' && selectedDraft ? (
-                <>
-                  {selectedShift ? (
-                    <ShiftTimingEditor
-                      compact={compactEditor}
-                      draft={selectedDraft}
-                      onChange={(patch) => updateDraft(selectedShift.id, patch)}
-                      shift={selectedShift}
-                      visibleSection="wake"
-                    />
-                  ) : null}
-                  <RoutineTimingEditor
-                    alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
-                    compact={compactEditor}
-                    expanded
-                    kind={editorSection}
-                    onChange={(profile) =>
-                      updateRoutineProfile(editorSection, profile)
-                    }
-                    onExpandedChange={() => undefined}
-                    profile={workRoutineProfiles[editorSection]}
-                    showDisclosure={false}
-                    startMinutes={parseTimeInput(selectedDraft.start)}
-                  />
-                </>
-              ) : null}
-
-              <StatusBanner
-                message="주대는 주간 기상 알람과 출근 루틴을, 야대는 야간 설정을 그대로 사용합니다."
-                title="주대·야대 알람은 자동으로 이어받습니다"
-                tone="info"
-              />
-            </View>
-          ) : null}
+          {activePanel === 'routine' ? routineEditor : null}
 
           <DisclosureRow
             expanded={activePanel === 'payroll'}
@@ -594,6 +606,8 @@ export default function ShiftSettingsScreen() {
                 value={data.payrollSettings}
               />
             </View>
+          ) : null}
+            </>
           ) : null}
 
           {hasInvalidDrafts ? (

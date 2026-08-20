@@ -1,9 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
-import { SelectionCard } from '@/components/selection-controls';
+import {
+  SelectionCard,
+  SelectionIndicator,
+} from '@/components/selection-controls';
 import { AppText, Card } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import {
@@ -37,6 +40,7 @@ import {
   formatAlarmOption,
   isNightShiftId,
   isSubstituteShiftId,
+  resolveWakeTimeOptionColumns,
   type ShiftDraft,
 } from './shift-settings-model';
 
@@ -58,6 +62,7 @@ export function ShiftTimingEditor({
   onChange,
   onSubstituteModeChange,
   shift,
+  showHeader = true,
   substituteDayHasError = false,
   substituteMode,
   substituteNightHasError = false,
@@ -69,6 +74,7 @@ export function ShiftTimingEditor({
   onChange: (patch: Partial<ShiftDraft>) => void;
   onSubstituteModeChange?: (mode: 'day' | 'night') => void;
   shift: ShiftType;
+  showHeader?: boolean;
   substituteDayHasError?: boolean;
   substituteMode?: 'day' | 'night';
   substituteNightHasError?: boolean;
@@ -76,6 +82,8 @@ export function ShiftTimingEditor({
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width } = useWindowDimensions();
+  const stackAlarmOptions = resolveWakeTimeOptionColumns(width, fontScale) === 1;
   const appearance = getShiftAppearance(shift, palette, isDark);
   const startMinutes = parseTimeInput(draft.start);
   const endMinutes = parseTimeInput(draft.end);
@@ -125,7 +133,12 @@ export function ShiftTimingEditor({
         <AppText tone="secondary" variant="caption">
           실제 일어날 시각을 선택합니다.
         </AppText>
-        <View accessibilityRole="radiogroup" style={styles.alarmOptions}>
+        <View
+          accessibilityRole="radiogroup"
+          style={[
+            styles.alarmOptions,
+            stackAlarmOptions && styles.alarmOptionsStacked,
+          ]}>
           {ALARM_OPTIONS.map((minutes) => {
             const selected = draft.alarmMinutesBefore === minutes;
             const optionTime =
@@ -144,18 +157,27 @@ export function ShiftTimingEditor({
                 }}
                 selected={selected}
                 semanticColor={appearance.accentColor}
+                showCheck={false}
                 style={[
                   styles.alarmOption,
                   compact && styles.alarmOptionCompact,
+                  stackAlarmOptions && styles.alarmOptionStacked,
                 ]}
                 contentStyle={styles.alarmOptionContent}>
                 <View style={styles.alarmOptionCopy}>
-                  <AppText
-                    color={palette.ink}
-                    style={styles.alarmOptionTime}
-                    variant="label">
-                    {optionTime ?? '--:--'}
-                  </AppText>
+                  <View style={styles.alarmOptionTimeRow}>
+                    <AppText
+                      color={palette.ink}
+                      maxFontSizeMultiplier={
+                        stackAlarmOptions ? undefined : 1.2
+                      }
+                      numberOfLines={1}
+                      style={styles.alarmOptionTime}
+                      variant="label">
+                      {optionTime ?? '--:--'}
+                    </AppText>
+                    <SelectionIndicator selected={selected} />
+                  </View>
                   <AppText
                     color={palette.inkMuted}
                     style={styles.alarmOptionLabel}
@@ -202,34 +224,36 @@ export function ShiftTimingEditor({
         />
       ) : null}
 
-      <View style={styles.header}>
-        <View
-          style={[
-            styles.shiftIcon,
-            { backgroundColor: appearance.softColor },
-          ]}>
-          <AnimatedShiftIcon
-            active={focusedField !== null}
-            color={appearance.accentColor}
-            kind={getShiftIconKind(shift.id, shift.isOff)}
-            size={28}
-          />
+      {showHeader ? (
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.shiftIcon,
+              { backgroundColor: appearance.softColor },
+            ]}>
+            <AnimatedShiftIcon
+              active={focusedField !== null}
+              color={appearance.accentColor}
+              kind={getShiftIconKind(shift.id, shift.isOff)}
+              size={28}
+            />
+          </View>
+          <View style={styles.flexCopy}>
+            <AppText accessibilityRole="header" variant="heading">
+              {isSubstituteShiftId(shift.id)
+                ? shift.name
+                : `${shift.name} 근무`}
+            </AppText>
+            <AppText tone="secondary" variant="caption">
+              {visibleSection === 'time'
+                ? '근무 시간을 설정합니다.'
+                : visibleSection === 'wake'
+                  ? '기상 알람과 시각을 설정합니다.'
+                  : '근무 시간과 기상 시각을 설정합니다.'}
+            </AppText>
+          </View>
         </View>
-        <View style={styles.flexCopy}>
-          <AppText accessibilityRole="header" variant="heading">
-            {isSubstituteShiftId(shift.id)
-              ? shift.name
-              : `${shift.name} 근무`}
-          </AppText>
-          <AppText tone="secondary" variant="caption">
-            {visibleSection === 'time'
-              ? '근무 시간을 설정합니다.'
-              : visibleSection === 'wake'
-                ? '기상 알람과 시각을 설정합니다.'
-                : '근무 시간과 기상 시각을 설정합니다.'}
-          </AppText>
-        </View>
-      </View>
+      ) : null}
 
       {wakeFirst ? renderWakeSettings() : null}
 
@@ -378,9 +402,13 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flexWrap: 'wrap',
       gap: spacing.small,
     },
+    alarmOptionsStacked: {
+      flexDirection: 'column',
+      flexWrap: 'nowrap',
+    },
     alarmOption: {
       minHeight: 62,
-      flexBasis: '30%',
+      flexBasis: '46%',
       flexGrow: 1,
     },
     alarmOptionContent: {
@@ -393,12 +421,25 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 66,
       flexBasis: '46%',
     },
+    alarmOptionStacked: {
+      width: '100%',
+      flexBasis: 'auto',
+    },
     alarmOptionCopy: {
+      width: '100%',
       alignItems: 'center',
       gap: 1,
     },
+    alarmOptionTimeRow: {
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.tiny,
+    },
     alarmOptionTime: {
       fontSize: 17,
+      flexShrink: 0,
       textAlign: 'center',
     },
     alarmOptionLabel: {

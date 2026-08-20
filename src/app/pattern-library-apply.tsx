@@ -5,7 +5,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { DatePickerField } from '@/components/date-picker-field';
-import { SelectionCard } from '@/components/selection-controls';
+import { SelectionPill } from '@/components/selection-controls';
 import { AppButton, AppText, Card, Screen, SectionHeader } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { StatusBanner } from '@/design-system';
@@ -26,18 +26,18 @@ const POLICY_OPTIONS: readonly {
 }[] = [
   {
     mode: 'preserve',
-    title: '직접 수정 유지',
-    description: '향후 42일의 직접 근무와 시간 수정을 모두 유지합니다.',
+    title: '모두 유지',
+    description: '비교 범위의 직접 근무와 시간 수정을 그대로 둡니다.',
   },
   {
     mode: 'remove-all',
-    title: '전체 제거',
-    description: '향후 42일의 직접 근무와 시간 수정을 모두 제거합니다.',
+    title: '모두 제거',
+    description: '비교 범위의 직접 근무와 시간 수정을 제거합니다.',
   },
   {
     mode: 'select',
     title: '날짜별 선택',
-    description: '유지할 날짜만 직접 선택합니다.',
+    description: '달력에서 선택한 날짜의 직접 수정을 유지합니다.',
   },
 ] as const;
 
@@ -47,7 +47,7 @@ export default function PatternLibraryApplyScreen() {
   const { applyPatternFromVault, data, previewPatternApplication } = useAppStore();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
-  const stacked = width <= 320 || fontScale >= 1.5;
+  const stacked = width <= 360 || fontScale >= 1.3;
   const [today] = useState(() => toDateKey(new Date()));
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [mode, setMode] = useState<OverrideResolutionMode>('preserve');
@@ -102,6 +102,7 @@ export default function PatternLibraryApplyScreen() {
     [basePreviewResult, effectiveDate, id, mode, overridePolicy, previewPatternApplication],
   );
   const preview = previewResult.status === 'ready' ? previewResult.preview : null;
+  const activePolicy = POLICY_OPTIONS.find((option) => option.mode === mode)!;
   const rows = useMemo(
     () => adaptPatternApplicationPreviewRows(data.shiftTypes, preview?.rows ?? []),
     [data.shiftTypes, preview?.rows],
@@ -225,7 +226,7 @@ export default function PatternLibraryApplyScreen() {
             {entry.name}
           </AppText>
           <AppText tone="secondary" variant="body">
-            향후 42일의 근무와 직접 수정 처리 방식을 확인합니다.
+            적용일부터 다음 달력 범위의 변경 내용을 확인합니다.
           </AppText>
         </View>
 
@@ -256,26 +257,29 @@ export default function PatternLibraryApplyScreen() {
           <AppText accessibilityRole="header" variant="heading">
             직접 수정 처리
           </AppText>
-          <View style={[styles.policyGrid, stacked && styles.policyGridStacked]}>
+          <View
+            accessibilityLabel="직접 수정 처리 방식"
+            accessibilityRole="radiogroup"
+            style={[styles.policyGrid, stacked && styles.policyGridStacked]}>
             {POLICY_OPTIONS.map((option) => (
-              <SelectionCard
-                accessibilityLabel={`${option.title}. ${option.description}`}
+              <SelectionPill
+                accessibilityHint={option.description}
                 key={option.mode}
+                label={option.title}
                 onPress={() => changeMode(option.mode)}
                 selected={mode === option.mode}
-                style={styles.policyCard}>
-                <AppText variant="label">{option.title}</AppText>
-                <AppText tone="secondary" variant="caption">
-                  {option.description}
-                </AppText>
-              </SelectionCard>
+                style={styles.policyCard}
+              />
             ))}
           </View>
+          <AppText tone="secondary" variant="caption">
+            {activePolicy.description}
+          </AppText>
         </View>
 
         <StatusBanner
-          message={`근무가 변경되는 날 ${preview.changedDateCount}일 · 직접 수정 ${preview.directOverrideDateKeys.length}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`}
-          title="42일 비교 결과"
+          message={`변경 ${preview.changedDateCount}일 · 직접 수정 ${preview.directOverrideDateKeys.length}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`}
+          title="적용 전 요약"
           tone={preview.clearedOverrideDateKeys.length > 0 ? 'warning' : 'neutral'}
         />
         <PatternApplicationPreview

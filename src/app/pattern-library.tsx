@@ -11,7 +11,6 @@ import {
   MenuDivider,
   MenuGroup,
   Screen,
-  SectionHeader,
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { StatusBanner } from '@/design-system';
@@ -334,9 +333,8 @@ export default function PatternLibraryScreen() {
     <>
       <Stack.Screen options={{ title: '근무 패턴 보관함' }} />
       <Screen contentStyle={styles.screen} safeAreaEdges={['left', 'right']}>
-        <SectionHeader centered title="근무 패턴 보관함" />
         <StatusBanner
-          message="패턴은 근무 순서만 보관합니다. 가져오기는 저장만 하며, 적용 전에 향후 42일을 따로 비교합니다."
+          message="패턴은 근무 순서만 보관합니다. 가져온 뒤 적용일이 속한 달력에서 변경 내용을 먼저 비교합니다."
           title="가져오기와 적용 분리"
           tone="info"
         />
@@ -429,14 +427,16 @@ export default function PatternLibraryScreen() {
                   {result.pattern.shiftCodes.length}일 주기 · {formatPatternSequence(result.pattern.shiftCodes)}
                 </AppText>
               </View>
-              <AppButton
-                disabled={alreadyStored || busyOperation !== null}
-                icon="shield-outline"
-                label={alreadyStored ? '보관됨' : '검증본 보관'}
-                loading={busyOperation === `official-save:${result.id}`}
-                onPress={() => void saveOfficialPattern(result.pattern)}
-                variant="secondary"
-              />
+              {!alreadyStored ? (
+                <AppButton
+                  disabled={busyOperation !== null}
+                  icon="shield-outline"
+                  label="검증본 보관"
+                  loading={busyOperation === `official-save:${result.id}`}
+                  onPress={() => void saveOfficialPattern(result.pattern)}
+                  variant="secondary"
+                />
+              ) : null}
             </Card>
           );
         })}
@@ -446,7 +446,7 @@ export default function PatternLibraryScreen() {
             보관한 패턴
           </AppText>
           <AppText tone="secondary" variant="caption">
-            보관한 패턴을 선택한 뒤 42일 비교를 거쳐 적용합니다.
+            보관한 패턴을 선택한 뒤 달력에서 변경 내용을 비교합니다.
           </AppText>
         </View>
         {data.patternVault.length === 0 ? (
