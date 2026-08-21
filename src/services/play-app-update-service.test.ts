@@ -60,6 +60,7 @@ describe('Google Play 업데이트 서비스', () => {
     expect(canDismissPlayUpdate(available)).toBe(true);
     expect(canDismissPlayUpdate(downloaded)).toBe(false);
     expect(canDismissPlayUpdate(installing)).toBe(false);
+    expect(shouldPollPlayUpdate(installing)).toBe(true);
   });
 
   it('업데이트 시작 직후 available 응답도 AppState 전환 없이 다운로드 완료까지 폴링합니다', () => {

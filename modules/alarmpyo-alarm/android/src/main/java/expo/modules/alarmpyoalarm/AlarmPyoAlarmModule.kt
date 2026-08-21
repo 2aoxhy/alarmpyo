@@ -103,7 +103,7 @@ class AlarmPyoAlarmModule : Module() {
     AsyncFunction("scheduleQuickTimerAsync") { durationMinutes: Int ->
       AlarmPyoAlarmChannels.ensure(context)
       require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-        "빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다."
+        "빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다."
       }
       if (AlarmPyoAlarmPermissions.canDeliver(context)) {
         AlarmPyoQuickTimerScheduler.schedule(context, durationMinutes)

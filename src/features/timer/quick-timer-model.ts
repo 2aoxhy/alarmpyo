@@ -17,6 +17,8 @@ export type QuickTimerCountdownAnchor = {
   observedAtMonotonic: number;
 };
 
+export type QuickTimerPresetColumns = 1 | 2 | 4;
+
 export function getQuickTimerDisplayLabel(
   status: Pick<QuickTimerStatus, 'durationMinutes' | 'isRepeat' | 'state'>,
 ): string {
@@ -125,11 +127,23 @@ export function getQuickTimerRemainingLabel(remainingMillis: number): string {
   return formatQuickTimerCountdown(remainingMillis);
 }
 
-export function shouldStackQuickTimerPresets(
+export function shouldStackQuickTimerActions(
   width: number,
   fontScale: number,
 ): boolean {
   return width < 360 || fontScale >= 1.3;
+}
+
+export function resolveQuickTimerPresetColumns(
+  width: number,
+  fontScale: number,
+): QuickTimerPresetColumns {
+  const safeWidth = Number.isFinite(width) ? Math.max(width, 0) : 0;
+  const safeFontScale = Number.isFinite(fontScale)
+    ? Math.max(fontScale, 1)
+    : 1;
+  if (safeWidth < 320 || safeFontScale >= 1.4) return 1;
+  return safeWidth >= 500 ? 4 : 2;
 }
 
 export function resolveQuickTimerCountdownSize(
@@ -157,7 +171,7 @@ export function getQuickTimerActionPresentation(
     case 'exact-alarm':
       return {
         title: '정확한 알람 허용 필요',
-        message: '30분·45분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
+        message: '15분·30분·45분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
       };
     case 'notifications':
       return {

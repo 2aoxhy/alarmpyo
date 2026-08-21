@@ -77,7 +77,7 @@ describe('비공개 내부 canary APK 게이트', () => {
       '00000000-0000-4000-8000-000000000000';
     invalid.app.expo.version = '9.9.9';
     expect(() => assertInternalCanaryConfig(invalid)).toThrow(
-      /Android 패키지[\s\S]*앱 버전|앱 버전[\s\S]*Android 패키지/u,
+      /Android 패키지[\s\S]*앱(?: 표시)? 버전|앱(?: 표시)? 버전[\s\S]*Android 패키지/u,
     );
   });
 

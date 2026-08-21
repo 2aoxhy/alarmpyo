@@ -18,6 +18,7 @@ import {
   isDurableApkMirrorUrl,
   requiresCompleteProvenance,
 } from './release-validation-policy.mjs';
+import { packageVersionMatchesApp } from './app-version.mjs';
 import { readReleasePolicy } from './release-policy.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -150,7 +151,10 @@ expect(
   app.expo?.runtimeVersion?.policy === 'appVersion',
   '무선 업데이트 런타임은 앱 버전 정책을 사용해야 해요.',
 );
-expect(pkg.version === app.expo?.version, 'package.json과 app.json 버전이 같아야 해요.');
+expect(
+  packageVersionMatchesApp(pkg.version, app.expo?.version),
+  'npm 버전과 앱 표시 버전의 릴리스 계보가 일치해야 해요.',
+);
 if (!configOnly) {
   const acceptedVersion = acceptsManifestVersion({
     allowHistorical: allowHistoricalManifestVersion,

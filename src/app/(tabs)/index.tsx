@@ -12,7 +12,8 @@ import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
-import { PlayUpdateBanner } from '@/features/update/play-update-banner';
+import { EnvironmentBriefingSection } from '@/features/today/environment-briefing-section';
+import { resolveTodayEnvironmentTarget } from '@/features/today/environment-briefing-model';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
@@ -23,7 +24,6 @@ import {
   buildTodayViewModel,
 } from '@/services/today-view-model';
 import {
-  useAppStoreActions,
   useAppStoreData,
   useAppStoreStatus,
 } from '@/store/app-store';
@@ -39,7 +39,6 @@ export default function TodayScreen() {
   const now = useNow(screenActive);
   const today = toDateKey(now);
   const { data, ready, getShiftForDate } = useAppStoreData();
-  const { dismissPlayUpdate } = useAppStoreActions();
   const {
     alarmAutoCheckState,
     alarmSyncStatus,
@@ -48,16 +47,10 @@ export default function TodayScreen() {
   } = useAppStoreStatus();
   const {
     alarmPlatformSupported,
-    dismissPlayUpdate: dismissUpdate,
-    installPlayUpdate,
-    playUpdateBusy,
-    playUpdateStatus,
     runtimeStatus,
     sleepReminderSupported,
-    startPlayUpdate,
   } = useTodayRuntimeController({
     enabled: ready && screenActive,
-    dismissedUpdateVersionCode: data.settings.dismissedUpdateVersionCode,
     sleepReminderEnabled: data.settings.sleepReminderEnabled,
     runtimeRevisionKey: [
       data.settings.lastNotificationSyncAt ?? '',
@@ -65,7 +58,6 @@ export default function TodayScreen() {
         ? `${getSleepReminderScheduleSignature(data)}:${sleepReminderSyncRevision}`
         : 'sleep-disabled',
     ].join(':'),
-    dismissUpdate: dismissPlayUpdate,
   });
   const alarmStatus = runtimeStatus.alarmStatus;
   const alarmStatusError = runtimeStatus.alarmStatusError;
@@ -111,18 +103,14 @@ export default function TodayScreen() {
     sleepReminderSyncStatus,
     compactHome,
   });
+  const environmentTarget = resolveTodayEnvironmentTarget({
+    now,
+    currentWorkEndsAt: viewModel.current?.endsAt,
+    nextDepartAt: viewModel.workRoutinePlan?.departAt,
+  });
 
   return (
     <Screen contentStyle={styles.screen}>
-      {playUpdateStatus ? (
-        <PlayUpdateBanner
-          busy={playUpdateBusy}
-          onDismiss={() => void dismissUpdate()}
-          onInstall={() => void installPlayUpdate()}
-          onStart={() => void startPlayUpdate()}
-          status={playUpdateStatus}
-        />
-      ) : null}
       <View style={styles.header}>
         <AppText
           accessibilityLabel={`오늘, ${formatKoreanDate(today, true)}`}
@@ -146,6 +134,12 @@ export default function TodayScreen() {
         screenActive={screenActive}
         shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}
+      />
+
+      <EnvironmentBriefingSection
+        enabled={screenActive}
+        now={now}
+        target={environmentTarget}
       />
 
       <TodayGuidanceSection

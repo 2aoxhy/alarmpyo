@@ -34,7 +34,8 @@ import {
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
   resolveQuickTimerCountdownSize,
-  shouldStackQuickTimerPresets,
+  resolveQuickTimerPresetColumns,
+  shouldStackQuickTimerActions,
   type QuickTimerCountdownAnchor,
 } from '@/features/timer/quick-timer-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
@@ -55,7 +56,14 @@ export default function TimerScreen() {
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const screenActive = useScreenActive();
-  const stackPresets = shouldStackQuickTimerPresets(width, fontScale);
+  const stackActions = shouldStackQuickTimerActions(width, fontScale);
+  const presetColumns = resolveQuickTimerPresetColumns(width, fontScale);
+  const presetButtonStyle =
+    presetColumns === 1
+      ? styles.presetButtonFull
+      : presetColumns === 2
+        ? styles.presetButtonHalf
+        : styles.presetButtonQuarter;
   const countdownFontSize = resolveQuickTimerCountdownSize(width, fontScale);
   const [status, setStatus] = useState<QuickTimerStatus | null>(null);
   const [countdownAnchor, setCountdownAnchor] =
@@ -349,7 +357,7 @@ export default function TimerScreen() {
     <Screen contentStyle={styles.screenContent}>
       <PageHeader
         align="center"
-        subtitle="30분·45분·60분 뒤 알람음과 진동으로 알립니다."
+        subtitle="15분·30분·45분·60분 뒤 알람음과 진동으로 알립니다."
         title="타이머"
       />
 
@@ -413,7 +421,7 @@ export default function TimerScreen() {
               screenActive={screenActive}
             />
           ) : null}
-          <View style={[styles.timerActions, stackPresets && styles.timerActionsStacked]}>
+          <View style={[styles.timerActions, stackActions && styles.timerActionsStacked]}>
             {!ringing ? (
               <Button
                 accessibilityHint={
@@ -426,7 +434,7 @@ export default function TimerScreen() {
                 label={paused ? '타이머 재개' : '일시정지'}
                 loading={busyAction === (paused ? 'resume' : 'pause')}
                 onPress={() => void (paused ? resume() : pause())}
-                style={stackPresets ? styles.timerActionStacked : styles.timerAction}
+                style={stackActions ? styles.timerActionStacked : styles.timerAction}
               />
             ) : null}
             <Button
@@ -436,7 +444,7 @@ export default function TimerScreen() {
               label={ringing ? '타이머 종료' : '초기화'}
               loading={busyAction === 'reset'}
               onPress={() => void reset()}
-              style={stackPresets ? styles.timerActionStacked : styles.timerAction}
+              style={stackActions ? styles.timerActionStacked : styles.timerAction}
               variant="secondary"
             />
           </View>
@@ -445,7 +453,7 @@ export default function TimerScreen() {
               <AppText tone="secondary" variant="label">
                 다른 시간으로 변경
               </AppText>
-              <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
+              <View style={styles.presetButtons}>
                 {quickTimerController.durations.map((durationMinutes) => (
                   <Button
                     accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 변경합니다.`}
@@ -456,7 +464,7 @@ export default function TimerScreen() {
                     label={`${durationMinutes}분`}
                     loading={schedulingDuration === durationMinutes}
                     onPress={() => selectDuration(durationMinutes, Date.now())}
-                    style={stackPresets ? styles.presetButtonStacked : styles.presetButton}
+                    style={[styles.presetButton, presetButtonStyle]}
                     variant="ghost"
                   />
                 ))}
@@ -477,7 +485,7 @@ export default function TimerScreen() {
               한 번에 하나의 타이머만 실행할 수 있습니다.
             </AppText>
           </View>
-          <View style={[styles.presetButtons, stackPresets && styles.presetButtonsStacked]}>
+          <View style={styles.presetButtons}>
             {quickTimerController.durations.map((durationMinutes) => (
               <Button
                 accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울립니다.`}
@@ -488,7 +496,7 @@ export default function TimerScreen() {
                 label={`${durationMinutes}분`}
                 loading={schedulingDuration === durationMinutes}
                 onPress={() => selectDuration(durationMinutes, Date.now())}
-                style={stackPresets ? styles.presetButtonStacked : styles.presetButton}
+                style={[styles.presetButton, presetButtonStyle]}
               />
             ))}
           </View>
@@ -558,10 +566,11 @@ function createStyles(palette: AppPalette) {
       borderRadius: radius.lg,
       backgroundColor: palette.indigoSoft,
     },
-    presetButtons: { flexDirection: 'row', gap: space.sm },
-    presetButtonsStacked: { flexDirection: 'column' },
-    presetButton: { minHeight: 64, flex: 1 },
-    presetButtonStacked: { width: '100%', minHeight: 64 },
+    presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+    presetButton: { minHeight: 64 },
+    presetButtonFull: { width: '100%' },
+    presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
+    presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },
     infoSurface: {
       minHeight: 76,
       flexDirection: 'row',

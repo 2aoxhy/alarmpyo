@@ -37,12 +37,12 @@ describe('빠른 타이머 controller', () => {
     };
     const controller = createQuickTimerController(port);
 
-    expect(controller.durations).toEqual([30, 45, 60]);
+    expect(controller.durations).toEqual([15, 30, 45, 60]);
     await expect(controller.getStatus()).resolves.toMatchObject({ state: 'idle' });
-    await expect(controller.schedule(30)).resolves.toMatchObject({ state: 'scheduled' });
+    await expect(controller.schedule(15)).resolves.toMatchObject({ state: 'scheduled' });
     await expect(controller.pause()).resolves.toMatchObject({ state: 'paused' });
     await expect(controller.resume()).resolves.toMatchObject({ state: 'scheduled' });
     await expect(controller.reset()).resolves.toMatchObject({ state: 'idle' });
-    expect(port.schedule).toHaveBeenCalledWith(30);
+    expect(port.schedule).toHaveBeenCalledWith(15);
   });
 });

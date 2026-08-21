@@ -4,6 +4,11 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { readReleasePolicy } from './release-policy.mjs';
+import {
+  isSupportedAppVersion,
+  isSupportedPackageVersion,
+  packageVersionMatchesApp,
+} from './app-version.mjs';
 
 const defaultRoot = resolve(import.meta.dirname, '..');
 const UUID_PATTERN =
@@ -55,16 +60,14 @@ export function assertInternalCanaryConfig({
     JSON.stringify(left) === JSON.stringify(right);
 
   expect(pkg.name === 'alarmpyo', 'npm 패키지 이름은 alarmpyo여야 해요.');
+  expect(isSupportedPackageVersion(pkg.version), 'npm 버전은 1.2.3 형식이어야 해요.');
+  expect(isSupportedAppVersion(expo.version), '앱 표시 버전 형식이 올바르지 않아요.');
   expect(
-    /^\d+\.\d+\.\d+$/u.test(pkg.version ?? ''),
-    '앱 버전은 1.2.3 형식이어야 해요.',
-  );
-  expect(
-    pkg.version === expo.version &&
+    packageVersionMatchesApp(pkg.version, expo.version) &&
       pkg.version === lock.version &&
       pkg.version === lockRoot.version &&
       resolvedExpo.version === expo.version,
-    'package.json, package-lock.json, app.json의 앱 버전이 모두 같아야 해요.',
+    'npm 버전과 앱 표시 버전의 릴리스 계보가 일치해야 해요.',
   );
   expect(
     lock.name === pkg.name && lockRoot.name === pkg.name,

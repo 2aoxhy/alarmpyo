@@ -1,6 +1,6 @@
 import { getAlarmPyoNativeModule } from '../infrastructure/alarmpyo-native-module';
 
-export const QUICK_TIMER_DURATIONS = [30, 45, 60] as const;
+export const QUICK_TIMER_DURATIONS = [15, 30, 45, 60] as const;
 
 export type QuickTimerDuration = (typeof QUICK_TIMER_DURATIONS)[number];
 export type QuickTimerState =
@@ -165,7 +165,7 @@ export async function scheduleQuickTimer(
 ): Promise<QuickTimerStatus> {
   if (!isQuickTimerDuration(durationMinutes)) {
     throw new RangeError(
-      '빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다.',
+      '빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다.',
     );
   }
   if (!nativeTimerSupported()) return unsupportedStatus();

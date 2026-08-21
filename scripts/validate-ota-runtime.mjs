@@ -2,6 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { createAndroidNativeFingerprint } from './release-artifact-provenance.mjs';
+import {
+  isSupportedAppVersion,
+  isSupportedPackageVersion,
+  packageVersionMatchesApp,
+} from './app-version.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const otaMode = process.argv.includes('--ota');
@@ -37,15 +42,13 @@ const stable = eas.build?.stable ?? {};
 const canary = eas.build?.canary ?? {};
 const packageLockVersion = lock.packages?.['']?.version;
 
+expect(isSupportedPackageVersion(pkg.version), 'npm 버전은 1.2.3 형식이어야 해요.');
+expect(isSupportedAppVersion(expo.version), '앱 표시 버전 형식이 올바르지 않아요.');
 expect(
-  /^\d+\.\d+\.\d+$/u.test(pkg.version),
-  '앱 버전은 1.2.3처럼 세 자리 숫자 형식이어야 해요.',
-);
-expect(
-  pkg.version === expo.version &&
+  packageVersionMatchesApp(pkg.version, expo.version) &&
     pkg.version === lock.version &&
     pkg.version === packageLockVersion,
-  'package.json, package-lock.json, app.json의 앱 버전이 모두 같아야 해요.',
+  'npm 버전과 앱 표시 버전의 릴리스 계보가 일치해야 해요.',
 );
 expect(
   Number.isInteger(expo.android?.versionCode) && expo.android.versionCode > 0,

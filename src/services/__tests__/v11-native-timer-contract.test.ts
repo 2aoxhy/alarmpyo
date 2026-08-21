@@ -22,15 +22,16 @@ describe('V11 Android 타이머·업데이트 계약', () => {
     expect(store).toContain('"alarmpyo-quick-timer-v1-primary"');
     expect(store).toContain('"alarmpyo-quick-timer-v1-redundant"');
     expect(store).toContain('LEGACY_SCHEMA_VERSION = 1');
+    expect(store).toContain('LEGACY_SCHEMA_VERSION -> duration == 30 || duration == 60');
   });
 
-  it('45분과 일시정지·재개·초기화 API를 양쪽 계약에 제공합니다', () => {
+  it('15·30·45·60분과 일시정지·재개·초기화 API를 양쪽 계약에 제공합니다', () => {
     const moduleSource = source(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoAlarmModule.kt',
     );
     const typescript = source('modules/alarmpyo-alarm/index.ts');
 
-    expect(typescript).toContain('durationMinutes: 30 | 45 | 60 | null;');
+    expect(typescript).toContain('durationMinutes: 15 | 30 | 45 | 60 | null;');
     expect(typescript).toContain("| 'paused'");
     for (const name of [
       'pauseQuickTimerAsync',

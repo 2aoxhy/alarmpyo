@@ -22,7 +22,8 @@ internal object AlarmPyoQuickTimerPolicy {
     TimeUnit.MINUTES.toMillis(5)
   )
 
-  fun isSupportedDuration(minutes: Int): Boolean = minutes == 30 || minutes == 45 || minutes == 60
+  fun isSupportedDuration(minutes: Int): Boolean =
+    minutes == 15 || minutes == 30 || minutes == 45 || minutes == 60
 
   fun remainingMillis(
     snapshot: AlarmPyoQuickTimerSnapshot,
@@ -123,7 +124,7 @@ internal object AlarmPyoQuickTimerPolicy {
   ): AlarmPyoQuickTimerSnapshot = snapshot.copy(
     plan = repeatPlan,
     // A 5-minute repeat is a new countdown stage, not an extension of the
-    // original 30/45/60-minute timer's start point.
+    // original 15/30/45/60-minute timer's start point.
     startedAt = nowWallClock,
     startedAtElapsed = nowElapsed,
     fireAtElapsed = Math.addExact(nowElapsed, delayMillis),
@@ -230,7 +231,7 @@ internal object AlarmPyoQuickTimerScheduler {
   @Synchronized
   fun schedule(context: Context, durationMinutes: Int): AlarmPyoQuickTimerSnapshot {
     require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-      "빠른 타이머는 30분, 45분 또는 60분만 설정할 수 있습니다."
+      "빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다."
     }
     val appContext = context.applicationContext
     check(AlarmPyoAlarmPermissions.canDeliver(appContext)) {

@@ -107,7 +107,7 @@ export type AlarmPyoQuickTimerStatus = {
     | 'action-required'
     | 'error';
   active: boolean;
-  durationMinutes: 30 | 45 | 60 | null;
+  durationMinutes: 15 | 30 | 45 | 60 | null;
   startedAt: number;
   fireAt: number;
   remainingMillis: number;
@@ -226,7 +226,7 @@ type AlarmPyoAlarmNativeModule = {
   cancelAllAsync(): Promise<AlarmPyoAlarmStatus>;
   resetAlarmRuntimeAsync?(): Promise<AlarmPyoAlarmRuntimeResetResult>;
   getQuickTimerStatusAsync?(): Promise<AlarmPyoQuickTimerStatus>;
-  scheduleQuickTimerAsync?(durationMinutes: 30 | 45 | 60): Promise<AlarmPyoQuickTimerStatus>;
+  scheduleQuickTimerAsync?(durationMinutes: 15 | 30 | 45 | 60): Promise<AlarmPyoQuickTimerStatus>;
   pauseQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   resumeQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;
   resetQuickTimerAsync?(): Promise<AlarmPyoQuickTimerStatus>;

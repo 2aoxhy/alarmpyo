@@ -1,7 +1,7 @@
 {
   "name": "alarmpyo",
   "main": "expo-router/entry",
-  "version": "1.0.14",
+  "version": "1.15.0",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
@@ -24,6 +24,7 @@
     "expo-haptics": "~57.0.1",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.7",
+    "expo-location": "~57.0.12",
     "expo-router": "~57.0.15",
     "expo-sharing": "~57.0.14",
     "expo-splash-screen": "~57.0.7",

@@ -10,11 +10,15 @@ import {
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { getAppManagementPresentation } from '@/features/app-management/app-management-controller';
+import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
+import { PlayUpdateStatusBadge } from '@/features/update/play-update-status-badge';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
 export default function AppManagementScreen() {
   const styles = useThemedStyles(createStyles);
-  const { appUpdateLabel, playDistribution } = getAppManagementPresentation();
+  const { badge } = useGlobalPlayUpdate();
+  const { appUpdateLabel, appUpdateSubtitle, playDistribution } =
+    getAppManagementPresentation(badge);
 
   return (
     <>
@@ -35,12 +39,9 @@ export default function AppManagementScreen() {
           <ListRow
             icon="sync"
             onPress={() => router.push('/app-update')}
-            subtitle={
-              playDistribution
-                ? 'Google Play에서 최신 버전을 확인합니다'
-                : '새 앱 설치 파일을 확인하고 안전하게 설치합니다'
-            }
+            subtitle={appUpdateSubtitle}
             title={playDistribution ? 'Google Play 업데이트' : '앱 업데이트'}
+            trailing={playDistribution && badge ? <PlayUpdateStatusBadge badge={badge} /> : undefined}
           />
           <MenuDivider />
           <ListRow

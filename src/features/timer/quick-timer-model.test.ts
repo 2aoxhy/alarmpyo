@@ -11,7 +11,8 @@ import {
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
   resolveQuickTimerCountdownSize,
-  shouldStackQuickTimerPresets,
+  resolveQuickTimerPresetColumns,
+  shouldStackQuickTimerActions,
 } from './quick-timer-model';
 
 describe('빠른 타이머 화면 모델', () => {
@@ -67,7 +68,7 @@ describe('빠른 타이머 화면 모델', () => {
     expect(getQuickTimerRemainingLabel(3_661_000)).toBe('62분 남음');
   });
 
-  it('5분 재알람은 원래 30분·45분·60분 길이로 오인되지 않게 표시해요', () => {
+  it('5분 재알람은 원래 15분·30분·45분·60분 길이로 오인되지 않게 표시해요', () => {
     expect(
       getQuickTimerDisplayLabel({
         durationMinutes: 60,
@@ -105,10 +106,20 @@ describe('빠른 타이머 화면 모델', () => {
     expect(formatQuickTimerTarget(fireAt, now)).toBe('내일 오전 12:15');
   });
 
-  it('좁은 화면과 큰 글자에서는 30분·45분·60분 버튼을 세로로 배치해요', () => {
-    expect(shouldStackQuickTimerPresets(320, 1)).toBe(true);
-    expect(shouldStackQuickTimerPresets(412, 1.3)).toBe(true);
-    expect(shouldStackQuickTimerPresets(412, 1)).toBe(false);
+  it('타이머 행동 버튼은 좁은 화면과 큰 글자에서 세로로 배치해요', () => {
+    expect(shouldStackQuickTimerActions(320, 1)).toBe(true);
+    expect(shouldStackQuickTimerActions(412, 1.3)).toBe(true);
+    expect(shouldStackQuickTimerActions(412, 1)).toBe(false);
+  });
+
+  it('프리셋은 일반 휴대폰 2열, 큰 글자 1열, 넓은 화면 4열이에요', () => {
+    expect(resolveQuickTimerPresetColumns(320, 1)).toBe(2);
+    expect(resolveQuickTimerPresetColumns(360, 1.3)).toBe(2);
+    expect(resolveQuickTimerPresetColumns(412, 1)).toBe(2);
+    expect(resolveQuickTimerPresetColumns(412, 1.4)).toBe(1);
+    expect(resolveQuickTimerPresetColumns(500, 1)).toBe(4);
+    expect(resolveQuickTimerPresetColumns(768, 1.3)).toBe(4);
+    expect(resolveQuickTimerPresetColumns(768, 1.4)).toBe(1);
   });
 
   it('320dp의 200% 글자에서도 카운트다운 숫자가 한 줄에 들어와요', () => {

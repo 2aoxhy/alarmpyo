@@ -20,6 +20,7 @@ import { SaveErrorBanner } from '@/components/save-error-banner';
 import { SaveToast } from '@/components/save-toast';
 import { AlarmPyoWidgetSyncBridge } from '@/components/alarmpyo-widget-sync-bridge';
 import type { AppPalette } from '@/constants/app-theme';
+import { GlobalPlayUpdateProvider } from '@/features/update/global-play-update-controller';
 import { fontFamily } from '@/constants/typography';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -169,7 +170,7 @@ function AppBootstrap({
       {bootstrapReady ? (
         <AppThemeProvider>
           <AppDialogProvider>
-            <AppShell />
+            <AppShell updateNoticeEnabled={!launchVisible} />
           </AppDialogProvider>
         </AppThemeProvider>
       ) : null}
@@ -189,7 +190,7 @@ function AppBootstrap({
   );
 }
 
-function AppShell() {
+function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
   const { showDialog } = useAppDialog();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -374,7 +375,12 @@ function AppShell() {
   }
 
   return (
-    <>
+    <GlobalPlayUpdateProvider
+      enabled={
+        updateNoticeEnabled &&
+        data.settings.setupCompleted &&
+        Boolean(rootNavigationState?.key)
+      }>
       <AlarmPyoWidgetSyncBridge />
       <StatusBar animated style="light" />
       <Stack
@@ -394,7 +400,7 @@ function AppShell() {
       </Stack>
       <SaveErrorBanner />
       <SaveToast />
-    </>
+    </GlobalPlayUpdateProvider>
   );
 }
 

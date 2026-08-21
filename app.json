@@ -2,7 +2,7 @@
   "expo": {
     "name": "알람표",
     "slug": "alarmpyo",
-    "version": "1.0.14",
+    "version": "1.15",
     "description": "교대 근무표와 근무·타이머 알람을 간편하게 관리합니다",
     "orientation": "portrait",
     "icon": "./assets/images/alarmpyo-icon.png",
@@ -19,16 +19,19 @@
     },
     "ios": {
       "icon": "./assets/images/alarmpyo-icon.png",
-      "buildNumber": "14",
+      "buildNumber": "15",
       "supportsTablet": false,
       "bundleIdentifier": "com.personal.alarmpyo"
     },
     "android": {
       "package": "com.personal.alarmpyo",
-      "versionCode": 14,
+      "versionCode": 15,
       "allowBackup": false,
       "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.DUMP",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WRITE_EXTERNAL_STORAGE"
@@ -46,6 +49,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "현재 위치의 날씨와 공기질을 확인할 때만 대략적인 위치를 사용합니다."
+        }
+      ],
       "./plugins/with-background-only-splash.js",
       [
         "expo-splash-screen",

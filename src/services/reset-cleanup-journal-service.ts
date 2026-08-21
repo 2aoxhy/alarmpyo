@@ -7,7 +7,7 @@ export const RESET_CLEANUP_JOURNAL_STORAGE_KEY =
   'alarmpyo:reset-cleanup-pending:v1';
 
 const RESET_CLEANUP_JOURNAL_FORMAT = 'alarmpyo-reset-cleanup';
-const RESET_CLEANUP_JOURNAL_VERSION = 2 as const;
+const RESET_CLEANUP_JOURNAL_VERSION = 3 as const;
 const MAX_RESET_CLEANUP_JOURNAL_BYTES = 128 * 1024;
 
 type ResetCleanupStorage = Pick<
@@ -24,6 +24,7 @@ type ResetCleanupJournal = {
     alarmRuntime: boolean;
     setupDraft: boolean;
     quickTimer: boolean;
+    deviceLocalData: boolean;
   };
 };
 
@@ -34,6 +35,7 @@ export type ResetCleanupResumeResult = {
   pendingAlarmRuntime: boolean;
   pendingSetupDraft: boolean;
   pendingQuickTimer: boolean;
+  pendingDeviceLocalData: boolean;
 };
 
 function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | null {
@@ -54,11 +56,14 @@ function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | nul
         alarmRuntime?: unknown;
         setupDraft?: unknown;
         quickTimer?: unknown;
+        deviceLocalData?: unknown;
       };
     };
     if (
       value.format !== RESET_CLEANUP_JOURNAL_FORMAT ||
-      (value.version !== 1 && value.version !== RESET_CLEANUP_JOURNAL_VERSION) ||
+      (value.version !== 1 &&
+        value.version !== 2 &&
+        value.version !== RESET_CLEANUP_JOURNAL_VERSION) ||
       typeof value.targetSnapshot !== 'string' ||
       value.targetSnapshot.length === 0 ||
       (value.setupDraftBeforeReset !== null &&
@@ -66,8 +71,10 @@ function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | nul
       !value.pending ||
       typeof value.pending.setupDraft !== 'boolean' ||
       typeof value.pending.quickTimer !== 'boolean' ||
+      (value.version >= 2 &&
+        typeof value.pending.alarmRuntime !== 'boolean') ||
       (value.version === RESET_CLEANUP_JOURNAL_VERSION &&
-        typeof value.pending.alarmRuntime !== 'boolean')
+        typeof value.pending.deviceLocalData !== 'boolean')
     ) {
       return null;
     }
@@ -78,11 +85,15 @@ function parseResetCleanupJournal(raw: string | null): ResetCleanupJournal | nul
       setupDraftBeforeReset: value.setupDraftBeforeReset,
       pending: {
         alarmRuntime:
-          value.version === RESET_CLEANUP_JOURNAL_VERSION
+          value.version >= 2
             ? value.pending.alarmRuntime === true
             : false,
         setupDraft: value.pending.setupDraft,
         quickTimer: value.pending.quickTimer,
+        deviceLocalData:
+          value.version === RESET_CLEANUP_JOURNAL_VERSION
+            ? value.pending.deviceLocalData === true
+            : false,
       },
     };
   } catch {
@@ -114,7 +125,12 @@ export async function prepareResetCleanupJournal(
       version: RESET_CLEANUP_JOURNAL_VERSION,
       targetSnapshot,
       setupDraftBeforeReset,
-      pending: { alarmRuntime: true, setupDraft: true, quickTimer: false },
+      pending: {
+        alarmRuntime: true,
+        setupDraft: true,
+        quickTimer: false,
+        deviceLocalData: true,
+      },
     },
     storage,
   );
@@ -131,12 +147,14 @@ export async function resumeResetCleanupJournal({
   resetFallbackLoaded = false,
   resetAlarmRuntime,
   cancelTimer,
+  clearDeviceLocalData,
   storage = AsyncStorage,
 }: {
   persistedSnapshot: string | null;
   resetFallbackLoaded?: boolean;
   resetAlarmRuntime: () => Promise<void>;
   cancelTimer: () => Promise<void>;
+  clearDeviceLocalData: () => Promise<void>;
   storage?: ResetCleanupStorage;
 }): Promise<ResetCleanupResumeResult> {
   const raw = await storage.getItem(RESET_CLEANUP_JOURNAL_STORAGE_KEY);
@@ -148,6 +166,7 @@ export async function resumeResetCleanupJournal({
       pendingAlarmRuntime: false,
       pendingSetupDraft: false,
       pendingQuickTimer: false,
+      pendingDeviceLocalData: false,
     };
   }
   const journal = parseResetCleanupJournal(raw);
@@ -159,6 +178,7 @@ export async function resumeResetCleanupJournal({
       pendingAlarmRuntime: true,
       pendingSetupDraft: true,
       pendingQuickTimer: true,
+      pendingDeviceLocalData: true,
     };
   }
   if (!resetFallbackLoaded && persistedSnapshot !== journal.targetSnapshot) {
@@ -170,12 +190,14 @@ export async function resumeResetCleanupJournal({
       pendingAlarmRuntime: false,
       pendingSetupDraft: false,
       pendingQuickTimer: false,
+      pendingDeviceLocalData: false,
     };
   }
 
   let pendingAlarmRuntime = journal.pending.alarmRuntime;
   let pendingSetupDraft = journal.pending.setupDraft;
   let pendingQuickTimer = journal.pending.quickTimer;
+  let pendingDeviceLocalData = journal.pending.deviceLocalData;
 
   if (pendingAlarmRuntime) {
     try {
@@ -217,8 +239,22 @@ export async function resumeResetCleanupJournal({
     }
   }
 
+  if (pendingDeviceLocalData) {
+    try {
+      await clearDeviceLocalData();
+      pendingDeviceLocalData = false;
+      journal.pending.deviceLocalData = false;
+      await writeResetCleanupJournal(journal, storage);
+    } catch {
+      // 다음 앱 실행에서 환경 캐시와 업데이트 안내 상태 정리를 다시 시도해요.
+    }
+  }
+
   const completed =
-    !pendingAlarmRuntime && !pendingSetupDraft && !pendingQuickTimer;
+    !pendingAlarmRuntime &&
+    !pendingSetupDraft &&
+    !pendingQuickTimer &&
+    !pendingDeviceLocalData;
   if (completed) {
     try {
       await clearResetCleanupJournal(storage);
@@ -230,6 +266,7 @@ export async function resumeResetCleanupJournal({
         pendingAlarmRuntime: false,
         pendingSetupDraft: false,
         pendingQuickTimer: false,
+        pendingDeviceLocalData: false,
       };
     }
   }
@@ -240,5 +277,6 @@ export async function resumeResetCleanupJournal({
     pendingAlarmRuntime,
     pendingSetupDraft,
     pendingQuickTimer,
+    pendingDeviceLocalData,
   };
 }

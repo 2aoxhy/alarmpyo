@@ -96,6 +96,8 @@ import {
   createNativeAppRuntimeController,
   type NativeAppRuntimeController,
 } from '@/infrastructure/runtime/native-app-runtime';
+import { environmentBriefingController } from '@/features/environment/environment-native-controller';
+import { clearPlayUpdatePromptSnooze } from '@/features/update/play-update-snooze-repository';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import {
   appDataFromImportPreview,
@@ -345,6 +347,13 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     createLatestStorageValueCoordinator(storageWriter, APP_DATA_STORAGE_KEY),
   );
   const [mutationCoordinator] = useState(() => createSerializedMutationCoordinator());
+
+  const clearDeviceLocalDataForResetCleanup = useCallback(async () => {
+    await Promise.all([
+      environmentBriefingController.clearLocalData(),
+      clearPlayUpdatePromptSnooze(runtime.dataRepository),
+    ]);
+  }, [runtime]);
 
   const mountedRef = useRef(true);
   const readyRef = useRef(false);
@@ -605,6 +614,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           resetFallbackLoaded: result.source === 'reset',
           resetAlarmRuntime: resetAlarmRuntimeForResetCleanup,
           cancelTimer: cancelQuickTimerForResetCleanup,
+          clearDeviceLocalData: clearDeviceLocalDataForResetCleanup,
         });
         resetCleanupCompleted = cleanup.completed;
       } catch {
@@ -652,12 +662,19 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (!resetCleanupCompleted) {
       reportSaveIssue(
         'reset-marker-cleanup-failed',
-        '자료는 초기화되었지만 알람 상태 또는 이전 설정 초안 정리가 남았습니다. 앱을 다시 열면 자동으로 재시도합니다.',
+        '자료는 초기화되었지만 알람·환경 정보 또는 기기 설정 정리가 남았습니다. 앱을 다시 열면 자동으로 재시도합니다.',
       );
     }
     reportUnsafeAlarmSchedule(loadedScheduleSafety);
     return true;
-  }, [appDataWriter, reportSaveIssue, reportUnsafeAlarmSchedule, runtime, storageWriter]);
+  }, [
+    appDataWriter,
+    clearDeviceLocalDataForResetCleanup,
+    reportSaveIssue,
+    reportUnsafeAlarmSchedule,
+    runtime,
+    storageWriter,
+  ]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void loadData(), 0);
@@ -2659,6 +2676,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
             persistedSnapshot: snapshot,
             resetAlarmRuntime: resetAlarmRuntimeForResetCleanup,
             cancelTimer: cancelQuickTimerForResetCleanup,
+            clearDeviceLocalData: clearDeviceLocalDataForResetCleanup,
           });
           if (!cleanup.completed) {
             throw new Error('초기화 후속 정리를 완료하지 못했습니다.');
@@ -2676,6 +2694,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     });
   }, [
     createBackupInternal,
+    clearDeviceLocalDataForResetCleanup,
     replaceDataAndPersistDetailedInternal,
     mutationCoordinator,
     storageWriter,

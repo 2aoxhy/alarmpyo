@@ -89,12 +89,56 @@ class AlarmPyoQuickTimerPolicyTest {
   }
 
   @Test
-  fun `thirty forty five and sixty minute quick timers are accepted`() {
+  fun `fifteen thirty forty five and sixty minute quick timers are accepted`() {
+    assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(15))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(30))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(45))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(60))
     assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(0))
-    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(15))
+    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(20))
+  }
+
+  @Test
+  fun `fifteen minute timer round trips and remains restorable after reboot`() {
+    val original = activeSnapshot(
+      generation = 41L,
+      bootCount = 12,
+      durationMinutes = 15
+    )
+    val decoded = AlarmPyoQuickTimerCodec.decode(AlarmPyoQuickTimerCodec.encode(original))!!
+    assertEquals(15, decoded.durationMinutes)
+    assertEquals(original, decoded)
+
+    val nowWallClock = 1_900_000_000_000L
+    val nowElapsed = 2_000L
+    val remaining = TimeUnit.MINUTES.toMillis(9)
+    val restoredPlan = AlarmPyoQuickTimerPolicy.rebasePlanForRestore(
+      plan = decoded.plan!!,
+      nowWallClock = nowWallClock,
+      delayMillis = remaining
+    )
+    val restored = AlarmPyoQuickTimerPolicy.restoredSnapshot(
+      snapshot = decoded,
+      restoredPlan = restoredPlan,
+      nowElapsed = nowElapsed,
+      delayMillis = remaining,
+      currentBootCount = 13
+    ).copy(generation = 42L)
+    val restoredDecoded = AlarmPyoQuickTimerCodec.decode(
+      AlarmPyoQuickTimerCodec.encode(restored)
+    )!!
+
+    assertEquals(15, restoredDecoded.durationMinutes)
+    assertEquals(13, restoredDecoded.bootCount)
+    assertEquals(
+      remaining,
+      AlarmPyoQuickTimerPolicy.remainingMillis(
+        snapshot = restoredDecoded,
+        currentBootCount = 13,
+        nowWallClock = nowWallClock,
+        nowElapsed = nowElapsed
+      )
+    )
   }
 
   @Test
@@ -517,22 +561,23 @@ class AlarmPyoQuickTimerPolicyTest {
 
   private fun activeSnapshot(
     generation: Long,
-    bootCount: Int = 12
+    bootCount: Int = 12,
+    durationMinutes: Int = 30
   ): AlarmPyoQuickTimerSnapshot {
     val startedAt = 1_800_000_000_000L
-    val duration = TimeUnit.MINUTES.toMillis(30)
+    val duration = TimeUnit.MINUTES.toMillis(durationMinutes.toLong())
     val plan = AlarmPyoAlarmPlan(
       id = "__alarmpyo_quick_timer__",
       dateKey = "",
       shiftTypeId = "timer",
-      shiftName = "30분 타이머",
+      shiftName = "${durationMinutes}분 타이머",
       alarmAt = startedAt + duration,
       originalAlarmAt = startedAt + duration,
       rootPlanId = "__alarmpyo_quick_timer__"
     )
     return AlarmPyoQuickTimerSnapshot(
       plan = plan,
-      durationMinutes = 30,
+      durationMinutes = durationMinutes,
       startedAt = startedAt,
       startedAtElapsed = 1_000L,
       fireAtElapsed = 1_000L + duration,

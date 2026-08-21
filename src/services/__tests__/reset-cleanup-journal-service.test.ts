@@ -41,10 +41,15 @@ describe('전체 초기화 후속 정리 저널', () => {
       fixture.values.get(RESET_CLEANUP_JOURNAL_STORAGE_KEY) ?? '{}',
     ) as Record<string, unknown>;
     expect(journal).toMatchObject({
-      version: 2,
+      version: 3,
       targetSnapshot: 'reset-snapshot',
       setupDraftBeforeReset: 'old-draft',
-      pending: { alarmRuntime: true, setupDraft: true, quickTimer: false },
+      pending: {
+        alarmRuntime: true,
+        setupDraft: true,
+        quickTimer: false,
+        deviceLocalData: true,
+      },
     });
   });
 
@@ -62,12 +67,16 @@ describe('전체 초기화 후속 정리 저널', () => {
       cancelTimer: async () => {
         events.push('timer:cancel');
       },
+      clearDeviceLocalData: async () => {
+        events.push('device-local:clear');
+      },
       storage: fixture.storage,
     });
 
     expect(result.completed).toBe(true);
     expect(events.indexOf('runtime:reset')).toBeGreaterThanOrEqual(0);
     expect(events).not.toContain('timer:cancel');
+    expect(events).toContain('device-local:clear');
     expect(fixture.values.has(SETUP_DRAFT_STORAGE_KEY)).toBe(false);
     expect(fixture.values.has(RESET_CLEANUP_JOURNAL_STORAGE_KEY)).toBe(false);
   });
@@ -83,6 +92,7 @@ describe('전체 초기화 후속 정리 저널', () => {
       cancelTimer: async () => {
         timerCancelled = true;
       },
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
 
@@ -103,6 +113,7 @@ describe('전체 초기화 후속 정리 저널', () => {
         throw new Error('native unavailable');
       },
       cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
     expect(first).toMatchObject({
@@ -118,6 +129,7 @@ describe('전체 초기화 후속 정리 저널', () => {
         attempts += 1;
       },
       cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
     expect(second.completed).toBe(true);
@@ -133,6 +145,7 @@ describe('전체 초기화 후속 정리 저널', () => {
       persistedSnapshot: 'reset-snapshot',
       resetAlarmRuntime: async () => undefined,
       cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
 
@@ -149,6 +162,7 @@ describe('전체 초기화 후속 정리 저널', () => {
       resetFallbackLoaded: true,
       resetAlarmRuntime: async () => undefined,
       cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
 
@@ -182,10 +196,51 @@ describe('전체 초기화 후속 정리 저널', () => {
       cancelTimer: async () => {
         timerCancelled = true;
       },
+      clearDeviceLocalData: async () => undefined,
       storage: fixture.storage,
     });
 
     expect(result.completed).toBe(true);
     expect(timerCancelled).toBe(true);
+  });
+
+  it('기기 전용 정리가 실패하면 완료한 단계는 반복하지 않고 다음 실행에서 재시도해요', async () => {
+    const fixture = createStorage({ [SETUP_DRAFT_STORAGE_KEY]: 'old-draft' });
+    await prepareResetCleanupJournal('reset-snapshot', fixture.storage);
+    let runtimeAttempts = 0;
+    let localAttempts = 0;
+
+    const first = await resumeResetCleanupJournal({
+      persistedSnapshot: 'reset-snapshot',
+      resetAlarmRuntime: async () => {
+        runtimeAttempts += 1;
+      },
+      cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => {
+        localAttempts += 1;
+        throw new Error('storage unavailable');
+      },
+      storage: fixture.storage,
+    });
+    expect(first).toMatchObject({
+      completed: false,
+      pendingDeviceLocalData: true,
+    });
+
+    const second = await resumeResetCleanupJournal({
+      persistedSnapshot: 'reset-snapshot',
+      resetAlarmRuntime: async () => {
+        runtimeAttempts += 1;
+      },
+      cancelTimer: async () => undefined,
+      clearDeviceLocalData: async () => {
+        localAttempts += 1;
+      },
+      storage: fixture.storage,
+    });
+
+    expect(second.completed).toBe(true);
+    expect(runtimeAttempts).toBe(1);
+    expect(localAttempts).toBe(2);
   });
 });

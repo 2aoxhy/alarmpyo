@@ -30,8 +30,9 @@ describe('빠른 타이머 화면 계약', () => {
     expect(tabs).toContain('resolveFloatingTabBarHorizontalLayout(windowWidth, 4)');
   });
 
-  it('30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
+  it('15분·30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
     expect(timer).toContain('quickTimerController.durations.map');
+    expect(controller).toContain('QUICK_TIMER_DURATIONS');
     expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
     expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
     expect(timer).toContain('현재 타이머를 취소하고');
@@ -102,9 +103,13 @@ describe('빠른 타이머 화면 계약', () => {
     expect(settings).toContain('소리·진동·권한');
   });
 
-  it('큰 글자에서는 버튼을 세로로 재배치하고 최소 64dp 높이를 사용해요', () => {
-    expect(timer).toContain('shouldStackQuickTimerPresets(width, fontScale)');
-    expect(timer).toContain('styles.presetButtonsStacked');
+  it('프리셋은 화면 폭과 글자 크기에 따라 1·2·4열로 재배치해요', () => {
+    expect(timer).toContain('shouldStackQuickTimerActions(width, fontScale)');
+    expect(timer).toContain('resolveQuickTimerPresetColumns(width, fontScale)');
+    expect(timer).toContain('styles.presetButtonFull');
+    expect(timer).toContain('styles.presetButtonHalf');
+    expect(timer).toContain('styles.presetButtonQuarter');
+    expect(timer).toContain("flexWrap: 'wrap'");
     expect(timer).toContain('minHeight: 64');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');

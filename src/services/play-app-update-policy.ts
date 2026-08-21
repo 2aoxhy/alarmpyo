@@ -129,8 +129,10 @@ export function canDismissPlayUpdate(status: PlayUpdateStatus): boolean {
 export function shouldPollPlayUpdate(status: PlayUpdateStatus): boolean {
   return (
     status.state === 'in-progress' ||
+    status.state === 'installing' ||
     status.installStatus === 'pending' ||
-    status.installStatus === 'downloading'
+    status.installStatus === 'downloading' ||
+    status.installStatus === 'installing'
   );
 }
 

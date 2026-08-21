@@ -11,6 +11,8 @@ import {
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
+import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
+import { PlayUpdateStatusBadge } from '@/features/update/play-update-status-badge';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreData } from '@/store/app-store';
 import {
@@ -21,6 +23,7 @@ import {
 
 export default function SettingsHome() {
   const { data } = useAppStoreData();
+  const { badge: playUpdateBadge } = useGlobalPlayUpdate();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
@@ -77,8 +80,17 @@ export default function SettingsHome() {
         <ListRow
           icon="book-outline"
           onPress={() => router.push('/app-management' as Href)}
-          subtitle={dataCopy.managementSummary.text}
+          subtitle={
+            playUpdateBadge
+              ? `${dataCopy.managementSummary.text} · ${playUpdateBadge.label}`
+              : dataCopy.managementSummary.text
+          }
           title="데이터·앱 정보"
+          trailing={
+            playUpdateBadge ? (
+              <PlayUpdateStatusBadge badge={playUpdateBadge} />
+            ) : undefined
+          }
         />
       </MenuGroup>
     </Screen>

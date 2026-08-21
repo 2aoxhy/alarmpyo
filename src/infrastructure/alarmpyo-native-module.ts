@@ -42,7 +42,7 @@ export type NativeAlarmPyoModule = {
   cancelAllAsync(): Promise<unknown>;
   resetAlarmRuntimeAsync?(): Promise<unknown>;
   getQuickTimerStatusAsync?(): Promise<unknown>;
-  scheduleQuickTimerAsync?(durationMinutes: 30 | 45 | 60): Promise<unknown>;
+  scheduleQuickTimerAsync?(durationMinutes: 15 | 30 | 45 | 60): Promise<unknown>;
   pauseQuickTimerAsync?(): Promise<unknown>;
   resumeQuickTimerAsync?(): Promise<unknown>;
   resetQuickTimerAsync?(): Promise<unknown>;

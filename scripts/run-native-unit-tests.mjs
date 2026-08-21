@@ -241,6 +241,56 @@ function findCachedGradle(wrapper) {
   return undefined;
 }
 
+function findMergedAppManifests(directory, depth = 0) {
+  if (!existsSync(directory) || depth > 8) return [];
+  const matches = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      matches.push(...findMergedAppManifests(entryPath, depth + 1));
+    } else if (
+      entry.name === 'AndroidManifest.xml' &&
+      /merged_manifest/iu.test(entryPath)
+    ) {
+      matches.push(entryPath);
+    }
+  }
+  return matches;
+}
+
+function validateMergedLocationPermissions(androidProjectRoot) {
+  const candidates = findMergedAppManifests(
+    resolve(androidProjectRoot, 'app', 'build', 'intermediates'),
+  );
+  const appManifest = candidates
+    .map((path) => ({ path, contents: readFileSync(path, 'utf8') }))
+    .find(({ contents }) =>
+      /(?:android:name="\.MainActivity"|com\.personal\.alarmpyo\.MainActivity)/u.test(
+        contents,
+      ),
+    );
+  if (!appManifest) {
+    throw new Error('병합된 Android 앱 Manifest를 찾지 못했어요.');
+  }
+  if (!appManifest.contents.includes('android.permission.ACCESS_COARSE_LOCATION')) {
+    throw new Error('병합된 Android Manifest에 대략적 위치 권한이 없습니다.');
+  }
+  const prohibitedPermissions = [
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_BACKGROUND_LOCATION',
+    'android.permission.FOREGROUND_SERVICE_LOCATION',
+  ];
+  const leakedPermission = prohibitedPermissions.find((permission) =>
+    appManifest.contents.includes(permission),
+  );
+  if (leakedPermission) {
+    throw new Error(
+      `병합된 Android Manifest에 허용하지 않은 위치 권한이 남았습니다: ${leakedPermission}`,
+    );
+  }
+  console.log('병합된 Android Manifest의 대략적 위치 전용 권한을 확인했어요.');
+}
+
 function copyManagedProject(sourceRoot, destinationRoot) {
   rmSync(destinationRoot, removeOptions);
   mkdirSync(destinationRoot, { recursive: true });
@@ -332,11 +382,16 @@ try {
     androidRoot,
     isWindows ? 'gradlew.bat' : 'gradlew',
   );
-  const gradleArguments = [':alarmpyo-alarm:testDebugUnitTest', '--no-daemon'];
+  const gradleArguments = [
+    ':alarmpyo-alarm:testDebugUnitTest',
+    ':app:processDebugMainManifest',
+    '--no-daemon',
+  ];
   if (toolEnvironment.ALARMPYO_GRADLE_OFFLINE === '1') {
     gradleArguments.push('--offline');
   }
   runGradleWrapper(readyWrapper, gradleArguments, androidRoot);
+  validateMergedLocationPermissions(androidRoot);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode =
