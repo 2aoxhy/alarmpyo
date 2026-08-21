@@ -31,7 +31,7 @@
     "expo-system-ui": "~57.0.2",
     "expo-updates": "~57.0.16",
     "korean-lunar-calendar": "0.4.0",
-    "react": "19.2.3",
+    "react": "19.2.8",
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
     "react-native-gesture-handler": "~2.32.0",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@expo/fingerprint": "~0.20.9",
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.2.18",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
     "opentype.js": "2.0.0",
