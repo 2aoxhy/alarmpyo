@@ -246,7 +246,7 @@ export async function resumeResetCleanupJournal({
       journal.pending.deviceLocalData = false;
       await writeResetCleanupJournal(journal, storage);
     } catch {
-      // 다음 앱 실행에서 환경 캐시와 업데이트 안내 상태 정리를 다시 시도해요.
+      // 다음 앱 실행에서 업데이트 안내 상태 정리를 다시 시도해요.
     }
   }
 

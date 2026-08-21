@@ -262,18 +262,14 @@ describe('stable 배포 설정', () => {
     expect(app.expo.ios.buildNumber).toBe('15');
     expect(app.expo.android.blockedPermissions).toEqual(
       expect.arrayContaining([
+        'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_BACKGROUND_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
         'android.permission.FOREGROUND_SERVICE_LOCATION',
       ]),
     );
-    expect(app.expo.plugins).toContainEqual([
-      'expo-location',
-      {
-        locationWhenInUsePermission:
-          '현재 위치의 날씨와 공기질을 확인할 때만 대략적인 위치를 사용합니다.',
-      },
-    ]);
+    expect(app.expo.plugins).not.toContain('expo-location');
+    expect(pkg.dependencies).not.toHaveProperty('expo-location');
     // `android`는 Expo prebuild가 만드는 생성물이므로 새 clone과 소스
     // 아카이브에는 없을 수 있어요. 생성물이 있을 때에는 그 결과도 함께
     // 검증하고, 없을 때에는 원본 Expo 설정 계약만 검증해요.

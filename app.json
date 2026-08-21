@@ -28,6 +28,7 @@
       "versionCode": 15,
       "allowBackup": false,
       "blockedPermissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.DUMP",
@@ -49,12 +50,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "현재 위치의 날씨와 공기질을 확인할 때만 대략적인 위치를 사용합니다."
-        }
-      ],
       "./plugins/with-background-only-splash.js",
       [
         "expo-splash-screen",

@@ -272,10 +272,8 @@ function validateMergedLocationPermissions(androidProjectRoot) {
   if (!appManifest) {
     throw new Error('병합된 Android 앱 Manifest를 찾지 못했어요.');
   }
-  if (!appManifest.contents.includes('android.permission.ACCESS_COARSE_LOCATION')) {
-    throw new Error('병합된 Android Manifest에 대략적 위치 권한이 없습니다.');
-  }
   const prohibitedPermissions = [
+    'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.ACCESS_FINE_LOCATION',
     'android.permission.ACCESS_BACKGROUND_LOCATION',
     'android.permission.FOREGROUND_SERVICE_LOCATION',
@@ -288,7 +286,7 @@ function validateMergedLocationPermissions(androidProjectRoot) {
       `병합된 Android Manifest에 허용하지 않은 위치 권한이 남았습니다: ${leakedPermission}`,
     );
   }
-  console.log('병합된 Android Manifest의 대략적 위치 전용 권한을 확인했어요.');
+  console.log('병합된 Android Manifest에 위치 권한이 없음을 확인했어요.');
 }
 
 function copyManagedProject(sourceRoot, destinationRoot) {

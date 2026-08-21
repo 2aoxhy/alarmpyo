@@ -12,8 +12,6 @@ import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
-import { EnvironmentBriefingSection } from '@/features/today/environment-briefing-section';
-import { resolveTodayEnvironmentTarget } from '@/features/today/environment-briefing-model';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
@@ -103,12 +101,6 @@ export default function TodayScreen() {
     sleepReminderSyncStatus,
     compactHome,
   });
-  const environmentTarget = resolveTodayEnvironmentTarget({
-    now,
-    currentWorkEndsAt: viewModel.current?.endsAt,
-    nextDepartAt: viewModel.workRoutinePlan?.departAt,
-  });
-
   return (
     <Screen contentStyle={styles.screen}>
       <View style={styles.header}>
@@ -134,12 +126,6 @@ export default function TodayScreen() {
         screenActive={screenActive}
         shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}
-      />
-
-      <EnvironmentBriefingSection
-        enabled={screenActive}
-        now={now}
-        target={environmentTarget}
       />
 
       <TodayGuidanceSection

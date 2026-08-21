@@ -96,7 +96,6 @@ import {
   createNativeAppRuntimeController,
   type NativeAppRuntimeController,
 } from '@/infrastructure/runtime/native-app-runtime';
-import { environmentBriefingController } from '@/features/environment/environment-native-controller';
 import { clearPlayUpdatePromptSnooze } from '@/features/update/play-update-snooze-repository';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import {
@@ -349,10 +348,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const [mutationCoordinator] = useState(() => createSerializedMutationCoordinator());
 
   const clearDeviceLocalDataForResetCleanup = useCallback(async () => {
-    await Promise.all([
-      environmentBriefingController.clearLocalData(),
-      clearPlayUpdatePromptSnooze(runtime.dataRepository),
-    ]);
+    await clearPlayUpdatePromptSnooze(runtime.dataRepository);
   }, [runtime]);
 
   const mountedRef = useRef(true);
@@ -662,7 +658,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     if (!resetCleanupCompleted) {
       reportSaveIssue(
         'reset-marker-cleanup-failed',
-        '자료는 초기화되었지만 알람·환경 정보 또는 기기 설정 정리가 남았습니다. 앱을 다시 열면 자동으로 재시도합니다.',
+        '자료는 초기화되었지만 알람 또는 기기 설정 정리가 남았습니다. 앱을 다시 열면 자동으로 재시도합니다.',
       );
     }
     reportUnsafeAlarmSchedule(loadedScheduleSafety);

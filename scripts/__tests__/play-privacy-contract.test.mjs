@@ -51,27 +51,30 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
     expect(inAppPolicy).toContain('설정을 요청에 포함하지 않습니다');
   });
 
-  it('환경 브리핑은 대략적 격자만 처리하고 근무 자료를 보내지 않아요', () => {
+  it('날씨·공기 기능과 모든 위치 권한을 배포판에서 제외해요', () => {
     const app = JSON.parse(source('app.json')).expo;
+    const pkg = JSON.parse(source('package.json'));
     const nativeCheck = source('scripts/run-native-unit-tests.mjs');
     expect(app.android.blockedPermissions).toEqual(
       expect.arrayContaining([
+        'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
         'android.permission.ACCESS_BACKGROUND_LOCATION',
         'android.permission.FOREGROUND_SERVICE_LOCATION',
       ]),
     );
+    expect(app.plugins).not.toContain('expo-location');
+    expect(pkg.dependencies).not.toHaveProperty('expo-location');
     for (const contents of [publicPolicy, inAppPolicy]) {
-      expect(contents).toContain('기상청 5km 격자');
-      expect(contents).toContain('Cloudflare');
-      expect(contents).toContain('에어코리아');
-      expect(contents).toContain('근무표');
-      expect(contents).toContain('출퇴근 시각');
+      expect(contents).toContain('위치 권한');
+      expect(contents).not.toContain('Cloudflare');
+      expect(contents).not.toContain('에어코리아');
     }
-    expect(dataSafety).toContain('`수집·공유·선택사항·앱 기능`');
+    expect(dataSafety).toContain('자체 서버: 없음');
     expect(nativeCheck).toContain(':app:processDebugMainManifest');
     expect(nativeCheck).toContain('validateMergedLocationPermissions(androidRoot)');
     expect(nativeCheck).toContain('android.permission.ACCESS_COARSE_LOCATION');
+    expect(nativeCheck).toContain('위치 권한이 없음을 확인했어요');
   });
 
   it('초기화가 내부 안전 백업을 남긴다는 삭제 범위를 숨기지 않아요', () => {

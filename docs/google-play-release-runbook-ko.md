@@ -134,7 +134,7 @@ npm run submit:internal -- --aab .release/AlarmPyo.aab `
 
 이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드합니다. 초안만으로는 Play Store 설치 링크가 열리지 않으므로, 업로드 후 Play Console에서 같은 번들의 내부 테스트 릴리스를 검토하고 출시해 내부 테스터에게 활성화합니다.
 
-V13 `versionCode 13`은 internal과 Alpha에, V14 `versionCode 14`는 internal에 이미 배포했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. V15는 새 `versionCode 15` 번들을 internal에서 먼저 검증합니다. AppData v21 호환·위치 거부/수동 선택·날씨/공기 부분 실패·15분 타이머·Play 유연 업데이트·공식 서명 패턴·패턴 적용 전에 달력에서 변경 전·후 확인·적용·복구와 위젯 호환을 확인한 뒤 Play Console 번들 라이브러리에서 **같은 versionCode 15 번들**을 Alpha 출시로 추가하거나 승격하며, 이때 AAB를 다시 업로드하지 않습니다. V13 Alpha와 V14 internal 계보, V09를 사용하지 않았고 V11을 Play에 업로드하지 않았다는 기록을 보존합니다.
+V13 `versionCode 13`은 internal과 Alpha에, V14 `versionCode 14`는 internal에 이미 배포했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. V15는 새 `versionCode 15` 번들을 internal에서 먼저 검증합니다. AppData v21 호환·15분 타이머·Play 유연 업데이트·공식 서명 패턴·패턴 적용 전에 달력에서 변경 전·후 확인·적용·복구와 위젯 호환을 확인한 뒤 Play Console 번들 라이브러리에서 **같은 versionCode 15 번들**을 Alpha 출시로 추가하거나 승격하며, 이때 AAB를 다시 업로드하지 않습니다. V13 Alpha와 V14 internal 계보, V09를 사용하지 않았고 V11을 Play에 업로드하지 않았다는 기록을 보존합니다.
 
 internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다.
 
