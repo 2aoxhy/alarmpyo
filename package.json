@@ -13,7 +13,7 @@
     "@noble/ciphers": "2.2.0",
     "@noble/curves": "2.3.0",
     "@noble/hashes": "2.2.0",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "alarmpyo-alarm": "file:modules/alarmpyo-alarm",
     "expo": "~57.0.15",
     "expo-constants": "~57.0.13",
