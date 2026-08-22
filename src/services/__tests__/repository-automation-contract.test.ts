@@ -53,7 +53,7 @@ describe('저장소 자동화 계약', () => {
     expect(eas.build.base.autoIncrement).toBe(false);
   });
 
-  it('앱은 V15 1.15(15) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V16 1.16(16) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -65,16 +65,16 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.15.0');
+    expect(pkg.version).toBe('1.16.0');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.15',
-      androidVersionCode: 15,
-      iosBuildNumber: '15',
+      versionName: '1.16',
+      androidVersionCode: 16,
+      iosBuildNumber: '16',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      'V14 · `1.0.14(14)`는 Play internal에 배포했으며, 현재 소스의 후속 후보는 `V15 · 1.15(15)`입니다.',
+      'V14 · `1.0.14(14)`와 V15 · `1.15(15)`는 Play internal에 배포했으며, 현재 소스의 후속 후보는 `V16 · 1.16(16)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
       'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에 배포했습니다.',
@@ -83,10 +83,10 @@ describe('저장소 자동화 계약', () => {
       'V09는 사용하지 않습니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console에 업로드된 V14의 `versionCode: 14`가 현재 Play 계보의 최고값입니다.',
+      'Play Console에 업로드된 V15의 `versionCode: 15`가 현재 Play 계보의 최고값입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 15 번들',
+      '같은 versionCode 16 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -117,11 +117,11 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(14);
+    ).toBe(15);
     expect(
       json('docs/play-release-evidence.example.json')
         .highestExistingPlayVersionCode,
-    ).toBe(14);
+    ).toBe(15);
   });
 
   it('패턴 적용 안내는 달력의 변경 전·후 확인을 설명하고 42일 결과 비교로 제한하지 않습니다', () => {

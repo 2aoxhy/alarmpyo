@@ -1,10 +1,10 @@
 # Google Play 휴대전화 스크린샷
 
-V15 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `manifest.json` 순서대로 새로 촬영합니다. 현재 manifest 상태는 `recapture-required`이며 최종 스크린샷은 아직 만들지 않았습니다. 첨부 경로가 사라진 파일, 웹 미리보기, 이전 버전 이미지나 저해상도 대체 이미지는 게시 자산으로 사용하지 않습니다.
+V16 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `manifest.json` 순서대로 새로 촬영합니다. 현재 manifest 상태는 `recapture-required`이며 최종 스크린샷은 아직 만들지 않았습니다. 첨부 경로가 사라진 파일, 웹 미리보기, 이전 버전 이미지나 저해상도 대체 이미지는 게시 자산으로 사용하지 않습니다.
 
 확정 노출 순서와 재촬영 원본 이름은 다음과 같습니다.
 
-1. `01-brand.webp`: 실제 V15 시작 화면
+1. `01-brand.webp`: 실제 V16 시작 화면
 2. `02-today.webp`: 알람이 준비된 오늘 화면
 3. `03-timer.webp`: 실행 중인 15분 타이머와 네 가지 시간 선택
 4. `04-settings.webp`: 설정 첫 화면
@@ -12,7 +12,7 @@ V15 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `mani
 네 원본을 별도 폴더에 모은 다음 저장소 루트에서 다음 명령을 실행합니다.
 
 ```powershell
-npm run assets:play:screenshots:prepare -- --source-dir "<V15 WebP 원본 폴더>"
+npm run assets:play:screenshots:prepare -- --source-dir "<V16 WebP 원본 폴더>"
 ```
 
 변환기는 폭 1080px·높이 1920px 이상인 단일 프레임 WebP만 받습니다. 정확히 1080×1920인 원본은 픽셀 배치를 그대로 유지하고, 더 크거나 긴 원본은 자르거나 왜곡하지 않은 채 `contain`으로 축소해 `#101214` 배경의 1080×1920 캔버스에 배치합니다. 저해상도 원본은 확대하지 않습니다. 알파 없는 비인터레이스 RGB PNG로 결정적으로 변환한 뒤 `01-brand.png`, `02-today.png`, `03-timer.png`, `04-settings.png`를 만들며, 네 파일 검증이 모두 끝나야 manifest 상태를 `ready`로 바꿉니다.

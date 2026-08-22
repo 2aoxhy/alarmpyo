@@ -44,7 +44,7 @@
 - 최종 512×512 아이콘: `assets/play-store/alarmpyo-icon-512.png`
 - 최종 1024×500 대표 그래픽: `assets/play-store/alarmpyo-feature-graphic.png`
 - 앱 아이콘 파생 자산: `assets/images/alarmpyo-*.png`
-- 휴대전화 스크린샷: `assets/play-store/phone-screenshots/manifest.json`에 기록한 V15 순서·대체 텍스트를 기준으로, 현재 릴리스 후보를 **Play 테스트 트랙으로 설치한 실제 Android 기기**에서 새로 촬영합니다. manifest가 `recapture-required`인 동안은 최종 이미지가 없는 상태입니다.
+- 휴대전화 스크린샷: `assets/play-store/phone-screenshots/manifest.json`에 기록한 V16 순서·대체 텍스트를 기준으로, 현재 릴리스 후보를 **Play 테스트 트랙으로 설치한 실제 Android 기기**에서 새로 촬영합니다. manifest가 `recapture-required`인 동안은 최종 이미지가 없는 상태입니다.
 
 Google Play의 현재 필수 형식은 다음과 같습니다.
 
@@ -71,7 +71,7 @@ npm run release:verify:play-store-assets
 
 권장 스크린샷 순서
 
-1. 실제 V15 시작 화면과 알람표 브랜드
+1. 실제 V16 시작 화면과 알람표 브랜드
 2. 현재 근무·남은 시간·준비된 알람을 보여주는 오늘 화면
 3. 실행 중인 15분 타이머와 네 가지 시간 선택
 4. 근무표·알람·위젯·데이터로 이동하는 설정 화면
@@ -79,7 +79,7 @@ npm run release:verify:play-store-assets
 실기기에서 `01-brand.webp`, `02-today.webp`, `03-timer.webp`, `04-settings.webp`를 폭 1080px·높이 1920px 이상으로 다시 촬영한 뒤 다음 명령으로 무왜곡 RGB PNG를 만듭니다. 더 긴 화면은 `#101214` 배경의 1080×1920 캔버스에 비율을 유지해 배치하며, 첨부 경로가 사라진 파일이나 이전 버전 이미지를 대신 사용하지 않습니다.
 
 ```powershell
-npm run assets:play:screenshots:prepare -- --source-dir "<V15 WebP 원본 폴더>"
+npm run assets:play:screenshots:prepare -- --source-dir "<V16 WebP 원본 폴더>"
 ```
 
 Play Console에는 `manifest.json`의 순서와 한국어 대체 텍스트를 그대로 사용합니다. 변환이 끝나기 전 manifest의 `recapture-required` 상태와 빈 스크린샷 폴더는 의도된 출시 차단 상태입니다.
@@ -120,7 +120,7 @@ Google의 건강 앱 선언에는 `Sleep Management`가 별도 항목으로 있�
 
 - 수면 기능 분류 또는 개발자 계정 유형
 - 활성 개인정보처리방침 URL 또는 별도로 결정할 Play App Signing 인증서
-- 현재 V15 후보 `1.15(15)`가 Play internal의 V14 `versionCode 14`보다 높은 같은 package 계보인지 확인합니다. V13 Alpha는 V15 승격 전까지 유지하며, V09는 사용하지 않았고 V11은 Play에 업로드하지 않았습니다.
+- 현재 V16 후보 `1.16(16)`이 Play internal의 V15 `versionCode 15`보다 높은 같은 package 계보인지 확인합니다. V13 Alpha는 V16 승격 전까지 유지하며, V14와 V15 internal 증거를 보존하고 V09는 사용하지 않았고 V11은 Play에 업로드하지 않았습니다.
 - 권한·FGS 선언 영상, 데이터 보안, 개인정보 처리방침
 - 실제 기기 스크린샷과 지원 연락처
 - Play 생성 APK 실기기 QA, 16KB 환경, 사전 출시 보고서

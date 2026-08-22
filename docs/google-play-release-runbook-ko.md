@@ -43,7 +43,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-Play Console에 업로드된 V14의 `versionCode: 14`가 현재 Play 계보의 최고값입니다. V13은 Alpha에서 활성 상태입니다. V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다. 현재 V15 후보는 `versionCode: 15`입니다. 예제의 계보 값은 업로드 직전에 Play Console의 모든 트랙·초안·과거 업로드에서 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록합니다. 확인한 최고값이 `15` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신합니다.
+Play Console에 업로드된 V15의 `versionCode: 15`가 현재 Play 계보의 최고값입니다. V13은 Alpha에서 활성 상태이고 V14와 V15는 internal에 배포되었습니다. V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다. 현재 V16 후보는 `versionCode: 16`입니다. 예제의 계보 값은 업로드 직전에 Play Console의 모든 트랙·초안·과거 업로드에서 다시 확인하고 `.release/play/release-evidence.json`에 실제 값만 기록합니다. 확인한 최고값이 `16` 이상이면 업로드를 중단하고 실제 최고값보다 큰 versionCode로 설정·문서·증거를 함께 갱신합니다.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인합니다
 
@@ -93,16 +93,16 @@ Play 사전 검증은 Node.js `24.16.0`·npm `11.13.0`의 실제 실행 버전, 
 EAS 빌드 상세 JSON을 BOM 없는 UTF-8로 저장하고 EAS 원본 AAB를 다운로드합니다.
 
 ```powershell
-New-Item -ItemType Directory -Force .release | Out-Null
+New-Item -ItemType Directory -Force .release/play | Out-Null
 $metadata = node scripts/run-eas-cli.mjs build:view <빌드-ID> --json
 [System.IO.File]::WriteAllText(
-  (Join-Path (Get-Location) '.release/eas-build-play.json'),
+  (Join-Path (Get-Location) '.release/eas-build-play-v16.json'),
   ($metadata -join [Environment]::NewLine),
   [System.Text.UTF8Encoding]::new($false)
 )
 
-npm run release:verify:aab -- --aab .release/AlarmPyo.aab `
-  --eas-build .release/eas-build-play.json
+npm run release:verify:aab -- --aab .release/play/AlarmPyo-V16.aab `
+  --eas-build .release/eas-build-play-v16.json
 ```
 
 AAB 검증기는 다음을 모두 확인합니다.
@@ -128,19 +128,19 @@ AAB 검증기는 다음을 모두 확인합니다.
 ## 5. 내부 초안과 Alpha 활성 제출을 분리합니다
 
 ```powershell
-npm run submit:internal -- --aab .release/AlarmPyo.aab `
-  --eas-build .release/eas-build-play.json
+npm run submit:internal -- --aab .release/play/AlarmPyo-V16.aab `
+  --eas-build .release/eas-build-play-v16.json
 ```
 
 이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드합니다. 초안만으로는 Play Store 설치 링크가 열리지 않으므로, 업로드 후 Play Console에서 같은 번들의 내부 테스트 릴리스를 검토하고 출시해 내부 테스터에게 활성화합니다.
 
-V13 `versionCode 13`은 internal과 Alpha에, V14 `versionCode 14`는 internal에 이미 배포했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. V15는 새 `versionCode 15` 번들을 internal에서 먼저 검증합니다. AppData v21 호환·15분 타이머·Play 유연 업데이트·공식 서명 패턴·패턴 적용 전에 달력에서 변경 전·후 확인·적용·복구와 위젯 호환을 확인한 뒤 Play Console 번들 라이브러리에서 **같은 versionCode 15 번들**을 Alpha 출시로 추가하거나 승격하며, 이때 AAB를 다시 업로드하지 않습니다. V13 Alpha와 V14 internal 계보, V09를 사용하지 않았고 V11을 Play에 업로드하지 않았다는 기록을 보존합니다.
+V13 `versionCode 13`은 internal과 Alpha에, V14 `versionCode 14`와 V15 `versionCode 15`는 internal에 이미 배포했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. V16은 새 `versionCode 16` 번들을 internal에서 먼저 검증합니다. AppData v21 호환·하단 메뉴 중심축·설정 제목 정렬·15분 타이머·Play 유연 업데이트·공식 서명 패턴·패턴 적용 전에 달력에서 변경 전·후 확인·적용·복구와 위젯 호환을 확인한 뒤 Play Console 번들 라이브러리에서 **같은 versionCode 16 번들**을 Alpha 출시로 추가하거나 승격하며, 이때 AAB를 다시 업로드하지 않습니다. V13 Alpha와 V14·V15 internal 계보, V09를 사용하지 않았고 V11을 Play에 업로드하지 않았다는 기록을 보존합니다.
 
-internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다.
+internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다. V16은 internal에 먼저 업로드하므로 이번 출시에 이 명령을 실행하지 않습니다.
 
 ```powershell
-npm run submit:alpha -- --aab .release/AlarmPyo-V15.aab `
-  --eas-build .release/eas-build-play-v15.json
+npm run submit:alpha -- --aab <Internal에 올리지 않은 새 AAB> `
+  --eas-build <해당 EAS 빌드 JSON>
 ```
 
 `submit:alpha`는 `track: alpha`, `releaseStatus: completed`로 고정됩니다. 제출이 완료되면 기존 Alpha 테스터에게 새 버전이 제공되므로, 내부 초안과 달리 단순 업로드 명령으로 사용하지 않습니다. AAB의 versionCode가 internal을 포함한 Play의 어느 트랙에든 이미 존재하거나 소스·EAS 출처·서명·16KB 검증이 실패하면 실행하지 않습니다.
@@ -157,7 +157,7 @@ Samsung 실기기에서는 다음을 확인합니다.
 
 - 설치 출처가 `com.android.vending`이고 앱 서명 SHA-256이 `play-release-policy.json`에 별도로 확정한 Play App Signing 인증서와 같은지 확인합니다.
 - 첫 출시는 새 설치·초기 설정을 확인하고, 후속 출시는 기존 AlarmPyo 위에 설치해 근무표·메모·설정·권한이 유지되는지 확인합니다.
-- 앱 종료, 재부팅, 날짜·시간·시간대 변경 뒤 근무 알람과 30분·60분 타이머 예약 복구가 동작하는지 확인합니다.
+- 앱 종료, 재부팅, 날짜·시간·시간대 변경 뒤 근무 알람과 15·30·45·60분 타이머 예약 복구가 동작하는지 확인합니다.
 - 근무·시험·타이머 알람이 소리와 진동으로 한 번만 울리고 끄기·5분 재알림이 정확히 동작하는지 확인합니다.
 - 알림 거부 상태, 전체 화면 알람, 포그라운드 알람음, 위젯을 확인합니다.
 
@@ -171,7 +171,7 @@ Get-FileHash .release/play/device-evidence/page-size-16kb.json -Algorithm SHA256
 Get-FileHash .release/play/prelaunch-evidence/report.json -Algorithm SHA256
 
 npm run release:verify:play-evidence -- `
-  --provenance .release/play/AlarmPyo.aab.provenance.json `
+  --provenance .release/play/AlarmPyo-V16.aab.provenance.json `
   --evidence .release/play/release-evidence.json
 ```
 
@@ -215,7 +215,7 @@ production 승인 조건은 다음과 같습니다.
 
 다음 중 하나라도 발생하면 확대를 멈추고 해당 출시를 중단합니다.
 
-- 설치·실행 실패, Play V13→V15 또는 V14→V15 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
+- 설치·실행 실패, Play V13→V16·V14→V16 또는 V15→V16 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
 - direct→Play는 별도 signer 때문에 제자리 업데이트가 불가능하므로 실패 판정 대신 외부 백업·제거·Play판 설치·복원 안내를 확인
 - 근무 알람 미전달, 중복 알람, 재부팅·시간대 변경 복구 실패, 전체 화면·알람음·위젯 회귀
 - 새 보안·개인정보·정책 위반 또는 Play 정책 거부

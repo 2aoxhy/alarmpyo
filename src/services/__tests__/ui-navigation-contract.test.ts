@@ -21,6 +21,10 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings).toContain('title="데이터·앱 정보"');
     expect(settings).not.toContain('title="기상 시간"');
     expect(settings).toContain('formatSettingsWorkSummary(');
+    expect(settings).toContain('<PageHeader align="center" title="설정" />');
+    expect(settings).toContain('<MenuGroup centered title="근무와 알람">');
+    expect(settings).toContain('<MenuGroup centered title="앱">');
+    expect(settings).not.toContain('자주 쓰는 설정만 모았습니다.');
     for (const title of [
       '데이터 관리',
       'Google Play 업데이트',
@@ -43,6 +47,15 @@ describe('핵심 화면 탐색 계약', () => {
     );
     expect(contentStyle).toBeGreaterThan(-1);
     expect(protectedBottomSpacing).toBeGreaterThan(contentStyle);
+  });
+
+  it('하단 메뉴는 Android 논리 좌표의 양쪽 inset으로 화면 중심축을 고정해요', () => {
+    const tabsLayout = source('src/app/(tabs)/_layout.tsx');
+
+    expect(tabsLayout).toContain('start: tabBarGeometry.inset');
+    expect(tabsLayout).toContain('end: tabBarGeometry.inset');
+    expect(tabsLayout).not.toContain('left: tabBarGeometry.');
+    expect(tabsLayout).not.toContain('right: tabBarGeometry.');
   });
 
   it('근무 방식 개요는 시작일과 기준일 근무를 반복해서 보여 주지 않아요', () => {

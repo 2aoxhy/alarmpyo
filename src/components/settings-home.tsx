@@ -1,8 +1,7 @@
 import { router, type Href } from 'expo-router';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import {
-  AppText,
   ListRow,
   MenuDivider,
   MenuGroup,
@@ -10,6 +9,7 @@ import {
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
+import { PageHeader } from '@/design-system';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
 import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
 import { PlayUpdateStatusBadge } from '@/features/update/play-update-status-badge';
@@ -44,16 +44,9 @@ export default function SettingsHome() {
     : '꺼짐';
   return (
     <Screen contentStyle={styles.screenContent}>
-      <View style={styles.header}>
-        <AppText accessibilityRole="header" variant="title">
-          설정
-        </AppText>
-        <AppText tone="secondary" style={styles.headerDescription}>
-          자주 쓰는 설정만 모았습니다.
-        </AppText>
-      </View>
+      <PageHeader align="center" title="설정" />
 
-      <MenuGroup title="근무와 알람">
+      <MenuGroup centered title="근무와 알람">
         <ListRow
           icon="repeat-outline"
           onPress={() => router.push('/shift-settings')}
@@ -69,7 +62,7 @@ export default function SettingsHome() {
         />
       </MenuGroup>
 
-      <MenuGroup title="앱">
+      <MenuGroup centered title="앱">
         <ListRow
           icon="settings-outline"
           onPress={() => router.push('/display-settings' as Href)}
@@ -103,11 +96,4 @@ const createStyles = (_palette: AppPalette) =>
       gap: spacing.large,
       paddingTop: spacing.medium,
     },
-    header: {
-      alignItems: 'flex-start',
-      gap: spacing.tiny,
-      paddingHorizontal: spacing.tiny,
-      paddingBottom: spacing.tiny,
-    },
-    headerDescription: { textAlign: 'left' },
   });

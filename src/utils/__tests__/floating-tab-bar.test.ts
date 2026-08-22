@@ -71,6 +71,7 @@ describe('떠 있는 하단 메뉴 배치', () => {
   it.each([
     [320, 0, 0, 4],
     [360, 24, 0, 4],
+    [390, 0, 44, 12],
     [412, 0, 24, 12],
     [768, 44, 0, 12],
     [1280, 0, 0, 12],
@@ -84,10 +85,9 @@ describe('떠 있는 하단 메뉴 배치', () => {
         outerMargin,
       );
 
-      expect(geometry.left + geometry.width / 2).toBe(windowWidth / 2);
-      expect(geometry.right).toBe(geometry.left);
-      expect(geometry.left).toBeGreaterThanOrEqual(geometry.sideGuard);
-      expect(windowWidth - geometry.left - geometry.width).toBeGreaterThanOrEqual(
+      expect(geometry.inset + geometry.width / 2).toBe(windowWidth / 2);
+      expect(geometry.inset).toBeGreaterThanOrEqual(geometry.sideGuard);
+      expect(windowWidth - geometry.inset - geometry.width).toBeGreaterThanOrEqual(
         geometry.sideGuard,
       );
       expect(geometry.width).toBeLessThanOrEqual(560);
@@ -96,8 +96,7 @@ describe('떠 있는 하단 메뉴 배치', () => {
 
   it('비대칭 안전 영역은 더 큰 값을 양쪽에 같은 여백으로 적용해요', () => {
     expect(resolveFloatingTabBarGeometry(412, 28, 4, 12)).toEqual({
-      left: 28,
-      right: 28,
+      inset: 28,
       sideGuard: 28,
       width: 356,
     });
@@ -106,6 +105,6 @@ describe('떠 있는 하단 메뉴 배치', () => {
   it('잘못된 화면·안전 영역 값도 유한한 중앙 배치를 반환해요', () => {
     expect(
       resolveFloatingTabBarGeometry(Number.NaN, Number.NaN, -4, 12),
-    ).toEqual({ left: 0, right: 0, sideGuard: 12, width: 0 });
+    ).toEqual({ inset: 0, sideGuard: 12, width: 0 });
   });
 });

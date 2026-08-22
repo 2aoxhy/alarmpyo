@@ -83,13 +83,13 @@ export default function TabsLayout() {
           floatingTabShadow,
           {
             bottom: tabBarLayout.bottom,
+            end: tabBarGeometry.inset,
             height: tabBarLayout.height,
-            left: tabBarGeometry.left,
             paddingHorizontal: horizontalLayout.horizontalPadding,
-            // React Navigation의 웹 기본값(right: 0)을 남기면 width/left와
-            // 과도하게 제약되어 RTL·일부 웹 레이아웃에서 한쪽으로 밀립니다.
-            // 같은 inset을 양쪽에 명시해 화면 중심축을 기준으로 고정합니다.
-            right: tabBarGeometry.right,
+            // React Navigation의 기본 배치도 논리 좌표(start/end)를 사용합니다.
+            // Yoga에서 논리 좌표가 left/right보다 우선되므로 같은 inset을
+            // start/end에 직접 적용해 안전 영역이 비대칭이어도 중심축을 유지합니다.
+            start: tabBarGeometry.inset,
             width: tabBarGeometry.width,
           },
         ],
