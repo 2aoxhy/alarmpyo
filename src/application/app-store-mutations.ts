@@ -47,6 +47,12 @@ export type PayrollSettingsMutationResult = {
   valid: boolean;
 };
 
+export type CombinedShiftSettingsMutationResult = {
+  data: AppData;
+  compatible: boolean;
+  payrollValid: boolean;
+};
+
 export function isValidDayTimeOverride(
   timeOverride: DayEditValues['timeOverride'],
 ): boolean {
@@ -277,6 +283,31 @@ export function applyPayrollSettings(
       ...current,
       payrollSettings: { ...settings },
     },
+  };
+}
+
+/** 근무 시간·준비 루틴·급여일을 한 저장 후보로 검증하고 반영합니다. */
+export function applyCombinedShiftSettings(
+  current: AppData,
+  patches: Record<string, Partial<ShiftType>>,
+  workRoutineProfiles: WorkRoutineProfiles,
+  payrollSettings: PayrollSettings,
+): CombinedShiftSettingsMutationResult {
+  const shiftResult = applyShiftSettings(current, patches, workRoutineProfiles);
+  if (!shiftResult.compatible) {
+    return { data: current, compatible: false, payrollValid: true };
+  }
+  const payrollResult = applyPayrollSettings(
+    shiftResult.data,
+    payrollSettings,
+  );
+  if (!payrollResult.valid) {
+    return { data: current, compatible: true, payrollValid: false };
+  }
+  return {
+    data: payrollResult.data,
+    compatible: true,
+    payrollValid: true,
   };
 }
 

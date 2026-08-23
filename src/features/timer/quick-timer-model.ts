@@ -113,13 +113,13 @@ export function getQuickTimerKeypadPresentation(
       ? rawMinutes
       : null;
 
-  let helperText = '분을 입력한 다음 00을 눌러야 합니다.';
+  let helperText = '분 입력 후 00';
   let errorText: string | null = null;
   if (rawMinutes > QUICK_TIMER_MAX_DURATION_MINUTES) {
     errorText = `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 입력할 수 있습니다.`;
     helperText = errorText;
   } else if (rawSeconds !== 0) {
-    errorText = '타이머는 분 단위입니다. 끝 두 자리를 00으로 맞춰야 합니다.';
+    errorText = '끝 두 자리를 00으로 맞춰야 합니다.';
     helperText = errorText;
   } else if (durationMinutes !== null) {
     helperText = `${durationMinutes}분 타이머를 시작할 수 있습니다.`;

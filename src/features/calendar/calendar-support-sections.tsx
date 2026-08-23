@@ -55,11 +55,35 @@ export function CalendarHolidayNotice({ status, visibleYear }: HolidayNoticeProp
         </AppText>
         <AppText tone="secondary" variant="caption">
           {status.source === 'calculated'
-            ? '반복 법정공휴일과 대체공휴일을 자동 계산합니다. 선거일·임시공휴일은 공식 발표 후 반영합니다.'
-            : `자동 계산은 ${status.supportedStartYear}~${status.supportedEndYear}년을 지원합니다. ${visibleYear}년은 공휴일 이름과 공휴일에 따른 급여일 조정을 확정하지 않습니다.`}
+            ? '법정·대체공휴일 계산 · 선거일·임시공휴일은 발표 후 반영'
+            : `${status.supportedStartYear}~${status.supportedEndYear}년 지원 · ${visibleYear}년 공휴일·급여일 조정 미확정`}
         </AppText>
       </View>
     </Surface>
+  );
+}
+
+export function CalendarAutomaticScheduleNotice() {
+  const { palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View
+      accessible
+      accessibilityLabel="자동 근무표 미표시. 직접 변경은 유지됩니다."
+      style={styles.scheduleNotice}>
+      <AppIcon
+        accessible={false}
+        color={palette.inkMuted}
+        name="calendar-outline"
+        size={18}
+      />
+      <View style={styles.scheduleNoticeCopy}>
+        <AppText tone="secondary" variant="caption">
+          자동 근무표 미표시 · 직접 변경은 유지
+        </AppText>
+      </View>
+    </View>
   );
 }
 
@@ -89,7 +113,7 @@ export function CalendarLargeTextStatusSummary({
             공휴일·급여일 안내
           </AppText>
           <AppText tone="secondary" variant="caption">
-            큰 글자에서는 달력 칸의 자세한 표시를 아래에서 확인합니다.
+            날짜별 전체 이름
           </AppText>
         </View>
       </View>
@@ -201,7 +225,7 @@ export function CalendarMenuSections({
         </View>
         <View style={styles.compactKeyAction}>
           <AppText color={palette.indigoDark} variant="label">
-            전체 보기
+            안내
           </AppText>
           <AppIcon
             accessible={false}
@@ -222,6 +246,7 @@ export function CalendarMenuSections({
 }
 
 type CompactKeyKind =
+  | 'alarm'
   | 'holiday'
   | 'note'
   | 'override'
@@ -391,6 +416,7 @@ export function CalendarLegend({ isDark, shiftTypes }: LegendProps) {
             ['selected', '선택한 날'],
             ['override', '직접 변경한 날'],
             ['note', '메모가 있는 날'],
+            ['alarm', '날짜별 알람이 있는 날'],
           ] as const).map(([kind, label]) => (
             <View
               accessible
@@ -483,6 +509,18 @@ function CalendarLegendMarker({
   if (kind === 'note') {
     return <View accessible={false} style={styles.noteLegendMarker} />;
   }
+  if (kind === 'alarm') {
+    return (
+      <View accessible={false} style={styles.alarmLegendMarker}>
+        <AppIcon
+          accessible={false}
+          color={palette.indigoDark}
+          name="alarm-outline"
+          size={13}
+        />
+      </View>
+    );
+  }
   return <View accessible={false} style={styles.overrideLegend} />;
 }
 
@@ -492,19 +530,32 @@ function createStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: spacing.small,
-      borderColor: palette.amber,
-      backgroundColor: palette.amberSoft,
+      borderWidth: 0,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.amber,
+      borderRadius: 0,
+      backgroundColor: palette.transparent,
     },
     holidayNoticeIcon: {
-      width: 36,
+      width: 28,
       height: 36,
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 12,
-      backgroundColor: palette.surface,
     },
     holidayNoticeCopy: { flex: 1, minWidth: 0, gap: 3 },
+    scheduleNotice: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+      paddingHorizontal: spacing.small,
+      paddingVertical: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+    },
+    scheduleNoticeCopy: { flex: 1, minWidth: 0 },
     largeTextSummary: { gap: spacing.medium },
     largeTextSummaryHeader: {
       flexDirection: 'row',
@@ -549,12 +600,13 @@ function createStyles(palette: AppPalette) {
       backgroundColor: palette.amber,
     },
     compactKeyCard: {
-      gap: spacing.medium,
-      padding: spacing.large,
-      borderWidth: 1,
-      borderColor: palette.controlLine,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surface,
+      gap: spacing.small,
+      paddingHorizontal: spacing.small,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+      backgroundColor: palette.transparent,
     },
     guideRow: {
       minHeight: 64,
@@ -666,6 +718,15 @@ function createStyles(palette: AppPalette) {
       flexShrink: 0,
       borderRadius: radii.pill,
       backgroundColor: palette.coral,
+    },
+    alarmLegendMarker: {
+      width: 18,
+      height: 18,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radii.pill,
+      backgroundColor: palette.indigoSoft,
     },
     holidayLegendItem: { backgroundColor: palette.coralSoft },
     holidayLegendMarker: {

@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { ShiftSkyAnimation } from '@/components/shift-sky-animation';
 import { AppText } from '@/components/ui-kit';
 import {
   colorWithAlpha,
@@ -31,8 +30,6 @@ type TodayHeroProps = {
   heroDetail: string;
   heroTitle: string;
   largeText: boolean;
-  now: Date;
-  screenActive: boolean;
   shift: ShiftType | null;
   statusLabel: string;
 };
@@ -46,8 +43,6 @@ export function TodayHero({
   heroDetail,
   heroTitle,
   largeText,
-  now,
-  screenActive,
   shift,
   statusLabel,
 }: TodayHeroProps) {
@@ -68,12 +63,6 @@ export function TodayHero({
         compact && styles.heroCompact,
         largeText && styles.heroLargeText,
       ]}>
-      <ShiftSkyAnimation
-        active={screenActive}
-        artwork={heroTheme.artwork}
-        now={now}
-      />
-      <View pointerEvents="none" style={styles.heroScrim} />
       <View
         pointerEvents="none"
         style={[styles.heroAccent, { backgroundColor: heroTheme.accent }]}
@@ -151,25 +140,17 @@ export function TodayHero({
 const createStyles = (_palette: AppPalette) =>
   StyleSheet.create({
     hero: {
-      minHeight: 238,
+      minHeight: 208,
       justifyContent: 'space-between',
       overflow: 'hidden',
       borderRadius: radii.large,
       padding: spacing.large,
     },
     heroCompact: {
-      minHeight: 226,
+      minHeight: 200,
     },
     heroLargeText: {
-      minHeight: 264,
-    },
-    heroScrim: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.28)',
+      minHeight: 240,
     },
     heroAccent: {
       position: 'absolute',
@@ -188,10 +169,7 @@ const createStyles = (_palette: AppPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 7,
-      borderRadius: radii.pill,
-      backgroundColor: 'rgba(255, 255, 255, 0.18)',
-      paddingHorizontal: 11,
-      paddingVertical: 7,
+      paddingVertical: spacing.tiny,
     },
     statusDot: {
       width: 8,
@@ -212,10 +190,9 @@ const createStyles = (_palette: AppPalette) =>
     heroFooterPanel: {
       position: 'relative',
       zIndex: 1,
-      borderRadius: radii.medium,
-      backgroundColor: 'rgba(0, 0, 0, 0.38)',
-      paddingHorizontal: spacing.medium,
-      paddingVertical: 9,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(255, 255, 255, 0.28)',
+      paddingTop: spacing.small,
     },
     heroFooter: {
       minHeight: 48,
@@ -243,8 +220,10 @@ const createStyles = (_palette: AppPalette) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      borderRadius: 15,
-      backgroundColor: 'rgba(255, 255, 255, 0.20)',
+      borderRadius: radii.small,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.48)',
+      backgroundColor: 'transparent',
       paddingHorizontal: 12,
     },
     heroEditStacked: {

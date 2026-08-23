@@ -338,7 +338,7 @@ export function ListRow({
   allowSubtitleWrapping?: boolean;
   elementRef?: Ref<React.ElementRef<typeof Pressable>>;
 }) {
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const rowFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
@@ -354,9 +354,7 @@ export function ListRow({
       : palette.danger
     : disabled || loading
       ? palette.disabledInk
-      : isDark
-        ? palette.indigoDark
-        : palette.indigo;
+      : palette.inkSoft;
   return (
     <Pressable
       ref={elementRef}
@@ -374,11 +372,14 @@ export function ListRow({
         (disabled || loading) && styles.rowDisabled,
         rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible,
       ]}>
-      <IconTile
-        icon={icon}
-        color={iconForeground}
-        backgroundColor={destructive ? palette.dangerSoft : palette.surfaceSoft}
-      />
+      <View style={styles.listRowIcon}>
+        <AppIcon
+          accessible={false}
+          color={iconForeground}
+          name={icon}
+          size={controlSize.iconMedium}
+        />
+      </View>
       <View style={styles.listRowText}>
         <AppText variant="label" color={foreground} style={styles.listRowTitle}>
           {title}
@@ -436,9 +437,9 @@ export function MenuGroup({
         variant="label">
         {title}
       </AppText>
-      <Card density="compact" style={styles.menuGroupCard}>
+      <View style={styles.menuGroupRows}>
         {children}
-      </Card>
+      </View>
     </View>
   );
 }
@@ -536,12 +537,19 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
   listRowReflow: { alignItems: 'flex-start' },
-  rowPressed: { opacity: interaction.pressedOpacity },
+  listRowIcon: {
+    width: controlSize.minimumTouchTarget,
+    height: controlSize.minimumTouchTarget,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowPressed: { backgroundColor: palette.surfaceSoft },
   rowDisabled: {
-    borderRadius: radius.md,
     backgroundColor: palette.disabledSurface,
   },
   listRowText: {
@@ -575,15 +583,17 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   menuGroupTitleCentered: {
     textAlign: 'center',
   },
-  menuGroupCard: {
-    paddingHorizontal: space.lg,
+  menuGroupRows: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.line,
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: palette.line,
   },
   menuDividerInset: {
-    marginLeft: controlSize.minimumTouchTarget + space.md,
+    marginLeft: space.lg + controlSize.minimumTouchTarget + space.md,
   },
 } satisfies Record<string, ViewStyle | TextStyle>);
 

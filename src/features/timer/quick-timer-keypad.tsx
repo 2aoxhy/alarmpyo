@@ -230,7 +230,7 @@ export function QuickTimerKeypad({
           <View style={styles.headerSide} />
           <AppText
             ref={titleRef}
-            accessibilityLabel="타이머 직접 입력. 분을 입력한 다음 00을 눌러야 합니다."
+            accessibilityLabel="타이머 직접 입력. 분을 입력하고 끝 두 자리를 00으로 맞춥니다."
             accessibilityRole="header"
             style={styles.headerTitle}
             variant="title">

@@ -1,11 +1,17 @@
 import type {
   AppData,
+  DayAlarmOverride,
   DayExceptionType,
   ShiftType,
 } from '../models/app-data';
 import { resolveCalendarLayout } from '../utils/calendar-layout';
 import type { CalendarLayout } from '../utils/calendar-layout';
-import { buildCalendarGrid, type CalendarCell } from '../utils/date';
+import {
+  buildCalendarGrid,
+  parseDateKey,
+  toDateKey,
+  type CalendarCell,
+} from '../utils/date';
 import {
   getCalendarMonthKey,
   type CalendarMonthRef,
@@ -34,6 +40,7 @@ import {
 
 export type CalendarProjectionData = Pick<
   AppData,
+  | 'alarmOverrides'
   | 'dayExceptions'
   | 'notes'
   | 'overrides'
@@ -48,6 +55,7 @@ export function selectCalendarProjectionData(
   data: AppData,
 ): CalendarProjectionData {
   return {
+    alarmOverrides: data.alarmOverrides,
     dayExceptions: data.dayExceptions,
     notes: data.notes,
     overrides: data.overrides,
@@ -59,6 +67,8 @@ export function selectCalendarProjectionData(
 }
 
 export type CalendarDayViewModel = Readonly<{
+  alarmOverride: DayAlarmOverride | null;
+  automaticScheduleHidden: boolean;
   basePatternDay: EffectiveDay | null;
   cell: CalendarCell;
   dateKey: string;
@@ -66,6 +76,7 @@ export type CalendarDayViewModel = Readonly<{
   inCurrentMonth: boolean;
   effectiveDay: EffectiveDay | null;
   hasDirectScheduleOverride: boolean;
+  hasAlarmOverride: boolean;
   hasShiftOverride: boolean;
   hasTimeOverride: boolean;
   hasNote: boolean;
@@ -82,6 +93,8 @@ export type CalendarWeekSection = Readonly<{
 }>;
 
 export type CalendarDateSummaryViewModel = Readonly<{
+  alarmOverride: DayAlarmOverride | null;
+  automaticScheduleHidden: boolean;
   basePatternShift: ShiftType | null;
   dateKey: string;
   dayException: DayExceptionType | null;
@@ -101,6 +114,9 @@ export type CalendarDateSummaryViewModel = Readonly<{
 }>;
 
 export type CalendarMonthViewModel = Readonly<{
+  automaticScheduleDisplayWindow: CalendarAutomaticScheduleDisplayWindow;
+  automaticScheduleHiddenDateKeySet: ReadonlySet<string>;
+  automaticScheduleVisible: boolean;
   calendarLayout: CalendarLayout;
   cellRows: readonly (readonly CalendarCell[])[];
   cells: readonly CalendarCell[];
@@ -117,12 +133,47 @@ export type CalendarMonthViewModel = Readonly<{
   payrollEntries: Readonly<Record<string, PayrollCalendarEntry>>;
   payrollSchedule: PayrollSchedule;
   resolveDay: ResolveEffectiveDay;
+  scheduleStartDateInMonth: string | null;
   selectableDateKeys: readonly string[];
   selectableDateKeySet: ReadonlySet<string>;
   weekSections: readonly CalendarWeekSection[];
 }>;
 
+export type CalendarAutomaticScheduleDisplayWindow = Readonly<{
+  startDate: string;
+  endDate: string;
+}>;
+
+/** 자동 반복 근무는 오늘이 속한 달을 기준으로 앞 3개월부터 뒤 12개월까지만 표시합니다. */
+export function resolveCalendarAutomaticScheduleDisplayWindow(
+  referenceDateKey: string,
+): CalendarAutomaticScheduleDisplayWindow {
+  const reference = parseDateKey(referenceDateKey);
+  const start = new Date(
+    reference.getFullYear(),
+    reference.getMonth() - 3,
+    1,
+    12,
+  );
+  const end = new Date(
+    reference.getFullYear(),
+    reference.getMonth() + 13,
+    0,
+    12,
+  );
+  return { startDate: toDateKey(start), endDate: toDateKey(end) };
+}
+
+export function isCalendarAutomaticScheduleVisible(
+  dateKey: string,
+  window: CalendarAutomaticScheduleDisplayWindow,
+): boolean {
+  return dateKey >= window.startDate && dateKey <= window.endDate;
+}
+
 export function resolveCalendarDayViewModel(input: {
+  alarmOverride?: DayAlarmOverride | null;
+  automaticScheduleHidden?: boolean;
   basePatternDay?: EffectiveDay | null;
   cell: CalendarCell;
   effectiveDay: EffectiveDay | null;
@@ -141,6 +192,9 @@ export function resolveCalendarDayViewModel(input: {
   );
 
   return {
+    alarmOverride: inCurrentMonth ? input.alarmOverride ?? null : null,
+    automaticScheduleHidden:
+      inCurrentMonth && Boolean(input.automaticScheduleHidden),
     basePatternDay: inCurrentMonth ? input.basePatternDay ?? null : null,
     cell,
     dateKey: cell.dateKey,
@@ -149,6 +203,8 @@ export function resolveCalendarDayViewModel(input: {
     effectiveDay: inCurrentMonth ? effectiveDay : null,
     hasDirectScheduleOverride:
       scheduleActive && Boolean(input.hasDirectScheduleOverride),
+    hasAlarmOverride:
+      scheduleActive && Boolean(input.alarmOverride),
     hasShiftOverride: scheduleActive && Boolean(input.hasShiftOverride),
     hasTimeOverride: scheduleActive && Boolean(input.hasTimeOverride),
     hasNote: inCurrentMonth && Boolean(input.hasNote),
@@ -186,6 +242,8 @@ export function buildCalendarDateSummaryViewModels(
     if (!day.inCurrentMonth) return [];
     return [
       {
+        alarmOverride: day.alarmOverride,
+        automaticScheduleHidden: day.automaticScheduleHidden,
         basePatternShift: day.basePatternDay?.shift ?? null,
         dateKey: day.dateKey,
         dayException: day.effectiveDay?.dayException ?? null,
@@ -210,13 +268,25 @@ export function buildCalendarDateSummaryViewModels(
 }
 
 export function buildCalendarMonthViewModel(input: {
+  automaticScheduleReferenceDateKey: string;
   data: CalendarProjectionData;
   year: number;
   month: number;
   windowWidth: number;
   fontScale: number;
 }): CalendarMonthViewModel {
-  const { data, year, month, windowWidth, fontScale } = input;
+  const {
+    automaticScheduleReferenceDateKey,
+    data,
+    year,
+    month,
+    windowWidth,
+    fontScale,
+  } = input;
+  const automaticScheduleDisplayWindow =
+    resolveCalendarAutomaticScheduleDisplayWindow(
+      automaticScheduleReferenceDateKey,
+    );
   const resolveDay = (dateKey: string) =>
     resolveEffectiveDay(data, dateKey);
   const patternOnlyData = {
@@ -250,7 +320,30 @@ export function buildCalendarMonthViewModel(input: {
   const effectiveDays = new Map(
     cells
       .filter((cell) => cell.inCurrentMonth)
-      .map((cell) => [cell.dateKey, resolveDay(cell.dateKey)] as const),
+      .map((cell) => {
+        const effectiveDay = resolveDay(cell.dateKey);
+        const automaticScheduleVisible =
+          isCalendarAutomaticScheduleVisible(
+            cell.dateKey,
+            automaticScheduleDisplayWindow,
+          );
+        const hasDirectSchedule =
+          Object.prototype.hasOwnProperty.call(data.overrides, cell.dateKey) ||
+          Object.prototype.hasOwnProperty.call(data.timeOverrides, cell.dateKey) ||
+          Object.prototype.hasOwnProperty.call(data.dayExceptions, cell.dateKey);
+        const displayDay =
+          effectiveDay.scheduleActive &&
+          !automaticScheduleVisible &&
+          !hasDirectSchedule
+            ? {
+                ...effectiveDay,
+                scheduledShift: null,
+                shift: null,
+                dayException: undefined,
+              }
+            : effectiveDay;
+        return [cell.dateKey, displayDay] as const;
+      }),
   );
   const calendarDays = cells.map((cell) => {
     const effectiveDay = effectiveDays.get(cell.dateKey) ?? null;
@@ -262,9 +355,23 @@ export function buildCalendarMonthViewModel(input: {
       data.timeOverrides,
       cell.dateKey,
     );
+    const alarmOverride = data.alarmOverrides[cell.dateKey] ?? null;
+    const automaticScheduleHidden = Boolean(
+      cell.inCurrentMonth &&
+      effectiveDay?.scheduleActive &&
+      !isCalendarAutomaticScheduleVisible(
+        cell.dateKey,
+        automaticScheduleDisplayWindow,
+      ) &&
+      !hasShiftOverride &&
+      !hasTimeOverride &&
+      !Object.prototype.hasOwnProperty.call(data.dayExceptions, cell.dateKey),
+    );
     const storedNote = data.notes[cell.dateKey];
     const note = storedNote ? storedNote : null;
     return resolveCalendarDayViewModel({
+      alarmOverride,
+      automaticScheduleHidden,
       basePatternDay: cell.inCurrentMonth
         ? resolveBasePatternDay(cell.dateKey)
         : null,
@@ -283,6 +390,11 @@ export function buildCalendarMonthViewModel(input: {
     calendarDays.map((day) => [day.dateKey, day] as const),
   );
   const currentMonthDays = calendarDays.filter((day) => day.inCurrentMonth);
+  const automaticScheduleHiddenDateKeySet = new Set(
+    currentMonthDays
+      .filter((day) => day.automaticScheduleHidden)
+      .map((day) => day.dateKey),
+  );
   const currentMonthDateKeys = currentMonthDays.map((day) => day.dateKey);
   const dateSummaries = buildCalendarDateSummaryViewModels(currentMonthDays);
   const dateSummaryByDate = new Map(
@@ -296,10 +408,23 @@ export function buildCalendarMonthViewModel(input: {
     effectiveDays.get(dateKey) ?? resolveDay(dateKey);
 
   const calendarMonth = { year, month };
+  const monthKey = getCalendarMonthKey(calendarMonth);
+  const scheduleStartDate = data.pattern.scheduleStartDate ?? data.pattern.anchorDate;
+  const scheduleStartDateInMonth = scheduleStartDate.startsWith(`${monthKey}-`)
+    ? scheduleStartDate
+    : null;
+  const monthFirstDateKey = `${monthKey}-01`;
+  const automaticScheduleVisible = isCalendarAutomaticScheduleVisible(
+    monthFirstDateKey,
+    automaticScheduleDisplayWindow,
+  );
 
   return {
+    automaticScheduleDisplayWindow,
+    automaticScheduleHiddenDateKeySet,
+    automaticScheduleVisible,
     month: calendarMonth,
-    monthKey: getCalendarMonthKey(calendarMonth),
+    monthKey,
     cells,
     cellRows,
     currentMonthDateKeys,
@@ -325,5 +450,6 @@ export function buildCalendarMonthViewModel(input: {
     payrollSchedule: getPayrollSchedule(year, month, data.payrollSettings),
     payrollEntries,
     resolveDay,
+    scheduleStartDateInMonth,
   };
 }

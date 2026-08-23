@@ -5,6 +5,8 @@ import ts from 'typescript';
 
 const INFORMAL_ENDING =
   /[가-힣]*(?:이에요|예요|했어요|됐어요|해요|돼요|커요|쳐요|아요|어요|여요|려요|져요|켜요|줘요|봐요|와요|워요|나요|가요|라요|네요|군요|죠|세요|까요)(?![가-힣])/gu;
+const GENERIC_ASSISTANT_TONE =
+  /(?:도와드(?:리|립)[가-힣]*|알려드(?:리|립)[가-힣]*|확인해 주세요|준비되었(?:습니다|어요)|준비됐(?:습니다|어요))/gu;
 const STRONG_COPY_IDENTIFIER =
   /^(?:shiftName|title|label|message|description|hint|copy|feedback|text|[A-Za-z0-9_]*(?:Title|Label|Message|Description|Hint|Copy|Feedback|Text))$/u;
 const TEST_FILE = /(?:^|[\\/])__tests__(?:[\\/])|\.(?:test|spec)\.[cm]?[jt]sx?$/;
@@ -34,12 +36,29 @@ export function findInformalEndings(text) {
   return matches;
 }
 
+export function findGenericAssistantTone(text) {
+  const matches = [];
+  for (const match of text.matchAll(GENERIC_ASSISTANT_TONE)) {
+    matches.push({ index: match.index ?? 0, text: match[0] });
+  }
+  return matches;
+}
+
 function pushTextViolations(violations, file, sourceText, value, offset, kind) {
   for (const match of findInformalEndings(value)) {
     violations.push({
       file,
       line: lineAt(sourceText, offset + match.index),
       kind,
+      excerpt: compact(value),
+      match: match.text,
+    });
+  }
+  for (const match of findGenericAssistantTone(value)) {
+    violations.push({
+      file,
+      line: lineAt(sourceText, offset + match.index),
+      kind: 'generic-assistant-tone',
       excerpt: compact(value),
       match: match.text,
     });
@@ -445,15 +464,26 @@ function stripNonVisibleDocumentContent(text, extension) {
 
 export function inspectDocumentCopy(file, sourceText) {
   const visible = stripNonVisibleDocumentContent(sourceText, extname(file));
-  return findInformalEndings(visible).map((match) => ({
-    file,
-    line: lineAt(visible, match.index),
-    kind: 'informal-ending',
-    excerpt: compact(
-      visible.slice(Math.max(0, match.index - 50), match.index + match.text.length + 50),
-    ),
-    match: match.text,
-  }));
+  return [
+    ...findInformalEndings(visible).map((match) => ({
+      file,
+      line: lineAt(visible, match.index),
+      kind: 'informal-ending',
+      excerpt: compact(
+        visible.slice(Math.max(0, match.index - 50), match.index + match.text.length + 50),
+      ),
+      match: match.text,
+    })),
+    ...findGenericAssistantTone(visible).map((match) => ({
+      file,
+      line: lineAt(visible, match.index),
+      kind: 'generic-assistant-tone',
+      excerpt: compact(
+        visible.slice(Math.max(0, match.index - 50), match.index + match.text.length + 50),
+      ),
+      match: match.text,
+    })),
+  ];
 }
 
 function listFiles(directory) {

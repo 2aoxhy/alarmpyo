@@ -207,16 +207,16 @@ export function buildTodayViewModel(input: {
         : `${workLabel(current!.shift)} 중`
       : homeState === 'before'
         ? todayException
-          ? `오늘은 ${getDayExceptionLabel(todayException)}`
-          : `오늘은 ${workLabel(todayShift!)}`
+          ? getDayExceptionLabel(todayException)
+          : workLabel(todayShift!)
         : homeState === 'finished'
           ? todayException
             ? `${getDayExceptionLabel(todayException)} 완료`
             : `${workLabel(todayShift!)} 완료`
           : homeState === 'off'
             ? todayException
-              ? `오늘은 ${getDayExceptionLabel(todayException)}`
-              : '오늘은 휴무'
+              ? getDayExceptionLabel(todayException)
+              : '휴무'
             : scheduleHasStarted
               ? '오늘 일정 없음'
               : '근무표 시작 전';
@@ -226,16 +226,16 @@ export function buildTodayViewModel(input: {
       : homeState === 'before'
         ? shiftTimeLabel(todayShift!)
         : homeState === 'finished'
-          ? '오늘 근무를 마쳤습니다.\n다음 근무도 미리 확인해야 합니다.'
+          ? '오늘 일정 종료'
           : homeState === 'off'
             ? todayException === 'leave'
-              ? '근무 알람은 울리지 않습니다.\n기본 근무표는 그대로 유지됩니다.'
+              ? '근무 알람 없음 · 기본 근무표 유지'
               : todayException
-                ? `${getDayExceptionLabel(todayException)} 일정이 등록되어 있습니다.\n필요하면 근무 시간을 확인해야 합니다.`
-                : '오늘은 충분히 쉬고\n다음 근무를 준비해야 합니다.'
+                ? '등록 일정 · 근무 시간 확인 필요'
+                : '근무 없음'
             : scheduleHasStarted
-              ? '달력에서 오늘 근무를\n선택해야 합니다.'
-              : `${formatKoreanDate(scheduleStartDate, true)}부터\n일정이 시작됩니다.`;
+              ? '오늘 근무 미지정'
+              : `${formatKoreanDate(scheduleStartDate, true)} 일정 시작`;
   const nextWorkException = nextWork
     ? resolveDayExceptionFromAppData(data, nextWork.dateKey)
     : undefined;
@@ -292,15 +292,15 @@ export function buildTodayViewModel(input: {
   });
   const alarmsReady = alarmHealthState.status === 'ready';
   const alarmStateLabel = !alarmPlatformSupported
-    ? 'Android 앱에서만 사용할 수 있습니다'
+    ? 'Android 전용'
     : !data.settings.notificationsEnabled
-      ? '근무 알람을 사용하지 않습니다'
+      ? '근무 알람 꺼짐'
       : alarmHealthState.status === 'checking'
-        ? '알람 상태를 확인하고 있습니다'
+        ? '알람 확인 중'
         : alarmHealthState.status === 'ready' && scheduledAlarms.length > 0
-          ? '다음 근무 알람이 준비되었습니다'
+          ? '알람 예약 완료'
           : alarmHealthState.status === 'ready'
-            ? '예정된 근무 알람이 없습니다'
+            ? '예약할 근무 알람 없음'
             : alarmHealthState.title;
   const nextScheduledAlarm = scheduledAlarms[0];
   const alarmSummary: TodayAlarmSummary = alarmsReady && nextScheduledAlarm

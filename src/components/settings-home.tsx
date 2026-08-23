@@ -1,10 +1,8 @@
 import { router, type Href, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import {
-  AppButton,
-  AppText,
   ListRow,
   MenuDivider,
   MenuGroup,
@@ -12,7 +10,7 @@ import {
 } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
-import { PageHeader, Surface } from '@/design-system';
+import { PageHeader } from '@/design-system';
 import { quickSetupDraftController } from '@/features/quick-setup/quick-setup-draft-controller';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
 import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
@@ -62,26 +60,20 @@ export default function SettingsHome() {
     <Screen contentStyle={styles.screenContent}>
       <PageHeader align="center" title="설정" />
 
-      <Surface elevated style={styles.quickSetupCard} testID="quick-setup-card">
-        <View style={styles.quickSetupCopy}>
-          <AppText accessibilityRole="header" variant="heading">
-            근무표·알람 간편 설정
-          </AppText>
-          <AppText tone="secondary" variant="body">
-            {quickDraftAvailable
-              ? '설정하던 내용을 이어서 근무표와 알람을 준비합니다.'
-              : `${patternLabel} · ${data.settings.notificationsEnabled ? '알람 사용 중' : '알람 꺼짐'}`}
-          </AppText>
-        </View>
-        <AppButton
-          accessibilityHint="근무 순서, 오늘 근무와 알람 권한을 순서대로 확인합니다."
-          icon={quickDraftAvailable ? 'chevron-forward' : 'options-outline'}
-          label={quickDraftAvailable ? '설정 이어하기' : '간편 설정 시작'}
+      <MenuGroup centered title="빠른 설정">
+        <ListRow
+          icon={quickDraftAvailable ? 'time-outline' : 'options-outline'}
+          title={quickDraftAvailable ? '설정 마저 하기' : '근무표·알람 설정'}
+          subtitle={
+            quickDraftAvailable
+              ? '중단한 단계부터'
+              : `${patternLabel} · ${data.settings.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐'}`
+          }
           onPress={() => router.push('/quick-setup' as Href)}
         />
-      </Surface>
+      </MenuGroup>
 
-      <MenuGroup centered title="세부 설정 · 근무와 알람">
+      <MenuGroup centered title="직접 바꾸기">
         <ListRow
           icon="repeat-outline"
           onPress={() => router.push('/shift-settings')}
@@ -130,11 +122,5 @@ const createStyles = (_palette: AppPalette) =>
     screenContent: {
       gap: spacing.large,
       paddingTop: spacing.medium,
-    },
-    quickSetupCard: {
-      gap: spacing.medium,
-    },
-    quickSetupCopy: {
-      gap: spacing.tiny,
     },
   });

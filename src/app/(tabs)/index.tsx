@@ -122,8 +122,6 @@ export default function TodayScreen() {
         heroDetail={viewModel.heroDetail}
         heroTitle={viewModel.heroTitle}
         largeText={largeText}
-        now={now}
-        screenActive={screenActive}
         shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}
       />

@@ -46,8 +46,10 @@ export {
 } from './theme';
 export {
   resolveShiftHeroTheme,
+  resolveShiftVisualSpec,
   resolveShiftVisualRole,
   type ShiftHeroTheme,
+  type ShiftVisualSpec,
   type ShiftVisualRole,
 } from './shift-visual-theme';
 export { useReducedMotion } from './use-reduced-motion';

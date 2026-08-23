@@ -13,7 +13,6 @@ import { AppIcon, type AppIconName } from '@/components/app-icon';
 
 import {
   interaction,
-  radius,
   size,
   space,
   type SemanticColors,
@@ -80,18 +79,21 @@ export function StatusBanner({
       accessibilityLiveRegion={liveRegion}
       style={[
         styles.banner,
-        { backgroundColor: toneColors.background },
+        {
+          backgroundColor: toneColors.background,
+          borderLeftColor: toneColors.foreground,
+        },
         stackAction && styles.bannerStacked,
         style,
       ]}
       testID={testID}>
       <View style={styles.contentRow}>
-        <View style={[styles.iconTile, { backgroundColor: toneColors.iconBackground }]}>
+        <View style={styles.icon}>
           <AppIcon
             accessible={false}
             color={toneColors.foreground}
             name={resolvedIcon}
-            size={size.iconMedium}
+            size={size.iconSmall}
           />
         </View>
         <View style={styles.textContainer}>
@@ -133,30 +135,26 @@ function resolveToneIcon(tone: StatusBannerTone): AppIconName {
 function resolveToneColors(colors: SemanticColors, tone: StatusBannerTone) {
   switch (tone) {
     case 'info':
-      return { background: colors.infoSoft, foreground: colors.info, iconBackground: colors.surface };
+      return { background: colors.infoSoft, foreground: colors.info };
     case 'success':
       return {
         background: colors.positiveSoft,
         foreground: colors.positive,
-        iconBackground: colors.surface,
       };
     case 'warning':
       return {
         background: colors.warningSoft,
         foreground: colors.warning,
-        iconBackground: colors.surface,
       };
     case 'danger':
       return {
         background: colors.dangerSoft,
         foreground: colors.danger,
-        iconBackground: colors.surface,
       };
     default:
       return {
         background: colors.surfaceMuted,
         foreground: colors.textMuted,
-        iconBackground: colors.surface,
       };
   }
 }
@@ -165,14 +163,16 @@ function createStyles(colors: SemanticColors) {
   return StyleSheet.create({
     banner: {
       width: '100%',
-      minHeight: 72,
+      minHeight: 64,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.md,
-      padding: space.lg,
-      borderWidth: 1,
+      gap: space.sm,
+      paddingHorizontal: space.md,
+      paddingVertical: space.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderLeftWidth: 3,
       borderColor: colors.border,
-      borderRadius: radius.lg,
     },
     bannerStacked: {
       alignItems: 'stretch',
@@ -183,14 +183,14 @@ function createStyles(colors: SemanticColors) {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: space.md,
+      gap: space.sm,
     },
-    iconTile: {
-      width: size.minimumTouchTarget,
-      height: size.minimumTouchTarget,
+    icon: {
+      width: size.iconMedium,
+      minHeight: typeScale.body.lineHeight,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.sm,
     },
     textContainer: {
       minWidth: 0,
@@ -208,12 +208,11 @@ function createStyles(colors: SemanticColors) {
       minHeight: size.minimumTouchTarget,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: space.md,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
+      paddingHorizontal: space.sm,
     },
     actionStacked: {
       width: '100%',
+      alignItems: 'flex-start',
     },
     actionPressed: {
       opacity: interaction.pressedOpacity,

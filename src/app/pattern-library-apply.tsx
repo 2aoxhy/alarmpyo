@@ -7,7 +7,7 @@ import { DatePickerField } from '@/components/date-picker-field';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { DisclosureRow, PageHeader, StatusBanner, Surface } from '@/design-system';
+import { DisclosureRow, PageHeader, StatusBanner } from '@/design-system';
 import {
   triggerNotificationFeedback,
   triggerSelectionFeedback,
@@ -31,17 +31,17 @@ const POLICY_OPTIONS: readonly {
   {
     mode: 'preserve',
     title: '모두 유지',
-    description: '비교 범위의 직접 근무와 시간 수정을 그대로 둡니다.',
+    description: '직접 근무·시간 유지',
   },
   {
     mode: 'remove-all',
     title: '모두 제거',
-    description: '비교 범위의 직접 근무와 시간 수정을 제거합니다.',
+    description: '직접 근무·시간 제거',
   },
   {
     mode: 'select',
     title: '날짜별 선택',
-    description: '달력에서 선택한 날짜의 직접 수정을 유지합니다.',
+    description: '선택한 날짜만 유지',
   },
 ] as const;
 
@@ -150,10 +150,10 @@ export default function PatternLibraryApplyScreen() {
       if (result.status === 'success') {
         void triggerNotificationFeedback('success');
         showDialog(
-          '패턴을 적용했습니다',
+          '적용 완료',
           result.clearedOverrideDateKeys.length > 0
-            ? `직접 수정 ${result.clearedOverrideDateKeys.length}개를 정리했습니다. 근무 시간, 알람, 권한 설정은 유지했습니다.`
-            : '근무 시간, 알람, 권한 설정을 유지하고 순서만 적용했습니다.',
+            ? `직접 수정 ${result.clearedOverrideDateKeys.length}개 제거 · 시간·알람·권한 유지`
+            : '근무 순서 적용 · 시간·알람·권한 유지',
           [
             {
               text: '확인',
@@ -168,10 +168,10 @@ export default function PatternLibraryApplyScreen() {
       }
       if (result.reason === 'rollback-failed') {
         showDialog(
-          '근무표 복구 상태를 확인해야 합니다',
+          '복구 상태 확인',
           result.rolledBack
-            ? '이전 근무 자료는 복구했지만 알람 동기화 결과를 확인하지 못했습니다. 알람 설정에서 예약 상태를 확인하고 다시 동기화해야 합니다.'
-            : '이전 근무 자료 복구에 실패했습니다. 현재 근무표를 즉시 확인하고 알람 설정에서 예약 상태를 다시 동기화해야 합니다.',
+            ? '이전 근무표 복구 완료 · 알람 동기화 미확인. 알람 설정에서 예약 상태 확인.'
+            : '이전 근무표 복구 실패 · 현재 근무표와 알람 예약을 바로 확인.',
           [
             { text: '닫기', actionId: 'cancel', icon: 'close', style: 'cancel' },
             {
@@ -187,13 +187,13 @@ export default function PatternLibraryApplyScreen() {
       }
       const message =
         result.reason === 'backup-failed'
-          ? '안전 백업을 만들지 못해 현재 근무표를 유지했습니다.'
+          ? '백업 실패 · 현재 근무표 유지'
           : result.reason === 'sync-failed' && result.rolledBack
-            ? '새 패턴의 알람 예약에 실패해 이전 근무표와 알람 상태로 되돌렸습니다.'
+            ? '알람 예약 실패 · 이전 근무표와 알람 복구'
           : result.rolledBack
-            ? '적용 중 문제가 발생해 이전 근무표로 되돌렸습니다.'
-            : '적용 결과를 확인하지 못했습니다. 현재 근무표를 확인해야 합니다.';
-      showDialog('패턴을 적용하지 못했습니다', message, undefined, {
+            ? '적용 실패 · 이전 근무표 복구'
+            : '적용 상태 미확인 · 현재 근무표 확인';
+      showDialog('적용 실패', message, undefined, {
         tone: 'danger',
       });
     } finally {
@@ -207,9 +207,9 @@ export default function PatternLibraryApplyScreen() {
         <PageHeader title="패턴 적용" />
         <StatusBanner
           actionLabel="보관함으로 이동"
-          message="적용할 패턴과 날짜를 확인해야 합니다."
+          message="패턴 또는 적용일 없음"
           onAction={() => router.replace('/pattern-library' as never)}
-          title="패턴 확인 필요"
+          title="패턴 없음"
           tone="warning"
         />
       </Screen>
@@ -232,25 +232,18 @@ export default function PatternLibraryApplyScreen() {
         }
         safeAreaEdges={['left', 'right']}>
         <PageHeader
-          subtitle="앞으로 7일을 먼저 확인하고 필요할 때만 전체 일정을 펼칩니다."
-          title="적용 전 비교"
+          title="패턴 적용"
         />
         <View style={styles.intro}>
           <AppText accessibilityRole="header" variant="heading">
             {entry.name}
           </AppText>
-          <AppText tone="secondary" variant="body">
-            적용일부터 다음 달력 범위의 변경 내용을 확인합니다.
+          <AppText tone="secondary" variant="caption">
+            근무 순서만 적용 · 시간·알람·권한 유지
           </AppText>
         </View>
 
-        <StatusBanner
-          message="외부 패턴은 근무 순서만 변경합니다. 근무 시간, 알람, 알림 권한과 기타 앱 설정은 변경하지 않습니다."
-          title="설정 보호"
-          tone="info"
-        />
-
-        <Surface style={styles.sectionCard} tone="muted">
+        <View style={styles.sectionCard}>
           <AppText accessibilityRole="header" variant="label">
             적용일
           </AppText>
@@ -267,27 +260,32 @@ export default function PatternLibraryApplyScreen() {
             today={today}
             value={effectiveDate}
           />
-        </Surface>
+        </View>
 
         {preview.directOverrideDateKeys.length > 0 ? (
           <View style={styles.policySection}>
-            <StatusBanner
-              message={
+            <View
+              accessible
+              accessibilityLiveRegion="polite"
+              style={styles.policySummary}>
+              <AppText
+                tone={mode === 'preserve' ? 'secondary' : 'primary'}
+                variant="caption">
+                {
                 mode === 'preserve'
-                  ? `직접 수정 ${preview.directOverrideDateKeys.length}개를 그대로 유지합니다.`
+                  ? `직접 수정 ${preview.directOverrideDateKeys.length}개 유지`
                   : mode === 'remove-all'
-                    ? `직접 수정 ${preview.directOverrideDateKeys.length}개를 적용하면서 제거합니다.`
-                    : `직접 수정 ${effectiveSelectedDates.size}개를 유지하고 ${preview.clearedOverrideDateKeys.length}개를 제거합니다.`
-              }
-              title={mode === 'preserve' ? '개인 수정 유지' : '직접 수정 처리'}
-              tone={mode === 'preserve' ? 'neutral' : 'warning'}
-            />
+                    ? `직접 수정 ${preview.directOverrideDateKeys.length}개 제거`
+                    : `유지 ${effectiveSelectedDates.size}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`
+                }
+              </AppText>
+            </View>
             <DisclosureRow
               expanded={policyAdvancedOpen}
               icon="options-outline"
               onPress={() => setPolicyAdvancedOpen((current) => !current)}
-              subtitle="직접 수정 날짜를 제거하거나 날짜별로 고를 수 있습니다."
-              title="직접 수정 처리 변경"
+              subtitle={activePolicy.description}
+              title="직접 수정"
             />
             {policyAdvancedOpen ? (
               <View style={styles.policyAdvanced}>
@@ -306,23 +304,11 @@ export default function PatternLibraryApplyScreen() {
                     />
                   ))}
                 </View>
-                <AppText tone="secondary" variant="caption">
-                  {activePolicy.description}
-                </AppText>
               </View>
             ) : null}
           </View>
         ) : null}
 
-        <StatusBanner
-          message={
-            preview.directOverrideDateKeys.length > 0
-              ? `변경 ${preview.changedDateCount}일 · 직접 수정 ${preview.directOverrideDateKeys.length}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`
-              : `변경 ${preview.changedDateCount}일 · 개인 설정은 그대로 유지됩니다.`
-          }
-          title="적용 전 요약"
-          tone={preview.clearedOverrideDateKeys.length > 0 ? 'warning' : 'neutral'}
-        />
         <PatternApplicationPreview
           mode={mode}
           onTogglePreservedDate={togglePreservedDate}
@@ -346,12 +332,20 @@ function createStyles(_palette: AppPalette) {
     },
     sectionCard: {
       gap: spacing.medium,
-      padding: spacing.large,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: _palette.line,
     },
     policySection: {
       gap: spacing.medium,
     },
     policyAdvanced: { gap: spacing.medium },
+    policySummary: {
+      minHeight: 48,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.small,
+    },
     policyGrid: {
       flexDirection: 'row',
       alignItems: 'stretch',

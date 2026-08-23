@@ -57,7 +57,7 @@ export function ShiftSelectionSection({
     selection === SUBSTITUTE_DAY_ID || selection === SUBSTITUTE_NIGHT_ID;
 
   return (
-    <MenuGroup centered title="이날의 근무" style={styles.sectionGroup}>
+    <MenuGroup centered title="근무" style={styles.sectionGroup}>
       <View style={styles.selectionMenu}>
         <View
           accessibilityRole="radiogroup"

@@ -91,17 +91,17 @@ export function WorkPatternOverview({
       </View>
 
       <AppButton
-        accessibilityHint="근무 방식을 변경합니다."
+        accessibilityHint="달력에 반복되는 근무 순서를 변경합니다."
         icon="options-outline"
-        label="근무 방식 수정하기"
+        label="근무 순서 바꾸기"
         onPress={onEdit}
         variant="secondary"
       />
       {onBrowsePatterns ? (
         <AppButton
-          accessibilityHint="공식 패턴, 내 패턴과 최근 적용 이력을 확인합니다."
+          accessibilityHint="저장한 근무 순서와 파일을 확인합니다."
           icon="book-outline"
-          label="근무 패턴 보관함"
+          label="저장한 순서·파일 보기"
           onPress={onBrowsePatterns}
           variant="ghost"
         />

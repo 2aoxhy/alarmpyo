@@ -107,13 +107,13 @@ describe('전역 Play 업데이트 안내 정책', () => {
 
   it('진행률 변화가 아니라 의미 있는 상태 전환만 한 번 안내합니다', () => {
     expect(getPlayUpdateTransitionAnnouncement(null, 'downloading')).toBe(
-      '업데이트 다운로드를 시작했습니다.',
+      '다운로드 시작',
     );
     expect(
       getPlayUpdateTransitionAnnouncement('downloading', 'downloading'),
     ).toBeNull();
     expect(getPlayUpdateTransitionAnnouncement('installing', 'installed')).toBe(
-      '업데이트를 설치했습니다.',
+      '설치 완료',
     );
   });
 
@@ -126,11 +126,23 @@ describe('전역 Play 업데이트 안내 정책', () => {
     expect(getPlayUpdateModalPresentation('downloaded', 15)).toMatchObject({
       primaryLabel: '지금 설치',
       snoozable: true,
-      title: 'V15 설치 준비 완료',
+      title: 'V15 설치 준비',
     });
     expect(getPlayUpdateModalPresentation('failed', 15)).toMatchObject({
       primaryLabel: '다시 시도',
       snoozable: true,
+      title: '업데이트 실패',
+    });
+  });
+
+  it('제목과 설명을 겹치지 않고 짧게 표시합니다', () => {
+    expect(getPlayUpdateModalPresentation('downloaded', 15)).toMatchObject({
+      message: '다운로드 완료 · 저장된 근무표 유지',
+      title: 'V15 설치 준비',
+    });
+    expect(getPlayUpdateModalPresentation('installing', 15)).toMatchObject({
+      message: 'Google Play에서 처리 중',
+      title: 'V15 설치 중',
     });
   });
 });

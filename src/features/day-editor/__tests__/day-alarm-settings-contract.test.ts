@@ -19,9 +19,9 @@ const dayEditor = readFileSync(
 );
 
 describe('하루 알람 설정 UI 계약', () => {
-  it('기본값, 이날만 끄기, 기상 시각을 한 선택 그룹으로 제공해요', () => {
-    expect(dayAlarmComponent).toContain("{ label: '기본값', value: 'default' }");
-    expect(dayAlarmComponent).toContain("{ label: '이날만 끄기', value: 'disabled' }");
+  it('기본, 끄기, 기상 시각을 한 선택 그룹으로 제공해요', () => {
+    expect(dayAlarmComponent).toContain("{ label: '기본', value: 'default' }");
+    expect(dayAlarmComponent).toContain("{ label: '끄기', value: 'disabled' }");
     expect(dayAlarmComponent).toContain("{ label: '기상 시각', value: 'wake-time' }");
     expect(dayAlarmComponent).toContain('label="이 날짜의 근무 알람 방식"');
   });
@@ -42,5 +42,10 @@ describe('하루 알람 설정 UI 계약', () => {
     expect(dayEditor).toContain('alarmOverrideForSave,');
     expect(dayEditor).toContain('const saved = await saveDay(');
     expect(dayEditor).not.toContain('setDayAlarmOverride(');
+  });
+
+  it('펼친 편집기 안에 카드를 다시 겹치지 않아요', () => {
+    expect(dayAlarmComponent).not.toContain('<Card');
+    expect(dayAlarmComponent).toContain('<View style={styles.card}>');
   });
 });

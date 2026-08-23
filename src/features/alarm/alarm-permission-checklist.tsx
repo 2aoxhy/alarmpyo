@@ -39,12 +39,14 @@ export function AlarmPermissionChecklist({
   focusRequest = null,
   launchNotice = null,
   onOpenSettings,
+  presentation = 'all',
   status,
 }: {
   disabled?: boolean;
   focusRequest?: AlarmPermissionFocusRequest | null;
   launchNotice?: AlarmPermissionLaunchNotice | null;
   onOpenSettings: (target: AlarmPyoPermissionSettingsTarget) => void;
+  presentation?: 'all' | 'next-required';
   status: AlarmPyoAlarmStatus | null;
 }) {
   const { palette } = useAppTheme();
@@ -71,10 +73,10 @@ export function AlarmPermissionChecklist({
       <View style={styles.container} testID="alarm-readiness">
         <View style={styles.header}>
           <AppText accessibilityRole="header" variant="heading">
-            알람 준비
+            {presentation === 'next-required' ? '다음 권한' : '알람 준비'}
           </AppText>
           <AppText tone="secondary" variant="caption">
-            필수 권한 상태를 확인하고 있습니다.
+            필수 권한 확인 중
           </AppText>
         </View>
         {launchNotice ? (
@@ -104,21 +106,7 @@ export function AlarmPermissionChecklist({
           : palette.danger;
     const copy = (
       <>
-        <View
-          style={[
-            styles.icon,
-            {
-              backgroundColor: item.ready
-                ? disabled
-                  ? palette.disabledSurface
-                  : palette.mintSoft
-                : disabled
-                  ? palette.disabledSurface
-                  : recommended
-                    ? palette.amberSoft
-                    : palette.dangerSoft,
-            },
-          ]}>
+        <View style={styles.icon}>
           <AppIcon
             accessible={false}
             color={color}
@@ -196,34 +184,66 @@ export function AlarmPermissionChecklist({
     );
   };
 
+  if (presentation === 'next-required') {
+    const requestedRequired = focusRequest
+      ? model.required.find((item) => item.id === focusRequest.id)
+      : null;
+    const nextRequired =
+      requestedRequired ??
+      (model.nextRequiredTarget
+        ? model.required.find((item) => item.id === model.nextRequiredTarget)
+        : null);
+    return (
+      <View style={styles.compactContainer} testID="alarm-readiness-next">
+        {launchNotice ? (
+          <StatusBanner
+            announceChanges
+            icon={
+              launchNotice.tone === 'warning'
+                ? 'alert-circle-outline'
+                : 'ellipse-outline'
+            }
+            message={launchNotice.message}
+            title={launchNotice.title}
+            tone={launchNotice.tone}
+          />
+        ) : null}
+        {nextRequired ? (
+          <View style={styles.section}>
+            <AppText accessibilityRole="header" variant="label">
+              {requestedRequired ? '선택한 권한' : '다음 필요한 권한'}
+            </AppText>
+            <View style={styles.list}>{renderItem(nextRequired)}</View>
+          </View>
+        ) : (
+          <View
+            accessible
+            accessibilityLabel={model.summary}
+            style={styles.readySummary}>
+            <AppIcon
+              accessible={false}
+              color={palette.mintDark}
+              name="checkmark-circle"
+              size={20}
+            />
+            <AppText color={palette.mintDark} variant="label">
+              필수 권한 완료
+            </AppText>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} testID="alarm-readiness">
       <View style={[styles.header, reflow && styles.headerReflow]}>
         <View style={styles.headerCopy}>
           <AppText accessibilityRole="header" variant="heading">
-            알람 준비
+            권한
           </AppText>
           <AppText tone="secondary" variant="caption">
-            필수 권한은 알람 전달에 필요하고, 권장 설정은 안정성을 높입니다.
-          </AppText>
-        </View>
-        <View
-          accessible
-          accessibilityLabel={model.summary}
-          style={[
-            styles.readinessBadge,
-            model.readyRequiredCount === model.requiredTotal
-              ? styles.readinessBadgeReady
-              : styles.readinessBadgeWarning,
-          ]}>
-          <AppText
-            color={
-              model.readyRequiredCount === model.requiredTotal
-                ? palette.mintDark
-                : palette.amber
-            }
-            variant="label">
-            {model.readyRequiredCount}/{model.requiredTotal} 준비
+            필수 {model.readyRequiredCount}/{model.requiredTotal} · 권장 설정 별도
           </AppText>
         </View>
       </View>
@@ -259,20 +279,16 @@ export function AlarmPermissionChecklist({
             style={styles.fullWidthButton}
             variant="secondary"
           />
-        ) : (
-          <AppText color={palette.mintDark} variant="caption">
-            필수 권한이 모두 준비되었습니다.
-          </AppText>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.section}>
         <View style={styles.recommendedHeading}>
           <AppText accessibilityRole="header" variant="label">
-            권장 안정성 설정
+            권장 설정
           </AppText>
           <AppText tone="secondary" variant="caption">
-            알람 사용을 막지는 않지만 함께 확인하면 더 안정적입니다.
+            배터리 · 방해 금지 · 음량
           </AppText>
         </View>
         <View style={styles.list}>
@@ -288,6 +304,9 @@ function createStyles(palette: AppPalette) {
     container: {
       gap: spacing.large,
     },
+    compactContainer: {
+      gap: spacing.medium,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -302,25 +321,18 @@ function createStyles(palette: AppPalette) {
       flex: 1,
       gap: spacing.tiny,
     },
-    readinessBadge: {
-      minHeight: 32,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radii.pill,
-      borderWidth: 1,
-      paddingHorizontal: spacing.medium,
-    },
-    readinessBadgeReady: {
-      backgroundColor: palette.mintSoft,
-      borderColor: palette.mint,
-    },
-    readinessBadgeWarning: {
-      backgroundColor: palette.amberSoft,
-      borderColor: palette.amber,
-    },
     section: {
       gap: spacing.small,
+    },
+    readySummary: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+      paddingHorizontal: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
     },
     recommendedHeading: {
       gap: spacing.tiny,

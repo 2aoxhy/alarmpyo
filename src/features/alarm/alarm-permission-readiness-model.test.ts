@@ -44,7 +44,7 @@ describe('알람 준비 표시 모델', () => {
       alarmVolume: 0,
     });
 
-    expect(model.summary).toBe('필수 권한 0/3 준비');
+    expect(model.summary).toBe('필수 권한 0/3');
     expect(model.nextRequiredTarget).toBe('exact-alarm');
     expect(model.required.map((item) => item.id)).toEqual([
       'exact-alarm',
@@ -65,7 +65,7 @@ describe('알람 준비 표시 모델', () => {
       alarmVolume: 0,
     });
 
-    expect(model.summary).toBe('필수 권한 3/3 준비');
+    expect(model.summary).toBe('필수 권한 3/3');
     expect(model.nextRequiredTarget).toBeNull();
   });
 

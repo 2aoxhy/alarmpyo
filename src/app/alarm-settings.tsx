@@ -230,7 +230,14 @@ export default function AlarmSettingsScreen() {
   const [sleepReminderBusy, setSleepReminderBusy] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [managementOpen, setManagementOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(() => {
+    const requested = parseAlarmPermissionFocusTarget(target);
+    return (
+      requested === 'battery-optimization' ||
+      requested === 'do-not-disturb' ||
+      requested === 'alarm-volume'
+    );
+  });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [permissionFocusRequest, setPermissionFocusRequest] =
     useState<AlarmPermissionFocusRequest | null>(null);
@@ -450,6 +457,24 @@ export default function AlarmSettingsScreen() {
     }
   }, [alarmBusy, openPermissionSettings, showDialog, sleepReminderBusy]);
 
+  const openNextRequiredPermission = useCallback(() => {
+    const nextTarget = alarmStatus
+      ? resolveAlarmPermissionReadinessViewModel(alarmStatus)
+          .nextRequiredTarget
+      : null;
+    if (nextTarget) {
+      requestPermissionFocus(nextTarget);
+      void openPermissionTarget(nextTarget);
+      return;
+    }
+    void openAlarmSettings();
+  }, [
+    alarmStatus,
+    openAlarmSettings,
+    openPermissionTarget,
+    requestPermissionFocus,
+  ]);
+
   const toggleAlarms = async (enabled: boolean) => {
     if (alarmBusy) return;
     if (enabled && !alarmPlatformSupported) {
@@ -535,7 +560,20 @@ export default function AlarmSettingsScreen() {
             showDialog(
               "알람을 다시 예약하지 못했습니다",
               "알람 권한을 확인한 뒤 다시 시도해야 합니다.",
-              undefined,
+              [
+                {
+                  text: '닫기',
+                  actionId: 'cancel',
+                  icon: 'close',
+                  style: 'cancel',
+                },
+                {
+                  text: '다음 권한 열기',
+                  actionId: 'open-settings',
+                  icon: 'settings-outline',
+                  onPress: openNextRequiredPermission,
+                },
+              ],
               { tone: "danger" },
             );
           }
@@ -576,7 +614,7 @@ export default function AlarmSettingsScreen() {
               text: "알람 권한 설정",
               actionId: "open-settings",
               icon: "settings-outline",
-              onPress: () => void openAlarmSettings(),
+              onPress: openNextRequiredPermission,
             },
           ],
           { tone: "warning" },
@@ -710,33 +748,43 @@ export default function AlarmSettingsScreen() {
             title="근무 알람"
             subtitle={
               data.settings.notificationsEnabled
-                ? "다음 근무에 맞춰 자동으로 예약합니다."
-                : "켜면 다음 근무부터 자동으로 예약합니다."
+                ? "다음 근무부터 자동 예약"
+                : "켜면 자동 예약"
             }
             value={data.settings.notificationsEnabled}
           />
           {alarmPlatformSupported ? (
             <AlarmPermissionChecklist
               disabled={alarmBusy || sleepReminderBusy}
-              focusRequest={permissionFocusRequest}
+              focusRequest={
+                permissionFocusRequest &&
+                (permissionFocusRequest.id === 'exact-alarm' ||
+                  permissionFocusRequest.id === 'alarm-notifications' ||
+                  permissionFocusRequest.id === 'full-screen')
+                  ? permissionFocusRequest
+                  : null
+              }
               launchNotice={permissionLaunchNotice}
               onOpenSettings={(target) => void openPermissionTarget(target)}
+              presentation="next-required"
               status={alarmStatus}
             />
           ) : null}
-          <StatusBanner
-            announceChanges
-            icon={accessIcon}
-            message={accessDescription}
-            testID="alarm-access-status"
-            title={accessSummary.title}
-            tone={resolveAlarmStatusBannerTone(accessSummary.tone)}
-          />
+          {accessSummary.issueCode !== "alarm-permissions" ? (
+            <StatusBanner
+              announceChanges
+              icon={accessIcon}
+              message={accessDescription}
+              testID="alarm-access-status"
+              title={accessSummary.title}
+              tone={resolveAlarmStatusBannerTone(accessSummary.tone)}
+            />
+          ) : null}
           {accessSummary.issueCode !== "alarm-permissions" &&
           accessSummary.action !== "none" &&
           accessSummary.actionLabel ? (
             <AppButton
-              accessibilityHint="휴대폰의 알람 상태를 준비합니다."
+              accessibilityHint="필요한 알람 설정을 엽니다."
               icon={
                 accessSummary.action === "resync" ||
                 accessSummary.action === "retry" ||
@@ -816,23 +864,39 @@ export default function AlarmSettingsScreen() {
             onPress={() => setManagementOpen((open) => !open)}
             style={[
               styles.detailsDisclosure,
-              managementOpen && styles.detailsDisclosureOpen,
             ]}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
-                ? `알람음·진동 · 시험 · 기록 ${recentAlarmEvents.length}개`
-                : "알람음·진동 · 시험"
+                ? `권한 · 소리·진동 · 시험 · 기록 ${recentAlarmEvents.length}개`
+                : "권한 · 소리·진동 · 시험"
             }
             testID="alarm-management-disclosure"
             title="알람 관리"
           />
           {managementOpen ? (
             <View style={styles.managementBody}>
+              {alarmPlatformSupported ? (
+                <AlarmPermissionChecklist
+                  disabled={alarmBusy || sleepReminderBusy}
+                  focusRequest={
+                    permissionFocusRequest &&
+                    (permissionFocusRequest.id === 'battery-optimization' ||
+                      permissionFocusRequest.id === 'do-not-disturb' ||
+                      permissionFocusRequest.id === 'alarm-volume')
+                      ? permissionFocusRequest
+                      : null
+                  }
+                  onOpenSettings={(target) =>
+                    void openPermissionTarget(target)
+                  }
+                  status={alarmStatus}
+                />
+              ) : null}
               {alarmPlatformSupported && data.settings.notificationsEnabled ? (
                 <StatusBanner
                   icon="alert-circle-outline"
-                  message="휴대폰 설정에서 알람표를 강제 종료하면 앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없습니다."
-                  title="강제 종료 상태에서는 알람을 보장할 수 없습니다"
+                  message="앱을 다시 열 때까지 예약 복구 불가"
+                  title="강제 종료 시 알람 중단"
                   tone="warning"
                 />
               ) : null}
@@ -849,11 +913,11 @@ export default function AlarmSettingsScreen() {
                     />
                   </View>
                   <View style={styles.flexCopy}>
-                    <AppText variant="heading">알람 작동 확인</AppText>
+                    <AppText variant="heading">알람 시험</AppText>
                     <AppText tone="secondary" variant="caption">
                       {accessSummary.canTest
-                        ? "5초 뒤 전체 화면과 소리를 확인합니다."
-                        : "위 안내에 따라 알람 권한을 먼저 준비해야 합니다."}
+                        ? "5초 뒤 전체 화면·소리"
+                        : "필수 권한 필요"}
                     </AppText>
                   </View>
                 </View>
@@ -886,8 +950,8 @@ export default function AlarmSettingsScreen() {
                     onPress={() => setHistoryOpen((open) => !open)}
                     subtitle={
                       recentAlarmEvents.length > 0
-                        ? `${recentAlarmEvents.length}개의 기록이 있습니다.`
-                        : "저장된 기록이 없습니다."
+                        ? `${recentAlarmEvents.length}개`
+                        : "기록 없음"
                     }
                     title="최근 알람 기록"
                     trailing={<DisclosureIcon open={historyOpen} />}
@@ -1129,11 +1193,8 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
     },
     statusCard: {
       gap: spacing.medium,
-      padding: spacing.medium,
-      borderWidth: 1,
-      borderColor: palette.line,
-      borderRadius: radii.large,
-      backgroundColor: palette.surface,
+      paddingHorizontal: spacing.small,
+      paddingVertical: spacing.medium,
     },
     alarmToggle: {
       minHeight: 60,
@@ -1155,33 +1216,22 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       gap: spacing.medium,
     },
     testIcon: {
-      width: 44,
+      width: 32,
       height: 44,
       flexShrink: 0,
-      borderRadius: radii.medium,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: palette.indigoSoft,
     },
     detailsSection: { gap: 0 },
     detailsDisclosure: {
-      borderWidth: 1,
-      borderColor: palette.line,
-    },
-    detailsDisclosureOpen: {
-      borderBottomLeftRadius: 0,
-      borderBottomRightRadius: 0,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
     managementBody: {
       gap: spacing.medium,
       paddingHorizontal: spacing.medium,
       paddingBottom: spacing.medium,
-      borderWidth: 1,
-      borderTopWidth: 0,
-      borderColor: palette.line,
-      borderBottomLeftRadius: radii.large,
-      borderBottomRightRadius: radii.large,
-      backgroundColor: palette.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
     },
     detailsCard: {
       gap: 0,

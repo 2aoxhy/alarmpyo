@@ -75,18 +75,18 @@ export default function PatternLibraryScreen() {
     if (!result) return;
     if (result.status === 'saved' || result.status === 'unchanged') {
       showDialog(
-        '공식 패턴을 보관했습니다',
-        '근무표에는 아직 적용하지 않았습니다. 보관함에서 적용 전 비교를 확인할 수 있습니다.',
+        '보관 완료',
+        '근무표에는 아직 적용되지 않았습니다.',
         undefined,
         { tone: 'success' },
       );
       return;
     }
     showDialog(
-      '공식 패턴을 보관하지 못했습니다',
+      '보관 실패',
       result.reason === 'vault-full'
-        ? '보관함에서 사용하지 않는 패턴을 정리해야 합니다.'
-        : '현재 자료는 유지했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+        ? '보관함에서 사용하지 않는 패턴 정리'
+        : '저장 공간을 확인한 뒤 다시 시도',
       undefined,
       { tone: 'danger' },
     );
@@ -100,8 +100,8 @@ export default function PatternLibraryScreen() {
       const { fileName, result } = outcome;
       if (result.status === 'saved' || result.status === 'unchanged') {
         showDialog(
-          '패턴 파일을 보관했습니다',
-          `${fileName} 파일을 검증했습니다. 근무표에는 아직 적용하지 않았습니다.`,
+          '보관 완료',
+          `${fileName} · 근무표에는 아직 적용되지 않았습니다.`,
           undefined,
           { tone: 'success' },
         );
@@ -109,11 +109,11 @@ export default function PatternLibraryScreen() {
       }
       const reason =
         result.reason === 'source-conflict'
-          ? '같은 ID의 다른 출처 패턴이 있어 덮어쓰지 않았습니다.'
+          ? '같은 ID의 다른 패턴이 이미 있음'
           : result.reason === 'vault-full'
-            ? '보관함에서 사용하지 않는 패턴을 정리해야 합니다.'
-            : '현재 자료는 유지했습니다. 저장 공간을 확인해야 합니다.';
-      showDialog('패턴 파일을 보관하지 못했습니다', reason, undefined, {
+            ? '보관함에서 사용하지 않는 패턴 정리'
+            : '저장 공간 확인';
+      showDialog('보관 실패', reason, undefined, {
         tone: 'danger',
       });
       return;
@@ -129,14 +129,14 @@ export default function PatternLibraryScreen() {
     const outcome = await sharePatternThroughController(entry);
     if (outcome.status === 'completed') {
       showDialog(
-        '패턴 공유 화면을 닫았습니다',
-        `${outcome.fileName} 파일을 준비했습니다. 선택한 앱이나 저장 위치에서 파일을 확인해야 합니다.`,
+        '공유 화면 종료',
+        `${outcome.fileName} · 선택한 앱 또는 저장 위치 확인`,
       );
       return;
     }
     if (outcome.status === 'error') {
       const copy = patternImportErrorCopy(outcome.error);
-      showDialog('패턴 파일을 보내지 못했습니다', copy.message, undefined, {
+      showDialog('공유 실패', copy.message, undefined, {
         tone: 'danger',
       });
     }
@@ -145,7 +145,7 @@ export default function PatternLibraryScreen() {
   const confirmDeletePattern = (entry: PatternVaultEntry) => {
     showDialog(
       '보관한 패턴을 삭제하시겠습니까?',
-      `${entry.name} 패턴을 보관함에서 삭제합니다. 현재 근무표는 변경하지 않습니다.`,
+      `${entry.name} 삭제 · 현재 근무표는 유지`,
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
@@ -160,10 +160,10 @@ export default function PatternLibraryScreen() {
               .then((result) => {
                 if (result.status === 'deleted' || result.status === 'not-found') return;
                 showDialog(
-                  '패턴을 삭제하지 못했습니다',
+                  '삭제 실패',
                   result.reason === 'pattern-in-use'
-                    ? '현재 사용 중이거나 적용 이력에 필요한 패턴입니다. 다른 패턴을 적용하고 해당 이력을 되돌린 뒤 삭제해야 합니다.'
-                    : '저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+                    ? '사용 중인 패턴 또는 복구 이력에 필요한 패턴'
+                    : '저장 공간을 확인한 뒤 다시 시도',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -184,8 +184,8 @@ export default function PatternLibraryScreen() {
       if (result.status === 'success') {
         void notifySuccess();
         showDialog(
-          '이전 패턴으로 되돌렸습니다',
-          '직전 적용을 취소하고 정리했던 직접 수정도 복구했습니다.',
+          '되돌리기 완료',
+          '직전 패턴과 직접 수정을 복구했습니다.',
           undefined,
           { tone: 'success' },
         );
@@ -193,10 +193,10 @@ export default function PatternLibraryScreen() {
       }
       if (result.status === 'failure' && result.reason === 'rollback-failed') {
         showDialog(
-          '근무표 복구 상태를 확인해야 합니다',
+          '복구 상태 확인',
           result.rolledBack
-            ? '현재 근무 자료는 복구했지만 알람 동기화 결과를 확인하지 못했습니다. 알람 설정에서 예약 상태를 확인하고 다시 동기화해야 합니다.'
-            : '현재 근무 자료 복구에 실패했습니다. 근무표를 즉시 확인하고 알람 설정에서 예약 상태를 다시 동기화해야 합니다.',
+            ? '근무표 복구 완료 · 알람 동기화 미확인. 알람 설정에서 예약 상태 확인.'
+            : '근무표 복구 실패 · 현재 근무표와 알람 예약을 바로 확인.',
           [
             { text: '닫기', actionId: 'cancel', icon: 'close', style: 'cancel' },
             {
@@ -211,16 +211,16 @@ export default function PatternLibraryScreen() {
         return;
       }
       showDialog(
-        '이전 패턴으로 되돌리지 못했습니다',
+        '되돌리기 실패',
         result.status === 'nothing-to-rollback'
-          ? '되돌릴 패턴 적용 이력이 없습니다.'
+          ? '되돌릴 적용 이력 없음'
           : result.reason === 'history-conflict'
-            ? '적용 후 근무 방식이 다시 바뀌어 자동으로 되돌릴 수 없습니다.'
+            ? '적용 뒤 근무 방식이 다시 변경됨'
             : result.reason === 'sync-failed' && result.rolledBack
-              ? '이전 패턴의 알람 예약에 실패해 현재 근무표와 알람 상태를 유지했습니다.'
+              ? '알람 예약 실패 · 현재 근무표와 알람 유지'
             : result.rolledBack
-              ? '문제가 발생해 현재 근무표를 유지했습니다.'
-              : '현재 근무표를 확인해야 합니다.',
+              ? '현재 근무표 유지'
+              : '현재 근무표 확인',
         undefined,
         { tone: 'danger' },
       );
@@ -232,14 +232,8 @@ export default function PatternLibraryScreen() {
   const history = data.patternHistory.slice(0, 10);
   return (
     <>
-      <Stack.Screen options={{ title: '근무 패턴 보관함' }} />
+      <Stack.Screen options={{ title: '패턴 보관함' }} />
       <Screen contentStyle={styles.screen} safeAreaEdges={['left', 'right']}>
-        <StatusBanner
-          message="패턴은 근무 순서만 보관합니다. 가져온 뒤 적용일이 속한 달력에서 변경 내용을 먼저 비교합니다."
-          title="가져오기와 적용 분리"
-          tone="info"
-        />
-
         <View style={[styles.topActions, stackActions && styles.topActionsStacked]}>
           <AppButton
             disabled={anyBusyOperation !== null}
@@ -264,9 +258,6 @@ export default function PatternLibraryScreen() {
             <AppText accessibilityRole="header" variant="heading">
               공식 패턴
             </AppText>
-            <AppText tone="secondary" variant="caption">
-              이 화면을 열거나 새로고침할 때만 조회합니다.
-            </AppText>
           </View>
           <AppButton
             disabled={officialLoading}
@@ -281,7 +272,7 @@ export default function PatternLibraryScreen() {
 
         {officialResults === null && officialLoading ? (
           <StatusBanner
-            message="서명과 파일 내용을 확인하고 있습니다."
+            message="파일 서명 확인 중"
             title="공식 패턴 확인 중"
             tone="neutral"
           />
@@ -296,10 +287,10 @@ export default function PatternLibraryScreen() {
                 key={result.id}
                 message={
                   integrityFailure
-                    ? `${result.error.message} 사용자 패턴으로 바꾸어 열지 않았습니다.`
+                    ? `${result.error.message} 파일을 열지 않았습니다.`
                     : result.error.message
                 }
-                title={integrityFailure ? '공식 서명 검증 실패' : `${result.id} 조회 실패`}
+                title={integrityFailure ? '공식 패턴 확인 실패' : `${result.id} 조회 실패`}
                 tone="danger"
               />
             );
@@ -313,7 +304,7 @@ export default function PatternLibraryScreen() {
               <View style={styles.officialCopy}>
                 <View style={styles.verifiedRow}>
                   <AppText tone="secondary" variant="caption">
-                    전자서명 검증 완료
+                    서명 확인
                   </AppText>
                   {alreadyStored ? (
                     <View style={styles.storedBadge}>
@@ -332,7 +323,7 @@ export default function PatternLibraryScreen() {
                 <AppButton
                   disabled={anyBusyOperation !== null}
                   icon="shield-outline"
-                  label="검증본 보관"
+                  label="보관"
                   loading={runtimeBusyOperation === `official-save:${result.id}`}
                   onPress={() => void saveOfficialPattern(result.pattern)}
                   variant="secondary"
@@ -344,16 +335,16 @@ export default function PatternLibraryScreen() {
 
         <View style={styles.sectionHeadingCopy}>
           <AppText accessibilityRole="header" variant="heading">
-            보관한 패턴
+            보관함
           </AppText>
           <AppText tone="secondary" variant="caption">
-            보관한 패턴을 선택한 뒤 달력에서 변경 내용을 비교합니다.
+            적용 전 달력 비교
           </AppText>
         </View>
         {data.patternVault.length === 0 ? (
           <StatusBanner
-            message="공식 패턴을 검증해 보관하거나 내 패턴을 만들 수 있습니다."
-            title="보관한 패턴 없음"
+            message="패턴 만들기 또는 파일 가져오기"
+            title="저장된 패턴 없음"
             tone="neutral"
           />
         ) : (
@@ -378,11 +369,11 @@ export default function PatternLibraryScreen() {
           ))
         )}
 
-        <MenuGroup title="최근 적용 이력 10개">
+        <MenuGroup title="최근 적용">
           {history.length === 0 ? (
             <View style={styles.emptyHistory}>
               <AppText tone="secondary" variant="body">
-                아직 패턴 적용 이력이 없습니다.
+                적용 이력 없음
               </AppText>
             </View>
           ) : (
@@ -407,10 +398,10 @@ export default function PatternLibraryScreen() {
         </MenuGroup>
 
         <AppButton
-          accessibilityHint="직전 패턴 적용과 그때 제거한 직접 수정을 복구합니다."
+          accessibilityHint="직전 패턴과 직접 수정을 복구합니다."
           disabled={history.length === 0 || anyBusyOperation !== null}
           icon="arrow-undo-outline"
-          label="마지막 패턴 적용 되돌리기"
+          label="직전 적용 되돌리기"
           loading={busyOperation === 'rollback'}
           onPress={() => void rollback()}
           variant="secondary"

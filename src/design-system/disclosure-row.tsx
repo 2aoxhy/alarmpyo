@@ -11,7 +11,7 @@ import {
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
 
-import { interaction, radius, size, space, typeScale } from './tokens';
+import { size, space, typeScale } from './tokens';
 import { shouldReflowControl } from './responsive';
 import {
   type DesignSystemThemeProps,
@@ -61,7 +61,7 @@ export function DisclosureRow({
       ]}
       testID={testID}>
       {icon ? (
-        <View style={[styles.iconTile, disabled && styles.iconTileDisabled]}>
+        <View style={styles.icon}>
           <AppIcon
             accessible={false}
             color={disabled ? colors.textDisabled : colors.accentStrong}
@@ -98,30 +98,25 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       gap: space.md,
       paddingHorizontal: space.lg,
       paddingVertical: space.sm,
-      borderRadius: radius.lg,
-      backgroundColor: colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
     },
     rowReflow: {
       alignItems: 'flex-start',
     },
     pressed: {
-      opacity: interaction.pressedOpacity,
+      backgroundColor: colors.surfaceMuted,
     },
     disabled: {
       backgroundColor: colors.surfaceDisabled,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
-    iconTile: {
+    icon: {
       width: size.minimumTouchTarget,
       height: size.minimumTouchTarget,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.sm,
-      backgroundColor: colors.surfaceMuted,
-    },
-    iconTileDisabled: {
-      backgroundColor: colors.surfaceDisabled,
     },
     textContainer: {
       flex: 1,

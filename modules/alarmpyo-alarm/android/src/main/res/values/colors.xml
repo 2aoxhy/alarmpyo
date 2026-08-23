@@ -4,9 +4,14 @@
     <color name="alarmpyo_background">#101214</color>
     <color name="alarmpyo_accent">#58D9BC</color>
     <color name="alarmpyo_day">#0E4B43</color>
+    <color name="alarmpyo_day_accent">#58D9BC</color>
     <color name="alarmpyo_evening">#4A3518</color>
+    <color name="alarmpyo_evening_accent">#F0C36A</color>
     <color name="alarmpyo_night">#112B46</color>
+    <color name="alarmpyo_night_accent">#89CEFF</color>
     <color name="alarmpyo_off">#2A2F35</color>
+    <color name="alarmpyo_off_accent">#B5BDC8</color>
+    <color name="alarmpyo_substitute_accent">#F0C36A</color>
     <color name="alarmpyo_training">#173650</color>
     <color name="alarmpyo_reserve">#313819</color>
     <color name="alarmpyo_unknown">#424A54</color>

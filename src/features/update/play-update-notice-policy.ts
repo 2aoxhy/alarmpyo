@@ -127,17 +127,17 @@ export function getPlayUpdateTransitionAnnouncement(
   if (previous === current || current === null) return null;
   switch (current) {
     case 'available':
-      return '새 앱 버전을 사용할 수 있습니다.';
+      return '새 버전 있음';
     case 'downloading':
-      return '업데이트 다운로드를 시작했습니다.';
+      return '다운로드 시작';
     case 'downloaded':
-      return '업데이트 설치 준비를 마쳤습니다.';
+      return '설치 준비 완료';
     case 'installing':
-      return '업데이트를 설치하고 있습니다.';
+      return '설치 중';
     case 'failed':
-      return '업데이트를 완료하지 못했습니다. 다시 시도할 수 있습니다.';
+      return '업데이트 실패 · 다시 시도 가능';
     case 'installed':
-      return '업데이트를 설치했습니다.';
+      return '설치 완료';
   }
 }
 
@@ -149,8 +149,8 @@ export function getPlayUpdateModalPresentation(
   switch (kind) {
     case 'downloaded':
       return {
-        title: `${versionLabel} 설치 준비 완료`,
-        message: '다운로드를 마쳤습니다. 저장된 근무표를 유지한 채 설치합니다.',
+        title: `${versionLabel} 설치 준비`,
+        message: '다운로드 완료 · 저장된 근무표 유지',
         primaryLabel: '지금 설치',
         primaryHint: '다운로드한 업데이트를 설치합니다.',
         snoozable: true,
@@ -158,16 +158,15 @@ export function getPlayUpdateModalPresentation(
     case 'installing':
       return {
         title: `${versionLabel} 설치 중`,
-        message: 'Google Play가 업데이트를 안전하게 설치하고 있습니다.',
+        message: 'Google Play에서 처리 중',
         primaryLabel: null,
         primaryHint: undefined,
         snoozable: false,
       };
     case 'failed':
       return {
-        title: '업데이트를 완료하지 못했습니다',
-        message:
-          '인터넷 연결과 Google Play 상태를 확인한 뒤 다시 시도할 수 있습니다.',
+        title: '업데이트 실패',
+        message: '인터넷 연결과 Google Play 상태 확인',
         primaryLabel: '다시 시도',
         primaryHint: 'Google Play 업데이트를 다시 시도합니다.',
         snoozable: true,
@@ -178,8 +177,7 @@ export function getPlayUpdateModalPresentation(
     case null:
       return {
         title: `새 버전 ${versionLabel}`,
-        message:
-          'Google Play에서 새 기능과 개선 사항을 안전하게 설치할 수 있습니다.',
+        message: 'Google Play에서 업데이트',
         primaryLabel: '업데이트',
         primaryHint: 'Google Play에서 업데이트를 시작합니다.',
         snoozable: true,

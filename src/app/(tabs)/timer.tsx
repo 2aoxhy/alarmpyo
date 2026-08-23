@@ -287,8 +287,8 @@ export default function TimerScreen() {
       currentWallClock,
     );
     showDialog(
-      '실행 중인 타이머를 변경하시겠습니까?',
-      `현재 타이머를 취소하고 ${durationMinutes}분 타이머를 시작합니다. ${target}에 울릴 예정입니다.`,
+      `${durationMinutes}분으로 변경`,
+      `현재 타이머 취소 · ${target} 울림`,
       [
         { text: '유지', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
@@ -418,7 +418,7 @@ export default function TimerScreen() {
     <Screen contentStyle={styles.screenContent}>
       <PageHeader
         align="center"
-        subtitle="15분·30분·45분 또는 직접 입력한 시간 뒤 알람음과 진동으로 알립니다."
+        subtitle="15·30·45분 · 직접 입력"
         title="타이머"
       />
 
@@ -433,8 +433,7 @@ export default function TimerScreen() {
         <StatusBanner
           announceChanges={false}
           icon="alert-circle-outline"
-          message="타이머 알람은 지원되는 Android 설치본에서 사용할 수 있습니다."
-          title="이 기기에서는 타이머를 사용할 수 없습니다"
+          message="Android 설치본에서만 사용할 수 있습니다."
           tone="neutral"
         />
       ) : null}
@@ -443,9 +442,9 @@ export default function TimerScreen() {
         <StatusBanner
           actionLabel="다시 확인"
           icon="alert-circle-outline"
-          message="타이머 상태를 확인하지 못했습니다. 기존 근무 알람은 그대로 유지됩니다."
+          message="근무 알람은 유지됩니다."
           onAction={retry}
-          title="타이머를 준비하지 못했습니다"
+          title="타이머 확인 실패"
           tone="danger"
         />
       ) : null}
@@ -548,14 +547,11 @@ export default function TimerScreen() {
       ) : canShowIdleControls ? (
         <Surface style={styles.timerSurface}>
           <View style={styles.idleCopy}>
-            <View style={styles.idleIcon}>
-              <AppIcon accessible={false} color={palette.indigoDark} name="timer" size={28} />
-            </View>
             <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              시간을 선택하십시오
+              시간 선택
             </AppText>
             <AppText tone="secondary" style={styles.centerText} variant="body">
-              한 번에 하나의 타이머만 실행할 수 있습니다.
+              한 번에 1개만 실행
             </AppText>
           </View>
           <View style={styles.presetButtons}>
@@ -588,15 +584,12 @@ export default function TimerScreen() {
       ) : null}
 
       {supported ? (
-        <Surface density="compact" tone="muted" style={styles.infoSurface}>
-          <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={22} />
-          <View style={styles.infoCopy}>
-            <AppText variant="label">알람음·진동</AppText>
-            <AppText tone="secondary" variant="caption">
-              화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용합니다.
-            </AppText>
-          </View>
-        </Surface>
+        <View style={styles.infoRow}>
+          <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={18} />
+          <AppText tone="secondary" style={styles.infoCopy} variant="caption">
+            화면이 꺼져도 알람음·진동 사용
+          </AppText>
+        </View>
       ) : null}
     </Screen>
     <QuickTimerKeypad
@@ -650,26 +643,18 @@ function createStyles(palette: AppPalette) {
       borderTopColor: palette.line,
     },
     idleCopy: { alignItems: 'center', gap: space.sm },
-    idleIcon: {
-      width: 56,
-      height: 56,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radius.lg,
-      backgroundColor: palette.indigoSoft,
-    },
     presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
     presetButton: { minHeight: 64 },
     presetButtonFull: { width: '100%' },
     presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
     presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },
-    infoSurface: {
-      minHeight: 76,
+    infoRow: {
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.md,
-      borderWidth: 0,
+      justifyContent: 'center',
+      gap: space.sm,
     },
-    infoCopy: { minWidth: 0, flex: 1, gap: space.xs },
+    infoCopy: { flexShrink: 1 },
   });
 }

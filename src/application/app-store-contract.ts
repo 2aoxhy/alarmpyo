@@ -165,6 +165,11 @@ export type AppStore = {
     patches: Record<string, Partial<ShiftType>>,
     workRoutineProfiles?: WorkRoutineProfiles,
   ) => Promise<boolean>;
+  updateShiftSettings: (
+    patches: Record<string, Partial<ShiftType>>,
+    workRoutineProfiles: WorkRoutineProfiles,
+    payrollSettings: PayrollSettings,
+  ) => Promise<boolean>;
   updatePayrollSettings: (settings: PayrollSettings) => Promise<boolean>;
   dismissPlayUpdate: (versionCode: number) => Promise<boolean>;
   setThemeMode: (themeMode: ThemeMode) => void;

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   resolveShiftHeroTheme,
+  resolveShiftVisualSpec,
   resolveShiftVisualRole,
   type ShiftVisualRole,
 } from '../../design-system/shift-visual-theme';
@@ -30,6 +31,25 @@ function contrast(first: string, second: string) {
 }
 
 describe('오늘 히어로 근무 의미색 계약', () => {
+  it('일반 근무와 대체근무는 배경을 공유하고 호박색 의미선으로 구분합니다', () => {
+    expect(resolveShiftVisualSpec('day')).toMatchObject({
+      softBackground: '#123D36',
+      meaningRail: null,
+    });
+    expect(resolveShiftVisualSpec('substitute-day')).toMatchObject({
+      softBackground: '#123D36',
+      meaningRail: '#F0C36A',
+    });
+    expect(resolveShiftVisualSpec('night')).toMatchObject({
+      softBackground: '#173650',
+      meaningRail: null,
+    });
+    expect(resolveShiftVisualSpec('substitute-night')).toMatchObject({
+      softBackground: '#173650',
+      meaningRail: '#F0C36A',
+    });
+  });
+
   it.each([
     ['day', 'day'],
     ['evening', 'evening'],

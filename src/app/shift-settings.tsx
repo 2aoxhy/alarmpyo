@@ -1,6 +1,11 @@
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Screen } from '@/components/ui-kit';
@@ -37,6 +42,7 @@ import { WorkPatternOverview } from '@/features/shift-settings/work-pattern-over
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
   ShiftType,
+  PayrollSettings,
   WorkRoutineProfiles,
   WorkRoutineTiming,
 } from '@/models/app-data';
@@ -62,8 +68,7 @@ export default function ShiftSettingsScreen() {
   const {
     createBackup,
     data,
-    updatePayrollSettings,
-    updateShiftTypes,
+    updateShiftSettings,
   } = useAppStore();
   const activeWorkShiftIds = (['day', 'evening', 'night'] as const).filter(
     (id) => data.pattern.shiftTypeIds.includes(id),
@@ -84,6 +89,13 @@ export default function ShiftSettingsScreen() {
       createShiftDrafts(data.shiftTypes),
       data.settings.workRoutineProfiles,
     ),
+  );
+  const [payrollDraft, setPayrollDraft] = useState<PayrollSettings>(() => ({
+    ...data.payrollSettings,
+  }));
+  const [payrollDraftValid, setPayrollDraftValid] = useState(true);
+  const [savedPayrollSnapshot, setSavedPayrollSnapshot] = useState(() =>
+    JSON.stringify(data.payrollSettings),
   );
   const [substituteMode, setSubstituteMode] = useState<'day' | 'night'>('day');
   const [editorSection, setEditorSection] = useState<EditorSection>(
@@ -169,17 +181,21 @@ export default function ShiftSettingsScreen() {
   const invalidRoutineSection = invalidRoutineIssue
     ? getEditorSectionForDraftId(invalidRoutineIssue.draftId)
     : undefined;
+  const payrollSnapshot = JSON.stringify(payrollDraft);
+  const hasPayrollChanges = payrollSnapshot !== savedPayrollSnapshot;
   const hasUnsavedChanges =
     createShiftSettingsSnapshot(drafts, workRoutineProfiles) !== savedSnapshot ||
-    inferredDayChanges;
+    inferredDayChanges ||
+    hasPayrollChanges;
   const hasInvalidDrafts =
     drafts.some((draft) => !isShiftDraftValid(draft)) ||
-    invalidRoutineSection !== undefined;
+    invalidRoutineSection !== undefined ||
+    !payrollDraftValid;
   const saveDisabled = saving || (!hasUnsavedChanges && !hasInvalidDrafts);
   const saveLabel = saving
     ? '저장 중'
     : hasInvalidDrafts
-      ? '시간 확인하기'
+      ? '설정 확인'
       : hasUnsavedChanges
         ? '저장하기'
         : '변경 내용 없음';
@@ -277,16 +293,27 @@ export default function ShiftSettingsScreen() {
       );
       focusDraft(firstInvalidDraft.id);
       showDialog(
-        '시간을 확인해야 합니다',
-        `${invalidShift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
+        '근무 시간 입력 오류',
+        `${invalidShift?.name ?? '근무'} · 06:45 형식만 사용할 수 있습니다.`,
       );
       return;
     }
     if (invalidRoutineIssue) {
       focusDraft(invalidRoutineIssue.draftId, 'routine');
       showDialog(
-        '출근 루틴을 확인해야 합니다',
-        '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해야 합니다.',
+        '출근 루틴 입력 오류',
+        '기상 알람 → 출발 → 도착 → 교대 완료 순서로 5분 단위만 사용할 수 있습니다.',
+      );
+      return;
+    }
+    if (!payrollDraftValid) {
+      setActivePanel('payroll');
+      void AccessibilityInfo.announceForAccessibility(
+        '급여일 입력 오류.',
+      );
+      showDialog(
+        '급여일 입력 오류',
+        '1부터 31 사이의 숫자만 사용할 수 있습니다.',
       );
       return;
     }
@@ -304,8 +331,8 @@ export default function ShiftSettingsScreen() {
       if (!shift || startMinutes === null || endMinutes === null) {
         focusDraft(draft.id);
         showDialog(
-          '시간을 확인해야 합니다',
-          `${shift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
+          '근무 시간 입력 오류',
+          `${shift?.name ?? '근무'} · 06:45 형식만 사용할 수 있습니다.`,
         );
         return;
       }
@@ -313,8 +340,8 @@ export default function ShiftSettingsScreen() {
       if (!duration) {
         focusDraft(draft.id);
         showDialog(
-          `${shift.name} 시간을 확인해야 합니다`,
-          '시작과 종료 시간을 다르게 입력해야 합니다.',
+          `${shift.name} 시간 입력 오류`,
+          '시작과 종료 시간은 달라야 합니다.',
         );
         return;
       }
@@ -353,14 +380,15 @@ export default function ShiftSettingsScreen() {
             ];
           }),
         );
-      const saved = await updateShiftTypes(
+      const saved = await updateShiftSettings(
         shiftTypePatches,
         workRoutineProfiles,
+        payrollDraft,
       );
       if (!saved) {
         showDialog(
           '근무 설정을 저장하지 못했습니다',
-          '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+          '기존 설정을 유지했습니다. 저장 공간 확인 후 다시 저장합니다.',
         );
         return;
       }
@@ -372,6 +400,10 @@ export default function ShiftSettingsScreen() {
       setDrafts(normalizedDrafts);
       setSavedSnapshot(
         createShiftSettingsSnapshot(normalizedDrafts, workRoutineProfiles),
+      );
+      setSavedPayrollSnapshot(payrollSnapshot);
+      void AccessibilityInfo.announceForAccessibility(
+        '근무표 설정을 저장했습니다.',
       );
       void triggerNotificationFeedback('success');
     } finally {
@@ -408,7 +440,9 @@ export default function ShiftSettingsScreen() {
     activeWorkShiftIds.includes('evening'),
     activeWorkShiftIds.includes('day'),
   );
-  const payrollSummary = formatPayrollSettingsSummary(data.payrollSettings);
+  const payrollSummary = payrollDraftValid
+    ? formatPayrollSettingsSummary(payrollDraft)
+    : '날짜 확인 필요';
   const togglePanel = (panel: SettingsPanel) => {
     void triggerSelectionFeedback();
     if (panel === 'routine' && editorSection === 'substitute') {
@@ -422,7 +456,16 @@ export default function ShiftSettingsScreen() {
       return;
     }
     const invalidDraft = drafts.find((draft) => !isShiftDraftValid(draft));
-    if (invalidDraft) focusDraft(invalidDraft.id, 'time');
+    if (invalidDraft) {
+      focusDraft(invalidDraft.id, 'time');
+      return;
+    }
+    if (!payrollDraftValid) {
+      setActivePanel('payroll');
+      void AccessibilityInfo.announceForAccessibility(
+        '급여일 입력 오류.',
+      );
+    }
   };
   const timeEditor = (
     <View style={styles.editorBody}>
@@ -547,14 +590,6 @@ export default function ShiftSettingsScreen() {
             onPress={() => void saveAll()}
           />
         }>
-        {showAllSettings ? (
-          <View style={styles.intro}>
-            <AppText tone="secondary" style={styles.centerText} variant="body">
-              필요한 항목만 열어 수정합니다.
-            </AppText>
-          </View>
-        ) : null}
-
         <View style={styles.section}>
           {!showAllSettings && focusedPanel === 'time' ? timeEditor : null}
           {!showAllSettings && focusedPanel === 'routine' ? routineEditor : null}
@@ -576,7 +611,7 @@ export default function ShiftSettingsScreen() {
             onPress={() => togglePanel('pattern')}
             style={styles.disclosure}
             subtitle={patternSummary}
-            title="근무 방식"
+            title="근무 순서"
           />
           {activePanel === 'pattern' ? (
             <View style={styles.editorBody}>
@@ -621,8 +656,11 @@ export default function ShiftSettingsScreen() {
           {activePanel === 'payroll' ? (
             <View style={styles.editorBody}>
               <PayrollSettingsEditor
-                onSave={updatePayrollSettings}
-                value={data.payrollSettings}
+                onChange={(next) => {
+                  setPayrollDraftValid(next !== null);
+                  if (next) setPayrollDraft(next);
+                }}
+                value={payrollDraft}
               />
             </View>
           ) : null}
@@ -631,10 +669,10 @@ export default function ShiftSettingsScreen() {
 
           {hasInvalidDrafts ? (
             <StatusBanner
-              actionLabel="확인하기"
-              message="근무 시간 또는 출근 루틴을 확인해야 합니다."
+              actionLabel="오류 보기"
+              message="근무 시간·출근 루틴·급여일 중 오류가 있습니다."
               onAction={openFirstInvalidSetting}
-              title="설정 확인 필요"
+              title="입력 오류"
               tone="danger"
             />
           ) : null}
@@ -649,17 +687,6 @@ function createStyles(palette: AppPalette) {
     screen: {
       gap: spacing.large,
       paddingTop: spacing.small,
-    },
-    intro: {
-      alignItems: 'flex-start',
-      gap: spacing.small,
-      paddingHorizontal: spacing.medium,
-      paddingVertical: spacing.small,
-      borderLeftWidth: 3,
-      borderLeftColor: palette.mint,
-    },
-    centerText: {
-      textAlign: 'left',
     },
     section: {
       gap: spacing.medium,

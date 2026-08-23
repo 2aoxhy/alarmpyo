@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
-  AccessibilityInfo,
   Platform,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
 
-import { AppButton, AppText } from '@/components/ui-kit';
+import { AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { AppField, SegmentedControl, StatusBanner } from '@/design-system';
+import { AppField, SegmentedControl } from '@/design-system';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PayrollAdjustment, PayrollSettings } from '@/models/app-data';
 
@@ -19,12 +18,12 @@ import {
 } from './payroll-settings-model';
 
 type PayrollSettingsEditorProps = {
-  onSave: (settings: PayrollSettings) => Promise<boolean>;
+  onChange: (settings: PayrollSettings | null) => void;
   value: PayrollSettings;
 };
 
 export function PayrollSettingsEditor({
-  onSave,
+  onChange,
   value,
 }: PayrollSettingsEditorProps) {
   const styles = useThemedStyles(createStyles);
@@ -34,41 +33,16 @@ export function PayrollSettingsEditor({
   const [adjustment, setAdjustment] = useState<PayrollAdjustment>(
     value.adjustment,
   );
-  const [busy, setBusy] = useState(false);
-  const [saveError, setSaveError] = useState(false);
   const day = parsePayrollDay(dayText);
   const draft = useMemo<PayrollSettings | null>(
     () => (day === null ? null : { day, adjustment }),
     [adjustment, day],
-  );
-  const dirty = Boolean(
-    draft &&
-      (draft.day !== value.day || draft.adjustment !== value.adjustment),
   );
   const [previewDate] = useState(() => new Date());
   const preview = useMemo(
     () => (draft ? buildPayrollPreview(draft, previewDate) : []),
     [draft, previewDate],
   );
-
-  const save = async () => {
-    if (!draft || !dirty || busy) return;
-    setBusy(true);
-    setSaveError(false);
-    try {
-      const saved = await onSave(draft);
-      setSaveError(!saved);
-      if (saved) {
-        void AccessibilityInfo.announceForAccessibility(
-          '급여일 설정을 저장했습니다.',
-        );
-      }
-    } catch {
-      setSaveError(true);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <View style={styles.card}>
@@ -85,8 +59,12 @@ export function PayrollSettingsEditor({
         label="매월 지급일"
         maxLength={2}
         onChangeText={(text) => {
-          setDayText(text.replace(/[^0-9]/g, '').slice(0, 2));
-          setSaveError(false);
+          const nextText = text.replace(/[^0-9]/g, '').slice(0, 2);
+          setDayText(nextText);
+          const nextDay = parsePayrollDay(nextText);
+          onChange(
+            nextDay === null ? null : { day: nextDay, adjustment },
+          );
         }}
         required
         selectTextOnFocus
@@ -99,7 +77,7 @@ export function PayrollSettingsEditor({
           label="급여일 휴일 조정 방식"
           onChange={(next) => {
             setAdjustment(next);
-            setSaveError(false);
+            onChange(day === null ? null : { day, adjustment: next });
           }}
           options={[
             { label: '지정일 그대로', value: 'fixed-date' },
@@ -150,24 +128,6 @@ export function PayrollSettingsEditor({
         </View>
       ) : null}
 
-      {saveError ? (
-        <StatusBanner
-          actionLabel="다시 시도"
-          message="저장 공간을 확인한 뒤 다시 시도해야 합니다."
-          onAction={() => void save()}
-          title="급여일 설정을 저장하지 못했습니다"
-          tone="danger"
-        />
-      ) : null}
-
-      <AppButton
-        disabled={!draft || !dirty || busy}
-        icon="checkmark"
-        label={dirty ? '급여일 저장' : '변경 내용 없음'}
-        loading={busy}
-        onPress={() => void save()}
-        size="compact"
-      />
     </View>
   );
 }

@@ -13,6 +13,7 @@ import {
 
 import { withAlarmRuntimeState } from '@/application/app-data-mutations';
 import {
+  applyCombinedShiftSettings,
   applyDismissedUpdateVersionCode,
   applyInitialSetupValues,
   applyPatternSettings,
@@ -1642,6 +1643,47 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
+  const updateShiftSettings = useCallback(
+    async (
+      patches: Record<string, Partial<ShiftType>>,
+      workRoutineProfiles: WorkRoutineProfiles,
+      payrollSettings: PayrollSettings,
+    ) => {
+      const shiftTypeIds = new Set(Object.keys(patches));
+      if (!readyRef.current) return false;
+      if (
+        !isValidWorkRoutineTiming(workRoutineProfiles.day) ||
+        !isValidWorkRoutineTiming(workRoutineProfiles.evening) ||
+        !isValidWorkRoutineTiming(workRoutineProfiles.night) ||
+        !hasOnlyKnownShiftTypeIds(dataRef.current.shiftTypes, shiftTypeIds)
+      ) {
+        return false;
+      }
+      let compatible = true;
+      let payrollValid = true;
+      let scheduleEnforcement: EnforcedScheduleSafety | null = null;
+      const saved = await replaceDataAndPersist((current) => {
+        const result = applyCombinedShiftSettings(
+          current,
+          patches,
+          workRoutineProfiles,
+          payrollSettings,
+        );
+        compatible = result.compatible;
+        payrollValid = result.payrollValid;
+        if (!compatible || !payrollValid) return current;
+        scheduleEnforcement = enforceAppDataScheduleSafety(result.data);
+        return scheduleEnforcement.data ?? current;
+      }, true);
+      return (
+        compatible &&
+        payrollValid &&
+        finalizeScheduleMutation(scheduleEnforcement, saved)
+      );
+    },
+    [finalizeScheduleMutation, replaceDataAndPersist],
+  );
+
   const setThemeMode = useCallback(
     (themeMode: ThemeMode) => {
       void replaceDataAndPersist((current) => applyThemeMode(current, themeMode));
@@ -2759,6 +2801,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       updatePattern,
       updatePatternDetailed,
       updateShiftTypes,
+      updateShiftSettings,
       updatePayrollSettings,
       dismissPlayUpdate,
       setThemeMode,
@@ -2839,6 +2882,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       saveUserPattern,
       updatePattern,
       updatePatternDetailed,
+      updateShiftSettings,
       updateShiftTypes,
     ],
   );

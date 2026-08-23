@@ -248,22 +248,22 @@ export function validatePatternDraft(draft: PatternDraft): PatternDraftValidatio
       issue: 'name-required',
       message:
         draft.name.trim().length === 0
-          ? '패턴 이름을 입력해야 합니다.'
-          : '패턴 이름은 80자 이하여야 합니다.',
+          ? '패턴 이름 입력'
+          : '패턴 이름은 80자 이하',
     };
   }
   if (draft.shiftCodes.length === 0) {
     return {
       valid: false,
       issue: 'sequence-required',
-      message: '근무 순서를 1일 이상 추가해야 합니다.',
+      message: '근무 순서를 1일 이상 추가',
     };
   }
   if (draft.shiftCodes.length > MAX_PATTERN_LENGTH) {
     return {
       valid: false,
       issue: 'sequence-too-long',
-      message: '근무 순서는 42일 이하여야 합니다.',
+      message: '근무 순서는 42일 이하',
     };
   }
   return { valid: true, issue: null, message: null };

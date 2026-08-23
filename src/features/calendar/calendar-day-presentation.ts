@@ -33,6 +33,15 @@ export function formatCalendarShiftTime(
   }${formatCompactTime(shift.endMinutes)}까지`;
 }
 
+export function formatCalendarAlarmOverride(
+  alarmOverride: CalendarDayViewModel['alarmOverride'],
+): string | null {
+  if (!alarmOverride) return null;
+  if (alarmOverride.mode === 'disabled') return '이 날짜의 근무 알람 끔';
+  const dayPrefix = alarmOverride.wakeDayOffset === -1 ? '전날 ' : '';
+  return `이 날짜의 기상 알람 ${dayPrefix}${formatCompactTime(alarmOverride.wakeMinutes)}`;
+}
+
 /** 날짜 셀의 시각 표식과 별개로 TalkBack이 한 번 읽을 전체 문장을 만듭니다. */
 export function buildCalendarDayAccessibilityLabel(
   day: CalendarDayViewModel,
@@ -44,6 +53,8 @@ export function buildCalendarDayAccessibilityLabel(
   const effectiveDay = day.effectiveDay;
   if (!effectiveDay?.scheduleActive) {
     parts.push('일정 적용 시작일 이전 날짜');
+  } else if (day.automaticScheduleHidden) {
+    parts.push('자동 근무표 표시 기간 밖');
   } else {
     const shiftName = effectiveDay.shift?.name ?? '일정 없음';
     const dayExceptionLabel = effectiveDay.dayException
@@ -70,6 +81,8 @@ export function buildCalendarDayAccessibilityLabel(
   if (day.holiday) parts.push(day.holiday.accessibilityLabel);
   if (day.payrollEntry) parts.push(day.payrollEntry.accessibilityLabel);
   if (day.hasNote) parts.push('메모 있음');
+  const alarmOverride = formatCalendarAlarmOverride(day.alarmOverride);
+  if (alarmOverride) parts.push(alarmOverride);
   return parts.join(', ');
 }
 

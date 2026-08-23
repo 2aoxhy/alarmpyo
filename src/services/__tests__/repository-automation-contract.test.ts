@@ -53,7 +53,7 @@ describe('저장소 자동화 계약', () => {
     expect(eas.build.base.autoIncrement).toBe(false);
   });
 
-  it('앱은 V17 1.17(17) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V18 1.18(18) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -65,16 +65,16 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.17.0');
+    expect(pkg.version).toBe('1.18.0');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.17',
-      androidVersionCode: 17,
-      iosBuildNumber: '17',
+      versionName: '1.18',
+      androidVersionCode: 18,
+      iosBuildNumber: '18',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      'V14 · `1.0.14(14)`, V15 · `1.15(15)`, V16 · `1.16(16)`은 Play Internal에 배포했으며, 현재 소스의 후속 후보는 `V17 · 1.17(17)`입니다.',
+      'V17 · `1.17(17)`은 로컬 후보로만 보존하고 Play에는 업로드하지 않았으며, 현재 소스의 후속 후보는 `V18 · 1.18(18)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
       'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play Internal에 배포했습니다.',
@@ -83,10 +83,10 @@ describe('저장소 자동화 계약', () => {
       'V09는 사용하지 않습니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console에 업로드된 V16의 `versionCode: 16`이 현재 Play 계보의 최고값입니다.',
+      'Play Console에 업로드된 V16의 `versionCode: 16`이 현재 확인된 Play 계보의 최고값입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 17 번들',
+      '같은 versionCode 18 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',

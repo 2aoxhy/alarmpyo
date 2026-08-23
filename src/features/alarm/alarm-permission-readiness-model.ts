@@ -54,8 +54,8 @@ export function resolveAlarmPermissionReadinessViewModel(
       id: 'exact-alarm',
       label: REQUIRED_LABELS['exact-alarm'],
       description: status.exactAlarmAllowed
-        ? '허용되어 있습니다'
-        : '근무 시각에 정확히 울리도록 허용해야 합니다',
+        ? '허용됨'
+        : '정확한 시각에 울리도록 허용',
       ready: status.exactAlarmAllowed,
       target: 'exact-alarm',
     },
@@ -63,8 +63,8 @@ export function resolveAlarmPermissionReadinessViewModel(
       id: 'alarm-notifications',
       label: REQUIRED_LABELS['alarm-notifications'],
       description: status.notificationsAllowed
-        ? '허용되어 있습니다'
-        : '알람 화면과 소리를 받으려면 허용해야 합니다',
+        ? '허용됨'
+        : '알람 화면과 소리 허용',
       ready: status.notificationsAllowed,
       target: 'alarm-notifications',
     },
@@ -72,8 +72,8 @@ export function resolveAlarmPermissionReadinessViewModel(
       id: 'full-screen',
       label: REQUIRED_LABELS['full-screen'],
       description: status.fullScreenAllowed
-        ? '허용되어 있습니다'
-        : '잠금 화면에서도 알람을 보려면 허용해야 합니다',
+        ? '허용됨'
+        : '잠금 화면 알람 허용',
       ready: status.fullScreenAllowed,
       target: 'full-screen',
     },
@@ -83,8 +83,8 @@ export function resolveAlarmPermissionReadinessViewModel(
       id: 'battery-optimization',
       label: '배터리 제한',
       description: status.batteryOptimizationIgnored
-        ? '제한되어 있지 않습니다'
-        : '목록에서 알람표를 찾아 제한 없음으로 설정해야 합니다',
+        ? '제한 없음'
+        : '알람표를 제한 없음으로 설정',
       ready: status.batteryOptimizationIgnored,
       target: 'battery-optimization',
     },
@@ -92,10 +92,10 @@ export function resolveAlarmPermissionReadinessViewModel(
       id: 'do-not-disturb',
       label: '방해 금지',
       description: status.doNotDisturbMaySilenceAlarm
-        ? '알람 소리를 막을 수 있어 확인이 필요합니다'
+        ? '알람 소리가 차단될 수 있음'
         : status.doNotDisturbActive
-          ? '알람 소리가 허용되어 있습니다'
-          : '사용 중이 아닙니다',
+          ? '알람 소리 허용됨'
+          : '사용 안 함',
       ready: !status.doNotDisturbMaySilenceAlarm,
       target: 'do-not-disturb',
     },
@@ -104,8 +104,8 @@ export function resolveAlarmPermissionReadinessViewModel(
       label: '알람 음량',
       description:
         status.alarmVolume > 0
-          ? `현재 음량 ${status.alarmVolume} · 휴대폰 음량 버튼으로 조절합니다`
-          : '음량이 0입니다 · 휴대폰 음량 버튼으로 높여야 합니다',
+          ? `현재 ${status.alarmVolume} · 휴대폰 음량 버튼으로 조절`
+          : '현재 0 · 휴대폰 음량 버튼으로 조절',
       ready: status.alarmVolume > 0,
       target: null,
     },
@@ -120,7 +120,7 @@ export function resolveAlarmPermissionReadinessViewModel(
     recommended,
     required,
     requiredTotal: readiness.requiredTotal,
-    summary: `필수 권한 ${readiness.readyRequiredCount}/${readiness.requiredTotal} 준비`,
+    summary: `필수 권한 ${readiness.readyRequiredCount}/${readiness.requiredTotal}`,
   };
 }
 

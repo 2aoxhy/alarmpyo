@@ -76,7 +76,7 @@ export function SetupApplyingOverlay({ visible }: { visible: boolean }) {
       transparent
       visible>
       <View
-        accessibilityLabel="설정 적용 중"
+        accessibilityLabel="설정 저장 중"
         accessibilityRole="progressbar"
         accessibilityViewIsModal
         style={styles.applyOverlay}>
@@ -104,10 +104,10 @@ export function SetupApplyingOverlay({ visible }: { visible: boolean }) {
             />
           </Animated.View>
           <AppText accessibilityRole="header" variant="heading">
-            설정 적용 중
+            설정 저장 중
           </AppText>
           <AppText style={styles.centerText} tone="secondary" variant="caption">
-            근무표를 안전하게 저장하고 알람을 준비합니다.
+            근무표 저장 · 알람 예약
           </AppText>
         </View>
       </View>

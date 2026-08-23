@@ -47,7 +47,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(statusCard).toContain('onPress={runAccessAction}');
   });
 
-  it('권한은 상단에 두고 나머지 부가 기능만 알람 관리 펼침 영역에 모아요', () => {
+  it('다음 필수 권한만 상단에 두고 전체 권한과 부가 기능은 펼침 영역에 모아요', () => {
     const managementBody = alarmSettings.indexOf('{managementOpen ? (');
     const permissions = alarmSettings.indexOf(
       '<AlarmPermissionChecklist',
@@ -59,8 +59,12 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     );
 
     expect(alarmSettings).toContain(
-      'const [managementOpen, setManagementOpen] = useState(false);',
+      'const [managementOpen, setManagementOpen] = useState(() =>',
     );
+    expect(alarmSettings).toContain('presentation="next-required"');
+    expect(permissionChecklist).toContain("presentation?: 'all' | 'next-required'");
+    expect(permissionChecklist).toContain("presentation === 'next-required'");
+    expect(permissionChecklist).toContain('model.nextRequiredTarget');
     expect(alarmSettings).toContain('expanded={managementOpen}');
     expect(alarmSettings).toContain(
       'const [historyOpen, setHistoryOpen] = useState(false);',
@@ -99,11 +103,17 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain('useLocalSearchParams');
     expect(alarmSettings).toContain('parseAlarmPermissionFocusTarget(target)');
     expect(alarmSettings).toContain('permissionFocusParam !== "permissions"');
-    expect(alarmSettings).toContain('focusRequest={permissionFocusRequest}');
+    expect(alarmSettings).toContain('permissionFocusRequest.id');
     expect(alarmSettings).toContain('permissionReturnPendingRef.current = true');
     expect(alarmSettings).not.toMatch(
       /useEffect\([\s\S]{0,700}openPermissionSettings\(/,
     );
+  });
+
+  it('예약·시험 실패는 다음 미완료 권한으로 직접 연결해요', () => {
+    expect(alarmSettings).toContain('const openNextRequiredPermission');
+    expect(alarmSettings).toContain("text: '다음 권한 열기'");
+    expect(alarmSettings).toContain('onPress: openNextRequiredPermission');
   });
 
   it('다음 알람에는 이날만 바꾼 기상 시각을 표시해요', () => {
@@ -122,10 +132,10 @@ describe('알람 설정 화면 정보 구조 계약', () => {
 
   it('Android 강제 종료 상태의 알람 한계를 미리 안내해요', () => {
     expect(alarmSettings).toContain(
-      '강제 종료 상태에서는 알람을 보장할 수 없습니다',
+      '강제 종료 시 알람 중단',
     );
     expect(alarmSettings).toContain(
-      '앱을 다시 열 때까지 예약 복구와 알람 전달을 보장할 수 없습니다.',
+      '앱을 다시 열 때까지 예약 복구 불가',
     );
   });
 

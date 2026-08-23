@@ -106,7 +106,7 @@ describe('간편 설정 초안 controller', () => {
     slowWrite.resolve();
     await pendingWrite;
     await completion;
-    expect(operations).toEqual(['write-start', 'write-end', 'clear']);
+    expect(operations).toEqual(['write-start', 'write-end', 'clear', 'clear']);
     expect(values.has(QUICK_SETUP_DRAFT_KEY)).toBe(false);
   });
 

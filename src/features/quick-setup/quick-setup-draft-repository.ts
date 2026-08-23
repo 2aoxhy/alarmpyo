@@ -1,6 +1,11 @@
 import type { QuickSetupDraftV1 } from './quick-setup-model';
+import {
+  parseSetupSessionDraft,
+  type StoredSetupSessionDraft,
+} from './setup-session-model';
 
 export const QUICK_SETUP_DRAFT_KEY = 'alarmpyo:quick-setup-draft:v1';
+export const SETUP_SESSION_DRAFT_KEY = 'alarmpyo:setup-session-draft:v2';
 
 export type QuickSetupDraftStorage = {
   getItem(key: string): Promise<string | null>;
@@ -69,26 +74,35 @@ export function parseQuickSetupDraft(value: unknown): QuickSetupDraftV1 | null {
 
 export async function readQuickSetupDraft(
   storage: QuickSetupDraftStorage,
-): Promise<QuickSetupDraftV1 | null> {
+): Promise<StoredSetupSessionDraft | null> {
   try {
-    const raw = await storage.getItem(QUICK_SETUP_DRAFT_KEY);
-    if (!raw) return null;
-    return parseQuickSetupDraft(JSON.parse(raw));
+    const current = await storage.getItem(SETUP_SESSION_DRAFT_KEY);
+    if (current) {
+      const parsed = parseSetupSessionDraft(JSON.parse(current));
+      if (parsed) return parsed;
+    }
+    const legacy = await storage.getItem(QUICK_SETUP_DRAFT_KEY);
+    if (!legacy) return null;
+    return parseQuickSetupDraft(JSON.parse(legacy));
   } catch {
     return null;
   }
 }
 
 export async function writeQuickSetupDraft(
-  draft: QuickSetupDraftV1,
+  draft: StoredSetupSessionDraft,
   storage: QuickSetupDraftStorage,
 ): Promise<void> {
-  await storage.setItem(QUICK_SETUP_DRAFT_KEY, JSON.stringify(draft));
+  await storage.setItem(
+    draft.version === 2 ? SETUP_SESSION_DRAFT_KEY : QUICK_SETUP_DRAFT_KEY,
+    JSON.stringify(draft),
+  );
 }
 
 export async function clearQuickSetupDraft(
   storage: QuickSetupDraftStorage,
 ): Promise<void> {
+  await storage.removeItem(SETUP_SESSION_DRAFT_KEY);
   await storage.removeItem(QUICK_SETUP_DRAFT_KEY);
 }
 

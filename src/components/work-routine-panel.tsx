@@ -38,15 +38,15 @@ export function WorkRoutinePanel({
   const currentStepIndex = plan.currentStep
     ? plan.steps.findIndex((step) => step.id === plan.currentStep?.id)
     : -1;
-  const headline = plan.currentStep ? '지금 할 일' : plan.title;
+  const headline = plan.currentStep ? '현재' : plan.title;
   const detail = plan.currentStep?.instruction ?? plan.summary;
-  const disclosureLabel = expanded ? '상세 일정 접기' : '상세 일정 펼치기';
+  const disclosureLabel = expanded ? '일정 접기' : '일정 보기';
 
   return (
     <View style={[styles.panel, compact && styles.panelCompact]}>
       <Pressable
-        accessibilityHint={`${disclosureLabel}를 실행합니다.`}
-        accessibilityLabel={`${plan.title}. ${headline}. ${detail}. ${disclosureLabel}`}
+        accessibilityHint={disclosureLabel}
+        accessibilityLabel={`${plan.title}. ${headline}: ${detail}. ${disclosureLabel}`}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((value) => !value)}
@@ -60,9 +60,9 @@ export function WorkRoutinePanel({
             accessible={false}
             color={
               plan.kind === 'night'
-                ? palette.violet
+                ? palette.blue
                 : plan.kind === 'evening'
-                  ? palette.indigoDark
+                  ? palette.amber
                   : palette.mintDark
             }
             name={
@@ -102,7 +102,7 @@ export function WorkRoutinePanel({
               {plan.title}
             </AppText>
             <AppText tone="secondary" variant="caption">
-              {formatClock(plan.handoverAt)}까지 교대를 마치는 일정입니다.
+              교대 완료 {formatClock(plan.handoverAt)}
             </AppText>
           </View>
 
@@ -112,7 +112,7 @@ export function WorkRoutinePanel({
               return (
                 <View
                   accessible
-                  accessibilityLabel={`${formatStepTime(step)}. ${step.instruction}${current ? ' 현재 단계입니다.' : ''}`}
+                  accessibilityLabel={`${formatStepTime(step)}. ${step.instruction}${current ? '. 현재' : ''}`}
                   key={`${step.id}:${step.at}`}
                   style={styles.timelineItem}>
                   <View style={styles.timelineRail}>
@@ -157,6 +157,7 @@ const createStyles = (palette: AppPalette) =>
     },
     summaryButton: {
       minWidth: 0,
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: spacing.medium,
@@ -168,13 +169,11 @@ const createStyles = (palette: AppPalette) =>
       paddingHorizontal: spacing.medium,
     },
     summaryIcon: {
-      width: 38,
-      height: 38,
+      width: 30,
+      height: 30,
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radii.small,
-      backgroundColor: palette.surface,
     },
     summaryCopy: {
       flex: 1,

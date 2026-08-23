@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { QuickSetupDraftV1 } from './quick-setup-model';
+import type {
+  StoredSetupSessionDraft,
+} from './setup-session-model';
 import {
   clearQuickSetupDraft as clearStoredQuickSetupDraft,
   hasQuickSetupDraft as hasStoredQuickSetupDraft,
@@ -11,9 +13,9 @@ import {
 
 export type QuickSetupDraftSession = {
   /** 저장된 초안을 읽기 전에는 write를 받지 않습니다. */
-  hydrate(): Promise<QuickSetupDraftV1 | null>;
+  hydrate(): Promise<StoredSetupSessionDraft | null>;
   /** 완료가 시작됐거나 hydration 전이면 false를 반환합니다. */
-  write(draft: QuickSetupDraftV1): Promise<boolean>;
+  write(draft: StoredSetupSessionDraft): Promise<boolean>;
   /** 먼저 접수된 write를 모두 마친 뒤 마지막으로 초안을 지웁니다. */
   complete(): Promise<void>;
 };
@@ -51,11 +53,11 @@ export function createQuickSetupDraftController(
       const sessionGeneration = ++generation;
       let hydrated = false;
       let closed = false;
-      let hydration: Promise<QuickSetupDraftV1 | null> | null = null;
+      let hydration: Promise<StoredSetupSessionDraft | null> | null = null;
       let completion: Promise<void> | null = null;
 
       return {
-        hydrate(): Promise<QuickSetupDraftV1 | null> {
+        hydrate(): Promise<StoredSetupSessionDraft | null> {
           if (hydration) return hydration;
           hydration = enqueue(() => readStoredQuickSetupDraft(storage)).then(
             (saved) => {
@@ -69,7 +71,7 @@ export function createQuickSetupDraftController(
           );
           return hydration;
         },
-        write(draft: QuickSetupDraftV1): Promise<boolean> {
+        write(draft: StoredSetupSessionDraft): Promise<boolean> {
           if (!hydrated || closed || sessionGeneration !== generation) {
             return Promise.resolve(false);
           }

@@ -3,7 +3,7 @@ import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
-import { AppText, Card, MenuGroup } from '@/components/ui-kit';
+import { AppText, MenuGroup } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { SegmentedControl } from '@/design-system';
@@ -29,8 +29,8 @@ import {
 import { getShiftAppearance } from '@/utils/shift-appearance';
 
 const MODE_OPTIONS: readonly { label: string; value: DayAlarmMode }[] = [
-  { label: '기본값', value: 'default' },
-  { label: '이날만 끄기', value: 'disabled' },
+  { label: '기본', value: 'default' },
+  { label: '끄기', value: 'disabled' },
   { label: '기상 시각', value: 'wake-time' },
 ];
 
@@ -93,7 +93,7 @@ export function DayAlarmSummary({
   };
 
   const content = (
-    <Card density="compact" style={styles.card}>
+    <View style={styles.card}>
         <View
           accessible
           accessibilityLabel={`현재 알람 설정. ${currentSummary}`}
@@ -110,8 +110,8 @@ export function DayAlarmSummary({
             <AppText variant="label">{currentSummary}</AppText>
             <AppText tone="secondary" variant="caption">
               {notificationsEnabled
-                ? '이 날짜의 알람만 바꿔도 기본 근무표는 그대로 유지됩니다.'
-                : '전체 근무 알람이 꺼져 있습니다. 설정은 저장해 둘 수 있습니다.'}
+                ? '이날만 적용 · 기본 근무표 유지'
+                : '전체 근무 알람 꺼짐 · 설정은 저장 가능'}
             </AppText>
           </View>
         </View>
@@ -127,10 +127,10 @@ export function DayAlarmSummary({
         {alarmDraft.mode === 'wake-time' ? (
           <View style={styles.customTimeSection}>
             <AppText accessibilityRole="header" variant="label">
-              이날의 기상 시각
+              기상 시각
             </AppText>
             <AppText tone="secondary" variant="caption">
-              근무일을 기준으로 전날인지 당일인지 먼저 선택해야 합니다.
+              전날 또는 당일 선택
             </AppText>
 
             <View accessibilityRole="radiogroup" style={styles.dayChoiceRow}>
@@ -157,7 +157,7 @@ export function DayAlarmSummary({
                 기상 시각
               </AppText>
               <TextInput
-                accessibilityHint="24시간 형식으로 입력해야 합니다. 0510을 입력하면 05:10으로 바뀝니다."
+                accessibilityHint="24시간 형식입니다. 0510 입력 시 05:10으로 바뀝니다."
                 accessibilityLabel={`${formatWakeDayLabel(
                   alarmDraft.wakeDayOffset,
                 )} 기상 시각`}
@@ -210,15 +210,15 @@ export function DayAlarmSummary({
                 {draftResult.valid && draftResult.leadMinutes !== null
                   ? `${formatWakeDayLabel(alarmDraft.wakeDayOffset)} ${normalizeTimeInput(
                       alarmDraft.wakeTime,
-                    )} · 근무 시작 ${formatDuration(draftResult.leadMinutes)} 전입니다.`
+                    )} · 시작 ${formatDuration(draftResult.leadMinutes)} 전`
                   : draftResult.valid
-                    ? '기상 시각을 지정해야 합니다.'
+                    ? '기상 시각 입력'
                     : draftResult.message}
               </AppText>
             </View>
           </View>
         ) : null}
-    </Card>
+    </View>
   );
   return showTitle ? (
     <MenuGroup centered title="근무 알람" style={styles.sectionGroup}>
@@ -245,7 +245,10 @@ function getCurrentSummary(
 function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     sectionGroup: { gap: spacing.small },
-    card: { gap: spacing.medium },
+    card: {
+      gap: spacing.medium,
+      paddingVertical: spacing.small,
+    },
     summary: {
       minHeight: 62,
       flexDirection: 'row',

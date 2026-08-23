@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppIcon, type AppIconName } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppText, MenuGroup } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { DayExceptionType } from '@/models/app-data';
@@ -49,7 +49,7 @@ export function SpecialScheduleSection({
             return (
               <SelectionPill
                 key={option.label}
-                accessibilityLabel={`${option.label} 예외 일정`}
+                accessibilityLabel={`${option.label} 일정`}
                 icon={appearance?.iconName ?? option.icon}
                 label={option.label}
                 onPress={() => onChange(option.value)}
@@ -73,8 +73,8 @@ export function SpecialScheduleSection({
               style={styles.exceptionGuideText}
               variant="caption">
               {dayException === 'leave'
-                ? '연차일에는 근무 알람이 울리지 않습니다.'
-                : `${selectedAppearance.label} 일정에는 주간 근무 알람이 울립니다. 기본 근무표는 그대로 유지됩니다.`}
+                ? '연차 · 근무 알람 없음'
+                : `${selectedAppearance.label} · 주간 알람 사용 · 기본 순서 유지`}
             </AppText>
           </View>
         ) : null}
@@ -111,9 +111,8 @@ function createStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-      padding: spacing.medium,
+      minHeight: 48,
+      paddingHorizontal: spacing.small,
     },
     exceptionGuideText: { flex: 1, minWidth: 0 },
   });

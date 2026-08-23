@@ -33,6 +33,7 @@ import { CalendarMonthCard } from '@/features/calendar/calendar-month-card';
 import { CalendarScreenHeader } from '@/features/calendar/calendar-screen-header';
 import { CalendarSelectionPanel } from '@/features/calendar/calendar-selection-panel';
 import {
+  CalendarAutomaticScheduleNotice,
   CalendarHolidayNotice,
   CalendarLegend,
   CalendarMenuSections,
@@ -128,6 +129,7 @@ export default function CalendarScreen() {
   const { saveDays } = useAppStoreActions();
   const calendarProjectionData = useMemo<CalendarProjectionData>(
     () => ({
+      alarmOverrides: data.alarmOverrides,
       dayExceptions: data.dayExceptions,
       notes: data.notes,
       overrides: data.overrides,
@@ -137,6 +139,7 @@ export default function CalendarScreen() {
       timeOverrides: data.timeOverrides,
     }),
     [
+      data.alarmOverrides,
       data.dayExceptions,
       data.notes,
       data.overrides,
@@ -156,6 +159,8 @@ export default function CalendarScreen() {
     insets.bottom,
   ).contentOffset;
   const {
+    automaticScheduleHiddenDateKeySet,
+    automaticScheduleVisible,
     calendarLayout,
     cellRows,
     currentMonthDateKeys,
@@ -167,18 +172,20 @@ export default function CalendarScreen() {
     monthlySummary,
     payrollEntries,
     resolveDay: getEffectiveDay,
+    scheduleStartDateInMonth,
     selectableDateKeys,
     selectableDateKeySet,
   } = useMemo(
     () =>
       buildCalendarMonthViewModel({
+        automaticScheduleReferenceDateKey: today,
         data: calendarProjectionData,
         year: visibleMonth.year,
         month: visibleMonth.month,
         windowWidth,
         fontScale,
       }),
-    [calendarProjectionData, fontScale, visibleMonth.month, visibleMonth.year, windowWidth],
+    [calendarProjectionData, fontScale, today, visibleMonth.month, visibleMonth.year, windowWidth],
   );
   const selectionCount = useMemo(
     () =>
@@ -221,6 +228,8 @@ export default function CalendarScreen() {
 
     return {
       actualSchedule: toSchedule(actualLabel, summary.effectiveShift),
+      alarmOverride: summary.alarmOverride,
+      automaticScheduleHidden: summary.automaticScheduleHidden,
       baseSchedule: toSchedule(
         summary.basePatternShift?.name ?? null,
         summary.basePatternShift,
@@ -936,7 +945,13 @@ export default function CalendarScreen() {
         supportsDragSelection={calendarLayout.presentation === 'month-grid'}
         />
 
+        {!automaticScheduleVisible ? (
+          <CalendarAutomaticScheduleNotice />
+        ) : null}
+
         <CalendarMonthCard
+          alarmOverrides={data.alarmOverrides}
+          automaticScheduleHiddenDateKeySet={automaticScheduleHiddenDateKeySet}
           calendarLayout={calendarLayout}
           canGoNextMonth={monthNavigation.canMoveNext}
           canGoPreviousMonth={monthNavigation.canMovePrevious}
@@ -959,6 +974,7 @@ export default function CalendarScreen() {
           payrollEntries={payrollEntries}
           selectedDateKeySet={selectedDateKeySet}
           selectionMode={selectionMode}
+          scheduleStartDateInMonth={scheduleStartDateInMonth}
           simplified={simplifiedCalendar}
           summaryDateKey={summaryDateKey}
           summaryTriggerRef={summaryTriggerRef}
@@ -979,6 +995,8 @@ export default function CalendarScreen() {
           showCompactKey={calendarLayout.presentation === 'month-grid'}
           triggerRef={legendTriggerRef}
         />
+
+        <View accessible={false} style={screenStyles.bottomClearance} />
 
       </Screen>
       <AppSheet
@@ -1004,4 +1022,5 @@ const screenStyles = StyleSheet.create({
     gap: spacing.medium,
     paddingTop: spacing.small,
   },
+  bottomClearance: { height: spacing.small },
 });

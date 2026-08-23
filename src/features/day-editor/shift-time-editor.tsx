@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import { AppButton, AppText, Card } from '@/components/ui-kit';
+import { AppButton, AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -51,7 +51,7 @@ export function ShiftTimeEditor({
   const appearance = getShiftAppearance(selectedShift, palette, isDark);
 
   return (
-    <Card density="compact" style={styles.timeCard}>
+    <View style={styles.timeCard}>
       {showHeader ? <View style={styles.timeHeader}>
         <View style={[styles.timeIcon, { backgroundColor: appearance.softColor }]}>
           <AppIcon
@@ -63,10 +63,10 @@ export function ShiftTimeEditor({
         </View>
         <View style={styles.optionCopy}>
           <AppText accessibilityRole="header" variant="heading">
-            이 날짜의 근무 시간
+            근무 시간
           </AppText>
           <AppText tone="secondary" variant="caption">
-            이날만 적용되며 알람도 자동으로 다시 계산됩니다.
+            이날만 변경 · 알람 시각 자동 계산
           </AppText>
         </View>
         {!usesDefaultTime ? (
@@ -87,7 +87,7 @@ export function ShiftTimeEditor({
             시작 시간
           </AppText>
           <TextInput
-            accessibilityHint="24시간 형식으로 입력해야 합니다."
+            accessibilityHint="24시간 형식입니다."
             accessibilityLabel={`${selectedShift.name} 시작 시간`}
             autoCorrect={false}
             keyboardType="numbers-and-punctuation"
@@ -125,7 +125,7 @@ export function ShiftTimeEditor({
             종료 시간
           </AppText>
           <TextInput
-            accessibilityHint="24시간 형식으로 입력해야 합니다."
+            accessibilityHint="24시간 형식입니다."
             accessibilityLabel={`${selectedShift.name} 종료 시간`}
             autoCorrect={false}
             keyboardType="numbers-and-punctuation"
@@ -173,23 +173,23 @@ export function ShiftTimeEditor({
             color={selectedDuration ? palette.inkMuted : palette.danger}
             variant="caption">
             {selectedDuration
-              ? `${startTime}부터 ${
+              ? `${startTime}–${
                   selectedDuration.endsNextDay ? '다음 날 ' : ''
-                }${endTime}까지입니다.`
+                }${endTime}`
               : parsedStartMinutes !== null && parsedEndMinutes !== null
-                ? '시작과 종료 시간은 같을 수 없습니다.'
-                : '06:45 형식으로 정확히 입력해야 합니다.'}
+                ? '시작·종료 시간은 서로 다르게 입력'
+                : '06:45 형식으로 입력'}
           </AppText>
         </View>
       </View>
-    </Card>
+    </View>
   );
 }
 
 function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
     optionCopy: { flex: 1, minWidth: 0, gap: 3 },
-    timeCard: { gap: spacing.medium },
+    timeCard: { gap: spacing.medium, paddingVertical: spacing.small },
     timeHeader: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -230,10 +230,10 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.medium,
-      padding: spacing.medium,
-      borderRadius: radii.medium,
-      backgroundColor: palette.mintSoft,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
     },
-    durationError: { backgroundColor: palette.dangerSoft },
+    durationError: { borderTopColor: palette.danger },
   });
 }

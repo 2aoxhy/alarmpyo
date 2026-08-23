@@ -10,7 +10,6 @@ import {
   DisclosureRow,
   PageHeader,
   StatusBanner,
-  Surface,
 } from '@/design-system';
 import {
   triggerNotificationFeedback,
@@ -78,7 +77,7 @@ export default function PatternLibraryEditScreen() {
         event.preventDefault();
         showDialog(
           '저장하지 않고 나가시겠습니까?',
-          '변경한 패턴 이름과 근무 순서가 저장되지 않습니다.',
+          '이름과 근무 순서 변경이 사라집니다.',
           [
             { text: '계속 편집', actionId: 'cancel', icon: 'close', style: 'cancel' },
             {
@@ -155,7 +154,7 @@ export default function PatternLibraryEditScreen() {
     setSubmitAttempted(true);
     if (!validation.valid || saving) {
       if (validation.message) {
-        showDialog('패턴을 확인해야 합니다', validation.message, undefined, {
+        showDialog('패턴 확인', validation.message, undefined, {
           tone: 'warning',
         });
       }
@@ -177,11 +176,11 @@ export default function PatternLibraryEditScreen() {
       }
       const message =
         result.reason === 'vault-full'
-          ? '보관함에는 패턴을 100개까지 저장할 수 있습니다.'
+          ? '보관함은 패턴 100개까지 저장 가능'
           : result.reason === 'source-conflict'
-            ? '다른 출처의 같은 ID 패턴이 있어 저장할 수 없습니다.'
-            : '패턴을 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.';
-      showDialog('패턴을 저장하지 못했습니다', message, undefined, {
+            ? '같은 ID의 다른 패턴이 이미 있음'
+            : '저장 공간을 확인한 뒤 다시 시도';
+      showDialog('저장 실패', message, undefined, {
         tone: 'danger',
       });
     } finally {
@@ -221,13 +220,8 @@ export default function PatternLibraryEditScreen() {
         safeAreaEdges={['left', 'right']}
         scroll>
         <PageHeader
-          subtitle="근무 종류와 이어지는 일수를 고르면 순서가 자동으로 완성됩니다."
+          subtitle="근무 종류와 일수로 순서 만들기"
           title={editing ? '패턴 편집' : '내 패턴 만들기'}
-        />
-        <StatusBanner
-          message="이 패턴은 근무 순서만 포함합니다. 근무 시간, 알람, 권한 설정은 변경하지 않습니다."
-          title="설정 보호"
-          tone="info"
         />
         <View style={styles.nameSection}>
           <View style={styles.nameHeading}>
@@ -236,12 +230,12 @@ export default function PatternLibraryEditScreen() {
                 패턴 이름
               </AppText>
               <AppText tone="secondary" variant="caption">
-                순서에 맞춰 자동으로 이름을 만듭니다.
+                순서로 자동 생성
               </AppText>
             </View>
             <AppButton
               icon={customName ? 'refresh-outline' : 'options-outline'}
-              label={customName ? '자동 이름 사용' : '이름 직접 수정'}
+              label={customName ? '자동 이름' : '이름 수정'}
               onPress={() => {
                 if (customName) {
                   setCustomName(false);
@@ -268,8 +262,8 @@ export default function PatternLibraryEditScreen() {
                   ? validation.message ?? undefined
                   : undefined
               }
-              helperText="나중에 구분하기 쉬운 이름을 입력합니다."
-              label="직접 입력한 패턴 이름"
+              helperText="보관함에 표시할 이름"
+              label="패턴 이름"
               maxLength={80}
               onBlur={() => setNameTouched(true)}
               onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
@@ -278,17 +272,20 @@ export default function PatternLibraryEditScreen() {
               value={draft.name}
             />
           ) : (
-            <Surface density="compact" tone="muted" style={styles.autoName}>
+            <View style={styles.autoName}>
               <AppText variant="label">{draft.name}</AppText>
-            </Surface>
+            </View>
           )}
         </View>
-        <Surface density="compact" tone="muted" style={styles.summary}>
+        <View style={styles.summary}>
           <AppText variant="label">근무 순서 · {draft.shiftCodes.length}/42일</AppText>
           <AppText tone="secondary" variant="caption">
             {formatPatternSequence(draft.shiftCodes)}
           </AppText>
-        </Surface>
+          <AppText tone="tertiary" variant="caption">
+            근무 순서만 저장
+          </AppText>
+        </View>
         <PatternSegmentComposer
           canUndo={segmentHistory.length > 0}
           onChange={commitSegments}
@@ -301,7 +298,7 @@ export default function PatternLibraryEditScreen() {
             expanded={advancedEditorOpen}
             icon="calendar-outline"
             onPress={() => setAdvancedEditorOpen((current) => !current)}
-            subtitle="구간 대신 하루씩 근무를 바꾸려는 경우에만 사용합니다."
+            subtitle="하루씩 바꿀 때 사용"
             title="날짜별 상세 편집"
           />
           {advancedEditorOpen ? (
@@ -312,7 +309,7 @@ export default function PatternLibraryEditScreen() {
                     날짜별 근무
                   </AppText>
                   <AppText tone="secondary" variant="caption">
-                    {activeIndex + 1}/{draft.shiftCodes.length}일을 편집합니다.
+                    {activeIndex + 1}/{draft.shiftCodes.length}일
                   </AppText>
                 </View>
                 <AppButton
@@ -362,14 +359,19 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'space-between',
       gap: spacing.medium,
     },
-    autoName: { minHeight: 56, justifyContent: 'center', padding: spacing.medium },
+    autoName: {
+      minHeight: 48,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.medium,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
+    },
     summary: {
       gap: spacing.small,
-      padding: spacing.large,
-      borderWidth: 1,
+      paddingVertical: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: palette.line,
-      borderRadius: 18,
-      backgroundColor: palette.surfaceSoft,
     },
     advancedSection: { gap: spacing.medium },
     sequenceSection: { gap: spacing.medium },

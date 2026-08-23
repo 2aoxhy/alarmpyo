@@ -118,9 +118,35 @@ describe('달력 날짜 접근성 표시', () => {
     );
   });
 
+  it('표시 범위 밖 날짜는 자동 일정 대신 메모와 날짜별 알람을 한 번씩 읽습니다', () => {
+    const day = resolveCalendarDayViewModel({
+      alarmOverride: {
+        mode: 'wake-time',
+        wakeMinutes: 5 * 60,
+        wakeDayOffset: -1,
+      },
+      automaticScheduleHidden: true,
+      cell,
+      effectiveDay: {
+        dateKey: cell.dateKey,
+        scheduleActive: true,
+        scheduledShift: null,
+        shift: null,
+        dayException: undefined,
+      },
+      hasNote: true,
+    });
+
+    expect(buildCalendarDayAccessibilityLabel(day)).toBe(
+      '2026년 8월 15일 토요일, 자동 근무표 표시 기간 밖, 메모 있음, 이 날짜의 기상 알람 전날 05:00',
+    );
+  });
+
   it('큰 글자 날짜 요약은 예상 급여일을 구분합니다', () => {
     expect(
       buildCalendarDateSummaryAccessibilityLabel({
+        alarmOverride: null,
+        automaticScheduleHidden: false,
         basePatternShift: shift,
         dateKey: cell.dateKey,
         dayException: null,

@@ -146,14 +146,14 @@ export const PatternSegmentComposer = memo(function PatternSegmentComposer({
       <View style={[styles.heading, stacked && styles.headingStacked]}>
         <View style={styles.headingCopy}>
           <AppText accessibilityRole="header" variant="heading">
-            근무 순서 만들기
+            근무 순서
           </AppText>
           <AppText tone="secondary" variant="caption">
-            근무 종류와 이어지는 일수만 고르면 됩니다. · {totalDays}/42일
+            {segments.length}구간 · {totalDays}/42일
           </AppText>
         </View>
         <AppButton
-          accessibilityHint="가장 최근에 바꾼 구간 편집을 취소합니다."
+          accessibilityHint="가장 최근 변경을 되돌립니다."
           disabled={!canUndo}
           icon="arrow-undo-outline"
           label="직전 작업 취소"
@@ -187,7 +187,7 @@ export const PatternSegmentComposer = memo(function PatternSegmentComposer({
             </AppText>
           </View>
           <AppButton
-            accessibilityHint="선택한 근무 구간을 순서에서 제거합니다."
+          accessibilityHint="선택한 구간을 삭제합니다."
             disabled={segments.length <= 1}
             icon="trash-outline"
             label="구간 삭제"

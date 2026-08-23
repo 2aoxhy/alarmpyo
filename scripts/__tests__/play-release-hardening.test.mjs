@@ -279,4 +279,55 @@ describe('Play AAB 하드닝', () => {
     expect(validator).toContain('assertPlayReleaseEvidence');
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");
   });
+
+  it('V18은 확인된 Play 계보 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
+    const app = JSON.parse(source('app.json')).expo;
+    const pkg = JSON.parse(source('package.json'));
+    const runbook = source('docs/google-play-release-runbook-ko.md');
+    const releaseNotes = source('docs/google-play-release-notes-ko.md');
+    const lineage = source('docs/release-lineage.md');
+    const evidenceExample = JSON.parse(
+      source('docs/play-release-evidence.example.json'),
+    );
+    const screenshotManifest = JSON.parse(
+      source('assets/play-store/phone-screenshots/manifest.json'),
+    );
+
+    expect(pkg.version).toBe('1.18.0');
+    expect(app).toMatchObject({
+      version: '1.18',
+      android: { versionCode: 18 },
+      ios: { buildNumber: '18' },
+    });
+    expect(evidenceExample).toMatchObject({
+      versionName: '1.18',
+      versionCode: 18,
+      highestPreviouslyDistributedVersionCode: 16,
+      highestExistingPlayVersionCode: 16,
+    });
+    expect(screenshotManifest).toMatchObject({
+      release: 'V18',
+      status: 'recapture-required',
+    });
+
+    expect(runbook).toContain(
+      'Play Console에 업로드된 V16의 `versionCode: 16`이 현재 확인된 Play 계보의 최고값입니다.',
+    );
+    expect(runbook).toContain(
+      'V17 `versionCode 17`은 Play에 업로드하지 않았습니다.',
+    );
+    expect(runbook).toContain(
+      '확인한 최고값이 `18` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
+    );
+    expect(runbook).toContain(
+      'Play Console 번들 라이브러리에서 **같은 versionCode 18 번들**을 Alpha 출시로 추가하거나 승격합니다.',
+    );
+    expect(runbook).toContain('AAB를 다시 업로드하지 않습니다.');
+    expect(releaseNotes).toContain(
+      'V18은 `versionCode 18` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 같은 번들을 Alpha로 승격합니다.',
+    );
+    expect(lineage).toContain(
+      'V17 · `1.17(17)`은 로컬 후보로만 보존하고 Play에는 업로드하지 않았으며',
+    );
+  });
 });

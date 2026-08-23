@@ -14,7 +14,7 @@ describe('핵심 화면 탐색 계약', () => {
     const settings = source('src/components/settings-home.tsx');
     const appManagement = source('src/app/app-management.tsx');
 
-    expect(settings.match(/<ListRow/gu)).toHaveLength(4);
+    expect(settings.match(/<ListRow/gu)).toHaveLength(5);
     expect(settings).toContain('title="근무표 설정"');
     expect(settings).toContain("router.push('/shift-settings')");
     expect(settings).toContain('title="홈 화면 위젯"');
@@ -22,9 +22,10 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings).not.toContain('title="기상 시간"');
     expect(settings).toContain('formatSettingsWorkSummary(');
     expect(settings).toContain('<PageHeader align="center" title="설정" />');
-    expect(settings).toContain('근무표·알람 간편 설정');
+    expect(settings).toContain('근무표·알람 설정');
+    expect(settings).toContain('설정 마저 하기');
     expect(settings).toContain("router.push('/quick-setup' as Href)");
-    expect(settings).toContain('<MenuGroup centered title="세부 설정 · 근무와 알람">');
+    expect(settings).toContain('<MenuGroup centered title="직접 바꾸기">');
     expect(settings).toContain('<MenuGroup centered title="앱">');
     expect(settings).not.toContain('자주 쓰는 설정만 모았습니다.');
     for (const title of [
@@ -37,36 +38,35 @@ describe('핵심 화면 탐색 계약', () => {
   });
 
   it('간편 설정은 근무표 선택부터 알람 권한까지 세 단계로 이어집니다', () => {
-    const quickSetup = source('src/app/quick-setup.tsx');
+    const quickSetupRoute = source('src/app/quick-setup.tsx');
+    const quickSetup = [
+      source('src/features/quick-setup/setup-session-screen.tsx'),
+      source('src/features/quick-setup/setup-session-steps.tsx'),
+    ].join('\n');
 
     for (const label of [
-      '받은 근무표 사용',
+      '근무표 불러오기',
+      '추천 근무 순서에서 선택',
+      '내 근무 순서 직접 만들기',
       '앞으로 7일',
-      '이 근무표 사용',
-      '필수 권한 확인하기',
-      '팀에 근무표 보내기',
-      '간편 설정 완료',
+      '알람 준비하기',
+      '근무표만 저장',
     ]) {
       expect(quickSetup).toContain(label);
     }
+    expect(quickSetupRoute).toContain('<SetupSessionScreen mode="reconfigure" />');
     expect(quickSetup).toContain("router.push('/alarm-settings?focus=permissions' as Href)");
     expect(quickSetup).toContain('quickSetupDraftController.createSession()');
     expect(quickSetup).toContain('.hydrate()');
     expect(quickSetup).toContain('draftSession.complete()');
-    expect(quickSetup).toContain("hydrated && draft.step === 'schedule-source'");
-    expect(quickSetup).toContain('간편 설정 불러오는 중');
-    expect(quickSetup).toContain("result.status === 'ready'");
-    expect(quickSetup).toContain("router.push('/alarm-settings' as Href)");
-    expect(quickSetup).toContain('받는 사람이 V17 이상인지 확인한 뒤 보내야 합니다.');
-    expect(quickSetup).toContain('onPress={confirmShareWithTeam}');
-    expect(quickSetup).toContain(
-      "draft.source === 'direct' && draft.presetId === option.presetId",
-    );
+    expect(quickSetup).toContain("hydrated && session.step === 'schedule-source'");
+    expect(quickSetup).toContain('설정 불러오는 중');
+    expect(quickSetup).toContain('requestAlarmAccess()');
     expect(quickSetup).toContain('useAppStoreData()');
     expect(quickSetup).toContain('useAppStoreActions()');
     expect(quickSetup).not.toContain('useAppStore();');
-    expect(quickSetup).toContain('받은 파일에 저장된 근무 시간');
-    expect(quickSetup).toContain('적용한 근무 시간 수정');
+    expect(quickSetup).toContain('근무 시간');
+    expect(quickSetup).toContain('<WorkTimeEditor');
   });
 
   it('공유 근무표 적용은 날짜별 개인 알람 원본을 삭제하지 않습니다', () => {
@@ -116,7 +116,7 @@ describe('핵심 화면 탐색 계약', () => {
 
     expect(overview).not.toContain('label="일정 적용 시작일"');
     expect(overview).not.toContain('overview.referenceShiftLabel');
-    expect(overview).toContain('label="근무 방식 수정하기"');
+    expect(overview).toContain('label="근무 순서 바꾸기"');
   });
 
   it('오늘 화면에 문구가 있는 일정 수정 버튼을 유지해요', () => {
@@ -138,7 +138,7 @@ describe('핵심 화면 탐색 계약', () => {
   it('데이터 화면을 기본·고급·위험 작업으로 나눠요', () => {
     const dataSettings = source('src/app/data-settings.tsx');
     for (const title of [
-      '근무 설정 공유',
+      '근무표 공유',
       '고급 관리',
       '위험 작업',
     ]) {
@@ -149,15 +149,15 @@ describe('핵심 화면 탐색 계약', () => {
     expect(dataSettings).toContain('받는 사람이 V17 이상인지 확인');
   });
 
-  it('접힌 고급 백업은 처음 펼칠 때만 조회하고 데이터 화면은 액션만 구독해요', () => {
+  it('복구 가능 여부를 진입할 때 확인하고 데이터 화면은 액션만 구독해요', () => {
     const dataSettings = source('src/app/data-settings.tsx');
 
     expect(dataSettings).toContain('useAppStoreActions()');
     expect(dataSettings).not.toContain('useAppStore()');
     expect(dataSettings).toContain('backupLookupStartedRef.current');
-    expect(dataSettings).toContain(
-      'if (nextExpanded && !backupLookupStartedRef.current)',
-    );
+    expect(dataSettings).toContain('void refreshBackup();');
+    expect(dataSettings).toContain('testID="recovery-available-banner"');
+    expect(dataSettings).toContain('pendingRestoreBackup || latestBackup');
     expect(dataSettings).toContain('onPress={toggleAdvancedBackup}');
     expect(dataSettings).toContain('refreshBackupIfLoaded();');
   });
@@ -274,8 +274,8 @@ describe('핵심 화면 탐색 계약', () => {
     const shiftSettings = source('src/app/shift-settings.tsx');
     const playUpdate = source('src/features/update/play-app-update-screen.tsx');
 
-    expect(additional).toContain('title="특별 일정·시간·알람·메모"');
-    const pattern = shiftSettings.indexOf('title="근무 방식"');
+    expect(additional).toContain('title="추가 설정"');
+    const pattern = shiftSettings.indexOf('title="근무 순서"');
     const time = shiftSettings.indexOf('title="근무 시간"');
     const routine = shiftSettings.indexOf('title="기상·출근 루틴"');
     expect(pattern).toBeGreaterThan(-1);
@@ -295,16 +295,14 @@ describe('핵심 화면 탐색 계약', () => {
 
     expect(timingEditor).toContain("label: '교대 완료'");
     expect(timingEditor).toContain('교대 완료`}');
-    expect(routinePanel).toContain('까지 교대를 마치는 일정입니다.');
+    expect(routinePanel).toContain('교대 완료 {formatClock(plan.handoverAt)}');
     expect(routinePanel).not.toContain('교대에 맞춘 일정이에요.');
   });
 
   it('수면 참고 일정은 접힌 상태에서도 비의료 안내를 보여 줘요', () => {
     const sleepCard = source('src/components/sleep-timing-card.tsx');
-    expect(sleepCard).toContain('수면 참고 일정');
-    expect(sleepCard).toContain(
-      '건강 상태를 판단하는 의료 안내가 아닙니다.',
-    );
+    expect(sleepCard).toContain('수면 시간');
+    expect(sleepCard).toContain('수면 참고용 · 의료 조언 아님');
   });
 
   it('비안드로이드에서는 위젯 지원 범위를 분명히 알려요', () => {
@@ -341,7 +339,7 @@ describe('핵심 화면 탐색 계약', () => {
     const sleepCard = source('src/components/sleep-timing-card.tsx');
     expect(sleepCard).not.toContain('권장 취침');
     expect(sleepCard).not.toContain('권장 시간');
-    expect(sleepCard).toContain('참고 취침');
+    expect(sleepCard).toContain('취침·기상 참고');
   });
 
   it('알람 화면에서 수면 시작 알림의 전달 방식을 바로 확인하고 바꿔요', () => {

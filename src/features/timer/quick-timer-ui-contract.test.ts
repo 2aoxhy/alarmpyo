@@ -38,8 +38,8 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('<QuickTimerKeypad');
     expect(timer).toContain('onSubmit={submitCustomDuration}');
     expect(timer).not.toContain('label="60분"');
-    expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
-    expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
+    expect(timer).toContain('한 번에 1개만 실행');
+    expect(timer).toContain('`${durationMinutes}분으로 변경`');
     expect(timer).toContain('현재 타이머를 취소하고');
   });
 
@@ -102,7 +102,7 @@ describe('빠른 타이머 화면 계약', () => {
   });
 
   it('지원하지 않는 플랫폼과 권한 문제를 명시적으로 안내해요', () => {
-    expect(timer).toContain('지원되는 Android 설치본');
+    expect(timer).toContain('Android 설치본에서만');
     expect(timer).toContain('actionLabel={alarmCopy.openSettings.text}');
     expect(timer).toContain('알람음·진동');
     expect(settings).toContain('소리·진동·권한');

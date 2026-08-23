@@ -6,9 +6,12 @@ import {
   parseQuickSetupDraft,
   QUICK_SETUP_DRAFT_KEY,
   readQuickSetupDraft,
+  SETUP_SESSION_DRAFT_KEY,
   writeQuickSetupDraft,
 } from './quick-setup-draft-repository';
 import type { QuickSetupDraftV1 } from './quick-setup-model';
+import { createDefaultAppData } from '../../services/app-data-service';
+import { createSetupSessionDraft } from './setup-session-model';
 
 const values = new Map<string, string>();
 const storage = {
@@ -47,6 +50,23 @@ describe('간편 설정 이어하기 저장소', () => {
     await clearQuickSetupDraft(storage);
 
     await expect(readQuickSetupDraft(storage)).resolves.toBeNull();
+    expect(values.has(QUICK_SETUP_DRAFT_KEY)).toBe(false);
+  });
+
+  it('V2 통합 세션은 새 키에 저장하고 완료 시 이전 키와 함께 제거합니다', async () => {
+    const session = createSetupSessionDraft({
+      data: createDefaultAppData('2026-08-24'),
+      mode: 'reconfigure',
+      today: '2026-08-24',
+    });
+    values.set(QUICK_SETUP_DRAFT_KEY, JSON.stringify(draft));
+
+    await writeQuickSetupDraft(session, storage);
+
+    expect(values.has(SETUP_SESSION_DRAFT_KEY)).toBe(true);
+    await expect(readQuickSetupDraft(storage)).resolves.toEqual(session);
+    await clearQuickSetupDraft(storage);
+    expect(values.has(SETUP_SESSION_DRAFT_KEY)).toBe(false);
     expect(values.has(QUICK_SETUP_DRAFT_KEY)).toBe(false);
   });
 

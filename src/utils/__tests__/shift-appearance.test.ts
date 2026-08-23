@@ -23,9 +23,8 @@ function shift(id: string, isOff = false): ShiftType {
 describe('근무 표시 색상', () => {
   it.each([
     ['day', lightPalette.mintDark, lightPalette.mintSoft],
-    ['night', lightPalette.violet, lightPalette.violetSoft],
-    ['substitute-day', lightPalette.amber, lightPalette.amberSoft],
-    ['substitute-night', lightPalette.amber, lightPalette.amberSoft],
+    ['evening', lightPalette.amber, lightPalette.amberSoft],
+    ['night', lightPalette.blue, lightPalette.blueSoft],
   ])('라이트 모드의 %s 근무를 선명한 의미색으로 표시해요', (id, accentColor, softColor) => {
     expect(getShiftAppearance(shift(id), lightPalette, false)).toEqual({
       accentColor,
@@ -39,16 +38,16 @@ describe('근무 표시 색상', () => {
       softColor: '#E0E0E0',
     });
     expect(getShiftAppearance(shift('custom'), darkPalette, true)).toEqual({
-      accentColor: '#123456',
-      softColor: '#E0E0E0',
+      accentColor: '#C8CED6',
+      softColor: '#22262B',
+      meaningColor: '#C8CED6',
     });
   });
 
   it.each([
-    ['day', darkPalette.mintDark, darkPalette.mintSoft],
-    ['night', darkPalette.violet, darkPalette.violetSoft],
-    ['substitute-day', darkPalette.amber, darkPalette.amberSoft],
-    ['substitute-night', darkPalette.amber, darkPalette.amberSoft],
+    ['day', '#58D9BC', '#123D36'],
+    ['evening', '#F0C36A', '#3E311A'],
+    ['night', '#89CEFF', '#173650'],
   ])('다크 모드의 %s 근무를 밝은 의미색으로 표시해요', (id, accentColor, softColor) => {
     expect(getShiftAppearance(shift(id), darkPalette, true)).toEqual({
       accentColor,
@@ -58,10 +57,38 @@ describe('근무 표시 색상', () => {
 
   it('다크 모드의 휴무를 중립색으로 표시해요', () => {
     expect(getShiftAppearance(shift('off', true), darkPalette, true)).toEqual({
-      accentColor: darkPalette.inkMuted,
-      softColor: darkPalette.surfaceSoft,
+      accentColor: '#B5BDC8',
+      softColor: '#22262B',
     });
   });
+
+  it.each([
+    ['substitute-day', lightPalette.mintDark, lightPalette.mintSoft, lightPalette.amber],
+    ['substitute-night', lightPalette.blue, lightPalette.blueSoft, lightPalette.amber],
+  ])(
+    '라이트 모드의 %s 근무는 실제 근무색과 대체근무 의미선을 함께 표시해요',
+    (id, accentColor, softColor, meaningColor) => {
+      expect(getShiftAppearance(shift(id), lightPalette, false)).toEqual({
+        accentColor,
+        softColor,
+        meaningColor,
+      });
+    },
+  );
+
+  it.each([
+    ['substitute-day', '#58D9BC', '#123D36'],
+    ['substitute-night', '#89CEFF', '#173650'],
+  ])(
+    '다크 모드의 %s 근무는 실제 근무색과 호박색 의미선을 함께 표시해요',
+    (id, accentColor, softColor) => {
+      expect(getShiftAppearance(shift(id), darkPalette, true)).toEqual({
+        accentColor,
+        softColor,
+        meaningColor: '#F0C36A',
+      });
+    },
+  );
 
   it('주대와 야대를 알람 상속과 접근성에 사용할 특근으로 분류합니다', () => {
     expect(getShiftCategory(shift('substitute-day'))).toBe('special-work');

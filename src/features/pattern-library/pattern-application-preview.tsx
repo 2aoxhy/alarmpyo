@@ -149,10 +149,10 @@ export function PatternApplicationPreview({
     (mode === 'preserve' ||
       (mode === 'select' && selectedDateKeys.has(selectedRow.dateKey)));
   const selectedStatus = selectedRow.changed
-    ? '근무가 변경됩니다.'
+    ? '근무 변경'
     : selectedRow.scheduledShiftChanged
-      ? '예외 일정 아래의 근무 순서가 변경됩니다.'
-      : '근무가 유지됩니다.';
+      ? '특별 일정 아래 근무 변경'
+      : '변경 없음';
 
   return (
     <View accessibilityLabel="적용 전 일정 비교" style={styles.container}>
@@ -161,8 +161,8 @@ export function PatternApplicationPreview({
         expanded={calendarExpanded}
         icon="calendar-outline"
         onPress={() => setCalendarExpanded((current) => !current)}
-        subtitle="적용일부터 42일 전체 일정과 날짜별 직접 수정을 확인합니다."
-        title="전체 42일 비교"
+        subtitle="날짜별 근무와 직접 수정"
+        title="42일 전체 보기"
       />
 
       {calendarExpanded ? (
@@ -170,10 +170,7 @@ export function PatternApplicationPreview({
           <View style={styles.filterSection}>
         <View style={styles.filterHeading}>
           <AppText accessibilityRole="header" variant="heading">
-            달력에서 비교
-          </AppText>
-          <AppText tone="secondary" variant="caption">
-            적용일부터 다음 달력 범위까지 확인할 수 있습니다.
+            달력 비교
           </AppText>
         </View>
         <View
@@ -295,7 +292,7 @@ export function PatternApplicationPreview({
             tone={isPatternDiffRowChanged(selectedRow) ? 'secondary' : 'tertiary'}
             variant="caption">
             {selectedStatus}
-            {selectedRow.hasDirectOverride ? ' 직접 수정이 있습니다.' : ''}
+            {selectedRow.hasDirectOverride ? ' · 직접 수정' : ''}
           </AppText>
         </View>
 
@@ -328,7 +325,7 @@ export function PatternApplicationPreview({
 
         {mode === 'select' && selectedRow.hasDirectOverride ? (
           <SelectionPill
-            accessibilityHint="선택하면 이 날짜의 직접 수정을 유지합니다."
+            accessibilityHint="선택하면 직접 수정을 유지합니다."
             accessibilityRole="checkbox"
             label="이 날짜의 직접 수정 유지"
             onPress={() => onTogglePreservedDate(selectedRow.dateKey)}
@@ -338,8 +335,8 @@ export function PatternApplicationPreview({
         ) : selectedRow.hasDirectOverride ? (
           <AppText tone={preservesOverride ? 'secondary' : 'tertiary'} variant="body">
             {preservesOverride
-              ? '이 날짜의 직접 수정을 유지합니다.'
-              : '이 날짜의 직접 수정을 제거합니다.'}
+              ? '직접 수정 유지'
+              : '직접 수정 제거'}
           </AppText>
         ) : null}
           </Surface>
@@ -362,7 +359,7 @@ function PatternSevenDaySummaryView({
     <Surface style={styles.summaryCard}>
       <View style={styles.summaryHeading}>
         <AppText accessibilityRole="header" variant="heading">
-          앞으로 7일
+          적용 후 7일
         </AppText>
         <AppText tone="secondary" variant="caption">
           변경 {summary.changedDateCount}일
@@ -515,7 +512,7 @@ function PatternCalendarDayCell({
 
   return (
     <Pressable
-      accessibilityHint="선택하면 이 날짜의 변경 내용을 아래에서 확인합니다."
+      accessibilityHint="날짜별 비교를 엽니다."
       accessibilityLabel={`${formatKoreanDate(row.dateKey, true)}. 현재 ${row.currentLabel}${row.currentTimeLabel ? ` ${row.currentTimeLabel}` : ''}. 적용 후 ${row.nextLabel}${row.nextTimeLabel ? ` ${row.nextTimeLabel}` : ''}. ${changeLabel}${row.hasDirectOverride ? '. 직접 수정 있음' : ''}`}
       accessibilityRole="button"
       accessibilityState={{ selected }}

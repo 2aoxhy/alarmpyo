@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  findGenericAssistantTone,
   findInformalEndings,
   inspectDocumentCopy,
   inspectNativeSourceCopy,
@@ -8,6 +9,14 @@ import {
 } from '../copy-policy.mjs';
 
 describe('사용자 문구 정책', () => {
+  it('생성형 안내 문구를 찾아 짧은 현장 문구로 바꾸게 합니다', () => {
+    expect(
+      findGenericAssistantTone(
+        '설정을 도와드리겠습니다. 결과를 알려드립니다. 권한을 확인해 주세요. 준비되었습니다.',
+      ).map(({ text }) => text),
+    ).toEqual(['도와드리겠습니다', '알려드립니다', '확인해 주세요', '준비되었습니다']);
+  });
+
   it('안내·질문·요청의 해요체 종결을 찾습니다', () => {
     expect(
       findInformalEndings(
