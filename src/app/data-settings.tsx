@@ -24,22 +24,10 @@ import {
 } from '@/store/app-store';
 import { formatCompactTime, formatKoreanDate } from '@/utils/date';
 
-function formatAlarmLead(minutes: number): string {
-  if (minutes < 60) return `${minutes}분 전`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes === 0
-    ? `${hours}시간 전`
-    : `${hours}시간 ${remainingMinutes}분 전`;
-}
-
 function formatSharedShiftLine(label: string, shift: SharedShiftSettings): string {
   if (shift.startMinutes === null || shift.endMinutes === null) return `${label} · 휴무`;
   const endPrefix = shift.endsNextDay ? '다음 날 ' : '';
-  const alarm = shift.alarmEnabled
-    ? `알람 ${formatAlarmLead(shift.alarmMinutesBefore)}`
-    : '알람 끔';
-  return `${label} ${formatCompactTime(shift.startMinutes)}~${endPrefix}${formatCompactTime(shift.endMinutes)} · ${alarm}`;
+  return `${label} ${formatCompactTime(shift.startMinutes)}~${endPrefix}${formatCompactTime(shift.endMinutes)}`;
 }
 
 function safePickedFileName(fileName: string): string {
@@ -201,7 +189,7 @@ export default function DataSettingsScreen() {
       formatSharedShiftLine('주대', summary.substituteDay),
       formatSharedShiftLine('야대', summary.substituteNight),
       '',
-      '개인 일정과 메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
+      '개인 알람·일정·메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
     ];
     showDialog(
       '이 근무 설정을 적용하시겠습니까?',
@@ -219,7 +207,7 @@ export default function DataSettingsScreen() {
               if (result.success) {
                 showDialog(
                   '근무 설정을 적용했습니다',
-                  '개인 일정과 메모는 그대로 유지했습니다.',
+                  '개인 알람·일정·메모는 그대로 유지했습니다.',
                   undefined,
                   { tone: 'success' },
                 );
@@ -261,7 +249,7 @@ export default function DataSettingsScreen() {
       );
       showDialog(
         '근무 설정 파일을 준비했습니다',
-        `${fileName} 파일의 공유 화면을 닫았습니다. 앱을 선택한 경우에만 파일이 전달됩니다. 개인 일정과 메모는 포함하지 않았습니다.`,
+        `${fileName} 파일의 공유 화면을 닫았습니다. 앱을 선택한 경우에만 파일이 전달됩니다. V17 이상에서 받으면 근무 순서와 시간만 적용되고 개인 알람·일정·메모는 유지됩니다.`,
         undefined,
         { tone: 'success' },
       );
@@ -275,6 +263,23 @@ export default function DataSettingsScreen() {
     } finally {
       finishOperation();
     }
+  };
+
+  const requestSendWorkSettings = () => {
+    showDialog(
+      '받는 사람의 앱 버전을 확인해야 합니다',
+      'V17 이상에서 받으면 개인 알람을 유지합니다. V16 이하에서는 이전 공유 규칙으로 파일의 알람 값도 적용될 수 있으므로, 받는 사람이 V17 이상인지 확인한 뒤 보내야 합니다.',
+      [
+        { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
+        {
+          text: '파일 보내기',
+          actionId: 'confirm',
+          icon: 'share-outline',
+          onPress: () => void sendWorkSettings(),
+        },
+      ],
+      { tone: 'warning' },
+    );
   };
 
   const receiveWorkSettings = async () => {
@@ -674,8 +679,8 @@ export default function DataSettingsScreen() {
             disabled={busy && activeOperation !== 'send-settings'}
             icon="share-outline"
             loading={activeOperation === 'send-settings'}
-            onPress={() => void sendWorkSettings()}
-            subtitle="근무 방식·시간·알람을 파일로 공유합니다."
+            onPress={requestSendWorkSettings}
+            subtitle="V17 이상끼리 근무 순서와 시간을 공유하며 개인 알람은 유지합니다."
             title="설정 보내기"
           />
           <MenuDivider />

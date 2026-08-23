@@ -97,6 +97,7 @@ import {
   type NativeAppRuntimeController,
 } from '@/infrastructure/runtime/native-app-runtime';
 import { clearPlayUpdatePromptSnooze } from '@/features/update/play-update-snooze-repository';
+import { clearQuickSetupDraft } from '@/features/quick-setup/quick-setup-draft-repository';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import {
   appDataFromImportPreview,
@@ -348,7 +349,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   const [mutationCoordinator] = useState(() => createSerializedMutationCoordinator());
 
   const clearDeviceLocalDataForResetCleanup = useCallback(async () => {
-    await clearPlayUpdatePromptSnooze(runtime.dataRepository);
+    await Promise.all([
+      clearPlayUpdatePromptSnooze(runtime.dataRepository),
+      clearQuickSetupDraft(runtime.dataRepository),
+    ]);
   }, [runtime]);
 
   const mountedRef = useRef(true);
@@ -2392,9 +2396,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
           // 개인 일정에 영향을 주는 작업이므로 적용 직전의 전체 데이터를 안전 백업합니다.
           createSafetyBackup: createBackupInternal,
           prepare: (next) => {
-            scheduleEnforcementRef.current = enforceAppDataScheduleSafety(
-              pruneInvalidDayAlarmOverrides(next),
-            );
+            // 공유 파일은 회사 근무 순서와 시간만 바꿉니다. 새 일정에서 당장
+            // 사용할 수 없는 날짜별 개인 알람도 삭제하지 않고 보존하며, 실제
+            // 예약 계산기는 적용 가능한 날짜에서만 해당 값을 사용합니다.
+            scheduleEnforcementRef.current = enforceAppDataScheduleSafety(next);
             return scheduleEnforcementRef.current.data;
           },
           save: (next) => replaceDataAndPersistInternal(next, false, true),

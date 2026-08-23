@@ -55,5 +55,6 @@ describe('전역 Play 업데이트 화면 계약', () => {
     expect(store).toContain(
       'clearDeviceLocalData: clearDeviceLocalDataForResetCleanup',
     );
+    expect(store).toContain('clearQuickSetupDraft(runtime.dataRepository)');
   });
 });

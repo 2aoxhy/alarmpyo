@@ -21,6 +21,17 @@ export type AlarmAccessAction =
   | 'retry';
 export type AlarmAccessTone = 'neutral' | 'ready' | 'warning';
 
+export type AlarmRequiredPermissionTarget =
+  | 'exact-alarm'
+  | 'alarm-notifications'
+  | 'full-screen';
+
+export type AlarmPermissionReadiness = {
+  nextRequiredTarget: AlarmRequiredPermissionTarget | null;
+  readyRequiredCount: number;
+  requiredTotal: 3;
+};
+
 export type AlarmAccessSummary = {
   action: AlarmAccessAction;
   actionLabel?: string;
@@ -69,6 +80,36 @@ export type AlarmHealthStateInput = {
   totalPlannedAlarmCount?: number;
   platformSupported: boolean;
 };
+
+const REQUIRED_PERMISSION_ORDER: readonly AlarmRequiredPermissionTarget[] = [
+  'exact-alarm',
+  'alarm-notifications',
+  'full-screen',
+];
+
+/**
+ * 화면과 네이티브 설정 이동이 같은 필수 권한 순서를 공유하도록 계산합니다.
+ * 권장 안정성 항목은 알람 사용 자체를 막지 않으므로 준비 개수에 포함하지 않습니다.
+ */
+export function resolveAlarmPermissionReadiness(
+  alarmStatus: AlarmPyoAlarmStatus | null,
+): AlarmPermissionReadiness {
+  const readyByTarget: Record<AlarmRequiredPermissionTarget, boolean> = {
+    'exact-alarm': alarmStatus?.exactAlarmAllowed === true,
+    'alarm-notifications': alarmStatus?.notificationsAllowed === true,
+    'full-screen': alarmStatus?.fullScreenAllowed === true,
+  };
+  const readyRequiredCount = REQUIRED_PERMISSION_ORDER.filter(
+    (target) => readyByTarget[target],
+  ).length;
+
+  return {
+    nextRequiredTarget:
+      REQUIRED_PERMISSION_ORDER.find((target) => !readyByTarget[target]) ?? null,
+    readyRequiredCount,
+    requiredTotal: 3,
+  };
+}
 
 function persistedSafetyNote({
   actualScheduledCount,

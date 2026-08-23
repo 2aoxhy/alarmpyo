@@ -37,6 +37,30 @@ describe('pattern accessibility and responsive contract', () => {
     expect(route).not.toContain('renderItem={({ index, item }) => (');
   });
 
+  it('uses segment composition first and keeps the day editor behind advanced disclosure', () => {
+    const composer = source('pattern-segment-composer.tsx');
+    const route = appSource('pattern-library-edit.tsx');
+
+    expect(composer).toContain('export const PatternSegmentComposer');
+    expect(composer).toContain('BASIC_SHIFT_OPTIONS');
+    expect(composer).toContain('SUBSTITUTE_SHIFT_OPTIONS');
+    expect(composer).toContain('직전 작업 취소');
+    expect(composer).toContain('구간 추가');
+    expect(route).toContain('<PatternSegmentComposer');
+    expect(route).toContain('title="날짜별 상세 편집"');
+    expect(route).toContain('{advancedEditorOpen ? (');
+    expect(route.indexOf('<PatternSegmentComposer')).toBeLessThan(
+      route.indexOf('<PatternSequenceStrip'),
+    );
+  });
+
+  it('uses an automatic pattern name until the user opts into editing it', () => {
+    const route = appSource('pattern-library-edit.tsx');
+    expect(route).toContain('formatPatternComposerName');
+    expect(route).toContain("label={customName ? '자동 이름 사용' : '이름 직접 수정'}");
+    expect(route).toContain('{nameEditorOpen ? (');
+  });
+
   it('shows pattern-name errors only after blur or save', () => {
     const route = appSource('pattern-library-edit.tsx');
     expect(route).toContain('const [nameTouched, setNameTouched] = useState(false)');
@@ -76,6 +100,28 @@ describe('pattern accessibility and responsive contract', () => {
     expect(apply).toContain('previewPatternApplication');
     expect(apply).not.toContain('향후 42일');
     expect(apply).not.toContain('42일 비교');
+  });
+
+  it('shows seven days first and keeps the full 42 day calendar collapsed', () => {
+    const preview = source('pattern-application-preview.tsx');
+    expect(preview).toContain(
+      'buildPatternSevenDaySummary({ mode, rows, selectedDateKeys })',
+    );
+    expect(preview).toContain("? '직접 수정 유지'");
+    expect(preview).toContain(": '직접 수정 제거'");
+    expect(preview).toContain('title="전체 42일 비교"');
+    expect(preview).toContain('{calendarExpanded ? (');
+    expect(preview.indexOf('<PatternSevenDaySummaryView')).toBeLessThan(
+      preview.indexOf('title="전체 42일 비교"'),
+    );
+  });
+
+  it('hides override policy when there are no direct edits and keeps preserve as default', () => {
+    const apply = appSource('pattern-library-apply.tsx');
+    expect(apply).toContain("useState<OverrideResolutionMode>('preserve')");
+    expect(apply).toContain('preview.directOverrideDateKeys.length > 0 ? (');
+    expect(apply).toContain('title="직접 수정 처리 변경"');
+    expect(apply).toContain('formatPatternApplyActionLabel');
   });
 
   it('keeps direct-edit policy controls usable at 320dp and large text', () => {

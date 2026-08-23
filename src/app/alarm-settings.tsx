@@ -1,10 +1,12 @@
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import {
   createContext,
   type PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { StyleSheet, View } from "react-native";
@@ -26,7 +28,17 @@ import {
 import { radii, spacing, type AppPalette } from "@/constants/app-theme";
 import { alarmCopy } from "@/content/alarm-copy";
 import { DisclosureRow, StatusBanner, ToggleRow } from "@/design-system";
-import { AlarmPermissionChecklist } from "@/features/alarm/alarm-permission-checklist";
+import {
+  AlarmPermissionChecklist,
+  type AlarmPermissionFocusRequest,
+} from "@/features/alarm/alarm-permission-checklist";
+import {
+  parseAlarmPermissionFocusTarget,
+  resolveAlarmPermissionLaunchNotice,
+  resolveAlarmPermissionReadinessViewModel,
+  resolveAlarmPermissionReturnFocus,
+  type AlarmPermissionLaunchNotice,
+} from "@/features/alarm/alarm-permission-readiness-model";
 import { AlarmSoundSettings } from "@/features/alarm/alarm-sound-settings";
 import {
   useAlarmSettingsRuntimeController,
@@ -193,6 +205,10 @@ function formatAlarmPlanCoverage(value: number): string {
 }
 
 export default function AlarmSettingsScreen() {
+  const { focus, target } = useLocalSearchParams<{
+    focus?: string | string[];
+    target?: string | string[];
+  }>();
   const { showDialog } = useAppDialog();
   const {
     alarmAutoCheckState,
@@ -215,8 +231,16 @@ export default function AlarmSettingsScreen() {
   const [testBusy, setTestBusy] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
-  const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [permissionFocusRequest, setPermissionFocusRequest] =
+    useState<AlarmPermissionFocusRequest | null>(null);
+  const [permissionLaunchNotice, setPermissionLaunchNotice] =
+    useState<AlarmPermissionLaunchNotice | null>(null);
+  const permissionEntryFocusHandledRef = useRef(false);
+  const permissionReturnPendingRef = useRef(false);
+  const permissionReturnTargetRef =
+    useRef<AlarmPyoPermissionSettingsTarget | null>(null);
+  const previousScreenActiveRef = useRef(screenActive);
   const alarmSyncVersion = data.settings.lastNotificationSyncAt;
   const {
     alarmPlatformSupported,
@@ -242,6 +266,63 @@ export default function AlarmSettingsScreen() {
   const sleepReminderStatusError = data.settings.sleepReminderEnabled
     ? runtimeStatus.sleepReminderStatusError
     : false;
+  const permissionFocusParam = Array.isArray(focus) ? focus[0] : focus;
+  const requestedPermissionTarget = parseAlarmPermissionFocusTarget(target);
+  const requestPermissionFocus = useCallback(
+    (id: AlarmPermissionFocusRequest["id"]) => {
+      setPermissionFocusRequest((current) => ({
+        id,
+        revision: (current?.revision ?? 0) + 1,
+      }));
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (
+      permissionEntryFocusHandledRef.current ||
+      !screenActive ||
+      !alarmStatus ||
+      (permissionFocusParam !== "permissions" && !requestedPermissionTarget)
+    ) {
+      return;
+    }
+    permissionEntryFocusHandledRef.current = true;
+    const targetToFocus =
+      requestedPermissionTarget ??
+      resolveAlarmPermissionReadinessViewModel(alarmStatus)
+        .nextRequiredTarget ??
+      "exact-alarm";
+    requestPermissionFocus(targetToFocus);
+  }, [
+    alarmStatus,
+    permissionFocusParam,
+    requestPermissionFocus,
+    requestedPermissionTarget,
+    screenActive,
+  ]);
+
+  useEffect(() => {
+    const wasActive = previousScreenActiveRef.current;
+    previousScreenActiveRef.current = screenActive;
+    if (wasActive || !screenActive || !permissionReturnPendingRef.current) {
+      return;
+    }
+
+    permissionReturnPendingRef.current = false;
+    const requestedTarget = permissionReturnTargetRef.current;
+    permissionReturnTargetRef.current = null;
+    if (!requestedTarget) return;
+
+    void runtimeStatus.refresh(true).then((snapshot) => {
+      requestPermissionFocus(
+        resolveAlarmPermissionReturnFocus(
+          snapshot.alarmStatus,
+          requestedTarget,
+        ),
+      );
+    });
+  }, [requestPermissionFocus, runtimeStatus, screenActive]);
 
   const plannedAlarms = useMemo(
     () => getCachedFutureAlarmProjection(data, getShiftForDate),
@@ -259,20 +340,6 @@ export default function AlarmSettingsScreen() {
   }, [data.pattern.shiftTypeIds, data.shiftTypes]);
   const scheduledAlarms = alarmStatus?.scheduledAlarms ?? [];
   const recentAlarmEvents = alarmStatus?.recentEvents ?? [];
-  const readyPermissionCount = alarmStatus
-    ? [
-        alarmStatus.exactAlarmAllowed,
-        alarmStatus.fullScreenAllowed,
-        alarmStatus.notificationsAllowed,
-        alarmStatus.batteryOptimizationIgnored,
-      ].filter(Boolean).length
-    : null;
-  const permissionSummary =
-    readyPermissionCount === null
-      ? "상태를 확인하고 있습니다."
-      : readyPermissionCount === 4
-        ? "필요한 4개 항목이 준비되어 있습니다."
-        : `${readyPermissionCount}/4개 항목이 준비되어 있습니다.`;
   const nearestAlarm = scheduledAlarms[0];
   const scheduledCount =
     alarmStatus?.scheduledCount ?? data.settings.scheduledNotificationCount;
@@ -348,10 +415,16 @@ export default function AlarmSettingsScreen() {
     if (sleepTarget ? sleepReminderBusy : alarmBusy) return;
     const setBusy = sleepTarget ? setSleepReminderBusy : setAlarmBusy;
     setBusy(true);
+    permissionReturnPendingRef.current = true;
+    permissionReturnTargetRef.current = target;
+    setPermissionLaunchNotice(null);
     try {
       const result = await openPermissionSettings(target);
       if (!result.opened) throw new Error("unsupported");
+      setPermissionLaunchNotice(resolveAlarmPermissionLaunchNotice(result));
     } catch {
+      permissionReturnPendingRef.current = false;
+      permissionReturnTargetRef.current = null;
       const copy = target === "do-not-disturb"
         ? {
             title: "방해 금지 설정을 열지 못했습니다",
@@ -642,6 +715,15 @@ export default function AlarmSettingsScreen() {
             }
             value={data.settings.notificationsEnabled}
           />
+          {alarmPlatformSupported ? (
+            <AlarmPermissionChecklist
+              disabled={alarmBusy || sleepReminderBusy}
+              focusRequest={permissionFocusRequest}
+              launchNotice={permissionLaunchNotice}
+              onOpenSettings={(target) => void openPermissionTarget(target)}
+              status={alarmStatus}
+            />
+          ) : null}
           <StatusBanner
             announceChanges
             icon={accessIcon}
@@ -650,7 +732,9 @@ export default function AlarmSettingsScreen() {
             title={accessSummary.title}
             tone={resolveAlarmStatusBannerTone(accessSummary.tone)}
           />
-          {accessSummary.action !== "none" && accessSummary.actionLabel ? (
+          {accessSummary.issueCode !== "alarm-permissions" &&
+          accessSummary.action !== "none" &&
+          accessSummary.actionLabel ? (
             <AppButton
               accessibilityHint="휴대폰의 알람 상태를 준비합니다."
               icon={
@@ -736,8 +820,8 @@ export default function AlarmSettingsScreen() {
             ]}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
-                ? `알람음·진동 · 시험 · 권한 · 기록 ${recentAlarmEvents.length}개`
-                : "알람음·진동 · 시험 · 권한"
+                ? `알람음·진동 · 시험 · 기록 ${recentAlarmEvents.length}개`
+                : "알람음·진동 · 시험"
             }
             testID="alarm-management-disclosure"
             title="알람 관리"
@@ -786,27 +870,6 @@ export default function AlarmSettingsScreen() {
 
               {alarmPlatformSupported ? (
                 <View style={styles.detailsCard}>
-                  <ListRow
-                    allowSubtitleWrapping
-                    expanded={permissionsOpen}
-                    icon="shield-outline"
-                    onPress={() => setPermissionsOpen((open) => !open)}
-                    subtitle={permissionSummary}
-                    title="권한 상태"
-                    trailing={<DisclosureIcon open={permissionsOpen} />}
-                  />
-                  {permissionsOpen ? (
-                    <View style={styles.nestedDetail}>
-                      <AlarmPermissionChecklist
-                        disabled={alarmBusy || sleepReminderBusy}
-                        onOpenSettings={(target) =>
-                          void openPermissionTarget(target)
-                        }
-                        status={alarmStatus}
-                      />
-                    </View>
-                  ) : null}
-                  <MenuDivider inset={false} />
                   <ListRow
                     allowSubtitleWrapping
                     icon="calendar-outline"

@@ -458,8 +458,11 @@ export function applyWorkSettingsPreview(
       endMinutes: shared.endMinutes,
       endsNextDay: shared.endsNextDay,
       isOff: shared.isOff,
-      alarmEnabled: shared.alarmEnabled,
-      alarmMinutesBefore: shared.alarmMinutesBefore,
+      // V17부터 공유 파일은 회사의 근무 순서와 시간만 적용합니다.
+      // 기존 wire 형식의 알람 필드는 구형 파일 호환을 위해 읽고 쓰되,
+      // 받는 사람의 개인 알람 설정을 덮어쓰지 않습니다.
+      alarmEnabled: shift.alarmEnabled,
+      alarmMinutesBefore: shift.alarmMinutesBefore,
     };
   });
   const routinesCompatible = shiftTypes
@@ -474,7 +477,7 @@ export function applyWorkSettingsPreview(
     );
   if (!routinesCompatible) {
     throw new WorkSettingsShareValidationError(
-      '공유된 기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 합니다.',
+      '현재 기상 알람은 출근 루틴의 출발 시각보다 빨라야 합니다.',
     );
   }
 

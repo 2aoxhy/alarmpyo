@@ -53,7 +53,7 @@ describe('저장소 자동화 계약', () => {
     expect(eas.build.base.autoIncrement).toBe(false);
   });
 
-  it('앱은 V16 1.16(16) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V17 1.17(17) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -65,28 +65,28 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.16.0');
+    expect(pkg.version).toBe('1.17.0');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.16',
-      androidVersionCode: 16,
-      iosBuildNumber: '16',
+      versionName: '1.17',
+      androidVersionCode: 17,
+      iosBuildNumber: '17',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      'V14 · `1.0.14(14)`와 V15 · `1.15(15)`는 Play internal에 배포했으며, 현재 소스의 후속 후보는 `V16 · 1.16(16)`입니다.',
+      'V14 · `1.0.14(14)`, V15 · `1.15(15)`, V16 · `1.16(16)`은 Play Internal에 배포했으며, 현재 소스의 후속 후보는 `V17 · 1.17(17)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
-      'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play internal에 배포했습니다.',
+      'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play Internal에 배포했습니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
       'V09는 사용하지 않습니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console에 업로드된 V15의 `versionCode: 15`가 현재 Play 계보의 최고값입니다.',
+      'Play Console에 업로드된 V16의 `versionCode: 16`이 현재 Play 계보의 최고값입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 16 번들',
+      '같은 versionCode 17 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -117,14 +117,14 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(15);
+    ).toBe(16);
     expect(
       json('docs/play-release-evidence.example.json')
         .highestExistingPlayVersionCode,
-    ).toBe(15);
+    ).toBe(16);
   });
 
-  it('패턴 적용 안내는 달력의 변경 전·후 확인을 설명하고 42일 결과 비교로 제한하지 않습니다', () => {
+  it('패턴 적용 안내는 앞으로 7일의 변경 전·후를 우선하고 전체 42일 비교를 선택적으로 제공합니다', () => {
     const readme = source('README.md');
     const listing = source('docs/google-play-listing-ko.md');
     const releaseNotes = source('docs/google-play-release-notes-ko.md');
@@ -132,7 +132,7 @@ describe('저장소 자동화 계약', () => {
 
     for (const document of [readme, listing, releaseNotes, runbook]) {
       expect(document).not.toMatch(/향후\s*42일/u);
-      expect(document).toContain('달력에서 변경 전·후');
+      expect(document).toMatch(/앞으로 7일(?:의)? 변경 전·후/u);
     }
     expect(readme).toContain('1~42일 사용자 패턴');
     expect(listing).toContain('1~42일 사용자 반복 순서');

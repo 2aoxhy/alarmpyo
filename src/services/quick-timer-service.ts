@@ -1,8 +1,19 @@
 import { getAlarmPyoNativeModule } from '../infrastructure/alarmpyo-native-module';
+import {
+  isQuickTimerDuration,
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
+  type QuickTimerDuration,
+} from '../models/quick-timer';
 
-export const QUICK_TIMER_DURATIONS = [15, 30, 45, 60] as const;
-
-export type QuickTimerDuration = (typeof QUICK_TIMER_DURATIONS)[number];
+export const QUICK_TIMER_DURATIONS = QUICK_TIMER_PRESET_DURATIONS;
+export {
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
+};
+export type { QuickTimerDuration };
 export type QuickTimerState =
   | 'idle'
   | 'scheduled'
@@ -72,10 +83,6 @@ function normalizeTimestamp(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
     ? value
     : 0;
-}
-
-function isQuickTimerDuration(value: unknown): value is QuickTimerDuration {
-  return QUICK_TIMER_DURATIONS.some((duration) => duration === value);
 }
 
 export function normalizeQuickTimerStatus(value: unknown): QuickTimerStatus {
@@ -165,7 +172,7 @@ export async function scheduleQuickTimer(
 ): Promise<QuickTimerStatus> {
   if (!isQuickTimerDuration(durationMinutes)) {
     throw new RangeError(
-      '빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다.',
+      `빠른 타이머는 ${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 분 단위 정수로 설정할 수 있습니다.`,
     );
   }
   if (!nativeTimerSupported()) return unsupportedStatus();

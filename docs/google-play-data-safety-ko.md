@@ -88,7 +88,7 @@ GitHub Pages의 방문자 IP 보안 로그는 사용자가 웹 개인정보처�
 
 ## 권한·API 선언과 영상 증거
 
-- `USE_EXACT_ALARM`: 사용자가 설정한 교대 근무 기상 시각과 15분·30분·45분·60분 타이머 목표 시각에 정확히 울리는 핵심 알람 기능으로 설명해요. 대략적인 백그라운드 작업에 사용하지 않아요. [정확한 알람 공식 안내](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms?hl=ko)
+- `USE_EXACT_ALARM`: 사용자가 설정한 교대 근무 기상 시각과 15분·30분·45분·직접 입력 타이머 목표 시각에 정확히 울리는 핵심 알람 기능으로 설명해요. 대략적인 백그라운드 작업에 사용하지 않아요. [정확한 알람 공식 안내](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms?hl=ko)
 - `USE_FULL_SCREEN_INTENT`: 사용자가 켠 근무·타이머 알람을 잠금 화면에서 즉시 인지하고 끌 수 있게 하는 알람 핵심 기능으로 설명해요.
 - `FOREGROUND_SERVICE_MEDIA_PLAYBACK`: 근무·타이머 알람 발생 후 사용자가 끄거나 다시 알림을 선택할 때까지 알람음을 안정적으로 재생하는 사용자 인지 기능으로 설명해요.
 - Play AAB에는 `REQUEST_INSTALL_PACKAGES`, direct APK 설치 Provider·클래스·화면이 포함되지 않아야 해요.

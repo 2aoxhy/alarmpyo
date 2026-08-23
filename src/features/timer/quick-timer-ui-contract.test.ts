@@ -30,9 +30,13 @@ describe('빠른 타이머 화면 계약', () => {
     expect(tabs).toContain('resolveFloatingTabBarHorizontalLayout(windowWidth, 4)');
   });
 
-  it('15분·30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
+  it('15분·30분·45분·직접 입력을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
     expect(timer).toContain('quickTimerController.durations.map');
     expect(controller).toContain('QUICK_TIMER_DURATIONS');
+    expect(timer).toContain('label="직접 입력"');
+    expect(timer).toContain('parseQuickTimerDurationInput(customDurationInput)');
+    expect(timer).toContain('onSubmitEditing={submitCustomDuration}');
+    expect(timer).not.toContain('label="60분"');
     expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
     expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
     expect(timer).toContain('현재 타이머를 취소하고');
@@ -111,6 +115,9 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('styles.presetButtonQuarter');
     expect(timer).toContain("flexWrap: 'wrap'");
     expect(timer).toContain('minHeight: 64');
+    expect(timer).toContain('keyboardType="number-pad"');
+    expect(timer).toContain('accessibilityLabel="직접 입력 타이머 시간, 분"');
+    expect(timer).toContain('stackActions && styles.customDurationActionsStacked');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
   });

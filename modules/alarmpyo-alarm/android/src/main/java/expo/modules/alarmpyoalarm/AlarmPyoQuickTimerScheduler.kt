@@ -14,6 +14,8 @@ internal const val ACTION_FIRE_ALARMPYO_QUICK_TIMER =
   "expo.modules.alarmpyoalarm.action.FIRE_QUICK_TIMER"
 
 internal object AlarmPyoQuickTimerPolicy {
+  const val MIN_DURATION_MINUTES = 1
+  const val MAX_DURATION_MINUTES = 60
   val OVERDUE_GRACE_MILLIS: Long = TimeUnit.MINUTES.toMillis(10)
   val EARLY_DELIVERY_TOLERANCE_MILLIS: Long = TimeUnit.MINUTES.toMillis(1)
   private val RETRY_DELAYS_MILLIS = longArrayOf(
@@ -23,7 +25,7 @@ internal object AlarmPyoQuickTimerPolicy {
   )
 
   fun isSupportedDuration(minutes: Int): Boolean =
-    minutes == 15 || minutes == 30 || minutes == 45 || minutes == 60
+    minutes in MIN_DURATION_MINUTES..MAX_DURATION_MINUTES
 
   fun remainingMillis(
     snapshot: AlarmPyoQuickTimerSnapshot,
@@ -231,7 +233,7 @@ internal object AlarmPyoQuickTimerScheduler {
   @Synchronized
   fun schedule(context: Context, durationMinutes: Int): AlarmPyoQuickTimerSnapshot {
     require(AlarmPyoQuickTimerPolicy.isSupportedDuration(durationMinutes)) {
-      "빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다."
+      "빠른 타이머는 1분부터 60분까지 분 단위 정수로 설정할 수 있습니다."
     }
     val appContext = context.applicationContext
     check(AlarmPyoAlarmPermissions.canDeliver(appContext)) {

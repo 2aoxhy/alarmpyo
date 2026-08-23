@@ -4,6 +4,7 @@ import type { AlarmPyoAlarmStatus } from '../alarmpyo-alarm-service';
 import {
   resolveAlarmAccessSummary,
   resolveAlarmHealthState,
+  resolveAlarmPermissionReadiness,
 } from '../alarm-access-summary';
 
 const readyStatus: AlarmPyoAlarmStatus = {
@@ -38,6 +39,35 @@ function summary(overrides: Partial<AlarmPyoAlarmStatus> = {}) {
 }
 
 describe('알람 권한 안내', () => {
+  it('필수 권한만 0~3 준비 개수로 계산하고 네이티브 순서의 다음 조치를 골라요', () => {
+    expect(resolveAlarmPermissionReadiness({
+      ...readyStatus,
+      exactAlarmAllowed: false,
+      notificationsAllowed: false,
+      fullScreenAllowed: false,
+      batteryOptimizationIgnored: true,
+    })).toEqual({
+      nextRequiredTarget: 'exact-alarm',
+      readyRequiredCount: 0,
+      requiredTotal: 3,
+    });
+
+    expect(resolveAlarmPermissionReadiness({
+      ...readyStatus,
+      fullScreenAllowed: false,
+      batteryOptimizationIgnored: false,
+    })).toEqual({
+      nextRequiredTarget: 'full-screen',
+      readyRequiredCount: 2,
+      requiredTotal: 3,
+    });
+    expect(resolveAlarmPermissionReadiness(readyStatus)).toEqual({
+      nextRequiredTarget: null,
+      readyRequiredCount: 3,
+      requiredTotal: 3,
+    });
+  });
+
   it('알람을 끈 상태에서는 스위치를 켜는 방법만 안내해요', () => {
     const result = resolveAlarmAccessSummary({
       alarmStatus: readyStatus,

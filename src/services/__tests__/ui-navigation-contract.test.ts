@@ -22,7 +22,9 @@ describe('핵심 화면 탐색 계약', () => {
     expect(settings).not.toContain('title="기상 시간"');
     expect(settings).toContain('formatSettingsWorkSummary(');
     expect(settings).toContain('<PageHeader align="center" title="설정" />');
-    expect(settings).toContain('<MenuGroup centered title="근무와 알람">');
+    expect(settings).toContain('근무표·알람 간편 설정');
+    expect(settings).toContain("router.push('/quick-setup' as Href)");
+    expect(settings).toContain('<MenuGroup centered title="세부 설정 · 근무와 알람">');
     expect(settings).toContain('<MenuGroup centered title="앱">');
     expect(settings).not.toContain('자주 쓰는 설정만 모았습니다.');
     for (const title of [
@@ -32,6 +34,55 @@ describe('핵심 화면 탐색 계약', () => {
     ]) {
       expect(appManagement).toContain(title);
     }
+  });
+
+  it('간편 설정은 근무표 선택부터 알람 권한까지 세 단계로 이어집니다', () => {
+    const quickSetup = source('src/app/quick-setup.tsx');
+
+    for (const label of [
+      '받은 근무표 사용',
+      '앞으로 7일',
+      '이 근무표 사용',
+      '필수 권한 확인하기',
+      '팀에 근무표 보내기',
+      '간편 설정 완료',
+    ]) {
+      expect(quickSetup).toContain(label);
+    }
+    expect(quickSetup).toContain("router.push('/alarm-settings?focus=permissions' as Href)");
+    expect(quickSetup).toContain('quickSetupDraftController.createSession()');
+    expect(quickSetup).toContain('.hydrate()');
+    expect(quickSetup).toContain('draftSession.complete()');
+    expect(quickSetup).toContain("hydrated && draft.step === 'schedule-source'");
+    expect(quickSetup).toContain('간편 설정 불러오는 중');
+    expect(quickSetup).toContain("result.status === 'ready'");
+    expect(quickSetup).toContain("router.push('/alarm-settings' as Href)");
+    expect(quickSetup).toContain('받는 사람이 V17 이상인지 확인한 뒤 보내야 합니다.');
+    expect(quickSetup).toContain('onPress={confirmShareWithTeam}');
+    expect(quickSetup).toContain(
+      "draft.source === 'direct' && draft.presetId === option.presetId",
+    );
+    expect(quickSetup).toContain('useAppStoreData()');
+    expect(quickSetup).toContain('useAppStoreActions()');
+    expect(quickSetup).not.toContain('useAppStore();');
+    expect(quickSetup).toContain('받은 파일에 저장된 근무 시간');
+    expect(quickSetup).toContain('적용한 근무 시간 수정');
+  });
+
+  it('공유 근무표 적용은 날짜별 개인 알람 원본을 삭제하지 않습니다', () => {
+    const store = source('src/store/app-store.tsx');
+    const start = store.indexOf('const applySharedWorkSettings = useCallback');
+    const end = store.indexOf('const importData = useCallback', start);
+    const applySharedWorkSettings = store.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(applySharedWorkSettings).toContain(
+      'enforceAppDataScheduleSafety(next)',
+    );
+    expect(applySharedWorkSettings).not.toContain(
+      'pruneInvalidDayAlarmOverrides',
+    );
   });
 
   it('좁은 화면의 목록 설명은 자연스럽게 흐르고 하단 메뉴 안전 여백을 덮어쓰지 않아요', () => {
@@ -94,6 +145,8 @@ describe('핵심 화면 탐색 계약', () => {
       expect(dataSettings).toContain(`title="${title}"`);
     }
     expect(dataSettings).toContain('title={dataCopy.backupSection.text}');
+    expect(dataSettings).toContain('onPress={requestSendWorkSettings}');
+    expect(dataSettings).toContain('받는 사람이 V17 이상인지 확인');
   });
 
   it('접힌 고급 백업은 처음 펼칠 때만 조회하고 데이터 화면은 액션만 구독해요', () => {

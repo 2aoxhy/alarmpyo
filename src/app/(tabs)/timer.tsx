@@ -15,6 +15,7 @@ import type { AppPalette } from '@/constants/app-theme';
 import { alarmCopy } from '@/content/alarm-copy';
 import {
   Button,
+  Field,
   PageHeader,
   StatusBanner,
   Surface,
@@ -33,6 +34,7 @@ import {
   getQuickTimerDisplayLabel,
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
+  parseQuickTimerDurationInput,
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   shouldStackQuickTimerActions,
@@ -76,9 +78,15 @@ export default function TimerScreen() {
   >(null);
   const [schedulingDuration, setSchedulingDuration] =
     useState<QuickTimerDuration | null>(null);
+  const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [customDurationInput, setCustomDurationInput] = useState('');
+  const [customDurationError, setCustomDurationError] = useState<string | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState(false);
   const mountedRef = useRef(true);
   const hasLoadedRef = useRef(false);
+  const readWallClock = useCallback(() => Date.now(), []);
 
   const observeStatus = useCallback((nextStatus: QuickTimerStatus) => {
     const nextClock = {
@@ -263,6 +271,31 @@ export default function TimerScreen() {
     );
   };
 
+  const openCustomDuration = () => {
+    if (busyAction !== null) return;
+    setCustomDurationInput('');
+    setCustomDurationError(null);
+    setCustomDurationOpen(true);
+    announce('직접 입력란을 열었습니다. 1분부터 60분까지 입력할 수 있습니다.');
+  };
+
+  const closeCustomDuration = () => {
+    setCustomDurationOpen(false);
+    setCustomDurationInput('');
+    setCustomDurationError(null);
+  };
+
+  const submitCustomDuration = () => {
+    if (busyAction !== null) return;
+    const result = parseQuickTimerDurationInput(customDurationInput);
+    if (!result.valid) {
+      setCustomDurationError(result.error);
+      return;
+    }
+    closeCustomDuration();
+    selectDuration(result.durationMinutes, readWallClock());
+  };
+
   const pause = async () => {
     if (busyAction !== null) return;
     setBusyAction('pause');
@@ -352,12 +385,17 @@ export default function TimerScreen() {
     !hasTimer &&
     status.state !== 'error' &&
     status.storageHealth !== 'corrupt';
+  const schedulingCustomDuration =
+    schedulingDuration !== null &&
+    !quickTimerController.durations.some(
+      (durationMinutes) => durationMinutes === schedulingDuration,
+    );
 
   return (
     <Screen contentStyle={styles.screenContent}>
       <PageHeader
         align="center"
-        subtitle="15분·30분·45분·60분 뒤 알람음과 진동으로 알립니다."
+        subtitle="15분·30분·45분 또는 직접 입력한 시간 뒤 알람음과 진동으로 알립니다."
         title="타이머"
       />
 
@@ -468,7 +506,61 @@ export default function TimerScreen() {
                     variant="ghost"
                   />
                 ))}
+                <Button
+                  accessibilityHint="1분부터 60분까지 입력해 현재 타이머를 변경합니다."
+                  accessibilityLabel="타이머 시간 직접 입력"
+                  disabled={busyAction !== null}
+                  icon="time-outline"
+                  label="직접 입력"
+                  loading={schedulingCustomDuration}
+                  onPress={openCustomDuration}
+                  style={[styles.presetButton, presetButtonStyle]}
+                  variant="ghost"
+                />
               </View>
+              {customDurationOpen ? (
+                <View style={styles.customDurationEditor}>
+                  <Field
+                    accessibilityHint="1분부터 60분까지 분 단위 정수로 입력합니다."
+                    accessibilityLabel="직접 입력 타이머 시간, 분"
+                    autoFocus
+                    errorText={customDurationError ?? undefined}
+                    helperText="1~60분 사이의 분 단위 정수를 사용할 수 있습니다."
+                    inputMode="numeric"
+                    keyboardType="number-pad"
+                    label="타이머 시간(분)"
+                    maxLength={3}
+                    onChangeText={(value) => {
+                      setCustomDurationInput(value);
+                      if (customDurationError !== null) setCustomDurationError(null);
+                    }}
+                    onSubmitEditing={submitCustomDuration}
+                    returnKeyType="done"
+                    value={customDurationInput}
+                  />
+                  <View
+                    style={[
+                      styles.customDurationActions,
+                      stackActions && styles.customDurationActionsStacked,
+                    ]}>
+                    <Button
+                      disabled={busyAction !== null}
+                      label="입력 취소"
+                      onPress={closeCustomDuration}
+                      style={stackActions ? styles.timerActionStacked : styles.timerAction}
+                      variant="secondary"
+                    />
+                    <Button
+                      accessibilityHint="입력한 시간으로 현재 타이머를 변경합니다."
+                      disabled={busyAction !== null}
+                      icon="timer-outline"
+                      label="이 시간으로 변경"
+                      onPress={submitCustomDuration}
+                      style={stackActions ? styles.timerActionStacked : styles.timerAction}
+                    />
+                  </View>
+                </View>
+              ) : null}
             </View>
           ) : null}
         </Surface>
@@ -499,7 +591,60 @@ export default function TimerScreen() {
                 style={[styles.presetButton, presetButtonStyle]}
               />
             ))}
+            <Button
+              accessibilityHint="1분부터 60분까지 타이머 시간을 입력합니다."
+              accessibilityLabel="타이머 시간 직접 입력"
+              disabled={busyAction !== null || status.state === 'action-required'}
+              icon="time-outline"
+              label="직접 입력"
+              loading={schedulingCustomDuration}
+              onPress={openCustomDuration}
+              style={[styles.presetButton, presetButtonStyle]}
+            />
           </View>
+          {customDurationOpen ? (
+            <View style={styles.customDurationEditor}>
+              <Field
+                accessibilityHint="1분부터 60분까지 분 단위 정수로 입력합니다."
+                accessibilityLabel="직접 입력 타이머 시간, 분"
+                autoFocus
+                errorText={customDurationError ?? undefined}
+                helperText="1~60분 사이의 분 단위 정수를 사용할 수 있습니다."
+                inputMode="numeric"
+                keyboardType="number-pad"
+                label="타이머 시간(분)"
+                maxLength={3}
+                onChangeText={(value) => {
+                  setCustomDurationInput(value);
+                  if (customDurationError !== null) setCustomDurationError(null);
+                }}
+                onSubmitEditing={submitCustomDuration}
+                returnKeyType="done"
+                value={customDurationInput}
+              />
+              <View
+                style={[
+                  styles.customDurationActions,
+                  stackActions && styles.customDurationActionsStacked,
+                ]}>
+                <Button
+                  disabled={busyAction !== null}
+                  label="입력 취소"
+                  onPress={closeCustomDuration}
+                  style={stackActions ? styles.timerActionStacked : styles.timerAction}
+                  variant="secondary"
+                />
+                <Button
+                  accessibilityHint="입력한 시간으로 타이머를 시작합니다."
+                  disabled={busyAction !== null}
+                  icon="timer-outline"
+                  label="타이머 시작"
+                  onPress={submitCustomDuration}
+                  style={stackActions ? styles.timerActionStacked : styles.timerAction}
+                />
+              </View>
+            </View>
+          ) : null}
         </Surface>
       ) : null}
 
@@ -568,6 +713,14 @@ function createStyles(palette: AppPalette) {
     },
     presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
     presetButton: { minHeight: 64 },
+    customDurationEditor: {
+      gap: space.md,
+      paddingTop: space.lg,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
+    customDurationActions: { flexDirection: 'row', gap: space.sm },
+    customDurationActionsStacked: { flexDirection: 'column' },
     presetButtonFull: { width: '100%' },
     presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
     presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },

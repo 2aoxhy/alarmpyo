@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "V16",
+  "release": "V17",
   "status": "recapture-required",
   "target": {
     "width": 1080,
@@ -29,14 +29,14 @@
       "captureId": "timer-running",
       "sourceFile": "03-timer.webp",
       "outputFile": "03-timer.png",
-      "altText": "15·30·45·60분 중 실행 중인 타이머의 남은 시간과 종료 시각을 보여주는 화면"
+      "altText": "15·30·45분 또는 직접 입력으로 실행한 타이머의 남은 시간과 종료 시각을 보여주는 화면"
     },
     {
       "order": 4,
       "captureId": "settings-home",
       "sourceFile": "04-settings.webp",
       "outputFile": "04-settings.png",
-      "altText": "근무표, 알람, 홈 화면 위젯, 데이터와 앱 정보로 이동하는 설정 화면"
+      "altText": "근무표와 알람 간편 설정 및 세부 설정으로 이동하는 설정 화면"
     }
   ]
 }

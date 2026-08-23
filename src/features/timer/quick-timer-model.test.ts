@@ -10,6 +10,7 @@ import {
   getQuickTimerRemainingMillis,
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
+  parseQuickTimerDurationInput,
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   shouldStackQuickTimerActions,
@@ -60,6 +61,28 @@ describe('빠른 타이머 화면 모델', () => {
     );
   });
 
+  it('직접 입력은 1~60분 정수만 받고 구체적인 오류를 안내해요', () => {
+    expect(parseQuickTimerDurationInput('1')).toEqual({
+      valid: true,
+      durationMinutes: 1,
+    });
+    expect(parseQuickTimerDurationInput(' 37 ')).toEqual({
+      valid: true,
+      durationMinutes: 37,
+    });
+    expect(parseQuickTimerDurationInput('60')).toEqual({
+      valid: true,
+      durationMinutes: 60,
+    });
+    expect(parseQuickTimerDurationInput('')).toMatchObject({ valid: false });
+    expect(parseQuickTimerDurationInput('0')).toMatchObject({ valid: false });
+    expect(parseQuickTimerDurationInput('61')).toMatchObject({ valid: false });
+    expect(parseQuickTimerDurationInput('1.5')).toEqual({
+      valid: false,
+      error: '분 단위의 정수만 입력해야 합니다.',
+    });
+  });
+
   it('1분 이상은 올림한 분으로, 1분 미만은 초로 표시합니다', () => {
     expect(formatQuickTimerCountdown(30 * 60_000)).toBe('30분 남음');
     expect(formatQuickTimerCountdown(3_600_001)).toBe('61분 남음');
@@ -68,7 +91,7 @@ describe('빠른 타이머 화면 모델', () => {
     expect(getQuickTimerRemainingLabel(3_661_000)).toBe('62분 남음');
   });
 
-  it('5분 재알람은 원래 15분·30분·45분·60분 길이로 오인되지 않게 표시해요', () => {
+  it('5분 재알람은 원래 타이머 길이로 오인되지 않게 표시해요', () => {
     expect(
       getQuickTimerDisplayLabel({
         durationMinutes: 60,

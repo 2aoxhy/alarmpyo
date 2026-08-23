@@ -1,3 +1,10 @@
+import {
+  isQuickTimerDuration,
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  type QuickTimerDuration,
+} from '../../models/quick-timer';
+
 import type { QuickTimerStatus } from './quick-timer-controller';
 
 type QuickTimerRequiredAction = QuickTimerStatus['requiredAction'];
@@ -18,6 +25,37 @@ export type QuickTimerCountdownAnchor = {
 };
 
 export type QuickTimerPresetColumns = 1 | 2 | 4;
+
+export type QuickTimerDurationInputResult =
+  | { valid: true; durationMinutes: QuickTimerDuration }
+  | { valid: false; error: string };
+
+export function parseQuickTimerDurationInput(
+  input: string,
+): QuickTimerDurationInputResult {
+  const normalized = input.trim();
+  if (normalized.length === 0) {
+    return {
+      valid: false,
+      error: `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 시간을 입력해야 합니다.`,
+    };
+  }
+  if (!/^\d+$/u.test(normalized)) {
+    return {
+      valid: false,
+      error: '분 단위의 정수만 입력해야 합니다.',
+    };
+  }
+
+  const durationMinutes = Number(normalized);
+  if (!isQuickTimerDuration(durationMinutes)) {
+    return {
+      valid: false,
+      error: `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 입력해야 합니다.`,
+    };
+  }
+  return { valid: true, durationMinutes };
+}
 
 export function getQuickTimerDisplayLabel(
   status: Pick<QuickTimerStatus, 'durationMinutes' | 'isRepeat' | 'state'>,
@@ -171,7 +209,7 @@ export function getQuickTimerActionPresentation(
     case 'exact-alarm':
       return {
         title: '정확한 알람 허용 필요',
-        message: '15분·30분·45분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
+        message: '선택한 시간 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
       };
     case 'notifications':
       return {

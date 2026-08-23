@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { Surface } from '@/design-system';
+import { DisclosureRow, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -13,12 +13,14 @@ import { buildCalendarGrid, formatKoreanDate } from '@/utils/date';
 
 import {
   buildPatternPreviewMonths,
+  buildPatternSevenDaySummary,
   formatPatternCalendarShiftToken,
   getPatternPreviewMonthKey,
   isPatternDiffRowChanged,
   resolvePatternPreviewRow,
   type OverrideResolutionMode,
   type PatternDiffRow,
+  type PatternSevenDaySummary,
 } from './pattern-library-model';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
@@ -51,6 +53,11 @@ export function PatternApplicationPreview({
   const [requestedDateKey, setRequestedDateKey] = useState<string | null>(null);
   const [requestedMonthKey, setRequestedMonthKey] = useState<string | null>(null);
   const [changesOnly, setChangesOnly] = useState(false);
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const sevenDaySummary = useMemo(
+    () => buildPatternSevenDaySummary({ mode, rows, selectedDateKeys }),
+    [mode, rows, selectedDateKeys],
+  );
   const effectiveChangesOnly = changesOnly && changedDateCount > 0;
   const navigableMonths = useMemo(
     () =>
@@ -148,8 +155,19 @@ export function PatternApplicationPreview({
       : '근무가 유지됩니다.';
 
   return (
-    <View accessibilityLabel="적용 전 달력 비교" style={styles.container}>
-      <View style={styles.filterSection}>
+    <View accessibilityLabel="적용 전 일정 비교" style={styles.container}>
+      <PatternSevenDaySummaryView stacked={stacked} summary={sevenDaySummary} />
+      <DisclosureRow
+        expanded={calendarExpanded}
+        icon="calendar-outline"
+        onPress={() => setCalendarExpanded((current) => !current)}
+        subtitle="적용일부터 42일 전체 일정과 날짜별 직접 수정을 확인합니다."
+        title="전체 42일 비교"
+      />
+
+      {calendarExpanded ? (
+        <View style={styles.fullComparison}>
+          <View style={styles.filterSection}>
         <View style={styles.filterHeading}>
           <AppText accessibilityRole="header" variant="heading">
             달력에서 비교
@@ -176,9 +194,9 @@ export function PatternApplicationPreview({
             style={styles.filter}
           />
         </View>
-      </View>
+          </View>
 
-      <Surface style={styles.calendarCard}>
+          <Surface style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <MonthNavigationButton
             disabled={visibleMonthIndex <= 0}
@@ -266,9 +284,9 @@ export function PatternApplicationPreview({
             <AppText tone="secondary" variant="caption">선택한 날짜</AppText>
           </View>
         </View>
-      </Surface>
+          </Surface>
 
-      <Surface style={styles.detailCard} tone="muted">
+          <Surface style={styles.detailCard} tone="muted">
         <View style={styles.detailHeading}>
           <AppText accessibilityRole="header" variant="heading">
             {selectedRow.dateLabel}
@@ -324,8 +342,71 @@ export function PatternApplicationPreview({
               : '이 날짜의 직접 수정을 제거합니다.'}
           </AppText>
         ) : null}
-      </Surface>
+          </Surface>
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function PatternSevenDaySummaryView({
+  stacked,
+  summary,
+}: {
+  stacked: boolean;
+  summary: PatternSevenDaySummary;
+}) {
+  const { palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <Surface style={styles.summaryCard}>
+      <View style={styles.summaryHeading}>
+        <AppText accessibilityRole="header" variant="heading">
+          앞으로 7일
+        </AppText>
+        <AppText tone="secondary" variant="caption">
+          변경 {summary.changedDateCount}일
+          {summary.preservedOverrideDateCount > 0
+            ? ` · 직접 수정 유지 ${summary.preservedOverrideDateCount}일`
+            : ''}
+          {summary.removedOverrideDateCount > 0
+            ? ` · 직접 수정 제거 ${summary.removedOverrideDateCount}일`
+            : ''}
+        </AppText>
+      </View>
+      <View>
+        {summary.rows.map((row) => (
+          <View
+            accessible
+            accessibilityLabel={`${row.dateLabel}. 현재 ${row.currentLabel}${row.currentTimeLabel ? ` ${row.currentTimeLabel}` : ''}. 적용 후 ${row.nextLabel}${row.nextTimeLabel ? ` ${row.nextTimeLabel}` : ''}.${row.directOverrideResolution === 'preserve' ? ' 직접 수정 유지.' : row.directOverrideResolution === 'remove' ? ' 직접 수정 제거.' : ''}`}
+            key={row.dateKey}
+            style={[styles.summaryRow, stacked && styles.summaryRowStacked]}>
+            <View style={styles.summaryDate}>
+              <AppText variant="label">{row.dateLabel}</AppText>
+              {row.directOverrideResolution ? (
+                <AppText tone="secondary" variant="caption">
+                  {row.directOverrideResolution === 'preserve'
+                    ? '직접 수정 유지'
+                    : '직접 수정 제거'}
+                </AppText>
+              ) : null}
+            </View>
+            <View style={[styles.summaryShift, stacked && styles.summaryShiftStacked]}>
+              <AppText tone="secondary" variant="body">
+                {row.currentLabel}
+              </AppText>
+              <AppIcon
+                accessible={false}
+                color={palette.inkSoft}
+                name={stacked ? 'chevron-down' : 'chevron-forward'}
+                size={18}
+              />
+              <AppText variant="label">{row.nextLabel}</AppText>
+            </View>
+          </View>
+        ))}
+      </View>
+    </Surface>
   );
 }
 
@@ -518,6 +599,36 @@ function ComparisonValue({
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     container: { gap: spacing.large },
+    summaryCard: { overflow: 'hidden', gap: 0, padding: 0 },
+    summaryHeading: {
+      gap: spacing.tiny,
+      padding: spacing.large,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.line,
+      backgroundColor: palette.surfaceSoft,
+    },
+    summaryRow: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.medium,
+      paddingHorizontal: spacing.large,
+      paddingVertical: spacing.medium,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
+    },
+    summaryRowStacked: { alignItems: 'stretch', flexDirection: 'column' },
+    summaryDate: { minWidth: 0, flex: 1, gap: spacing.tiny },
+    summaryShift: {
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: spacing.small,
+    },
+    summaryShiftStacked: { alignItems: 'flex-start', flexDirection: 'column' },
+    fullComparison: { gap: spacing.large },
     filterSection: { gap: spacing.medium },
     filterHeading: { gap: spacing.tiny },
     filters: { flexDirection: 'row', gap: spacing.small },

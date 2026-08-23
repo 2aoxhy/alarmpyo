@@ -7,7 +7,7 @@ import { DatePickerField } from '@/components/date-picker-field';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { PageHeader, StatusBanner, Surface } from '@/design-system';
+import { DisclosureRow, PageHeader, StatusBanner, Surface } from '@/design-system';
 import {
   triggerNotificationFeedback,
   triggerSelectionFeedback,
@@ -16,6 +16,7 @@ import { PatternApplicationPreview } from '@/features/pattern-library/pattern-ap
 import {
   adaptPatternApplicationPreviewRows,
   buildPatternOverridePolicy,
+  formatPatternApplyActionLabel,
   type OverrideResolutionMode,
 } from '@/features/pattern-library/pattern-library-model';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -58,6 +59,7 @@ export default function PatternLibraryApplyScreen() {
     () => new Set(),
   );
   const [selectionInitialized, setSelectionInitialized] = useState(false);
+  const [policyAdvancedOpen, setPolicyAdvancedOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const entry = data.patternVault.find((item) => item.id === id);
 
@@ -110,6 +112,12 @@ export default function PatternLibraryApplyScreen() {
     () => adaptPatternApplicationPreviewRows(data.shiftTypes, preview?.rows ?? []),
     [data.shiftTypes, preview?.rows],
   );
+  const applyActionLabel = preview
+    ? formatPatternApplyActionLabel({
+        changedDateCount: preview.changedDateCount,
+        clearedOverrideDateCount: preview.clearedOverrideDateKeys.length,
+      })
+    : '패턴 적용';
 
   const changeMode = (nextMode: OverrideResolutionMode) => {
     if (nextMode === 'select' && !selectionInitialized) {
@@ -217,14 +225,14 @@ export default function PatternLibraryApplyScreen() {
           <AppButton
             disabled={applying || preview === null}
             icon="checkmark"
-            label={applying ? '적용 중' : '이 패턴 적용'}
+            label={applying ? '적용 중' : applyActionLabel}
             loading={applying}
             onPress={() => void applyPattern()}
           />
         }
         safeAreaEdges={['left', 'right']}>
         <PageHeader
-          subtitle="적용일이 포함된 달력에서 현재 일정과 적용 후 일정을 비교합니다."
+          subtitle="앞으로 7일을 먼저 확인하고 필요할 때만 전체 일정을 펼칩니다."
           title="적용 전 비교"
         />
         <View style={styles.intro}>
@@ -250,6 +258,8 @@ export default function PatternLibraryApplyScreen() {
             accessibilityLabel="패턴 적용일"
             onChange={(dateKey) => {
               setEffectiveDate(dateKey);
+              setMode('preserve');
+              setPolicyAdvancedOpen(false);
               setSelectionInitialized(false);
               setSelectedPreservedDates(new Set());
             }}
@@ -259,32 +269,57 @@ export default function PatternLibraryApplyScreen() {
           />
         </Surface>
 
-        <View style={styles.policySection}>
-          <AppText accessibilityRole="header" variant="heading">
-            직접 수정 처리
-          </AppText>
-          <View
-            accessibilityLabel="직접 수정 처리 방식"
-            accessibilityRole="radiogroup"
-            style={[styles.policyGrid, stacked && styles.policyGridStacked]}>
-            {POLICY_OPTIONS.map((option) => (
-              <SelectionPill
-                accessibilityHint={option.description}
-                key={option.mode}
-                label={option.title}
-                onPress={() => changeMode(option.mode)}
-                selected={mode === option.mode}
-                style={styles.policyCard}
-              />
-            ))}
+        {preview.directOverrideDateKeys.length > 0 ? (
+          <View style={styles.policySection}>
+            <StatusBanner
+              message={
+                mode === 'preserve'
+                  ? `직접 수정 ${preview.directOverrideDateKeys.length}개를 그대로 유지합니다.`
+                  : mode === 'remove-all'
+                    ? `직접 수정 ${preview.directOverrideDateKeys.length}개를 적용하면서 제거합니다.`
+                    : `직접 수정 ${effectiveSelectedDates.size}개를 유지하고 ${preview.clearedOverrideDateKeys.length}개를 제거합니다.`
+              }
+              title={mode === 'preserve' ? '개인 수정 유지' : '직접 수정 처리'}
+              tone={mode === 'preserve' ? 'neutral' : 'warning'}
+            />
+            <DisclosureRow
+              expanded={policyAdvancedOpen}
+              icon="options-outline"
+              onPress={() => setPolicyAdvancedOpen((current) => !current)}
+              subtitle="직접 수정 날짜를 제거하거나 날짜별로 고를 수 있습니다."
+              title="직접 수정 처리 변경"
+            />
+            {policyAdvancedOpen ? (
+              <View style={styles.policyAdvanced}>
+                <View
+                  accessibilityLabel="직접 수정 처리 방식"
+                  accessibilityRole="radiogroup"
+                  style={[styles.policyGrid, stacked && styles.policyGridStacked]}>
+                  {POLICY_OPTIONS.map((option) => (
+                    <SelectionPill
+                      accessibilityHint={option.description}
+                      key={option.mode}
+                      label={option.title}
+                      onPress={() => changeMode(option.mode)}
+                      selected={mode === option.mode}
+                      style={styles.policyCard}
+                    />
+                  ))}
+                </View>
+                <AppText tone="secondary" variant="caption">
+                  {activePolicy.description}
+                </AppText>
+              </View>
+            ) : null}
           </View>
-          <AppText tone="secondary" variant="caption">
-            {activePolicy.description}
-          </AppText>
-        </View>
+        ) : null}
 
         <StatusBanner
-          message={`변경 ${preview.changedDateCount}일 · 직접 수정 ${preview.directOverrideDateKeys.length}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`}
+          message={
+            preview.directOverrideDateKeys.length > 0
+              ? `변경 ${preview.changedDateCount}일 · 직접 수정 ${preview.directOverrideDateKeys.length}개 · 제거 ${preview.clearedOverrideDateKeys.length}개`
+              : `변경 ${preview.changedDateCount}일 · 개인 설정은 그대로 유지됩니다.`
+          }
           title="적용 전 요약"
           tone={preview.clearedOverrideDateKeys.length > 0 ? 'warning' : 'neutral'}
         />
@@ -316,6 +351,7 @@ function createStyles(_palette: AppPalette) {
     policySection: {
       gap: spacing.medium,
     },
+    policyAdvanced: { gap: spacing.medium },
     policyGrid: {
       flexDirection: 'row',
       alignItems: 'stretch',

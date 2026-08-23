@@ -18,14 +18,16 @@ const permissionChecklist = readFileSync(
 );
 
 describe('알람 설정 화면 정보 구조 계약', () => {
-  it('상태, 필요한 다음 알람, 기상·수면 설정, 알람 관리 순서로 표시해요', () => {
+  it('알람 준비, 상태, 다음 알람, 기상·수면 설정, 알람 관리 순서로 표시해요', () => {
+    const readiness = alarmSettings.indexOf('<AlarmPermissionChecklist');
     const status = alarmSettings.indexOf('testID="alarm-access-status"');
     const nextAlarm = alarmSettings.indexOf('<MenuGroup title="다음 알람">');
     const sleepReminder = alarmSettings.indexOf('<SleepReminderToggle');
     const wakeTime = alarmSettings.indexOf('title="기상 시간"');
     const management = alarmSettings.indexOf('title="알람 관리"');
 
-    expect(status).toBeGreaterThan(-1);
+    expect(readiness).toBeGreaterThan(-1);
+    expect(status).toBeGreaterThan(readiness);
     expect(nextAlarm).toBeGreaterThan(status);
     expect(wakeTime).toBeGreaterThan(nextAlarm);
     expect(sleepReminder).toBeGreaterThan(wakeTime);
@@ -45,13 +47,13 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(statusCard).toContain('onPress={runAccessAction}');
   });
 
-  it('부가 기능은 하나의 알람 관리 펼침 영역에 모아요', () => {
+  it('권한은 상단에 두고 나머지 부가 기능만 알람 관리 펼침 영역에 모아요', () => {
     const managementBody = alarmSettings.indexOf('{managementOpen ? (');
-    const sound = alarmSettings.indexOf('<AlarmSoundSettings />');
-    const testAlarm = alarmSettings.indexOf('label={alarmCopy.testAlarm.text}');
     const permissions = alarmSettings.indexOf(
       '<AlarmPermissionChecklist',
     );
+    const sound = alarmSettings.indexOf('<AlarmSoundSettings />');
+    const testAlarm = alarmSettings.indexOf('label={alarmCopy.testAlarm.text}');
     const recentHistory = alarmSettings.indexOf(
       'title="최근 알람 기록"',
     );
@@ -61,18 +63,14 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     );
     expect(alarmSettings).toContain('expanded={managementOpen}');
     expect(alarmSettings).toContain(
-      'const [permissionsOpen, setPermissionsOpen] = useState(false);',
-    );
-    expect(alarmSettings).toContain(
       'const [historyOpen, setHistoryOpen] = useState(false);',
     );
-    expect(alarmSettings).toContain('expanded={permissionsOpen}');
     expect(alarmSettings).toContain('expanded={historyOpen}');
+    expect(permissions).toBeLessThan(managementBody);
     expect(managementBody).toBeGreaterThan(-1);
     expect(sound).toBeGreaterThan(managementBody);
     expect(testAlarm).toBeGreaterThan(sound);
-    expect(permissions).toBeGreaterThan(testAlarm);
-    expect(recentHistory).toBeGreaterThan(permissions);
+    expect(recentHistory).toBeGreaterThan(testAlarm);
     expect(alarmSettings.match(/<DisclosureRow\b/g)).toHaveLength(1);
   });
 
@@ -91,6 +89,21 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     );
     expect(alarmSettings).toContain('onOpenSettings={(target) =>');
     expect(alarmSettings).toContain('void openPermissionTarget(target)');
+    expect(alarmSettings).toContain(
+      'resolveAlarmPermissionLaunchNotice(result)',
+    );
+    expect(alarmSettings).toContain('runtimeStatus.refresh(true)');
+  });
+
+  it('권한 딥링크는 행만 강조하고 사용자 동작 없이 설정을 열지 않아요', () => {
+    expect(alarmSettings).toContain('useLocalSearchParams');
+    expect(alarmSettings).toContain('parseAlarmPermissionFocusTarget(target)');
+    expect(alarmSettings).toContain('permissionFocusParam !== "permissions"');
+    expect(alarmSettings).toContain('focusRequest={permissionFocusRequest}');
+    expect(alarmSettings).toContain('permissionReturnPendingRef.current = true');
+    expect(alarmSettings).not.toMatch(
+      /useEffect\([\s\S]{0,700}openPermissionSettings\(/,
+    );
   });
 
   it('다음 알람에는 이날만 바꾼 기상 시각을 표시해요', () => {
@@ -121,10 +134,15 @@ describe('알람 설정 화면 정보 구조 계약', () => {
       'shouldReflowControl(width, fontScale) || fontScale >= 1.3',
     );
     expect(permissionChecklist).toContain(
-      'accessibilityLabel={`${item.label}. ${copy}. 설정 열기`}',
+      'accessibilityLabel={`${item.label}. ${item.description}. 설정 열기`}',
     );
     expect(permissionChecklist).toContain(
       'accessibilityHint={`${item.label}에 해당하는 휴대폰 설정 화면을 엽니다.`}',
     );
+    expect(permissionChecklist).toContain(
+      'AccessibilityInfo.setAccessibilityFocus(node)',
+    );
+    expect(permissionChecklist).toContain('targetMatchesFocusVisible');
+    expect(permissionChecklist).toContain('styles.webFocusVisible');
   });
 });
