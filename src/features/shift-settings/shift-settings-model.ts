@@ -109,6 +109,17 @@ export function createShiftDrafts(shiftTypes: readonly ShiftType[]): ShiftDraft[
     }));
 }
 
+export function applySharedWakePatch(
+  drafts: readonly ShiftDraft[],
+  draftIds: readonly string[],
+  patch: Pick<Partial<ShiftDraft>, 'alarmEnabled' | 'alarmMinutesBefore'>,
+): ShiftDraft[] {
+  const targetIds = new Set(draftIds);
+  return drafts.map((draft) =>
+    targetIds.has(draft.id) ? { ...draft, ...patch } : draft,
+  );
+}
+
 export function isShiftDraftValid(draft: ShiftDraft): boolean {
   const startMinutes = parseTimeInput(draft.start);
   const endMinutes = parseTimeInput(draft.end);

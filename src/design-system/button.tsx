@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ElementRef, type Ref } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -39,6 +39,7 @@ export type ButtonProps = DesignSystemThemeProps & {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   testID?: string;
+  elementRef?: Ref<ElementRef<typeof Pressable>>;
 };
 
 export function Button({
@@ -54,6 +55,7 @@ export function Button({
   accessibilityLabel,
   accessibilityHint,
   testID,
+  elementRef,
   theme,
 }: ButtonProps) {
   const { colors } = useDesignSystemTheme(theme);
@@ -74,6 +76,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={elementRef}
       accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel ?? visibleLabel}
       accessibilityRole="button"

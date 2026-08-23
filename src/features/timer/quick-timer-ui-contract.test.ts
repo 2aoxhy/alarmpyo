@@ -12,6 +12,7 @@ function source(path: string): string {
 describe('빠른 타이머 화면 계약', () => {
   const tabs = source('src/app/(tabs)/_layout.tsx');
   const timer = source('src/app/(tabs)/timer.tsx');
+  const keypad = source('src/features/timer/quick-timer-keypad.tsx');
   const controller = source('src/features/timer/quick-timer-controller.ts');
   const countdown = source('src/features/timer/quick-timer-countdown.tsx');
   const settings = source('src/components/settings-home.tsx');
@@ -34,8 +35,8 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('quickTimerController.durations.map');
     expect(controller).toContain('QUICK_TIMER_DURATIONS');
     expect(timer).toContain('label="직접 입력"');
-    expect(timer).toContain('parseQuickTimerDurationInput(customDurationInput)');
-    expect(timer).toContain('onSubmitEditing={submitCustomDuration}');
+    expect(timer).toContain('<QuickTimerKeypad');
+    expect(timer).toContain('onSubmit={submitCustomDuration}');
     expect(timer).not.toContain('label="60분"');
     expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
     expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
@@ -115,10 +116,22 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('styles.presetButtonQuarter');
     expect(timer).toContain("flexWrap: 'wrap'");
     expect(timer).toContain('minHeight: 64');
-    expect(timer).toContain('keyboardType="number-pad"');
-    expect(timer).toContain('accessibilityLabel="직접 입력 타이머 시간, 분"');
-    expect(timer).toContain('stackActions && styles.customDurationActionsStacked');
+    expect(timer).toContain('elementRef={directInputButtonRef}');
+    expect(timer).toContain('restoreDirectInputFocus');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
+  });
+
+  it('직접 입력은 분·초 표시와 원형 숫자 키패드를 전체 화면으로 제공해요', () => {
+    expect(keypad).toContain('presentationStyle="fullScreen"');
+    expect(keypad).toContain('onRequestClose={cancel}');
+    expect(keypad).toContain("['1', '2', '3']");
+    expect(keypad).toContain("['00', '0', 'delete']");
+    expect(keypad).toContain("[presentation.minutes, '분']");
+    expect(keypad).toContain("[presentation.seconds, '초']");
+    expect(keypad).not.toContain('presentation.hours');
+    expect(keypad).toContain('quick-timer-keypad-start');
+    expect(keypad).toContain('accessibilityViewIsModal');
+    expect(keypad).toContain('마지막 숫자 지우기');
   });
 });

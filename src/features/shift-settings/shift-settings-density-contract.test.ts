@@ -16,6 +16,13 @@ const shiftTimingEditor = readFileSync(
   ),
   'utf8',
 );
+const sharedWakeEditor = readFileSync(
+  resolve(
+    process.cwd(),
+    'src/features/shift-settings/shared-wake-settings-editor.tsx',
+  ),
+  'utf8',
+);
 
 describe('근무표 설정 요약 허브 계약', () => {
   it('근무 방식·시간·루틴을 요약하고 동시에 하나만 열어요', () => {
@@ -26,9 +33,9 @@ describe('근무표 설정 요약 허브 계약', () => {
     expect(shiftSettings).toContain(
       'setActivePanel((current) => (current === panel ? null : panel))',
     );
-    expect(shiftSettings).toContain('showDisclosure={false}');
     expect(shiftSettings).toContain('visibleSection="time"');
-    expect(shiftSettings).toContain('visibleSection="wake"');
+    expect(shiftSettings).toContain('<SharedWakeSettingsEditor');
+    expect(shiftSettings).toContain('expandedRoutineKind === kind');
   });
 
   it('일반 진입에서는 모두 접고 시간·기상 딥링크만 해당 편집을 열어요', () => {
@@ -40,9 +47,25 @@ describe('근무표 설정 요약 허브 계약', () => {
     expect(shiftSettings).toContain("focusedPanel === 'routine' ? routineEditor");
   });
 
-  it('직접 진입에서는 반복되는 편집기 제목을 숨겨 핵심 설정부터 보여줘요', () => {
+  it('기상 시간은 한 번 선택해 사용 중인 근무에 동일 적용하고 루틴만 필요할 때 열어요', () => {
     expect(shiftSettings).toContain('showHeader={showAllSettings}');
     expect(shiftSettings).toContain('필요한 항목만 열어 수정합니다.');
+    expect(shiftSettings).toContain('<SharedWakeSettingsEditor');
+    expect(shiftSettings).toContain('activeWorkShiftIds.map((kind)');
+    expect(shiftSettings).toContain('expanded={expandedRoutineKind === kind}');
+    expect(shiftSettings).not.toContain('routineSectionOptions');
+    expect(sharedWakeEditor).toContain(
+      '한 번 선택하면 {shiftNames} 근무에 동일하게 적용됩니다.',
+    );
+    expect(sharedWakeEditor).toContain(
+      'onChange(draftIds, { alarmMinutesBefore: minutes })',
+    );
+    expect(sharedWakeEditor).toContain(
+      'onChange(draftIds, { alarmEnabled })',
+    );
+    expect(shiftSettings).toContain(
+      'applySharedWakePatch(current, draftIds, patch)',
+    );
     expect(shiftSettings).toContain(
       '주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.',
     );

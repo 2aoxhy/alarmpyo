@@ -15,7 +15,9 @@ import {
 } from '@/features/shift-settings/routine-timing-editor';
 import { PayrollSettingsEditor } from '@/features/shift-settings/payroll-settings-editor';
 import { formatPayrollSettingsSummary } from '@/features/shift-settings/payroll-settings-model';
+import { SharedWakeSettingsEditor } from '@/features/shift-settings/shared-wake-settings-editor';
 import {
+  applySharedWakePatch,
   cloneWorkRoutineProfiles,
   createShiftDrafts,
   createShiftSettingsSnapshot,
@@ -87,6 +89,11 @@ export default function ShiftSettingsScreen() {
   const [editorSection, setEditorSection] = useState<EditorSection>(
     activeWorkShiftIds[0] ?? 'day',
   );
+  const [expandedRoutineKind, setExpandedRoutineKind] = useState<
+    keyof WorkRoutineProfiles | null
+  >(null);
+  const sharedWakeShiftIds: readonly (keyof WorkRoutineProfiles)[] =
+    activeWorkShiftIds;
   const focusedPanel: Extract<SettingsPanel, 'time' | 'routine'> | null =
     focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null;
   const [showAllSettings, setShowAllSettings] = useState(focusedPanel === null);
@@ -249,6 +256,9 @@ export default function ShiftSettingsScreen() {
     const section = getEditorSectionForDraftId(draftId);
     setActivePanel(targetPanel);
     setEditorSection(section);
+    if (targetPanel === 'routine' && section !== 'substitute') {
+      setExpandedRoutineKind(section);
+    }
     if (section === 'substitute') {
       setSubstituteMode(
         draftId === SUBSTITUTE_NIGHT_ID ? 'night' : 'day',
@@ -399,9 +409,6 @@ export default function ShiftSettingsScreen() {
     activeWorkShiftIds.includes('day'),
   );
   const payrollSummary = formatPayrollSettingsSummary(data.payrollSettings);
-  const routineSectionOptions = sectionOptions.filter(
-    (option) => option.value !== 'substitute',
-  );
   const togglePanel = (panel: SettingsPanel) => {
     void triggerSelectionFeedback();
     if (panel === 'routine' && editorSection === 'substitute') {
@@ -474,43 +481,50 @@ export default function ShiftSettingsScreen() {
   );
   const routineEditor = (
     <View style={styles.editorBody}>
-      <SegmentedControl
-        label="근무 종류"
-        onChange={(section) => {
-          void triggerSelectionFeedback();
-          setEditorSection(section);
-        }}
-        options={routineSectionOptions}
-        value={editorSection}
+      <SharedWakeSettingsEditor
+        compact={compactEditor}
+        drafts={drafts}
+        onChange={(draftIds, patch) =>
+          setDrafts((current) =>
+            applySharedWakePatch(current, draftIds, patch),
+          )
+        }
+        shifts={sharedWakeShiftIds
+          .map((id) => data.shiftTypes.find((shift) => shift.id === id))
+          .filter((shift): shift is ShiftType => shift !== undefined)}
       />
 
-      {editorSection !== 'substitute' && selectedDraft ? (
-        <>
-          {selectedShift ? (
-            <ShiftTimingEditor
-              compact={compactEditor}
-              draft={selectedDraft}
-              onChange={(patch) => updateDraft(selectedShift.id, patch)}
-              shift={selectedShift}
-              showHeader={showAllSettings}
-              visibleSection="wake"
-            />
-          ) : null}
+      <View style={styles.routineDetails}>
+        <View style={styles.routineDetailsCopy}>
+          <AppText accessibilityRole="header" variant="label">
+            출근 루틴 세부 설정
+          </AppText>
+          <AppText tone="secondary" variant="caption">
+            출발·도착 시각은 필요한 근무만 열어 조정합니다.
+          </AppText>
+        </View>
+        {activeWorkShiftIds.map((kind) => {
+          const draft = drafts.find((item) => item.id === kind);
+          if (!draft) return null;
+          return (
           <RoutineTimingEditor
-            alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
+            alarmMinutesBefore={draft.alarmMinutesBefore}
             compact={compactEditor}
-            expanded
-            kind={editorSection}
+            expanded={expandedRoutineKind === kind}
+            key={kind}
+            kind={kind}
             onChange={(profile) =>
-              updateRoutineProfile(editorSection, profile)
+              updateRoutineProfile(kind, profile)
             }
-            onExpandedChange={() => undefined}
-            profile={workRoutineProfiles[editorSection]}
-            showDisclosure={false}
-            startMinutes={parseTimeInput(selectedDraft.start)}
+            onExpandedChange={(expanded) =>
+              setExpandedRoutineKind(expanded ? kind : null)
+            }
+            profile={workRoutineProfiles[kind]}
+            startMinutes={parseTimeInput(draft.start)}
           />
-        </>
-      ) : null}
+          );
+        })}
+      </View>
 
       <AppText tone="secondary" variant="caption">
         주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.
@@ -659,5 +673,12 @@ function createStyles(palette: AppPalette) {
       paddingHorizontal: spacing.small,
       paddingBottom: spacing.small,
     },
+    routineDetails: {
+      gap: spacing.small,
+      paddingTop: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
+    routineDetailsCopy: { gap: spacing.tiny },
   });
 }

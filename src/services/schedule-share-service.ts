@@ -144,6 +144,8 @@ export function buildScheduleShareText(
       `${formatSelectedDateGroup(dateKeys, includeYear)} · ${detail}`,
   );
 
-  if (options.includeHeading === false) return lines.join('\n');
-  return ['알람표 근무 일정', '', ...lines].join('\n');
+  if (options.includeHeading === true) {
+    return ['근무 일정', '', ...lines].join('\n');
+  }
+  return lines.join('\n');
 }

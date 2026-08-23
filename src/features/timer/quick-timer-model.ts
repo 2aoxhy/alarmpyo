@@ -30,6 +30,31 @@ export type QuickTimerDurationInputResult =
   | { valid: true; durationMinutes: QuickTimerDuration }
   | { valid: false; error: string };
 
+export type QuickTimerKeypadToken =
+  | '0'
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | '00';
+
+export type QuickTimerKeypadPresentation = {
+  minutes: string;
+  seconds: string;
+  durationMinutes: QuickTimerDuration | null;
+  canStart: boolean;
+  helperText: string;
+  errorText: string | null;
+  accessibilityLabel: string;
+};
+
+export const QUICK_TIMER_KEYPAD_MAX_DIGITS = 4;
+
 export function parseQuickTimerDurationInput(
   input: string,
 ): QuickTimerDurationInputResult {
@@ -55,6 +80,63 @@ export function parseQuickTimerDurationInput(
     };
   }
   return { valid: true, durationMinutes };
+}
+
+export function appendQuickTimerKeypadDigits(
+  currentDigits: string,
+  token: QuickTimerKeypadToken,
+): string {
+  const current = currentDigits
+    .replace(/\D/gu, '')
+    .slice(0, QUICK_TIMER_KEYPAD_MAX_DIGITS);
+  if (current.length + token.length > QUICK_TIMER_KEYPAD_MAX_DIGITS) {
+    return current;
+  }
+  return `${current}${token}`;
+}
+
+export function deleteQuickTimerKeypadDigit(currentDigits: string): string {
+  return currentDigits.replace(/\D/gu, '').slice(0, -1);
+}
+
+export function getQuickTimerKeypadPresentation(
+  inputDigits: string,
+): QuickTimerKeypadPresentation {
+  const digits = inputDigits
+    .replace(/\D/gu, '')
+    .slice(0, QUICK_TIMER_KEYPAD_MAX_DIGITS);
+  const padded = digits.padStart(QUICK_TIMER_KEYPAD_MAX_DIGITS, '0');
+  const rawMinutes = Number(padded.slice(0, 2));
+  const rawSeconds = Number(padded.slice(2, 4));
+  const durationMinutes =
+    rawSeconds === 0 && isQuickTimerDuration(rawMinutes)
+      ? rawMinutes
+      : null;
+
+  let helperText = '분을 입력한 다음 00을 눌러야 합니다.';
+  let errorText: string | null = null;
+  if (rawMinutes > QUICK_TIMER_MAX_DURATION_MINUTES) {
+    errorText = `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 입력할 수 있습니다.`;
+    helperText = errorText;
+  } else if (rawSeconds !== 0) {
+    errorText = '타이머는 분 단위입니다. 끝 두 자리를 00으로 맞춰야 합니다.';
+    helperText = errorText;
+  } else if (durationMinutes !== null) {
+    helperText = `${durationMinutes}분 타이머를 시작할 수 있습니다.`;
+  }
+
+  const minutes = rawMinutes.toString().padStart(2, '0');
+  const seconds = rawSeconds.toString().padStart(2, '0');
+
+  return {
+    minutes,
+    seconds,
+    durationMinutes,
+    canStart: durationMinutes !== null,
+    helperText,
+    errorText,
+    accessibilityLabel: `입력한 시간 ${rawMinutes}분 ${rawSeconds}초`,
+  };
 }
 
 export function getQuickTimerDisplayLabel(

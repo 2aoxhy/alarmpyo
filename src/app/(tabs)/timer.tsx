@@ -1,8 +1,18 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ElementRef,
+} from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  findNodeHandle,
+  Platform,
+  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -15,7 +25,6 @@ import type { AppPalette } from '@/constants/app-theme';
 import { alarmCopy } from '@/content/alarm-copy';
 import {
   Button,
-  Field,
   PageHeader,
   StatusBanner,
   Surface,
@@ -34,13 +43,13 @@ import {
   getQuickTimerDisplayLabel,
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
-  parseQuickTimerDurationInput,
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   shouldStackQuickTimerActions,
   type QuickTimerCountdownAnchor,
 } from '@/features/timer/quick-timer-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
+import { QuickTimerKeypad } from '@/features/timer/quick-timer-keypad';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -79,14 +88,24 @@ export default function TimerScreen() {
   const [schedulingDuration, setSchedulingDuration] =
     useState<QuickTimerDuration | null>(null);
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
-  const [customDurationInput, setCustomDurationInput] = useState('');
-  const [customDurationError, setCustomDurationError] = useState<string | null>(
-    null,
-  );
   const [loadError, setLoadError] = useState(false);
+  const directInputButtonRef = useRef<ElementRef<typeof Pressable>>(null);
+  const shouldRestoreDirectInputFocusRef = useRef(false);
   const mountedRef = useRef(true);
   const hasLoadedRef = useRef(false);
   const readWallClock = useCallback(() => Date.now(), []);
+  const restoreDirectInputFocus = useCallback(() => {
+    if (Platform.OS === 'web') {
+      (
+        directInputButtonRef.current as
+          | (ElementRef<typeof Pressable> & { focus?: () => void })
+          | null
+      )?.focus?.();
+      return;
+    }
+    const node = findNodeHandle(directInputButtonRef.current);
+    if (node) AccessibilityInfo.setAccessibilityFocus(node);
+  }, []);
 
   const observeStatus = useCallback((nextStatus: QuickTimerStatus) => {
     const nextClock = {
@@ -110,6 +129,18 @@ export default function TimerScreen() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (customDurationOpen || !shouldRestoreDirectInputFocusRef.current) {
+      return;
+    }
+    shouldRestoreDirectInputFocusRef.current = false;
+    const timeout = setTimeout(
+      restoreDirectInputFocus,
+      Platform.OS === 'web' ? 0 : 180,
+    );
+    return () => clearTimeout(timeout);
+  }, [customDurationOpen, restoreDirectInputFocus]);
 
   const refreshStatus = useCallback(async (
     showLoading = false,
@@ -273,27 +304,18 @@ export default function TimerScreen() {
 
   const openCustomDuration = () => {
     if (busyAction !== null) return;
-    setCustomDurationInput('');
-    setCustomDurationError(null);
     setCustomDurationOpen(true);
-    announce('직접 입력란을 열었습니다. 1분부터 60분까지 입력할 수 있습니다.');
   };
 
-  const closeCustomDuration = () => {
+  const closeCustomDuration = (restoreFocus = true) => {
+    shouldRestoreDirectInputFocusRef.current = restoreFocus;
     setCustomDurationOpen(false);
-    setCustomDurationInput('');
-    setCustomDurationError(null);
   };
 
-  const submitCustomDuration = () => {
+  const submitCustomDuration = (durationMinutes: QuickTimerDuration) => {
     if (busyAction !== null) return;
-    const result = parseQuickTimerDurationInput(customDurationInput);
-    if (!result.valid) {
-      setCustomDurationError(result.error);
-      return;
-    }
-    closeCustomDuration();
-    selectDuration(result.durationMinutes, readWallClock());
+    closeCustomDuration(false);
+    selectDuration(durationMinutes, readWallClock());
   };
 
   const pause = async () => {
@@ -392,6 +414,7 @@ export default function TimerScreen() {
     );
 
   return (
+    <>
     <Screen contentStyle={styles.screenContent}>
       <PageHeader
         align="center"
@@ -514,53 +537,11 @@ export default function TimerScreen() {
                   label="직접 입력"
                   loading={schedulingCustomDuration}
                   onPress={openCustomDuration}
+                  elementRef={directInputButtonRef}
                   style={[styles.presetButton, presetButtonStyle]}
                   variant="ghost"
                 />
               </View>
-              {customDurationOpen ? (
-                <View style={styles.customDurationEditor}>
-                  <Field
-                    accessibilityHint="1분부터 60분까지 분 단위 정수로 입력합니다."
-                    accessibilityLabel="직접 입력 타이머 시간, 분"
-                    autoFocus
-                    errorText={customDurationError ?? undefined}
-                    helperText="1~60분 사이의 분 단위 정수를 사용할 수 있습니다."
-                    inputMode="numeric"
-                    keyboardType="number-pad"
-                    label="타이머 시간(분)"
-                    maxLength={3}
-                    onChangeText={(value) => {
-                      setCustomDurationInput(value);
-                      if (customDurationError !== null) setCustomDurationError(null);
-                    }}
-                    onSubmitEditing={submitCustomDuration}
-                    returnKeyType="done"
-                    value={customDurationInput}
-                  />
-                  <View
-                    style={[
-                      styles.customDurationActions,
-                      stackActions && styles.customDurationActionsStacked,
-                    ]}>
-                    <Button
-                      disabled={busyAction !== null}
-                      label="입력 취소"
-                      onPress={closeCustomDuration}
-                      style={stackActions ? styles.timerActionStacked : styles.timerAction}
-                      variant="secondary"
-                    />
-                    <Button
-                      accessibilityHint="입력한 시간으로 현재 타이머를 변경합니다."
-                      disabled={busyAction !== null}
-                      icon="timer-outline"
-                      label="이 시간으로 변경"
-                      onPress={submitCustomDuration}
-                      style={stackActions ? styles.timerActionStacked : styles.timerAction}
-                    />
-                  </View>
-                </View>
-              ) : null}
             </View>
           ) : null}
         </Surface>
@@ -599,52 +580,10 @@ export default function TimerScreen() {
               label="직접 입력"
               loading={schedulingCustomDuration}
               onPress={openCustomDuration}
+              elementRef={directInputButtonRef}
               style={[styles.presetButton, presetButtonStyle]}
             />
           </View>
-          {customDurationOpen ? (
-            <View style={styles.customDurationEditor}>
-              <Field
-                accessibilityHint="1분부터 60분까지 분 단위 정수로 입력합니다."
-                accessibilityLabel="직접 입력 타이머 시간, 분"
-                autoFocus
-                errorText={customDurationError ?? undefined}
-                helperText="1~60분 사이의 분 단위 정수를 사용할 수 있습니다."
-                inputMode="numeric"
-                keyboardType="number-pad"
-                label="타이머 시간(분)"
-                maxLength={3}
-                onChangeText={(value) => {
-                  setCustomDurationInput(value);
-                  if (customDurationError !== null) setCustomDurationError(null);
-                }}
-                onSubmitEditing={submitCustomDuration}
-                returnKeyType="done"
-                value={customDurationInput}
-              />
-              <View
-                style={[
-                  styles.customDurationActions,
-                  stackActions && styles.customDurationActionsStacked,
-                ]}>
-                <Button
-                  disabled={busyAction !== null}
-                  label="입력 취소"
-                  onPress={closeCustomDuration}
-                  style={stackActions ? styles.timerActionStacked : styles.timerAction}
-                  variant="secondary"
-                />
-                <Button
-                  accessibilityHint="입력한 시간으로 타이머를 시작합니다."
-                  disabled={busyAction !== null}
-                  icon="timer-outline"
-                  label="타이머 시작"
-                  onPress={submitCustomDuration}
-                  style={stackActions ? styles.timerActionStacked : styles.timerAction}
-                />
-              </View>
-            </View>
-          ) : null}
         </Surface>
       ) : null}
 
@@ -660,6 +599,14 @@ export default function TimerScreen() {
         </Surface>
       ) : null}
     </Screen>
+    <QuickTimerKeypad
+      busy={busyAction === 'schedule'}
+      onCancel={() => closeCustomDuration()}
+      onSubmit={submitCustomDuration}
+      replacingTimer={hasTimer}
+      visible={customDurationOpen}
+    />
+    </>
   );
 }
 
@@ -713,14 +660,6 @@ function createStyles(palette: AppPalette) {
     },
     presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
     presetButton: { minHeight: 64 },
-    customDurationEditor: {
-      gap: space.md,
-      paddingTop: space.lg,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: palette.line,
-    },
-    customDurationActions: { flexDirection: 'row', gap: space.sm },
-    customDurationActionsStacked: { flexDirection: 'column' },
     presetButtonFull: { width: '100%' },
     presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
     presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },

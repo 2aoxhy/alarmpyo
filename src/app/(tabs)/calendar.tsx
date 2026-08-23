@@ -613,8 +613,8 @@ export default function CalendarScreen() {
     async (message: string) => {
       try {
         await Share.share(
-          { message, title: '알람표 근무 일정' },
-          { dialogTitle: '알람표 근무 일정 공유하기' },
+          { message, title: '근무 일정' },
+          { dialogTitle: '근무 일정 공유하기' },
         );
         AccessibilityInfo.announceForAccessibility(
           '공유 화면을 닫았습니다. 선택한 일정은 유지했습니다.',
