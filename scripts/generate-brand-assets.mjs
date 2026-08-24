@@ -14,9 +14,13 @@ export function parseBrandAssetArguments(argv) {
 export async function runBrandAssetGeneration(argv = process.argv.slice(2)) {
   const { check } = parseBrandAssetArguments(argv);
   const root = resolve(import.meta.dirname, '..');
-  const master = await readFile(resolve(root, BRAND_ASSET_PATHS.master));
-  const wordmarkFont = await readFile(resolve(root, BRAND_ASSET_PATHS.wordmarkFont));
-  const generated = buildBrandAssets(master, wordmarkFont);
+  const [compactMaster, flatMaster, texturedMaster, wordmarkFont] = await Promise.all([
+    readFile(resolve(root, BRAND_ASSET_PATHS.compactMaster)),
+    readFile(resolve(root, BRAND_ASSET_PATHS.master)),
+    readFile(resolve(root, BRAND_ASSET_PATHS.texturedMaster)),
+    readFile(resolve(root, BRAND_ASSET_PATHS.wordmarkFont)),
+  ]);
+  const generated = buildBrandAssets(flatMaster, wordmarkFont, texturedMaster, compactMaster);
   const mismatches = [];
 
   for (const [relativePath, bytes] of generated) {
