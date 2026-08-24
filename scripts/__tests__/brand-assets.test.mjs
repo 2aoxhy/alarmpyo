@@ -16,6 +16,7 @@ import {
   parseBrandAssetArguments,
   runBrandAssetGeneration,
 } from '../generate-brand-assets.mjs';
+import { assertV20SourceMetadata } from '../import-v20-logo.mjs';
 
 async function createTexturedMasterFixture({ centerCutout = false, extent = 758 } = {}) {
   const size = 1024;
@@ -36,7 +37,7 @@ async function createTexturedMasterFixture({ centerCutout = false, extent = 758 
     .toBuffer();
 }
 
-function expectExactLogoSymmetry(master) {
+function expectExactLogoSymmetry(master, { exactAlpha = true } = {}) {
   const alphaAt = (index) => master.pixels[index * 4 + 3];
   const visibleAt = (index) => alphaAt(index) >= 8;
   const labels = new Int32Array(master.width * master.height);
@@ -91,10 +92,8 @@ function expectExactLogoSymmetry(master) {
     if (!arrowIds.has(labels[paired])) arrowComponentMismatches += 1;
     if (alphaAt(index) !== alphaAt(paired)) arrowAlphaMismatches += 1;
   }
-  expect({ arrowAlphaMismatches, arrowComponentMismatches }).toEqual({
-    arrowAlphaMismatches: 0,
-    arrowComponentMismatches: 0,
-  });
+  expect(arrowComponentMismatches).toBe(0);
+  if (exactAlpha) expect(arrowAlphaMismatches).toBe(0);
   const hand = components.find(({ bounds, indexes }) => (
     indexes.length < arrows[0].indexes.length
       && bounds.minX < master.width / 2
@@ -112,14 +111,80 @@ function expectExactLogoSymmetry(master) {
     if (labels[paired] !== hand.id) handComponentMismatches += 1;
     if (alphaAt(index) !== alphaAt(paired)) handAlphaMismatches += 1;
   }
-  expect({ handAlphaMismatches, handComponentMismatches }).toEqual({
-    handAlphaMismatches: 0,
-    handComponentMismatches: 0,
-  });
+  expect(handComponentMismatches).toBe(0);
+  if (exactAlpha) expect(handAlphaMismatches).toBe(0);
   return components;
 }
 
+function pngChunkTypes(bytes) {
+  const types = [];
+  for (let offset = 8; offset + 12 <= bytes.length; ) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.toString('ascii', offset + 4, offset + 8);
+    types.push(type);
+    offset += length + 12;
+    if (type === 'IEND') break;
+  }
+  return types;
+}
+
+async function resizeMaster(masterBytes, size) {
+  const { data, info } = await sharp(masterBytes)
+    .resize(size, size, { kernel: sharp.kernel.lanczos3 })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return {
+    height: size,
+    pixels: new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+    width: size,
+    channels: info.channels,
+  };
+}
+
 describe('브랜드 파생 자산', () => {
+  it('선택 원본은 픽셀만 보관하고 생성 메타데이터를 제거해요', async () => {
+    const bytes = await readFile(
+      resolve('assets/brand/alarmpyo-v20-selected-source.png'),
+    );
+    expect([...new Set(pngChunkTypes(bytes))]).toEqual([
+      'IHDR',
+      'IDAT',
+      'IEND',
+    ]);
+    expect(bytes.includes(Buffer.from('C2PA', 'utf8'))).toBe(false);
+  });
+
+  it('선택 원본은 1254px 8비트 RGBA PNG만 허용해요', () => {
+    const valid = {
+      channels: 4,
+      depth: 'uchar',
+      format: 'png',
+      hasAlpha: true,
+      height: 1254,
+      width: 1254,
+    };
+    expect(assertV20SourceMetadata(valid)).toBe(true);
+    for (const invalid of [
+      { ...valid, format: 'webp' },
+      { ...valid, channels: 3, hasAlpha: false },
+      { ...valid, depth: 'ushort' },
+      { ...valid, width: 1253 },
+    ]) {
+      expect(() => assertV20SourceMetadata(invalid)).toThrow('8비트 RGBA PNG');
+    }
+  });
+
+  it('소형 마크는 24·32·48px에서도 화살표 둘과 바늘을 분리해요', async () => {
+    const compactBytes = await readFile(resolve(BRAND_ASSET_PATHS.compactMaster));
+    for (const size of [24, 32, 48]) {
+      expect(expectExactLogoSymmetry(
+        await resizeMaster(compactBytes, size),
+        { exactAlpha: false },
+      )).toHaveLength(3);
+    }
+  });
+
   it('평면·질감·소형 마스터를 각각 지정된 안전 영역에서 사용해요', async () => {
     const [compactMasterBytes, flatMasterBytes, texturedMasterBytes, wordmarkFontBytes] = await Promise.all([
       readFile(resolve(BRAND_ASSET_PATHS.compactMaster)),
@@ -158,13 +223,13 @@ describe('브랜드 파생 자산', () => {
     ]);
     expect(expectExactLogoSymmetry(
       decodeBrandMaster(flatMasterBytes, { profile: 'flat' }),
-    )).toHaveLength(15);
+    )).toHaveLength(3);
     expect(expectExactLogoSymmetry(
       decodeBrandMaster(texturedMasterBytes, { profile: 'textured' }),
-    )).toHaveLength(15);
+    )).toHaveLength(3);
     expect(expectExactLogoSymmetry(
       decodeBrandMaster(compactMasterBytes, { profile: 'compact' }),
-    )).toHaveLength(7);
+    )).toHaveLength(3);
   });
 
   it('적응형 전경과 단색 레이어가 같은 안전 영역 마크에서 파생돼요', async () => {

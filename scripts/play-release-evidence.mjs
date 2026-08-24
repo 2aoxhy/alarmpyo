@@ -275,6 +275,18 @@ export function assertPlayReleaseEvidence(
     artifact?.pageAlignment === 'PAGE_ALIGNMENT_16K',
     'AAB가 PAGE_ALIGNMENT_16K 검증을 통과하지 않았어요.',
   );
+  ensure(
+    artifact?.r8Mapping?.entryName ===
+      'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' &&
+      Number.isInteger(artifact?.r8Mapping?.sizeBytes) &&
+      artifact.r8Mapping.sizeBytes > 0,
+    'AAB의 R8 가독화 파일 검증 기록이 없어요.',
+  );
+  ensure(
+    releaseEvidence?.r8Mapping?.entryName === artifact.r8Mapping.entryName &&
+      releaseEvidence?.r8Mapping?.sizeBytes === artifact.r8Mapping.sizeBytes,
+    'Play 릴리스 증거의 R8 가독화 파일 정보가 AAB 출처 기록과 달라요.',
+  );
   ensure(SHA256_PATTERN.test(artifact?.sha256 ?? ''), 'AAB SHA-256이 올바르지 않아요.');
   ensure(GIT_COMMIT_PATTERN.test(artifact?.sourceCommit ?? ''), 'AAB 소스 커밋이 올바르지 않아요.');
   ensure(EAS_BUILD_ID_PATTERN.test(artifact?.easBuildId ?? ''), 'AAB EAS 빌드 ID가 올바르지 않아요.');
@@ -337,6 +349,7 @@ export function assertPlayReleaseEvidence(
     sourceCommit: artifact.sourceCommit,
     easBuildId: artifact.easBuildId,
     versionCode: artifact.versionCode,
+    r8Mapping: { ...artifact.r8Mapping },
     appSigningCertificateSha256,
     directUpgradeCompatible,
     checkedAt: new Date(checkedAt).toISOString(),

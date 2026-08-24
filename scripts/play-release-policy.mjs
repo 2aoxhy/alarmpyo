@@ -299,6 +299,19 @@ export function validateProvenanceBinding(provenance, artifact) {
       `AAB 출처 기록의 ${key} 값이 파일 검증 결과와 달라요.`,
     );
   }
+  for (const key of ['entryName', 'sizeBytes']) {
+    ensure(
+      provenance?.r8Mapping?.[key] === artifact?.r8Mapping?.[key],
+      `AAB 출처 기록의 r8Mapping.${key} 값이 파일 검증 결과와 달라요.`,
+    );
+  }
+  ensure(
+    provenance?.r8Mapping?.entryName ===
+      'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' &&
+      Number.isInteger(provenance?.r8Mapping?.sizeBytes) &&
+      provenance.r8Mapping.sizeBytes > 0,
+    'AAB 출처 기록에 유효한 R8 가독화 파일 정보가 없어요.',
+  );
   ensure(
     typeof provenance.sourceCommit === 'string' && /^[0-9a-f]{40}$/u.test(provenance.sourceCommit),
     'AAB 출처 기록에 유효한 소스 커밋이 없어요.',

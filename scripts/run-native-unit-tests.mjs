@@ -289,6 +289,23 @@ function validateMergedLocationPermissions(androidProjectRoot) {
   console.log('병합된 Android Manifest에 위치 권한이 없음을 확인했어요.');
 }
 
+function validateReleaseOptimizationProperties(androidProjectRoot) {
+  const propertiesPath = resolve(androidProjectRoot, 'gradle.properties');
+  if (!existsSync(propertiesPath)) {
+    throw new Error('Android gradle.properties를 찾지 못했어요.');
+  }
+  const properties = readFileSync(propertiesPath, 'utf8');
+  for (const property of [
+    'android.enableMinifyInReleaseBuilds=true',
+    'android.enableShrinkResourcesInReleaseBuilds=true',
+  ]) {
+    if (!properties.split(/\r?\n/u).includes(property)) {
+      throw new Error(`Android 릴리스 최적화 설정이 빠졌어요: ${property}`);
+    }
+  }
+  console.log('Android 릴리스 R8·리소스 축소 설정을 확인했어요.');
+}
+
 function copyManagedProject(sourceRoot, destinationRoot) {
   rmSync(destinationRoot, removeOptions);
   mkdirSync(destinationRoot, { recursive: true });
@@ -380,6 +397,7 @@ try {
     androidRoot,
     isWindows ? 'gradlew.bat' : 'gradlew',
   );
+  validateReleaseOptimizationProperties(androidRoot);
   const gradleArguments = [
     ':alarmpyo-alarm:testDebugUnitTest',
     ':app:processDebugMainManifest',

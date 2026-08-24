@@ -70,6 +70,23 @@ async function hashRemoteArtifact(url, expectedSize) {
   return digest.digest('hex');
 }
 
+export function assertR8MappingMetadata(entries) {
+  const mapping = entries.find(
+    ({ name }) =>
+      name ===
+      'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+  );
+  if (!mapping || mapping.contents.length === 0) {
+    throw new Error(
+      'AAB에 R8 가독화 파일이 없어요. enableMinifyInReleaseBuilds와 빌드 산출물을 확인해 주세요.',
+    );
+  }
+  return {
+    entryName: mapping.name,
+    sizeBytes: mapping.contents.length,
+  };
+}
+
 function git(args) {
   const result = spawnSync(
     'git',
@@ -199,6 +216,14 @@ export async function validatePlayAab({
     throw new Error('AAB에서 Android JavaScript 번들을 찾지 못했어요.');
   }
   assertPlayJavascriptBundle(javascriptEntries);
+  const r8Mapping = assertR8MappingMetadata(
+    await readZipEntries(
+      absoluteAabPath,
+      (name) =>
+        name ===
+        'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+    ),
+  );
   verifyJarSignature(absoluteAabPath);
 
   const artifact = {
@@ -216,6 +241,7 @@ export async function validatePlayAab({
     releasePurpose: releaseContext.purpose,
     submissionEligible: releaseContext.submissionEligible,
     signed: true,
+    r8Mapping,
     sourceCommit,
     sourceDirty,
     easBuildId: null,
@@ -286,7 +312,7 @@ async function main() {
     requireCleanSource: args.get('--allow-dirty') !== true,
   });
   console.log(
-    `Play AAB 검증을 완료했어요. ${artifact.packageName} ${artifact.versionName}(${artifact.versionCode}) · targetSdk ${artifact.targetSdk} · ${artifact.pageAlignment} · SHA-256 ${artifact.sha256}`,
+    `Play AAB 검증을 완료했어요. ${artifact.packageName} ${artifact.versionName}(${artifact.versionCode}) · targetSdk ${artifact.targetSdk} · ${artifact.pageAlignment} · R8 mapping ${artifact.r8Mapping.sizeBytes} bytes · SHA-256 ${artifact.sha256}`,
   );
 }
 

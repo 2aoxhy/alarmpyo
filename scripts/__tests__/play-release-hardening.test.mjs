@@ -13,6 +13,7 @@ import {
   validateProvenanceBinding,
 } from '../play-release-policy.mjs';
 import { assertPlayNativeApiSource } from '../validate-play-config.mjs';
+import { assertR8MappingMetadata } from '../validate-play-aab.mjs';
 
 function source(path) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -32,6 +33,26 @@ const manifestXml = `<?xml version="1.0" encoding="utf-8"?>
 </manifest>`;
 
 describe('Play AAB 하드닝', () => {
+  it('R8 가독화 파일이 AAB 메타데이터에 포함되어야 해요', () => {
+    expect(
+      assertR8MappingMetadata([
+        {
+          name: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+          contents: Buffer.from('com.personal.alarmpyo.MainActivity -> a.b:'),
+        },
+      ]),
+    ).toMatchObject({ sizeBytes: 42 });
+    expect(() => assertR8MappingMetadata([])).toThrow('R8 가독화 파일');
+    expect(() =>
+      assertR8MappingMetadata([
+        {
+          name: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+          contents: Buffer.alloc(0),
+        },
+      ]),
+    ).toThrow('R8 가독화 파일');
+  });
+
   it('bundle config가 Play 생성 APK에 16KB 정렬을 요청해야 해요', () => {
     expect(
       assertBundlePageAlignment16K(
@@ -130,6 +151,10 @@ describe('Play AAB 하드닝', () => {
       versionCode: 1,
       targetSdk: 36,
       pageAlignment: 'PAGE_ALIGNMENT_16K',
+      r8Mapping: {
+        entryName: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+        sizeBytes: 42,
+      },
       releasePurpose: 'play-release',
       submissionEligible: true,
     };
@@ -145,6 +170,19 @@ describe('Play AAB 하드닝', () => {
         artifact,
       ),
     ).toBe(true);
+    expect(() =>
+      validateProvenanceBinding(
+        {
+          schemaVersion: 1,
+          artifactType: 'android-app-bundle',
+          ...artifact,
+          r8Mapping: { ...artifact.r8Mapping, sizeBytes: 0 },
+          sourceCommit: 'b'.repeat(40),
+          sourceDirty: false,
+        },
+        artifact,
+      ),
+    ).toThrow('r8Mapping.sizeBytes');
     expect(() =>
       validateProvenanceBinding(
         {
@@ -260,6 +298,12 @@ describe('Play AAB 하드닝', () => {
     expect(releaseEvidenceSchema.required).toContain(
       'highestExistingPlayVersionCode',
     );
+    expect(releaseEvidenceSchema.required).toContain('r8Mapping');
+    expect(
+      releaseEvidenceSchema.$defs.r8Mapping.properties.entryName.const,
+    ).toBe(
+      'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+    );
     expect(releaseEvidenceSchema.required).toContain('pageSize16KbEvidence');
     expect(deviceEvidenceSchema.properties.evidenceType.enum).toEqual([
       'play-physical-device',
@@ -280,7 +324,7 @@ describe('Play AAB 하드닝', () => {
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");
   });
 
-  it('V19는 V18 Internal 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
+  it('V20은 V19 Play 초안 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
     const app = JSON.parse(source('app.json')).expo;
     const pkg = JSON.parse(source('package.json'));
     const runbook = source('docs/google-play-release-runbook-ko.md');
@@ -293,41 +337,41 @@ describe('Play AAB 하드닝', () => {
       source('assets/play-store/phone-screenshots/manifest.json'),
     );
 
-    expect(pkg.version).toBe('1.19.0');
+    expect(pkg.version).toBe('1.20.0');
     expect(app).toMatchObject({
-      version: '1.19',
-      android: { versionCode: 19 },
-      ios: { buildNumber: '19' },
+      version: '1.20',
+      android: { versionCode: 20 },
+      ios: { buildNumber: '20' },
     });
     expect(evidenceExample).toMatchObject({
-      versionName: '1.19',
-      versionCode: 19,
+      versionName: '1.20',
+      versionCode: 20,
       highestPreviouslyDistributedVersionCode: 18,
-      highestExistingPlayVersionCode: 18,
+      highestExistingPlayVersionCode: 19,
     });
     expect(screenshotManifest).toMatchObject({
-      release: 'V19',
+      release: 'V20',
       status: 'recapture-required',
     });
 
     expect(runbook).toContain(
-      'Play Console에 업로드된 V18의 `versionCode: 18`이 현재 확인된 Play 계보의 최고값입니다.',
+      'Play Console에 업로드된 V19의 `versionCode: 19`가 현재 확인된 Play 계보의 최고값입니다.',
     );
     expect(runbook).toContain(
-      'V17 `versionCode 17`은 Play에 업로드하지 않았습니다.',
+      'V17 `versionCode: 17`과 V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다.',
     );
     expect(runbook).toContain(
-      '확인한 최고값이 `19` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
+      '확인한 최고값이 `20` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
     );
     expect(runbook).toContain(
-      'Play Console 번들 라이브러리에서 **같은 versionCode 19 번들**을 Alpha 출시로 추가하거나 승격합니다.',
+      'Play Console 번들 라이브러리에서 **같은 versionCode 20 번들**을 Alpha 출시로 추가하거나 승격합니다.',
     );
     expect(runbook).toContain('AAB를 다시 업로드하지 않습니다.');
     expect(releaseNotes).toContain(
-      'V19는 `versionCode 19` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 Play Console 번들 라이브러리의 같은 번들을 Alpha로 승격합니다.',
+      'V20은 `versionCode 20` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 Play Console 번들 라이브러리의 같은 번들을 Alpha로 승격합니다.',
     );
     expect(lineage).toContain(
-      'V18 · `1.18(18)`은 Play Internal에 배포한 직전 릴리스이며, 현재 소스의 후속 후보는 `V19 · 1.19(19)`입니다.',
+      'V19 · `1.19(19)`는 Play Internal 초안으로만 등록했으며, 현재 소스의 후속 후보는 `V20 · 1.20(20)`입니다.',
     );
   });
 });
