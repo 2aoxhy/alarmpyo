@@ -49,6 +49,7 @@ import { quickSetupDraftController } from './quick-setup-draft-controller';
 import { createQuickPreview, QUICK_SETUP_OPTIONS } from './quick-setup-model';
 import {
   createSetupSessionDraft,
+  createSetupReferenceDatePatch,
   migrateInitialSetupDraft,
   migrateQuickSetupDraft,
   type SetupSessionDraftV2,
@@ -193,7 +194,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       }
       const label =
         session.step === 'schedule-source'
-          ? '근무표 준비, 1단계'
+          ? '근무 순서 선택, 1단계'
           : session.step === 'schedule-anchor'
             ? '오늘 근무와 시간 확인, 2단계'
             : '알람 준비, 3단계';
@@ -224,6 +225,10 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     [session.position, session.presetId, session.referenceDate, session.sequence],
   );
   const activeShiftIds = validation.activeShiftIds;
+  const currentSequence = data.pattern.shiftTypeIds.filter(
+    (id): id is BaseWorkShiftId =>
+      id === 'day' || id === 'evening' || id === 'night' || id === 'off',
+  );
   const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
   const eveningShift = data.shiftTypes.find((shift) => shift.id === 'evening');
   const nightShift = data.shiftTypes.find((shift) => shift.id === 'night');
@@ -272,6 +277,15 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     setShowRecommendations(true);
     setShowCustomEditor(false);
     setShowTimeEditor(mode === 'initial');
+  };
+
+  const useCurrentSchedule = () => {
+    if (mode !== 'reconfigure') return;
+    setSession(createSetupSessionDraft({ data, mode, today }));
+    setShowRecommendations(false);
+    setShowCustomEditor(false);
+    setShowOtherDate(false);
+    setShowTimeEditor(false);
   };
 
   const beginCustomSequence = () => {
@@ -510,7 +524,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
         );
       }
       if (mode === 'reconfigure') {
-        router.replace('/(tabs)/settings' as Href);
+        router.replace('/work-settings-home' as Href);
       }
     } catch {
       showDialog(
@@ -528,7 +542,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     session.step === 'schedule-source' ? 1 : session.step === 'schedule-anchor' ? 2 : 3;
   const footerLabel =
     session.step === 'schedule-source'
-      ? '오늘 근무 맞추기'
+      ? '다음 · 오늘 근무'
       : session.step === 'schedule-anchor'
         ? '알람 준비하기'
         : mode === 'initial'
@@ -607,6 +621,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       {hydrated && session.step === 'schedule-source' ? (
         <SetupSourceStep
           busy={busy}
+          currentSequence={currentSequence}
           headingRef={stepHeadingRef}
           onBeginCustom={beginCustomSequence}
           onChangeCustomSequence={changeCustomSequence}
@@ -616,6 +631,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
             setShowRecommendations((current) => !current);
             setShowCustomEditor(false);
           }}
+          onUseCurrent={useCurrentSchedule}
           session={session}
           showCustomEditor={showCustomEditor}
           showRecommendations={showRecommendations}
@@ -628,17 +644,13 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
           focusRequest={focusRequest}
           focusShiftTypeId={focusShiftTypeId}
           headingRef={stepHeadingRef}
-          onChangeDate={(referenceDate) =>
-            patchSession({
+          onChangeDate={(referenceDate) => {
+            const patch = createSetupReferenceDatePatch({
+              presetId: session.presetId,
               referenceDate,
-              position:
-                session.presetId === 'weekday'
-                  ? getWeekdayPatternPosition(referenceDate)
-                  : null,
-              alarmChoice: null,
-              summaryConfirmation: null,
-            })
-          }
+            });
+            if (patch) patchSession(patch);
+          }}
           onChangeTime={changeTime}
           onSelectPosition={(position) =>
             patchSession({

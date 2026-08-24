@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { size, space, typeScale } from './tokens';
 import { shouldReflowControl } from './responsive';
@@ -44,6 +46,7 @@ export function DisclosureRow({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
+  const focus = useWebFocusVisible();
 
   return (
     <Pressable
@@ -51,12 +54,15 @@ export function DisclosureRow({
       accessibilityRole="button"
       accessibilityState={{ disabled, expanded }}
       disabled={disabled}
+      onBlur={focus.onBlur}
+      onFocus={focus.onFocus}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
         reflow && styles.rowReflow,
         style,
         pressed && !disabled && styles.pressed,
+        focus.focusVisible && !disabled && styles.focusVisible,
         disabled && styles.disabled,
       ]}
       testID={testID}>
@@ -111,6 +117,15 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
     disabled: {
       backgroundColor: colors.surfaceDisabled,
     },
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
     icon: {
       width: size.minimumTouchTarget,
       height: size.minimumTouchTarget,

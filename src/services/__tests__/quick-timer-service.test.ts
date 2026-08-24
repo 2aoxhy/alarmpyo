@@ -149,6 +149,29 @@ describe('빠른 타이머 서비스', () => {
     expect(native.resetQuickTimerAsync).toHaveBeenCalledOnce();
   });
 
+  it('상태 조회와 변경을 같은 순서로 처리해 오래된 조회가 뒤늦게 끝나지 않게 해요', async () => {
+    let resolveRead!: (value: ReturnType<typeof scheduledStatus>) => void;
+    native.getQuickTimerStatusAsync!.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+    native.scheduleQuickTimerAsync!.mockResolvedValue(scheduledStatus(45));
+
+    const read = getQuickTimerStatus();
+    const mutation = scheduleQuickTimer(45);
+    await Promise.resolve();
+
+    expect(native.getQuickTimerStatusAsync).toHaveBeenCalledOnce();
+    expect(native.scheduleQuickTimerAsync).not.toHaveBeenCalled();
+
+    resolveRead(scheduledStatus(15));
+    await expect(read).resolves.toMatchObject({ durationMinutes: 15 });
+    await expect(mutation).resolves.toMatchObject({ durationMinutes: 45 });
+    expect(native.scheduleQuickTimerAsync).toHaveBeenCalledWith(45);
+  });
+
   it('구형 APK처럼 메서드가 하나라도 없으면 지원하지 않는 상태로 폴백해요', async () => {
     native.getQuickTimerStatusAsync = undefined;
 

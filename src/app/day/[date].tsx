@@ -11,6 +11,7 @@ import {
   triggerSelectionFeedback,
 } from '@/features/feedback/feedback-controller';
 import { AdditionalSettingsSection } from '@/features/day-editor/additional-settings-section';
+import { CalendarDisplaySection } from '@/features/day-editor/calendar-display-section';
 import {
   areDayAlarmOverridesEqual,
   createDayAlarmDraft,
@@ -23,12 +24,9 @@ import {
   shouldExpandAdditionalSettings,
 } from '@/features/day-editor/additional-settings-summary';
 import { DayAlarmSummary } from '@/features/day-editor/day-alarm-summary';
-import {
-  SUBSTITUTE_DAY_ID,
-  SUBSTITUTE_NIGHT_ID,
-  type DaySelection,
-  type SubstituteMode,
-} from '@/features/day-editor/day-editor-types';
+import { getDaySaveActionLabel } from '@/features/day-editor/day-editor-presentation';
+import { DayScheduleComparison } from '@/features/day-editor/day-schedule-comparison';
+import { type DaySelection } from '@/features/day-editor/day-editor-types';
 import { DayNoteEditor } from '@/features/day-editor/day-note-editor';
 import { ShiftSelectionSection } from '@/features/day-editor/shift-selection-section';
 import { ShiftTimeEditor } from '@/features/day-editor/shift-time-editor';
@@ -61,7 +59,7 @@ import {
   parseTimeInput,
 } from '@/utils/shift-time';
 
-type AdditionalPanel = 'exception' | 'time' | 'alarm' | 'note';
+type AdditionalPanel = 'display' | 'exception' | 'time' | 'alarm' | 'note';
 
 export default function DayEditorScreen() {
   const { showDialog } = useAppDialog();
@@ -88,6 +86,7 @@ export default function DayEditorScreen() {
   const beforeScheduleStart = dateKey < scheduleStartDate;
   const hasOverride = Object.prototype.hasOwnProperty.call(data.overrides, dateKey);
   const storedDayException = data.dayExceptions[dateKey] ?? null;
+  const initialEffectiveDay = resolveEffectiveDayFromAppData(data, dateKey);
   const [initialSelection] = useState<DaySelection>(() =>
     hasOverride ? data.overrides[dateKey] : 'pattern',
   );
@@ -128,14 +127,14 @@ export default function DayEditorScreen() {
   const [initialAlarmDraft] = useState<DayAlarmDraft>(() =>
     createDayAlarmDraft(
       initialAlarmOverride,
-      resolveEffectiveDayFromAppData(data, dateKey).shift,
+      initialEffectiveDay.shift,
     ),
   );
   const [selection, setSelection] = useState<DaySelection>(initialSelection);
   const [startTime, setStartTime] = useState(initialTime.start);
   const [endTime, setEndTime] = useState(initialTime.end);
-  const [substituteMode, setSubstituteMode] = useState<SubstituteMode>(() =>
-    hasOverride && data.overrides[dateKey] === SUBSTITUTE_NIGHT_ID ? 'night' : 'day',
+  const lastVisibleSelectionRef = useRef<Exclude<DaySelection, null>>(
+    initialSelection === null ? 'pattern' : initialSelection,
   );
   const [initialNote] = useState(() => getNoteForDate(dateKey));
   const [note, setNote] = useState(initialNote);
@@ -153,11 +152,14 @@ export default function DayEditorScreen() {
         hasAlarmOverride: Boolean(initialAlarmOverride),
         hasTimeOverride: Boolean(data.timeOverrides[dateKey]),
         note: initialNote,
+        scheduleHidden: initialSelection === null,
       }),
   );
   const [additionalPanel, setAdditionalPanel] = useState<AdditionalPanel | null>(
     () =>
-      storedDayException
+      initialSelection === null
+        ? 'display'
+        : storedDayException
         ? 'exception'
         : data.timeOverrides[dateKey]
           ? 'time'
@@ -226,12 +228,19 @@ export default function DayEditorScreen() {
     dayException !== initialException ||
     alarmOverrideChanged ||
     note.trim() !== initialNote.trim();
+  const hasDirectScheduleChange = Boolean(
+    hasOverride ||
+      data.timeOverrides[dateKey] ||
+      storedDayException ||
+      initialAlarmOverride,
+  );
   const additionalSettingsSummary = buildAdditionalSettingsSummary({
     exceptionLabel: selectedExceptionAppearance?.label,
     hasAlarmOverride:
       alarmDraft.mode !== 'default' || Boolean(initialAlarmOverride),
     hasTimeOverride: Boolean(timeRequired && !usesDefaultTime),
     hasNote: note.trim().length > 0,
+    scheduleHidden: selection === null,
   });
   const timeSettingsSummary =
     selectedShift && !selectedShift.isOff && dayException === null
@@ -248,6 +257,25 @@ export default function DayEditorScreen() {
             alarmOverrideForSave,
             alarmSourceShift,
           );
+  const currentExceptionLabel = initialEffectiveDay.dayException
+    ? getDayExceptionAppearance(initialEffectiveDay.dayException, palette).label
+    : null;
+  const restoringBaseSchedule = Boolean(
+    hasDirectScheduleChange &&
+      selection === 'pattern' &&
+      dayException === null &&
+      (!selectedShift || selectedShift.isOff || usesDefaultTime) &&
+      alarmOverrideForSave === null,
+  );
+  const saveActionLabel = getDaySaveActionLabel({
+    exceptionLabel: selectedExceptionAppearance?.label,
+    hasChanges,
+    patternShiftName: patternShift?.name,
+    restoringBaseSchedule,
+    selectedShiftName: selectedShift?.name,
+    selection,
+    timeIsValid: dayException !== null || timeIsValid,
+  });
 
   const toggleAdditionalPanel = (panel: AdditionalPanel) => {
     void triggerSelectionFeedback();
@@ -368,18 +396,8 @@ export default function DayEditorScreen() {
   const choose = (value: DaySelection) => {
     void triggerSelectionFeedback();
     if (dayException !== null) setDayException(null);
+    if (value !== null) lastVisibleSelectionRef.current = value;
     if (value === selection) return;
-    setSelection(value);
-    const nextTime = timeForSelection(value);
-    setStartTime(nextTime.start);
-    setEndTime(nextTime.end);
-  };
-
-  const chooseSubstituteMode = (mode: SubstituteMode) => {
-    void triggerSelectionFeedback();
-    if (dayException !== null) setDayException(null);
-    setSubstituteMode(mode);
-    const value = mode === 'night' ? SUBSTITUTE_NIGHT_ID : SUBSTITUTE_DAY_ID;
     setSelection(value);
     const nextTime = timeForSelection(value);
     setStartTime(nextTime.start);
@@ -403,6 +421,26 @@ export default function DayEditorScreen() {
     void triggerSelectionFeedback();
     setStartTime(formatTimeInput(selectedShift.startMinutes));
     setEndTime(formatTimeInput(selectedShift.endMinutes));
+  };
+
+  const resetToBaseSchedule = () => {
+    void triggerSelectionFeedback();
+    lastVisibleSelectionRef.current = 'pattern';
+    setSelection('pattern');
+    setDayException(null);
+    const nextTime =
+      patternShift &&
+      !patternShift.isOff &&
+      patternShift.startMinutes !== null &&
+      patternShift.endMinutes !== null
+        ? {
+            start: formatTimeInput(patternShift.startMinutes),
+            end: formatTimeInput(patternShift.endMinutes),
+          }
+        : { start: '', end: '' };
+    setStartTime(nextTime.start);
+    setEndTime(nextTime.end);
+    setAlarmDraft(createDayAlarmDraft(null, patternShift));
   };
 
   const save = async () => {
@@ -478,7 +516,7 @@ export default function DayEditorScreen() {
           }
           disabled={saving || !hasChanges}
           icon="checkmark"
-          label={dayException === null && !timeIsValid ? '시간 확인' : '저장'}
+          label={saveActionLabel}
           loading={saving}
           onPress={() => void save()}
         />
@@ -545,14 +583,20 @@ export default function DayEditorScreen() {
         </Card>
       ) : null}
 
+      <DayScheduleComparison
+        baseShift={patternShift}
+        currentLabel={currentExceptionLabel}
+        currentShift={initialEffectiveDay.shift}
+        hasDirectChange={hasDirectScheduleChange}
+        onReset={resetToBaseSchedule}
+      />
+
       <ShiftSelectionSection
         compact={compactTimeFields}
         onChoose={choose}
-        onChooseSubstituteMode={chooseSubstituteMode}
         patternShift={patternShift}
         selection={selection}
         shiftTypes={data.shiftTypes}
-        substituteMode={substituteMode}
       />
 
       <AdditionalSettingsSection
@@ -563,6 +607,27 @@ export default function DayEditorScreen() {
         }}
         summary={additionalSettingsSummary}>
         <DisclosureRow
+          expanded={additionalPanel === 'display'}
+          icon="calendar-outline"
+          onPress={() => toggleAdditionalPanel('display')}
+          subtitle={selection === null ? '표시 안 함' : '일정 표시'}
+          title="달력 표시"
+        />
+        {additionalPanel === 'display' ? (
+          <CalendarDisplaySection
+            hidden={selection === null}
+            onChange={(hidden) => {
+              if (hidden) {
+                choose(null);
+                return;
+              }
+              choose(lastVisibleSelectionRef.current);
+            }}
+          />
+        ) : null}
+
+        <DisclosureRow
+          disabled={selection === null}
           expanded={additionalPanel === 'exception'}
           icon="options-outline"
           onPress={() => toggleAdditionalPanel('exception')}

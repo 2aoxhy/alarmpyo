@@ -15,19 +15,40 @@ describe('전역 Play 업데이트 화면 계약', () => {
     const provider = source(
       'src/features/update/global-play-update-controller.tsx',
     );
+    const modalSurface = source('src/design-system/modal-surface.tsx');
+    const appDialog = source('src/components/app-dialog.tsx');
 
     expect(root).toContain('updateNoticeEnabled={!launchVisible}');
     expect(root).toContain('<GlobalPlayUpdateProvider');
-    expect(provider).toContain('<Modal');
-    expect(provider).toContain('presentationStyle="overFullScreen"');
-    expect(provider).toContain('accessibilityViewIsModal');
-    expect(provider).toContain("justifyContent: 'center'");
-    expect(provider).toContain(
-      'Math.min(480, Math.max(0, width - horizontalGuard * 2))',
+    expect(provider).toContain('<ModalSurface');
+    expect(modalSurface).toContain('presentationStyle="overFullScreen"');
+    expect(modalSurface).toContain('accessibilityViewIsModal');
+    expect(modalSurface).toContain("justifyContent: 'center'");
+    expect(modalSurface).toContain(
+      'Math.min(520, Math.max(0, width - horizontalGuard * 2))',
     );
-    expect(provider).toContain(
+    expect(modalSurface).toContain(
       'Math.max(insets.left, insets.right, space.lg)',
     );
+    expect(modalSurface).toContain('zIndex: 10_000');
+    expect(modalSurface).toContain('elevation: 48');
+    expect(provider).toContain(
+      'setPriorityModalVisible(PLAY_UPDATE_PRIORITY_MODAL_OWNER, modalVisible)',
+    );
+    expect(appDialog).toContain(
+      'priorityModalOwners.size > 0 ? null : request',
+    );
+  });
+
+  it('업데이트 실행은 렌더 상태가 아닌 revision 잠금으로 직렬화합니다', () => {
+    const provider = source(
+      'src/features/update/global-play-update-controller.tsx',
+    );
+
+    expect(provider).toContain('const revision = actionGate.claim()');
+    expect(provider).toContain('actionGate.isCurrent(revision)');
+    expect(provider).toContain('actionGate.release(revision)');
+    expect(provider).not.toContain('if (busy) return;');
   });
 
   it('24시간 미루기와 다운로드 중 비차단 진행 표시를 분리합니다', () => {

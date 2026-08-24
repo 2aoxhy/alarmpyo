@@ -144,7 +144,7 @@ export type CalendarAutomaticScheduleDisplayWindow = Readonly<{
   endDate: string;
 }>;
 
-/** 자동 반복 근무는 오늘이 속한 달을 기준으로 앞 3개월부터 뒤 12개월까지만 표시합니다. */
+/** 자동 반복 근무는 오늘이 속한 달을 기준으로 앞뒤 3개월까지만 표시합니다. */
 export function resolveCalendarAutomaticScheduleDisplayWindow(
   referenceDateKey: string,
 ): CalendarAutomaticScheduleDisplayWindow {
@@ -157,7 +157,7 @@ export function resolveCalendarAutomaticScheduleDisplayWindow(
   );
   const end = new Date(
     reference.getFullYear(),
-    reference.getMonth() + 13,
+    reference.getMonth() + 4,
     0,
     12,
   );

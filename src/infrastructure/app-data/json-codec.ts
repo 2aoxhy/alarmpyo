@@ -25,6 +25,7 @@ export type AppDataJsonImportPreview<TVersion extends number> = {
     shiftTypeCount: number;
     changedDateCount: number;
     noteCount: number;
+    notificationsEnabled: boolean;
   };
 };
 
@@ -145,6 +146,7 @@ export function createAppDataJsonCodec<TVersion extends number>(
           ...Object.keys(parsed.data.alarmOverrides),
         ]).size,
         noteCount: Object.keys(parsed.data.notes).length,
+        notificationsEnabled: parsed.data.settings.notificationsEnabled,
       },
     };
   };

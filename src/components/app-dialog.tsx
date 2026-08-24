@@ -29,6 +29,7 @@ import {
   type AppDialogButton,
   type AppDialogOptions,
 } from '@/components/app-dialog-contract';
+import { updateAppDialogPriorityOwners } from '@/components/app-dialog-priority';
 import { AppIcon } from '@/components/app-icon';
 import {
   resolveAppDialogPresentation,
@@ -71,6 +72,7 @@ type ShowAppDialog = {
 };
 
 type AppDialogContextValue = {
+  setPriorityModalVisible: (owner: string, visible: boolean) => void;
   showDialog: ShowAppDialog;
 };
 
@@ -79,6 +81,9 @@ const DIALOG_ENTER_DURATION = motionToken.standard;
 const DIALOG_EXIT_DURATION = motionToken.fast;
 export function AppDialogProvider({ children }: PropsWithChildren) {
   const [request, setRequest] = useState<AppDialogRequest | null>(null);
+  const [priorityModalOwners, setPriorityModalOwners] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const requestRef = useRef<AppDialogRequest | null>(null);
 
   const showDialog = useCallback(
@@ -111,12 +116,25 @@ export function AppDialogProvider({ children }: PropsWithChildren) {
     button.onPress?.();
   }, []);
 
-  const value = useMemo(() => ({ showDialog }), [showDialog]);
+  const setPriorityModalVisible = useCallback(
+    (owner: string, visible: boolean) => {
+      setPriorityModalOwners((current) =>
+        updateAppDialogPriorityOwners(current, owner, visible),
+      );
+    },
+    [],
+  );
+
+  const value = useMemo(
+    () => ({ setPriorityModalVisible, showDialog }),
+    [setPriorityModalVisible, showDialog],
+  );
+  const visibleRequest = priorityModalOwners.size > 0 ? null : request;
 
   return (
     <AppDialogContext.Provider value={value}>
       {children}
-      <AppDialogHost request={request} dismiss={dismiss} choose={choose} />
+      <AppDialogHost request={visibleRequest} dismiss={dismiss} choose={choose} />
     </AppDialogContext.Provider>
   );
 }
@@ -144,6 +162,8 @@ function AppDialogHost({
   const [motion] = useState(() => new Animated.Value(0));
   const closing = useRef(false);
   const titleRef = useRef<React.ElementRef<typeof AppText>>(null);
+  const dialogRef = useRef<View>(null);
+  const previousWebFocusRef = useRef<HTMLElement | null>(null);
   const useNativeDriver = Platform.OS !== 'web';
   const buttons = request?.buttons ?? [];
   const dialogTone = request?.options.tone ?? DEFAULT_APP_DIALOG_OPTIONS.tone;
@@ -156,7 +176,6 @@ function AppDialogHost({
     width < 360 ||
     fontScale >= 1.25 ||
     compactHeight;
-  const wide = width >= 600;
 
   useEffect(() => {
     closing.current = false;
@@ -216,6 +235,58 @@ function AppDialogHost({
     [motion, reduceMotion, useNativeDriver],
   );
 
+  useEffect(() => {
+    if (!request || Platform.OS !== 'web') return;
+    previousWebFocusRef.current = document.activeElement as HTMLElement | null;
+    const titleNode = titleRef.current as unknown as HTMLElement | null;
+    const focusTitle = setTimeout(() => {
+      titleNode?.setAttribute?.('tabindex', '-1');
+      titleNode?.focus?.();
+    }, reduceMotion ? 0 : DIALOG_ENTER_DURATION);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && request.options.cancelable !== false) {
+        event.preventDefault();
+        closeWithAnimation(() => dismiss(request));
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const dialogNode = dialogRef.current as unknown as HTMLElement | null;
+      const focusable = dialogNode
+        ? Array.from(
+            dialogNode.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            ),
+          )
+        : [];
+      if (focusable.length === 0) {
+        event.preventDefault();
+        titleNode?.focus?.();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === titleNode)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === titleNode)
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(focusTitle);
+      document.removeEventListener('keydown', handleKeyDown);
+      setTimeout(() => previousWebFocusRef.current?.focus?.(), 0);
+    };
+  }, [closeWithAnimation, dismiss, reduceMotion, request]);
+
   return (
     <Modal
       animationType="none"
@@ -231,6 +302,7 @@ function AppDialogHost({
       visible={request !== null}>
       <Animated.View
         accessibilityViewIsModal
+        importantForAccessibility="yes"
         style={[
           styles.overlay,
           {
@@ -257,10 +329,14 @@ function AppDialogHost({
         )}
         {request ? (
           <Animated.View
-            accessibilityRole="alert"
+            ref={dialogRef}
+            accessibilityRole={
+              dialogTone === 'danger' || dialogTone === 'warning'
+                ? 'alert'
+                : undefined
+            }
             style={[
               styles.dialog,
-              wide && styles.dialogWide,
               compactHeight && styles.dialogCompactHeight,
               {
                 opacity: motion.interpolate({
@@ -283,13 +359,12 @@ function AppDialogHost({
                 ],
               },
             ]}>
-            {!compactHeight ? <View style={styles.handle} /> : null}
             <ScrollView
               bounces={false}
               contentContainerStyle={styles.content}
               keyboardShouldPersistTaps="handled"
               style={styles.contentScroll}>
-              {!compactHeight ? (
+              {!compactHeight && dialogTone !== 'neutral' ? (
                 <View style={[styles.icon, { backgroundColor: `${tone}1A` }]}>
                   <AppIcon
                     accessible={false}
@@ -345,7 +420,7 @@ function createStyles(palette: AppPalette) {
     overlay: {
       flex: 1,
       alignItems: 'center',
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
       paddingHorizontal: space.md,
     },
     dialog: {
@@ -364,20 +439,10 @@ function createStyles(palette: AppPalette) {
       shadowRadius: 28,
       elevation: 18,
     },
-    dialogWide: {
-      marginBottom: '12%',
-    },
     dialogCompactHeight: {
       maxHeight: '94%',
       gap: space.md,
       padding: space.lg,
-    },
-    handle: {
-      width: 38,
-      height: 4,
-      alignSelf: 'center',
-      borderRadius: radius.full,
-      backgroundColor: palette.line,
     },
     icon: {
       width: size.minimumTouchTarget,

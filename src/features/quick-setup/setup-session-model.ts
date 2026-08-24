@@ -13,7 +13,11 @@ import {
 import type { QuickSetupDraftV1 } from './quick-setup-model';
 
 export type SetupSessionMode = 'initial' | 'reconfigure';
-export type SetupSessionSource = 'received-file' | 'recommended' | 'custom';
+export type SetupSessionSource =
+  | 'current'
+  | 'received-file'
+  | 'recommended'
+  | 'custom';
 export type SetupSessionStep =
   | 'schedule-source'
   | 'schedule-anchor'
@@ -41,8 +45,13 @@ export type SetupSessionDraftV2 = {
 
 export type StoredSetupSessionDraft = QuickSetupDraftV1 | SetupSessionDraftV2;
 
+export type SetupReferenceDatePatch = Pick<
+  SetupSessionDraftV2,
+  'alarmChoice' | 'position' | 'referenceDate' | 'summaryConfirmation'
+>;
+
 const BASE_SHIFT_IDS = ['day', 'evening', 'night', 'off'] as const;
-const SOURCES = ['received-file', 'recommended', 'custom'] as const;
+const SOURCES = ['current', 'received-file', 'recommended', 'custom'] as const;
 const STEPS = ['schedule-source', 'schedule-anchor', 'alarm-readiness'] as const;
 const MODES = ['initial', 'reconfigure'] as const;
 const PRESETS = [
@@ -90,6 +99,26 @@ function safeBaseSequence(data: AppData): BaseWorkShiftId[] {
     : ['day', 'day', 'night', 'night', 'off', 'off'];
 }
 
+/** 유효하지 않은 직접 입력이 재개 가능한 설정 초안에 들어가지 않게 합니다. */
+export function createSetupReferenceDatePatch({
+  presetId,
+  referenceDate,
+}: {
+  presetId: WorkPatternPresetId | null;
+  referenceDate: string;
+}): SetupReferenceDatePatch | null {
+  if (!isValidDraftDateKey(referenceDate)) return null;
+  return {
+    referenceDate,
+    position:
+      presetId === 'weekday'
+        ? getWeekdayPatternPosition(referenceDate)
+        : null,
+    alarmChoice: null,
+    summaryConfirmation: null,
+  };
+}
+
 export function createSetupSessionDraft({
   data,
   mode,
@@ -113,7 +142,7 @@ export function createSetupSessionDraft({
   return {
     version: 2,
     mode,
-    source: null,
+    source: mode === 'reconfigure' ? 'current' : null,
     step: 'schedule-source',
     presetId: mode === 'reconfigure' ? presetId : null,
     sequence,
@@ -137,7 +166,33 @@ export function migrateQuickSetupDraft({
   draft: StoredSetupSessionDraft;
   mode: SetupSessionMode;
 }): SetupSessionDraftV2 | null {
-  if (draft.version === 2) return draft.mode === mode ? draft : null;
+  if (draft.version === 2) {
+    if (draft.mode !== mode) return null;
+    if (
+      mode === 'reconfigure' &&
+      draft.step === 'schedule-source' &&
+      draft.source === null
+    ) {
+      const sequence = safeBaseSequence(data);
+      const presetId = getWorkPatternPresetId(sequence);
+      return {
+        ...draft,
+        source: 'current',
+        presetId,
+        sequence,
+        position:
+          presetId === 'weekday'
+            ? getWeekdayPatternPosition(draft.referenceDate)
+            : getPatternPositionForDate({
+                date: draft.referenceDate,
+                referenceDate: data.pattern.anchorDate,
+                referencePosition: 0,
+                sequenceLength: sequence.length,
+              }),
+      };
+    }
+    return draft;
+  }
   if (mode !== 'reconfigure') return null;
   return {
     version: 2,

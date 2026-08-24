@@ -9,6 +9,7 @@ import {
 import { AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
+import { TodayAlarmPermissionBanner } from '@/features/today/today-alarm-permission-banner';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
@@ -45,9 +46,11 @@ export default function TodayScreen() {
   } = useAppStoreStatus();
   const {
     alarmPlatformSupported,
+    permissionGuide,
     runtimeStatus,
     sleepReminderSupported,
   } = useTodayRuntimeController({
+    alarmEnabled: data.settings.notificationsEnabled,
     enabled: ready && screenActive,
     sleepReminderEnabled: data.settings.sleepReminderEnabled,
     runtimeRevisionKey: [
@@ -126,6 +129,14 @@ export default function TodayScreen() {
         statusLabel={viewModel.statusLabel}
       />
 
+      <TodayAlarmPermissionBanner
+        busy={permissionGuide.busy}
+        completionRevision={permissionGuide.completionRevision}
+        launchError={permissionGuide.launchError}
+        onOpenSettings={() => void permissionGuide.openNextPermission()}
+        viewModel={permissionGuide.viewModel}
+      />
+
       <TodayGuidanceSection
         alarmHasDateOverride={Boolean(
           viewModel.scheduledAlarms[0] &&
@@ -135,6 +146,7 @@ export default function TodayScreen() {
         alarmSummary={viewModel.alarmSummary}
         alarmHealthState={viewModel.alarmHealthState}
         compact={compactHome}
+        hideAlarmRow={Boolean(permissionGuide.viewModel)}
         largeText={largeText}
         now={now}
         routinePlan={viewModel.workRoutinePlan}

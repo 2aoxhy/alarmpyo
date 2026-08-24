@@ -15,6 +15,7 @@ export function PatternVaultCard({
   onApply,
   onDelete,
   onEdit,
+  editLabel = '편집',
   onShare,
 }: {
   active: boolean;
@@ -23,6 +24,7 @@ export function PatternVaultCard({
   onApply: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  editLabel?: string;
   onShare?: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -62,7 +64,7 @@ export function PatternVaultCard({
           <AppButton
             disabled={busy}
             icon="options-outline"
-            label="편집"
+            label={editLabel}
             onPress={onEdit}
             size="compact"
             style={styles.action}
@@ -91,7 +93,12 @@ export function PatternVaultCard({
         />
         {onDelete ? (
           <AppButton
-            disabled={busy || active}
+            accessibilityHint={
+              active
+                ? '현재 달력은 유지하고 보관한 패턴과 관련 적용 이력만 삭제합니다.'
+                : undefined
+            }
+            disabled={busy}
             icon="trash-outline"
             label="삭제"
             onPress={onDelete}

@@ -28,6 +28,7 @@ import {
   createShiftSettingsSnapshot,
   formatDraftWakeTimeSummary,
   formatShiftTimeSummary,
+  getActiveWorkShiftIds,
   getEditorSectionForDraftId,
   hasInvalidDraftForSection,
   isShiftDraftValid,
@@ -47,7 +48,7 @@ import type {
   WorkRoutineTiming,
 } from '@/models/app-data';
 import { isValidWorkRoutineTiming } from '@/services/work-routine-settings';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppStoreData } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import {
   calculateShiftDuration,
@@ -65,13 +66,10 @@ export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
-  const {
-    createBackup,
-    data,
-    updateShiftSettings,
-  } = useAppStore();
-  const activeWorkShiftIds = (['day', 'evening', 'night'] as const).filter(
-    (id) => data.pattern.shiftTypeIds.includes(id),
+  const { data } = useAppStoreData();
+  const { createBackup, updateShiftSettings } = useAppCommands();
+  const activeWorkShiftIds = getActiveWorkShiftIds(
+    data.pattern.shiftTypeIds,
   );
   const navigation = useNavigation();
   const { fontScale, width } = useWindowDimensions();
@@ -104,10 +102,19 @@ export default function ShiftSettingsScreen() {
   const [expandedRoutineKind, setExpandedRoutineKind] = useState<
     keyof WorkRoutineProfiles | null
   >(null);
-  const sharedWakeShiftIds: readonly (keyof WorkRoutineProfiles)[] =
+  const sharedWakeDisplayShiftIds: readonly (keyof WorkRoutineProfiles)[] =
     activeWorkShiftIds;
-  const focusedPanel: Extract<SettingsPanel, 'time' | 'routine'> | null =
-    focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null;
+  const sharedWakeTargetDraftIds = (['day', 'evening', 'night'] as const).filter(
+    (id) => drafts.some((draft) => draft.id === id),
+  );
+  const focusedPanel: Exclude<SettingsPanel, 'pattern'> | null =
+    focus === 'wake'
+      ? 'routine'
+      : focus === 'time'
+        ? 'time'
+        : focus === 'payroll'
+          ? 'payroll'
+          : null;
   const [showAllSettings, setShowAllSettings] = useState(focusedPanel === null);
   const [activePanel, setActivePanel] = useState<SettingsPanel | null>(() =>
     focusedPanel,
@@ -116,9 +123,11 @@ export default function ShiftSettingsScreen() {
   const screenTitle = showAllSettings
     ? '근무표 설정'
     : focus === 'wake'
-      ? '기상 시간'
+      ? '근무 시작 전 알림'
       : focus === 'time'
         ? '근무 시간'
+        : focus === 'payroll'
+          ? '급여일'
         : '근무표 설정';
 
   const weekdayFixed =
@@ -130,7 +139,9 @@ export default function ShiftSettingsScreen() {
     value: EditorSection;
   }[] = [
     ...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value })),
-    { label: '특근', value: 'substitute' as const },
+    ...(showAllSettings
+      ? [{ label: '특근', value: 'substitute' as const }]
+      : []),
   ];
   const selectedShift = data.shiftTypes.find(
     (shift) => shift.id === editorSection,
@@ -532,9 +543,10 @@ export default function ShiftSettingsScreen() {
             applySharedWakePatch(current, draftIds, patch),
           )
         }
-        shifts={sharedWakeShiftIds
+        shifts={sharedWakeDisplayShiftIds
           .map((id) => data.shiftTypes.find((shift) => shift.id === id))
           .filter((shift): shift is ShiftType => shift !== undefined)}
+        targetDraftIds={sharedWakeTargetDraftIds}
       />
 
       <View style={styles.routineDetails}>
@@ -574,6 +586,17 @@ export default function ShiftSettingsScreen() {
       </AppText>
     </View>
   );
+  const payrollEditor = (
+    <View style={styles.editorBody}>
+      <PayrollSettingsEditor
+        onChange={(next) => {
+          setPayrollDraftValid(next !== null);
+          if (next) setPayrollDraft(next);
+        }}
+        value={payrollDraft}
+      />
+    </View>
+  );
 
   return (
     <>
@@ -593,6 +616,7 @@ export default function ShiftSettingsScreen() {
         <View style={styles.section}>
           {!showAllSettings && focusedPanel === 'time' ? timeEditor : null}
           {!showAllSettings && focusedPanel === 'routine' ? routineEditor : null}
+          {!showAllSettings && focusedPanel === 'payroll' ? payrollEditor : null}
           {!showAllSettings && focusedPanel ? (
             <AppButton
               accessibilityHint="근무 방식, 근무 시간, 기상·출근 루틴과 급여일 설정을 모두 표시합니다."
@@ -654,15 +678,7 @@ export default function ShiftSettingsScreen() {
             title="급여일"
           />
           {activePanel === 'payroll' ? (
-            <View style={styles.editorBody}>
-              <PayrollSettingsEditor
-                onChange={(next) => {
-                  setPayrollDraftValid(next !== null);
-                  if (next) setPayrollDraft(next);
-                }}
-                value={payrollDraft}
-              />
-            </View>
+            payrollEditor
           ) : null}
             </>
           ) : null}

@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error Vitest에서 Node 내장 모듈을 제공해요.
+import { readFileSync } from 'node:fs';
+// @ts-expect-error Vitest에서 Node 내장 모듈을 제공해요.
+import { resolve } from 'node:path';
 
 import {
   resolveFloatingTabBarGeometry,
@@ -7,6 +11,16 @@ import {
 } from '../floating-tab-bar';
 
 describe('떠 있는 하단 메뉴 배치', () => {
+  it('React Navigation의 기본 start·end 제약을 덮어쓰고 계산한 중심축을 사용해요', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/(tabs)/_layout.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('left: tabBarGeometry.inset');
+    expect(source).toContain('start: tabBarGeometry.inset');
+    expect(source).toContain("end: 'auto'");
+    expect(source).not.toContain('end: tabBarGeometry.inset');
+  });
   it('안전 영역과 메뉴 높이를 콘텐츠 여백에 모두 반영해요', () => {
     const layout = resolveFloatingTabBarLayout(1, 34);
 

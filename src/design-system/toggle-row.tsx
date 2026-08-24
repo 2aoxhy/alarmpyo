@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { size, space, typeScale } from './tokens';
 import { shouldReflowControl } from './responsive';
@@ -46,6 +48,7 @@ export function ToggleRow({
   const accessibilityLabel = subtitle ? `${title}. ${subtitle}` : title;
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
+  const focus = useWebFocusVisible();
 
   return (
     <Pressable
@@ -53,12 +56,15 @@ export function ToggleRow({
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
+      onBlur={focus.onBlur}
+      onFocus={focus.onFocus}
       onPress={() => onValueChange(!value)}
       style={({ pressed }) => [
         styles.row,
         reflow && styles.rowReflow,
         style,
         pressed && !disabled && styles.pressed,
+        focus.focusVisible && !disabled && styles.focusVisible,
         disabled && styles.disabled,
       ]}
       testID={testID}>
@@ -121,6 +127,15 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
     disabled: {
       backgroundColor: colors.surfaceDisabled,
     },
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
     icon: {
       width: size.minimumTouchTarget,
       height: size.minimumTouchTarget,

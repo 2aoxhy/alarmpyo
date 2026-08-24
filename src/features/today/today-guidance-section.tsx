@@ -17,6 +17,7 @@ type TodayGuidanceSectionProps = {
   alarmHealthState: AlarmHealthState;
   alarmSummary: TodayAlarmSummary;
   compact: boolean;
+  hideAlarmRow?: boolean;
   largeText: boolean;
   now: Date;
   routinePlan: WorkRoutinePlan | null;
@@ -29,6 +30,7 @@ export function TodayGuidanceSection({
   alarmHealthState,
   alarmSummary,
   compact,
+  hideAlarmRow = false,
   largeText,
   now,
   routinePlan,
@@ -47,65 +49,67 @@ export function TodayGuidanceSection({
 
   return (
     <View style={styles.section}>
-      <SectionHeader centered title="오늘 안내" />
+      <SectionHeader centered title="오늘 일정" />
 
-      <Pressable
-        accessibilityHint="알람 상태와 예약 내용을 확인합니다."
-        accessibilityLabel={`근무 알람. ${alarmAccessibilitySummary}${
-          alarmHasDateOverride ? '. 이날만 설정한 알람입니다' : ''
-        }`}
-        accessibilityRole="button"
-        onPress={() => router.push('/alarm-settings')}
-        style={({ pressed }) => [
-          styles.alarmRow,
-          hasAlarmIssue && styles.alarmIssueRow,
-          largeText && styles.alarmRowLargeText,
-          pressed && styles.rowPressed,
-        ]}>
-        <View style={styles.alarmIcon}>
-          <AppIcon
-            accessible={false}
-            color={
-              hasAlarmIssue
-                ? palette.danger
-                : alarmsReady
-                  ? palette.violet
-                  : palette.inkSoft
-            }
-            name={hasAlarmIssue ? 'alert-circle-outline' : 'alarm-outline'}
-            size={23}
-          />
-        </View>
+      {!hideAlarmRow ? (
+        <Pressable
+          accessibilityHint="알람 상태와 예약 내용을 확인합니다."
+          accessibilityLabel={`근무 알람. ${alarmAccessibilitySummary}${
+            alarmHasDateOverride ? '. 이날만 설정한 알람입니다' : ''
+          }`}
+          accessibilityRole="button"
+          onPress={() => router.push('/alarm-settings')}
+          style={({ pressed }) => [
+            styles.alarmRow,
+            hasAlarmIssue && styles.alarmIssueRow,
+            largeText && styles.alarmRowLargeText,
+            pressed && styles.rowPressed,
+          ]}>
+          <View style={styles.alarmIcon}>
+            <AppIcon
+              accessible={false}
+              color={
+                hasAlarmIssue
+                  ? palette.danger
+                  : alarmsReady
+                    ? palette.violet
+                    : palette.inkSoft
+              }
+              name={hasAlarmIssue ? 'alert-circle-outline' : 'alarm-outline'}
+              size={23}
+            />
+          </View>
 
-        <View style={styles.alarmCopy}>
-          <AppText variant="label">
-            {`근무 알람${alarmsReady && scheduledAlarmCount > 0 ? ` · ${scheduledAlarmCount}개 예약` : ''}${alarmHasDateOverride ? ' · 이날만 설정' : ''}`}
-          </AppText>
-          <View style={styles.alarmSummary}>
-            <AppText
-              color={hasAlarmIssue ? palette.danger : undefined}
-              tone={hasAlarmIssue ? 'primary' : 'secondary'}
-              variant="label">
-              {alarmSummary.title}
+          <View style={styles.alarmCopy}>
+            <AppText variant="label">
+              {`근무 알람${alarmsReady && scheduledAlarmCount > 0 ? ` · ${scheduledAlarmCount}개 예약` : ''}${alarmHasDateOverride ? ' · 이날만 설정' : ''}`}
             </AppText>
-            {alarmSummary.description ? (
+            <View style={styles.alarmSummary}>
               <AppText
                 color={hasAlarmIssue ? palette.danger : undefined}
                 tone={hasAlarmIssue ? 'primary' : 'secondary'}
-                variant="caption">
-                {alarmSummary.description}
+                variant="label">
+                {alarmSummary.title}
               </AppText>
-            ) : null}
+              {alarmSummary.description ? (
+                <AppText
+                  color={hasAlarmIssue ? palette.danger : undefined}
+                  tone={hasAlarmIssue ? 'primary' : 'secondary'}
+                  variant="caption">
+                  {alarmSummary.description}
+                </AppText>
+              ) : null}
+            </View>
           </View>
-        </View>
 
-        <AppIcon
-          accessible={false}
-          color={palette.inkSoft}
-          name="chevron-forward"
-          size={18}
-        />
-      </Pressable>
+          <AppIcon
+            accessible={false}
+            color={palette.inkSoft}
+            name="chevron-forward"
+            size={18}
+          />
+        </Pressable>
+      ) : null}
 
       <SleepTimingCard
         compact={compact}

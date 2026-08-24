@@ -45,24 +45,31 @@ describe('근무표 설정 요약 허브 계약', () => {
     expect(shiftSettings).toContain('expandedRoutineKind === kind');
   });
 
-  it('일반 진입에서는 모두 접고 시간·기상 딥링크만 해당 편집을 열어요', () => {
-    expect(shiftSettings).toContain("focus === 'wake' ? 'routine'");
-    expect(shiftSettings).toContain("focus === 'time' ? 'time'");
+  it('일반 진입에서는 모두 접고 시간·기상·급여 딥링크만 해당 편집을 열어요', () => {
+    expect(shiftSettings).toContain("focus === 'wake'");
+    expect(shiftSettings).toContain("? 'routine'");
+    expect(shiftSettings).toContain("focus === 'time'");
+    expect(shiftSettings).toContain("? 'time'");
+    expect(shiftSettings).toContain("focus === 'payroll'");
+    expect(shiftSettings).toContain("? 'payroll'");
     expect(shiftSettings).toContain('useState(focusedPanel === null)');
     expect(shiftSettings).toContain("label=\"전체 설정 보기\"");
     expect(shiftSettings).toContain("focusedPanel === 'time' ? timeEditor");
     expect(shiftSettings).toContain("focusedPanel === 'routine' ? routineEditor");
+    expect(shiftSettings).toContain("focusedPanel === 'payroll' ? payrollEditor");
   });
 
-  it('기상 시간은 한 번 선택해 사용 중인 근무에 동일 적용하고 루틴만 필요할 때 열어요', () => {
+  it('기상 시간은 화면 표시와 무관하게 주간·오후·야간에 동일 적용하고 루틴만 필요할 때 열어요', () => {
     expect(shiftSettings).toContain('showHeader={showAllSettings}');
     expect(shiftSettings).toContain('<SharedWakeSettingsEditor');
     expect(shiftSettings).toContain('activeWorkShiftIds.map((kind)');
     expect(shiftSettings).toContain('expanded={expandedRoutineKind === kind}');
     expect(shiftSettings).not.toContain('routineSectionOptions');
     expect(sharedWakeEditor).toContain(
-      '한 번 선택하면 {shiftNames} 근무에 동일하게 적용됩니다.',
+      '한 번 선택하면 주간·오후·야간에 같은 기준을 적용합니다.',
     );
+    expect(shiftSettings).toContain("(['day', 'evening', 'night'] as const).filter(");
+    expect(shiftSettings).toContain('targetDraftIds={sharedWakeTargetDraftIds}');
     expect(sharedWakeEditor).toContain(
       'onChange(draftIds, { alarmMinutesBefore: minutes })',
     );
@@ -75,6 +82,15 @@ describe('근무표 설정 요약 허브 계약', () => {
     expect(shiftSettings).toContain(
       '주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.',
     );
+  });
+
+  it('집중 근무시간 화면에는 현재 패턴에 포함된 근무만 표시해요', () => {
+    expect(shiftSettings).toContain('getActiveWorkShiftIds(');
+    expect(shiftSettings).toContain(
+      '...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value }))',
+    );
+    expect(shiftSettings).toContain('...(showAllSettings');
+    expect(shiftSettings).toContain("{ label: '특근', value: 'substitute' as const }");
   });
 
   it('급여일까지 화면 아래의 저장 버튼 하나로 적용해요', () => {

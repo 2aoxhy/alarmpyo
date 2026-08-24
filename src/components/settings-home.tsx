@@ -1,5 +1,4 @@
-import { router, type Href, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, type Href } from 'expo-router';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import {
@@ -11,7 +10,6 @@ import {
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
 import { PageHeader } from '@/design-system';
-import { quickSetupDraftController } from '@/features/quick-setup/quick-setup-draft-controller';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
 import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
 import { PlayUpdateStatusBadge } from '@/features/update/play-update-status-badge';
@@ -28,18 +26,6 @@ export default function SettingsHome() {
   const { badge: playUpdateBadge } = useGlobalPlayUpdate();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
-  const [quickDraftAvailable, setQuickDraftAvailable] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      void quickSetupDraftController.hasDraft().then((available) => {
-        if (active) setQuickDraftAvailable(available);
-      });
-      return () => {
-        active = false;
-      };
-    }, []),
-  );
   const presetId = getWorkPatternPresetId(data.pattern.shiftTypeIds);
   const patternLabel =
     presetId === 'custom'
@@ -60,32 +46,13 @@ export default function SettingsHome() {
     <Screen contentStyle={styles.screenContent}>
       <PageHeader align="center" title="설정" />
 
-      <MenuGroup centered title="빠른 설정">
+      <MenuGroup centered title="근무와 알람">
         <ListRow
-          icon={quickDraftAvailable ? 'time-outline' : 'options-outline'}
-          title={quickDraftAvailable ? '설정 마저 하기' : '근무표·알람 설정'}
-          subtitle={
-            quickDraftAvailable
-              ? '중단한 단계부터'
-              : `${patternLabel} · ${data.settings.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐'}`
-          }
-          onPress={() => router.push('/quick-setup' as Href)}
-        />
-      </MenuGroup>
-
-      <MenuGroup centered title="직접 바꾸기">
-        <ListRow
-          icon="repeat-outline"
-          onPress={() => router.push('/shift-settings')}
-          subtitle={workSummary}
-          title="근무표 설정"
-        />
-        <MenuDivider />
-        <ListRow
-          icon="alarm-outline"
-          onPress={() => router.push('/alarm-settings')}
-          subtitle={`${alarmLabel} · 소리·진동·권한`}
-          title="알람"
+          icon="options-outline"
+          title="근무표와 알람"
+          subtitle={`${workSummary} · ${alarmLabel}`}
+          onPress={() => router.push('/work-settings-home' as Href)}
+          allowSubtitleWrapping
         />
       </MenuGroup>
 
@@ -98,19 +65,29 @@ export default function SettingsHome() {
         />
         <MenuDivider />
         <ListRow
-          icon="book-outline"
-          onPress={() => router.push('/app-management' as Href)}
-          subtitle={
-            playUpdateBadge
-              ? `${dataCopy.managementSummary.text} · ${playUpdateBadge.label}`
-              : dataCopy.managementSummary.text
-          }
-          title="데이터·앱 정보"
+          icon="download-outline"
+          onPress={() => router.push('/data-settings' as Href)}
+          subtitle={dataCopy.managementSummary.text}
+          title="데이터 관리"
+        />
+        <MenuDivider />
+        <ListRow
+          icon="sync"
+          onPress={() => router.push('/app-update' as Href)}
+          subtitle={playUpdateBadge?.label ?? '설치된 버전 확인'}
+          title="앱 업데이트"
           trailing={
             playUpdateBadge ? (
               <PlayUpdateStatusBadge badge={playUpdateBadge} />
             ) : undefined
           }
+        />
+        <MenuDivider />
+        <ListRow
+          icon="shield-outline"
+          onPress={() => router.push('/privacy' as Href)}
+          subtitle="앱 정보 · 개인정보 · 권한 사용"
+          title="앱 정보·개인정보"
         />
       </MenuGroup>
     </Screen>

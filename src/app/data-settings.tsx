@@ -1,6 +1,6 @@
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import {
@@ -14,15 +14,18 @@ import { dataCopy } from '@/content/data-copy';
 import { StatusBanner } from '@/design-system';
 import {
   type AppDataImportPreview,
+  isExternalBackupReminderDue,
   type SharedShiftSettings,
   type WorkSettingsSharePreview,
 } from '@/features/data-settings/data-settings-controller';
 import { dataSettingsController } from '@/features/data-settings/data-settings-native-controller';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
-  useAppStoreActions,
+  useAppSelector,
+  useAppCommands,
   type PendingRestoreBackupPreview,
 } from '@/store/app-store';
+import type { AppStore } from '@/application/app-store-contract';
 import { formatCompactTime, formatKoreanDate } from '@/utils/date';
 
 function formatSharedShiftLine(label: string, shift: SharedShiftSettings): string {
@@ -71,9 +74,22 @@ type EncryptedBackupRequest =
   | { mode: 'create' }
   | { mode: 'open'; contents: string; fileName: string };
 
+function selectCurrentRestoreSummary(store: AppStore): string {
+  const changedDateCount = new Set([
+    ...Object.keys(store.data.overrides),
+    ...Object.keys(store.data.timeOverrides),
+    ...Object.keys(store.data.dayExceptions),
+    ...Object.keys(store.data.alarmOverrides),
+  ]).size;
+  const noteCount = Object.keys(store.data.notes).length;
+  const alarmState = store.data.settings.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐';
+  return `${store.data.pattern.name} · 바꾼 날짜 ${changedDateCount}개 · 메모 ${noteCount}개 · ${alarmState}`;
+}
+
 export default function DataSettingsScreen() {
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
+  const currentRestoreSummary = useAppSelector(selectCurrentRestoreSummary);
   const {
     applySharedWorkSettings,
     exportData,
@@ -86,7 +102,7 @@ export default function DataSettingsScreen() {
     resetAllDataDetailed,
     restoreLatestBackup,
     retryPendingRestoreBackup,
-  } = useAppStoreActions();
+  } = useAppCommands();
   const [activeOperation, setActiveOperation] = useState<DataOperation | null>(null);
   const busy = activeOperation !== null;
   const receivingSettings =
@@ -94,6 +110,8 @@ export default function DataSettingsScreen() {
   const loadingFullBackup =
     activeOperation === 'select-backup' || activeOperation === 'import-backup';
   const busyRef = useRef(false);
+  const encryptedBackupTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
+  const backupFileRestoreTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const [latestBackup, setLatestBackup] = useState<AppDataImportPreview | null>(null);
   const [pendingRestoreBackup, setPendingRestoreBackup] =
     useState<PendingRestoreBackupPreview | null>(null);
@@ -306,11 +324,14 @@ export default function DataSettingsScreen() {
   const saveFullBackup = async () => {
     if (!beginOperation('export-backup')) return;
     try {
-      const { fileName } = await dataSettingsController.exportBackupFile(exportData());
+      const result = await dataSettingsController.exportBackupFile(exportData());
+      if (result.storageStatus === 'cancelled') return;
       await recordBackupExportAttempt();
       showDialog(
-        '백업 내보내기 화면을 닫았습니다',
-        `${fileName} 파일을 준비했지만 알람표는 저장 완료 여부를 확인할 수 없습니다. 앱이나 저장 위치를 선택했다면 해당 앱에서 파일을 확인해야 합니다.`,
+        result.storageStatus === 'saved' ? '백업 저장 완료' : '백업 화면 종료',
+        result.storageStatus === 'saved'
+          ? `${result.fileName} 파일을 저장했습니다.`
+          : `${result.fileName} 파일 준비 완료 · 선택한 앱 또는 저장 위치 확인 필요`,
       );
     } catch (error) {
       showDialog(
@@ -358,14 +379,17 @@ export default function DataSettingsScreen() {
           exportData(),
           password,
         );
-        const { fileName } = await dataSettingsController.exportBackupFile(encrypted, {
+        const result = await dataSettingsController.exportBackupFile(encrypted, {
           encrypted: true,
         });
+        if (result.storageStatus === 'cancelled') return;
         await recordBackupExportAttempt();
         setEncryptedBackupRequest(null);
         showDialog(
-          '암호화 백업 내보내기 화면을 닫았습니다',
-          `${fileName} 파일을 준비했지만 알람표는 저장 완료 여부를 확인할 수 없습니다. 앱이나 저장 위치를 선택했다면 해당 앱에서 파일을 확인해야 합니다. 비밀번호는 알람표에 저장되지 않으므로 별도로 기억해야 합니다.`,
+          result.storageStatus === 'saved' ? '암호화 백업 저장 완료' : '백업 화면 종료',
+          result.storageStatus === 'saved'
+            ? `${result.fileName} 파일 저장 완료 · 비밀번호 별도 보관 필요`
+            : `${result.fileName} 파일 준비 완료 · 저장 여부 확인 및 비밀번호 별도 보관 필요`,
         );
         return;
       }
@@ -389,14 +413,17 @@ export default function DataSettingsScreen() {
       [
         `파일 · ${safePickedFileName(fileName)}`,
         `생성 · ${formatBackupCreatedAt(preview.exportedAt)}`,
-        `근무 방식 · ${summary.patternName}`,
-        `일정 적용 시작일 · ${formatKoreanDate(summary.scheduleStartDate, true)}`,
-        `바꾼 날짜 ${summary.changedDateCount}개 · 메모 ${summary.noteCount}개`,
+        '',
+        `현재 · ${currentRestoreSummary}`,
+        `백업 · ${summary.patternName} · 바꾼 날짜 ${summary.changedDateCount}개 · 메모 ${summary.noteCount}개 · ${summary.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐'}`,
+        `백업 적용일 · ${formatKoreanDate(summary.scheduleStartDate, true)}`,
+        '',
+        '복구 전에 현재 데이터를 안전 백업합니다.',
       ].join('\n'),
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
-          text: '불러오기',
+          text: '현재 데이터 덮어쓰기',
           actionId: 'confirm',
           icon: 'checkmark',
           onPress: () => {
@@ -665,6 +692,9 @@ export default function DataSettingsScreen() {
         : latestBackup
       ? `${latestBackup.summary.patternName} · 바꾼 날짜 ${latestBackup.summary.changedDateCount}개 · 메모 ${latestBackup.summary.noteCount}개`
       : '복구할 자동 백업이 아직 없습니다.';
+  const externalBackupReminderDue = isExternalBackupReminderDue(
+    lastBackupExportAttemptAt,
+  );
 
   return (
     <>
@@ -696,7 +726,16 @@ export default function DataSettingsScreen() {
           />
         ) : null}
 
-        <MenuGroup title="근무표 공유">
+        {externalBackupReminderDue ? (
+          <StatusBanner
+            announceChanges={false}
+            message="암호화 백업 생성 후 저장 파일 열기 확인 필요"
+            title="외부 백업 확인 권장"
+            tone="neutral"
+          />
+        ) : null}
+
+        <MenuGroup title="동료와 근무표 주고받기">
           <ListRow
             disabled={busy && activeOperation !== 'send-settings'}
             icon="share-outline"
@@ -714,37 +753,52 @@ export default function DataSettingsScreen() {
             subtitle="파일 확인 후 근무 순서·시간 적용"
             title="받은 근무표 적용"
           />
-          <MenuDivider />
-          <ListRow
-            icon="book-outline"
-            onPress={() => router.push('/pattern-library' as never)}
-            subtitle="반복 근무 순서 파일"
-            title="근무 순서 파일"
-          />
         </MenuGroup>
 
-        <MenuGroup title={dataCopy.backupSection.text}>
+        <MenuGroup title="내 데이터 백업">
           <ListRow
             allowSubtitleWrapping
             disabled={busy && activeOperation !== 'export-encrypted-backup'}
+            elementRef={encryptedBackupTriggerRef}
             icon="shield-outline"
             loading={activeOperation === 'export-encrypted-backup'}
             onPress={() => setEncryptedBackupRequest({ mode: 'create' })}
             subtitle={
               lastBackupExportAttemptAt
-                ? `마지막 내보내기 시도 ${formatBackupCreatedAt(lastBackupExportAttemptAt)} · 저장 여부는 공유 화면에서 확인합니다.`
-                : '공유 화면에서 저장해야 앱 밖에 남습니다.'
+                ? `마지막 백업 화면 ${formatBackupCreatedAt(lastBackupExportAttemptAt)} · 저장 파일 확인 필요`
+                : '암호화 파일로 보관'
             }
-            title="암호화 백업 만들기"
+            title="암호화 백업"
+          />
+        </MenuGroup>
+
+        <MenuGroup title="복구">
+          <ListRow
+            allowSubtitleWrapping
+            disabled={
+              backupLookupStatus !== 'ready' ||
+              latestBackup === null ||
+              pendingRestoreBackup !== null ||
+              (busy && activeOperation !== 'restore-backup')
+            }
+            icon="arrow-undo-outline"
+            loading={
+              backupLookupStatus === 'loading' ||
+              activeOperation === 'restore-backup'
+            }
+            onPress={latestBackup ? restoreAutomaticBackup : undefined}
+            subtitle={latestBackupSubtitle}
+            title="자동 백업으로 복구"
           />
           <MenuDivider />
           <ListRow
             disabled={busy && !loadingFullBackup}
+            elementRef={backupFileRestoreTriggerRef}
             icon="download-outline"
             loading={loadingFullBackup}
             onPress={() => void loadFullBackup()}
             subtitle="백업 파일 선택"
-            title="백업 파일 복구하기"
+            title="백업 파일로 복구"
           />
         </MenuGroup>
 
@@ -753,32 +807,13 @@ export default function DataSettingsScreen() {
             expanded={advancedBackupExpanded}
             icon="options-outline"
             onPress={toggleAdvancedBackup}
-            subtitle="자동 백업 · 일반 백업"
+            subtitle="원본 보호 · 일반 백업"
             title={advancedBackupExpanded ? '고급 관리 접기' : '고급 관리 보기'}
           />
           {advancedBackupExpanded ? (
             <>
-              <MenuDivider />
-              <ListRow
-                allowSubtitleWrapping
-                disabled={
-                  backupLookupStatus !== 'ready' ||
-                  latestBackup === null ||
-                  pendingRestoreBackup !== null ||
-                  (busy && activeOperation !== 'restore-backup')
-                }
-                icon="arrow-undo-outline"
-                loading={
-                  backupLookupStatus === 'loading' ||
-                  activeOperation === 'restore-backup'
-                }
-                onPress={latestBackup ? restoreAutomaticBackup : undefined}
-                subtitle={`앱 삭제 시 함께 삭제 · ${latestBackupSubtitle}`}
-                title="최근 자동 백업 복구"
-              />
               {pendingRestoreBackup ? (
                 <>
-                  <MenuDivider />
                   <ListRow
                     disabled={busy && activeOperation !== 'save-pending-backup'}
                     icon="alert-circle-outline"
@@ -839,6 +874,11 @@ export default function DataSettingsScreen() {
           if (!busy) setEncryptedBackupRequest(null);
         }}
         onSubmit={submitEncryptedBackupPassword}
+        returnFocusRef={
+          encryptedBackupRequest?.mode === 'create'
+            ? encryptedBackupTriggerRef
+            : backupFileRestoreTriggerRef
+        }
       />
     </>
   );

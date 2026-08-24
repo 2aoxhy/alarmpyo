@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "V18",
+  "release": "V19",
   "status": "recapture-required",
   "target": {
     "width": 1080,
@@ -12,17 +12,17 @@
   "screenshots": [
     {
       "order": 1,
-      "captureId": "launch-brand",
-      "sourceFile": "01-brand.webp",
-      "outputFile": "01-brand.png",
-      "altText": "다크 배경에 흰색 알람시계와 달력 마크, 알람표 이름이 표시된 시작 화면"
+      "captureId": "today-overview",
+      "sourceFile": "01-today.webp",
+      "outputFile": "01-today.png",
+      "altText": "현재 근무와 다음 근무, 준비된 알람을 보여주는 오늘 화면"
     },
     {
       "order": 2,
-      "captureId": "today-ready",
-      "sourceFile": "02-today.webp",
-      "outputFile": "02-today.png",
-      "altText": "현재 근무와 남은 시간, 준비된 알람을 보여주는 오늘 화면"
+      "captureId": "calendar-month",
+      "sourceFile": "02-calendar.webp",
+      "outputFile": "02-calendar.png",
+      "altText": "한 달의 주간·야간·휴무와 공휴일을 함께 보여주는 달력 화면"
     },
     {
       "order": 3,

@@ -1,7 +1,9 @@
 export { AppField, type AppFieldProps } from './app-field';
+export { AsyncState, type AsyncStateKind, type AsyncStateProps } from './async-state';
 export { Button, type ButtonProps } from './button';
 export { DisclosureRow, type DisclosureRowProps } from './disclosure-row';
 export { Heading, type HeadingProps } from './heading';
+export { ModalSurface, type ModalSurfaceProps } from './modal-surface';
 export { PageHeader, type PageHeaderProps } from './page-header';
 export { Sheet, type SheetProps } from './sheet';
 export {

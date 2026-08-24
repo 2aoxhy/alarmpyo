@@ -2219,31 +2219,52 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!readyRef.current) {
         return { status: 'failure', reason: 'not-ready' } as const;
       }
-      const mutationRef: {
-        current: ReturnType<typeof deletePatternMutation> | null;
-      } = { current: null };
-      const saved = await replaceDataAndPersist((current) => {
-        mutationRef.current = deletePatternMutation(current, patternId);
-        return mutationRef.current.status === 'deleted'
-          ? mutationRef.current.data
-          : current;
+      return mutationCoordinator.run(async () => {
+        const current = dataRef.current;
+        const mutation = deletePatternMutation(current, patternId);
+        if (mutation.status === 'not-found') return { status: 'not-found', patternId } as const;
+        const candidateAlarmSignature = getAlarmScheduleSignature(mutation.data);
+        const candidateSleepSignature = getSleepReminderScheduleSignature(mutation.data);
+        const persisted = await runPatternPersistenceTransaction({
+          createSafetyBackup: async () => {
+            await writeAutomaticBackup(storageWriter, current);
+            if (!(await runtime.writeBackup(current))) {
+              throw new Error('device-backup-failed');
+            }
+          },
+          persistCandidate: () => replaceDataAndPersistDetailedInternal(
+            mutation.data,
+            true,
+            true,
+          ),
+          candidateSyncFailed: () =>
+            failedAlarmSyncSignatureRef.current === candidateAlarmSignature ||
+            failedSleepReminderSyncSignatureRef.current === candidateSleepSignature,
+          persistRollback: () => replaceDataAndPersistDetailedInternal(
+            current,
+            false,
+            true,
+          ),
+        });
+        if (persisted.status === 'success') {
+          return { status: 'deleted', patternId } as const;
+        }
+        return {
+          status: 'failure',
+          reason:
+            persisted.reason === 'save-failed'
+              ? 'storage-failed'
+              : persisted.reason,
+          rolledBack: persisted.rolledBack,
+        } as const;
       });
-      const mutation = mutationRef.current;
-      if (mutation === null) {
-        return { status: 'not-found', patternId } as const;
-      }
-      if (mutation.status === 'failure') {
-        return { status: 'failure', reason: mutation.reason } as const;
-      }
-      if (mutation.status === 'not-found') {
-        return { status: 'not-found', patternId } as const;
-      }
-      if (!saved) {
-        return { status: 'failure', reason: 'storage-failed' } as const;
-      }
-      return { status: 'deleted', patternId } as const;
     },
-    [replaceDataAndPersist],
+    [
+      mutationCoordinator,
+      replaceDataAndPersistDetailedInternal,
+      runtime,
+      storageWriter,
+    ],
   );
 
   const previewPatternApplication = useCallback(
@@ -2918,7 +2939,6 @@ export function useAppSelector<TSelected>(
     () => source.createSubscription(selector, equality),
     [equality, selector, source],
   );
-  useEffect(() => subscription.destroy, [subscription]);
   return useSyncExternalStore(
     subscription.subscribe,
     subscription.getSnapshot,

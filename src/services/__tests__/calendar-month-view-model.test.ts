@@ -221,12 +221,12 @@ describe('달력 월 화면 계산 모델', () => {
     });
   });
 
-  it('오늘이 속한 달 기준 과거 3개월부터 미래 12개월까지 자동 근무를 표시합니다', () => {
+  it('오늘이 속한 달 기준 앞뒤 3개월까지만 자동 근무를 표시합니다', () => {
     expect(
       resolveCalendarAutomaticScheduleDisplayWindow('2026-08-24'),
     ).toEqual({
       startDate: '2026-05-01',
-      endDate: '2027-08-31',
+      endDate: '2026-11-30',
     });
 
     const beforeWindow = buildCalendarMonthViewModel({
@@ -255,8 +255,8 @@ describe('달력 월 화면 계산 모델', () => {
     const afterWindow = buildCalendarMonthViewModel({
       automaticScheduleReferenceDateKey: '2026-08-24',
       data,
-      year: 2027,
-      month: 8,
+      year: 2026,
+      month: 11,
       windowWidth: 390,
       fontScale: 1,
     });
@@ -271,7 +271,7 @@ describe('달력 월 화면 계산 모델', () => {
       automaticScheduleHidden: false,
     });
     expect(afterWindow.automaticScheduleVisible).toBe(false);
-    expect(afterWindow.daysByDate.get('2027-09-01')).toMatchObject({
+    expect(afterWindow.daysByDate.get('2026-12-01')).toMatchObject({
       automaticScheduleHidden: true,
       effectiveDay: { scheduleActive: true, shift: null },
     });

@@ -54,4 +54,33 @@ describe('createAppSelectorSource', () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('does not register render-created subscriptions until subscribe runs', () => {
+    const source = createAppSelectorSource({ value: 1 });
+    const selector = vi.fn((state: { value: number }) => state.value);
+    const subscription = source.createSubscription(selector);
+
+    source.setSnapshot({ value: 2 });
+
+    expect(selector).toHaveBeenCalledTimes(1);
+    expect(subscription.getSnapshot()).toBe(2);
+    expect(selector).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes the source subscription when useSyncExternalStore unsubscribes', () => {
+    const source = createAppSelectorSource({ value: 1 });
+    const selector = vi.fn((state: { value: number }) => state.value);
+    const subscription = source.createSubscription(selector);
+    const listener = vi.fn();
+    const unsubscribe = subscription.subscribe(listener);
+
+    source.setSnapshot({ value: 2 });
+    unsubscribe();
+    source.setSnapshot({ value: 3 });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(selector).toHaveBeenCalledTimes(2);
+    expect(subscription.getSnapshot()).toBe(3);
+    expect(selector).toHaveBeenCalledTimes(3);
+  });
 });

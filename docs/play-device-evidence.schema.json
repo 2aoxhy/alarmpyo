@@ -115,7 +115,16 @@
         "widgetAvailable",
         "officialPatternVerification",
         "userPatternApplyRollback",
-        "externalPatternSettingsIsolated"
+        "externalPatternSettingsIsolated",
+        "calendarImageShare",
+        "calendarImageContainsNoPrivateData",
+        "alarmPermissionDirectSettingsAndResume",
+        "customTimerOneAndSixtyMinuteBoundary",
+        "timerStaleReadRejected",
+        "compactDateInputNormalization",
+        "activePatternDeletePreservesCurrentSchedule",
+        "activePatternDeleteClearsReferencedHistory",
+        "automaticScheduleThreeMonthWindow"
       ],
       "properties": {
         "playInstallAndLaunch": { "const": true },
@@ -139,7 +148,16 @@
         "widgetAvailable": { "const": true },
         "officialPatternVerification": { "const": true },
         "userPatternApplyRollback": { "const": true },
-        "externalPatternSettingsIsolated": { "const": true }
+        "externalPatternSettingsIsolated": { "const": true },
+        "calendarImageShare": { "const": true },
+        "calendarImageContainsNoPrivateData": { "const": true },
+        "alarmPermissionDirectSettingsAndResume": { "const": true },
+        "customTimerOneAndSixtyMinuteBoundary": { "const": true },
+        "timerStaleReadRejected": { "const": true },
+        "compactDateInputNormalization": { "const": true },
+        "activePatternDeletePreservesCurrentSchedule": { "const": true },
+        "activePatternDeleteClearsReferencedHistory": { "const": true },
+        "automaticScheduleThreeMonthWindow": { "const": true }
       }
     },
     "pageSize16KbDevice": {

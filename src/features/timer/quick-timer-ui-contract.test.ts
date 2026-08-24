@@ -12,7 +12,7 @@ function source(path: string): string {
 describe('빠른 타이머 화면 계약', () => {
   const tabs = source('src/app/(tabs)/_layout.tsx');
   const timer = source('src/app/(tabs)/timer.tsx');
-  const keypad = source('src/features/timer/quick-timer-keypad.tsx');
+  const stepper = source('src/features/timer/quick-timer-duration-stepper.tsx');
   const controller = source('src/features/timer/quick-timer-controller.ts');
   const countdown = source('src/features/timer/quick-timer-countdown.tsx');
   const settings = source('src/components/settings-home.tsx');
@@ -29,13 +29,14 @@ describe('빠른 타이머 화면 계약', () => {
     expect(settings).toBeGreaterThan(quickTimer);
     expect(tabs).toContain("title: '타이머'");
     expect(tabs).toContain('resolveFloatingTabBarHorizontalLayout(windowWidth, 4)');
+    expect(tabs).toContain('detachInactiveScreens');
   });
 
   it('15분·30분·45분·직접 입력을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
     expect(timer).toContain('quickTimerController.durations.map');
     expect(controller).toContain('QUICK_TIMER_DURATIONS');
     expect(timer).toContain('label="직접 입력"');
-    expect(timer).toContain('<QuickTimerKeypad');
+    expect(timer).toContain('<QuickTimerDurationStepper');
     expect(timer).toContain('onSubmit={submitCustomDuration}');
     expect(timer).not.toContain('label="60분"');
     expect(timer).toContain('한 번에 1개만 실행');
@@ -105,7 +106,7 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('Android 설치본에서만');
     expect(timer).toContain('actionLabel={alarmCopy.openSettings.text}');
     expect(timer).toContain('알람음·진동');
-    expect(settings).toContain('소리·진동·권한');
+    expect(settings).toContain('근무표와 알람');
   });
 
   it('프리셋은 화면 폭과 글자 크기에 따라 1·2·4열로 재배치해요', () => {
@@ -122,16 +123,28 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
   });
 
-  it('직접 입력은 분·초 표시와 원형 숫자 키패드를 전체 화면으로 제공해요', () => {
-    expect(keypad).toContain('presentationStyle="fullScreen"');
-    expect(keypad).toContain('onRequestClose={cancel}');
-    expect(keypad).toContain("['1', '2', '3']");
-    expect(keypad).toContain("['00', '0', 'delete']");
-    expect(keypad).toContain("[presentation.minutes, '분']");
-    expect(keypad).toContain("[presentation.seconds, '초']");
-    expect(keypad).not.toContain('presentation.hours');
-    expect(keypad).toContain('quick-timer-keypad-start');
-    expect(keypad).toContain('accessibilityViewIsModal');
-    expect(keypad).toContain('마지막 숫자 지우기');
+  it('직접 입력은 1~60분 조절기와 네 개의 증감 버튼을 제공해요', () => {
+    expect(stepper).toContain('presentationStyle="fullScreen"');
+    expect(stepper).toContain('onRequestClose={onCancel}');
+    expect(stepper).toContain('[-10, -1, 1, 10]');
+    expect(stepper).toContain('accessibilityRole="adjustable"');
+    expect(stepper).toContain("actionName === 'increment'");
+    expect(stepper).toContain("actionName === 'decrement'");
+    expect(stepper).toContain('quick-timer-stepper-start');
+    expect(stepper).toContain('accessibilityViewIsModal');
+    expect(stepper).toContain('<ScrollView');
+    expect(stepper).toContain('contentContainerStyle={styles.content}');
+    expect(stepper).toContain('flexGrow: 1');
+    expect(stepper).not.toContain('초');
+    expect(stepper).not.toContain('00시');
+  });
+
+  it('상태 관측 revision으로 오래된 조회가 새 작업 결과를 덮지 않아요', () => {
+    expect(timer).toContain('observationRevisionRef');
+    expect(timer).toContain('observationRevision !== observationRevisionRef.current');
+    expect(timer).toContain('actionRevisionRef');
+    expect(timer).toContain("claimTimerAction('schedule')");
+    expect(timer).toContain('releaseTimerAction(observationRevision)');
+    expect(timer).toContain('actionRevisionRef.current !== null');
   });
 });

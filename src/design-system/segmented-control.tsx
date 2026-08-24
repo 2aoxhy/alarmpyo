@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -8,6 +9,8 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { interaction, radius, size, space, typeScale } from './tokens';
 import {
@@ -62,34 +65,68 @@ export function SegmentedControl<Value extends string>({
         const selected = option.value === value;
         const optionDisabled = disabled || Boolean(option.disabled);
         return (
-          <Pressable
-            aria-checked={selected}
-            accessibilityLabel={option.accessibilityLabel ?? option.label}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected, disabled: optionDisabled }}
-            disabled={optionDisabled}
+          <SegmentedOption
             key={option.value}
+            label={option.accessibilityLabel ?? option.label}
+            optionLabel={option.label}
+            optionDisabled={optionDisabled}
             onPress={() => onChange(option.value)}
-            style={({ pressed }) => [
-              styles.option,
-              stacked && styles.optionStacked,
-              selected && styles.optionSelected,
-              pressed && !optionDisabled && styles.optionPressed,
-              optionDisabled && styles.optionDisabled,
-            ]}>
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.label,
-                selected && styles.labelSelected,
-                optionDisabled && styles.labelDisabled,
-              ]}>
-              {option.label}
-            </Text>
-          </Pressable>
+            selected={selected}
+            stacked={stacked}
+            styles={styles}
+          />
         );
       })}
     </View>
+  );
+}
+
+function SegmentedOption({
+  label,
+  optionLabel,
+  optionDisabled,
+  onPress,
+  selected,
+  stacked,
+  styles,
+}: {
+  label: string;
+  optionLabel: string;
+  optionDisabled: boolean;
+  onPress: () => void;
+  selected: boolean;
+  stacked: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const focus = useWebFocusVisible();
+  return (
+    <Pressable
+      aria-checked={selected}
+      accessibilityLabel={label}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, disabled: optionDisabled }}
+      disabled={optionDisabled}
+      onBlur={focus.onBlur}
+      onFocus={focus.onFocus}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.option,
+        stacked && styles.optionStacked,
+        selected && styles.optionSelected,
+        pressed && !optionDisabled && styles.optionPressed,
+        focus.focusVisible && !optionDisabled && styles.focusVisible,
+        optionDisabled && styles.optionDisabled,
+      ]}>
+      <Text
+        numberOfLines={stacked ? undefined : 2}
+        style={[
+          styles.label,
+          selected && styles.labelSelected,
+          optionDisabled && styles.labelDisabled,
+        ]}>
+        {optionLabel}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -135,6 +172,15 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       borderColor: colors.border,
       backgroundColor: colors.surfaceDisabled,
     },
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
     label: {
       ...typeScale.label,
       color: colors.textMuted,

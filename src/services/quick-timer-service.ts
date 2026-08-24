@@ -141,7 +141,7 @@ export function normalizeQuickTimerStatus(value: unknown): QuickTimerStatus {
 }
 
 const nativeModule = getAlarmPyoNativeModule();
-let mutationTail: Promise<void> = Promise.resolve();
+let operationTail: Promise<void> = Promise.resolve();
 
 function nativeTimerSupported(): boolean {
   return Boolean(
@@ -151,9 +151,9 @@ function nativeTimerSupported(): boolean {
   );
 }
 
-function enqueueMutation<T>(mutation: () => Promise<T>): Promise<T> {
-  const task = mutationTail.then(mutation);
-  mutationTail = task.then(
+function enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const task = operationTail.then(operation);
+  operationTail = task.then(
     () => undefined,
     () => undefined,
   );
@@ -162,8 +162,10 @@ function enqueueMutation<T>(mutation: () => Promise<T>): Promise<T> {
 
 export async function getQuickTimerStatus(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return normalizeQuickTimerStatus(
-    await nativeModule!.getQuickTimerStatusAsync!(),
+  return enqueueOperation(async () =>
+    normalizeQuickTimerStatus(
+      await nativeModule!.getQuickTimerStatusAsync!(),
+    ),
   );
 }
 
@@ -176,7 +178,7 @@ export async function scheduleQuickTimer(
     );
   }
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(
       await nativeModule!.scheduleQuickTimerAsync!(durationMinutes),
     ),
@@ -187,7 +189,7 @@ export async function pauseQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported() || !nativeModule?.pauseQuickTimerAsync) {
     return unsupportedStatus();
   }
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule.pauseQuickTimerAsync!()),
   );
 }
@@ -196,14 +198,14 @@ export async function resumeQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported() || !nativeModule?.resumeQuickTimerAsync) {
     return unsupportedStatus();
   }
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule.resumeQuickTimerAsync!()),
   );
 }
 
 export async function resetQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(
       nativeModule?.resetQuickTimerAsync
         ? await nativeModule.resetQuickTimerAsync()
@@ -214,7 +216,7 @@ export async function resetQuickTimer(): Promise<QuickTimerStatus> {
 
 export async function cancelQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule!.cancelQuickTimerAsync!()),
   );
 }

@@ -35,6 +35,7 @@ export type ShiftDraft = {
 };
 
 export type EditorSection = 'day' | 'evening' | 'night' | 'substitute';
+export type WorkShiftEditorSection = Exclude<EditorSection, 'substitute'>;
 
 export type WorkSchedulePreviewItem = {
   dateKey: string;
@@ -90,6 +91,16 @@ export function getEditorSectionForDraftId(id: string): EditorSection {
   if (id === 'evening') return 'evening';
   if (id === 'night') return 'night';
   return 'substitute';
+}
+
+/** 현재 패턴에서 실제로 사용하는 근무만 고정된 주간→오후→야간 순서로 표시합니다. */
+export function getActiveWorkShiftIds(
+  patternShiftTypeIds: readonly string[],
+): WorkShiftEditorSection[] {
+  const activeIds = new Set(patternShiftTypeIds);
+  return (['day', 'evening', 'night'] as const).filter((id) =>
+    activeIds.has(id),
+  );
 }
 
 export function createShiftDrafts(shiftTypes: readonly ShiftType[]): ShiftDraft[] {

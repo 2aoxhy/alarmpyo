@@ -4,6 +4,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+import { useIsFocused } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -119,6 +120,7 @@ export function Screen({
   showsVerticalScrollIndicator?: boolean;
 }>) {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const styles = useThemedStyles(createStyles);
   const { fontScale } = useWindowDimensions();
   const floatingTabBarContentOffset = resolveFloatingTabBarLayout(
@@ -140,7 +142,12 @@ export function Screen({
     </View>
   );
   return (
-    <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
+    <SafeAreaView
+      accessibilityElementsHidden={!isFocused}
+      edges={safeAreaEdges}
+      importantForAccessibility={isFocused ? 'auto' : 'no-hide-descendants'}
+      pointerEvents={isFocused ? 'auto' : 'none'}
+      style={[styles.safeArea, !isFocused && styles.screenHidden]}>
       {background ? (
         <View
           accessibilityElementsHidden
@@ -343,6 +350,7 @@ export function ListRow({
   const rowFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
+  const titleLineHeight = typeScale.label.lineHeight * Math.min(fontScale, 2);
   const foreground = disabled || loading
     ? palette.disabledInk
     : destructive
@@ -372,7 +380,12 @@ export function ListRow({
         (disabled || loading) && styles.rowDisabled,
         rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible,
       ]}>
-      <View style={styles.listRowIcon}>
+      <View
+        style={[
+          styles.listRowIcon,
+          reflow && styles.listRowIconReflow,
+          reflow && { height: titleLineHeight },
+        ]}>
         <AppIcon
           accessible={false}
           color={iconForeground}
@@ -397,7 +410,7 @@ export function ListRow({
         ) : null}
       </View>
       {loading || trailing || onPress ? (
-        <View style={styles.listRowTrailing}>
+        <View style={[styles.listRowTrailing, { minHeight: titleLineHeight }]}>
           {loading ? (
             <ActivityIndicator color={palette.indigo} size="small" />
           ) : (
@@ -454,6 +467,9 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flex: 1,
     backgroundColor: palette.canvas,
     overflow: 'hidden',
+  },
+  screenHidden: {
+    display: 'none',
   },
   keyboardAvoider: { flex: 1 },
   scrollContent: {
@@ -543,10 +559,12 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   listRowReflow: { alignItems: 'flex-start' },
   listRowIcon: {
     width: controlSize.minimumTouchTarget,
-    height: controlSize.minimumTouchTarget,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listRowIconReflow: {
+    alignSelf: 'flex-start',
   },
   rowPressed: { backgroundColor: palette.surfaceSoft },
   rowDisabled: {
@@ -567,7 +585,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   },
   listRowTrailing: {
     minWidth: controlSize.minimumTouchTarget,
-    minHeight: controlSize.minimumTouchTarget,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',

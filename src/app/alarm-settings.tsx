@@ -64,7 +64,11 @@ import {
 import { resolveAlarmHealthState } from "@/services/alarm-access-summary";
 import { getCachedFutureAlarmProjection } from "@/services/schedule-projection-cache";
 import { getSleepReminderScheduleSignature } from "@/services/sleep-reminder-planner";
-import { useAppStore, useAppStoreData } from "@/store/app-store";
+import {
+  useAppCommands,
+  useAppStoreData,
+  useAppStoreStatus,
+} from "@/store/app-store";
 import { formatAlarmCountdown } from "@/utils/date";
 import { getDayExceptionAppearance } from "@/utils/day-exception-appearance";
 import { usesDayAlarmForException } from "@/utils/day-exception";
@@ -210,20 +214,20 @@ export default function AlarmSettingsScreen() {
     target?: string | string[];
   }>();
   const { showDialog } = useAppDialog();
+  const { data, getShiftForDate } = useAppStoreData();
   const {
     alarmAutoCheckState,
     alarmSyncStatus,
-    data,
+    sleepReminderSyncStatus,
+    sleepReminderSyncRevision,
+  } = useAppStoreStatus();
+  const {
     disableAlarms,
     enableAlarms,
-    getShiftForDate,
     resyncAlarms,
     sendTestAlarm,
     setSleepReminderEnabled,
-    sleepReminderSyncStatus,
-    sleepReminderSyncRevision,
-  } = useAppStore();
-  const { palette } = useAppTheme();
+  } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const screenActive = useScreenActive();
   const [alarmBusy, setAlarmBusy] = useState(false);
@@ -232,7 +236,9 @@ export default function AlarmSettingsScreen() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(() => {
     const requested = parseAlarmPermissionFocusTarget(target);
+    const requestedFocus = Array.isArray(focus) ? focus[0] : focus;
     return (
+      requestedFocus === 'management' ||
       requested === 'battery-optimization' ||
       requested === 'do-not-disturb' ||
       requested === 'alarm-volume'
@@ -321,7 +327,7 @@ export default function AlarmSettingsScreen() {
     permissionReturnTargetRef.current = null;
     if (!requestedTarget) return;
 
-    void runtimeStatus.refresh(true).then((snapshot) => {
+    void runtimeStatus.refresh().then((snapshot) => {
       requestPermissionFocus(
         resolveAlarmPermissionReturnFocus(
           snapshot.alarmStatus,
@@ -401,6 +407,12 @@ export default function AlarmSettingsScreen() {
     recentAlarmEvents[0] &&
     ALARM_HISTORY_WARNING_TYPES.has(recentAlarmEvents[0].type),
   );
+  const permissionReadiness = alarmStatus
+    ? resolveAlarmPermissionReadinessViewModel(alarmStatus)
+    : null;
+  const requiredPermissionsReady =
+    permissionReadiness !== null &&
+    permissionReadiness.readyRequiredCount === permissionReadiness.requiredTotal;
 
   const openAlarmSettings = useCallback(async () => {
     try {
@@ -770,6 +782,17 @@ export default function AlarmSettingsScreen() {
               status={alarmStatus}
             />
           ) : null}
+          {requiredPermissionsReady && data.settings.notificationsEnabled ? (
+            <AppButton
+              disabled={!accessSummary.canTest || alarmBusy || sleepReminderBusy}
+              icon="alarm-outline"
+              label={alarmCopy.testAlarm.text}
+              loading={testBusy}
+              onPress={() => void testAlarm()}
+              style={styles.fullWidthButton}
+              variant="secondary"
+            />
+          ) : null}
           {accessSummary.issueCode !== "alarm-permissions" ? (
             <StatusBanner
               announceChanges
@@ -840,7 +863,7 @@ export default function AlarmSettingsScreen() {
             icon="alarm-outline"
             onPress={() => router.push("/shift-settings?focus=wake")}
             subtitle={alarmLeadSummary}
-            title="기상 시간"
+            title="근무 시작 전 알림"
             allowSubtitleWrapping
           />
           {sleepReminderSupported ? <MenuDivider /> : null}
@@ -867,8 +890,8 @@ export default function AlarmSettingsScreen() {
             ]}
             subtitle={
               alarmPlatformSupported && recentAlarmEvents.length > 0
-                ? `권한 · 소리·진동 · 시험 · 기록 ${recentAlarmEvents.length}개`
-                : "권한 · 소리·진동 · 시험"
+                ? `선택 점검 · 소리·진동 · 기록 ${recentAlarmEvents.length}개`
+                : "선택 점검 · 소리·진동"
             }
             testID="alarm-management-disclosure"
             title="알람 관리"
@@ -889,6 +912,7 @@ export default function AlarmSettingsScreen() {
                   onOpenSettings={(target) =>
                     void openPermissionTarget(target)
                   }
+                  presentation="recommended-only"
                   status={alarmStatus}
                 />
               ) : null}
@@ -901,36 +925,6 @@ export default function AlarmSettingsScreen() {
                 />
               ) : null}
               <AlarmSoundSettings />
-
-              <View style={styles.testCard}>
-                <View style={styles.testHeader}>
-                  <View style={styles.testIcon}>
-                    <AppIcon
-                      accessible={false}
-                      color={palette.indigoDark}
-                      name="notifications-outline"
-                      size={22}
-                    />
-                  </View>
-                  <View style={styles.flexCopy}>
-                    <AppText variant="heading">알람 시험</AppText>
-                    <AppText tone="secondary" variant="caption">
-                      {accessSummary.canTest
-                        ? "5초 뒤 전체 화면·소리"
-                        : "필수 권한 필요"}
-                    </AppText>
-                  </View>
-                </View>
-                <AppButton
-                  disabled={!accessSummary.canTest || alarmBusy}
-                  icon="alarm-outline"
-                  label={alarmCopy.testAlarm.text}
-                  loading={testBusy}
-                  onPress={() => void testAlarm()}
-                  style={styles.fullWidthButton}
-                  variant="secondary"
-                />
-              </View>
 
               {alarmPlatformSupported ? (
                 <View style={styles.detailsCard}>

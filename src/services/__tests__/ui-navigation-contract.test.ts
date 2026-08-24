@@ -10,24 +10,31 @@ function source(path: string) {
 }
 
 describe('핵심 화면 탐색 계약', () => {
-  it('설정 첫 화면을 핵심 네 항목으로 줄이고 세부 관리는 하위 화면에 모아요', () => {
+  it('설정 첫 화면은 근무·알람 허브와 앱 관리 직행 항목만 보여 줘요', () => {
     const settings = source('src/components/settings-home.tsx');
+    const workSettings = source('src/app/work-settings-home.tsx');
     const appManagement = source('src/app/app-management.tsx');
 
     expect(settings.match(/<ListRow/gu)).toHaveLength(5);
-    expect(settings).toContain('title="근무표 설정"');
-    expect(settings).toContain("router.push('/shift-settings')");
+    expect(settings).toContain('title="근무표와 알람"');
+    expect(settings).toContain("router.push('/work-settings-home' as Href)");
     expect(settings).toContain('title="홈 화면 위젯"');
-    expect(settings).toContain('title="데이터·앱 정보"');
-    expect(settings).not.toContain('title="기상 시간"');
+    expect(settings).toContain('title="데이터 관리"');
+    expect(settings).toContain('title="앱 업데이트"');
+    expect(settings).toContain('title="앱 정보·개인정보"');
     expect(settings).toContain('formatSettingsWorkSummary(');
     expect(settings).toContain('<PageHeader align="center" title="설정" />');
-    expect(settings).toContain('근무표·알람 설정');
-    expect(settings).toContain('설정 마저 하기');
-    expect(settings).toContain("router.push('/quick-setup' as Href)");
-    expect(settings).toContain('<MenuGroup centered title="직접 바꾸기">');
+    expect(settings).not.toContain('근무표·알람 설정');
+    expect(settings).not.toContain('<MenuGroup centered title="직접 바꾸기">');
     expect(settings).toContain('<MenuGroup centered title="앱">');
     expect(settings).not.toContain('자주 쓰는 설정만 모았습니다.');
+    expect(workSettings).toContain("router.push('/quick-setup' as Href)");
+    expect(workSettings).toContain("router.push('/shift-settings?focus=time' as Href)");
+    expect(workSettings).toContain("router.push('/shift-settings?focus=wake' as Href)");
+    expect(workSettings).toContain(
+      '/alarm-settings?focus=permissions&target=${nextPermissionTarget}',
+    );
+    expect(workSettings).toContain("title={nextPermissionTarget ? '알람 권한 설정' : '알람과 권한'}");
     for (const title of [
       '데이터 관리',
       'Google Play 업데이트',
@@ -45,9 +52,10 @@ describe('핵심 화면 탐색 계약', () => {
     ].join('\n');
 
     for (const label of [
-      '근무표 불러오기',
-      '추천 근무 순서에서 선택',
-      '내 근무 순서 직접 만들기',
+      '현재 근무표 사용',
+      '근무 순서 선택',
+      '직접 만들기',
+      '파일 불러오기',
       '앞으로 7일',
       '알람 준비하기',
       '근무표만 저장',
@@ -98,14 +106,19 @@ describe('핵심 화면 탐색 계약', () => {
     );
     expect(contentStyle).toBeGreaterThan(-1);
     expect(protectedBottomSpacing).toBeGreaterThan(contentStyle);
+    expect(uiKit).toContain(
+      'typeScale.label.lineHeight * Math.min(fontScale, 2)',
+    );
+    expect(uiKit).toContain("alignItems: 'flex-start'");
   });
 
   it('하단 메뉴는 Android 논리 좌표의 양쪽 inset으로 화면 중심축을 고정해요', () => {
     const tabsLayout = source('src/app/(tabs)/_layout.tsx');
 
+    expect(tabsLayout).toContain('left: tabBarGeometry.inset');
     expect(tabsLayout).toContain('start: tabBarGeometry.inset');
-    expect(tabsLayout).toContain('end: tabBarGeometry.inset');
-    expect(tabsLayout).not.toContain('left: tabBarGeometry.');
+    expect(tabsLayout).toContain("end: 'auto'");
+    expect(tabsLayout).toContain('width: tabBarGeometry.width');
     expect(tabsLayout).not.toContain('right: tabBarGeometry.');
   });
 
@@ -138,13 +151,14 @@ describe('핵심 화면 탐색 계약', () => {
   it('데이터 화면을 기본·고급·위험 작업으로 나눠요', () => {
     const dataSettings = source('src/app/data-settings.tsx');
     for (const title of [
-      '근무표 공유',
+      '동료와 근무표 주고받기',
+      '내 데이터 백업',
+      '복구',
       '고급 관리',
       '위험 작업',
     ]) {
       expect(dataSettings).toContain(`title="${title}"`);
     }
-    expect(dataSettings).toContain('title={dataCopy.backupSection.text}');
     expect(dataSettings).toContain('onPress={requestSendWorkSettings}');
     expect(dataSettings).toContain('받는 사람이 V17 이상인지 확인');
   });
@@ -152,7 +166,8 @@ describe('핵심 화면 탐색 계약', () => {
   it('복구 가능 여부를 진입할 때 확인하고 데이터 화면은 액션만 구독해요', () => {
     const dataSettings = source('src/app/data-settings.tsx');
 
-    expect(dataSettings).toContain('useAppStoreActions()');
+    expect(dataSettings).toContain('useAppCommands()');
+    expect(dataSettings).toContain('useAppSelector(selectCurrentRestoreSummary)');
     expect(dataSettings).not.toContain('useAppStore()');
     expect(dataSettings).toContain('backupLookupStartedRef.current');
     expect(dataSettings).toContain('void refreshBackup();');

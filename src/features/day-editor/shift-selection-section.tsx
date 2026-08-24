@@ -3,9 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
-import { SelectionCard, SelectionPill } from '@/components/selection-controls';
-import { AppText, MenuDivider, MenuGroup } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { SelectionCard } from '@/components/selection-controls';
+import { AppText, MenuGroup } from '@/components/ui-kit';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { ShiftType } from '@/models/app-data';
@@ -14,47 +14,29 @@ import { getShiftAppearance } from '@/utils/shift-appearance';
 
 import {
   isSubstituteShiftId,
-  SUBSTITUTE_DAY_ID,
-  SUBSTITUTE_NIGHT_ID,
   type DaySelection,
-  type SubstituteMode,
 } from './day-editor-types';
 
 type ShiftSelectionSectionProps = {
   compact: boolean;
   onChoose: (selection: DaySelection) => void;
-  onChooseSubstituteMode: (mode: SubstituteMode) => void;
   patternShift: ShiftType | null;
   selection: DaySelection;
   shiftTypes: ShiftType[];
-  substituteMode: SubstituteMode;
 };
 
 export function ShiftSelectionSection({
   compact,
   onChoose,
-  onChooseSubstituteMode,
   patternShift,
   selection,
   shiftTypes,
-  substituteMode,
 }: ShiftSelectionSectionProps) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const substituteDay = shiftTypes.find((shift) => shift.id === SUBSTITUTE_DAY_ID);
-  const substituteNight = shiftTypes.find((shift) => shift.id === SUBSTITUTE_NIGHT_ID);
-  const activeSubstitute = substituteMode === 'night' ? substituteNight : substituteDay;
-  const activeSubstituteAppearance = activeSubstitute
-    ? getShiftAppearance(activeSubstitute, palette, isDark)
-    : null;
-  const substituteDayAppearance = substituteDay
-    ? getShiftAppearance(substituteDay, palette, isDark)
-    : null;
-  const substituteNightAppearance = substituteNight
-    ? getShiftAppearance(substituteNight, palette, isDark)
-    : null;
-  const substituteSelected =
-    selection === SUBSTITUTE_DAY_ID || selection === SUBSTITUTE_NIGHT_ID;
+  const substituteShifts = shiftTypes.filter((shift) =>
+    isSubstituteShiftId(shift.id),
+  );
 
   return (
     <MenuGroup centered title="근무" style={styles.sectionGroup}>
@@ -112,85 +94,31 @@ export function ShiftSelectionSection({
               );
             })}
 
-          {activeSubstitute && activeSubstituteAppearance ? (
-            <CompactChoice
-              accessibilityLabel={`${activeSubstitute.name}. 특근 일정을 추가합니다.`}
-              compact={compact}
-              icon={
-                <AnimatedShiftIcon
-                  animated={substituteSelected}
-                  color={activeSubstituteAppearance.accentColor}
-                  kind="substitute"
-                  size={23}
-                />
-              }
-              label="특근"
-              onPress={() => onChoose(activeSubstitute.id)}
-              selected={substituteSelected}
-              selectedColor={activeSubstituteAppearance.accentColor}
-              softColor={palette.surfaceSoft}
-            />
-          ) : null}
-
-          <CompactChoice
-            accessibilityLabel="일정 없음. 휴무와 달리 달력에 아무 일정도 표시하지 않습니다."
-            compact={compact}
-            icon={
-              <AppIcon
-                accessible={false}
-                color={palette.inkSoft}
-                name="remove"
-                size={21}
-              />
-            }
-            label="일정 없음"
-            onPress={() => onChoose(null)}
-            selected={selection === null}
-            selectedColor={palette.inkSoft}
-            softColor={palette.surfaceSoft}
-          />
-        </View>
-
-        {substituteSelected ? (
-          <>
-            <MenuDivider inset={false} />
-            <View
-              accessibilityLabel="특근 종류"
-              accessibilityRole="radiogroup"
-              style={styles.substituteModeTabs}>
-              {(
-                [
-                  {
-                    appearance: substituteDayAppearance,
-                    label: substituteDay?.shortName ?? '주대',
-                    value: 'day' as const,
-                  },
-                  {
-                    appearance: substituteNightAppearance,
-                    label: substituteNight?.shortName ?? '야대',
-                    value: 'night' as const,
-                  },
-                ]
-              ).map((option) => {
-                const selected = substituteMode === option.value;
-                const color = option.appearance?.accentColor ?? palette.indigo;
-                return (
-                  <SelectionPill
-                    key={option.value}
-                    accessibilityLabel={`${option.label} 특근`}
-                    label={option.label}
-                    onPress={() => {
-                      if (!selected) onChooseSubstituteMode(option.value);
-                    }}
-                    selected={selected}
-                    semanticColor={color}
-                    style={styles.substituteModeTab}
+          {substituteShifts.map((shift) => {
+            const appearance = getShiftAppearance(shift, palette, isDark);
+            const day = shift.id === 'substitute-day';
+            return (
+              <CompactChoice
+                accessibilityLabel={`${day ? '주간' : '야간'} 특근. ${shift.name} 일정을 적용합니다.`}
+                compact={compact}
+                icon={
+                  <AnimatedShiftIcon
+                    animated={selection === shift.id}
+                    color={appearance.accentColor}
+                    kind="substitute"
+                    size={23}
                   />
-                );
-              })}
-            </View>
-          </>
-        ) : null}
+                }
+                key={shift.id}
+                label={`${day ? '주간' : '야간'} 특근`}
+                onPress={() => onChoose(shift.id)}
+                selected={selection === shift.id}
+                selectedColor={appearance.accentColor}
+                softColor={appearance.softColor}
+              />
+            );
+          })}
+        </View>
       </View>
     </MenuGroup>
   );
@@ -268,17 +196,5 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'center',
     },
     compactChoiceLabel: { flex: 1, minWidth: 0 },
-    substituteModeTabs: {
-      flexDirection: 'row',
-      gap: spacing.tiny,
-      padding: spacing.tiny,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-    },
-    substituteModeTab: {
-      minHeight: 48,
-      flex: 1,
-      paddingHorizontal: spacing.small,
-    },
   });
 }

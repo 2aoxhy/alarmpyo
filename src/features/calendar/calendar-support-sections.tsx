@@ -154,55 +154,57 @@ export function CalendarLargeTextStatusSummary({
 
 type MenuProps = {
   onOpenLegend: () => void;
+  onShareImage: () => void;
+  shareImageBusy?: boolean;
+  shareTriggerRef?: Ref<React.ElementRef<typeof Pressable>>;
   showCompactKey?: boolean;
   triggerRef?: Ref<React.ElementRef<typeof Pressable>>;
 };
 
 export function CalendarMenuSections({
   onOpenLegend,
+  onShareImage,
+  shareImageBusy = false,
+  shareTriggerRef,
   showCompactKey = true,
   triggerRef,
 }: MenuProps) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
-  if (!showCompactKey) {
-    return (
-      <Pressable
-        ref={triggerRef}
-        accessibilityHint="근무·날짜 정보·특별 일정 표시를 확인합니다."
-        accessibilityLabel="달력 표시 안내 열기"
-        accessibilityRole="button"
-        onPress={onOpenLegend}
-        style={({ pressed }) => [
-          styles.guideRow,
-          pressed && styles.compactKeyPressed,
-        ]}>
-        <View style={styles.compactKeyTitle}>
-          <AppIcon
-            accessible={false}
-            color={palette.indigoDark}
-            name="ellipse-outline"
-            size={20}
-          />
-          <View style={styles.guideCopy}>
-            <AppText variant="label">표시 안내</AppText>
-            <AppText tone="secondary" variant="caption">
-              근무·날짜 정보·특별 일정 표시를 확인합니다.
-            </AppText>
-          </View>
-        </View>
+  const guide = !showCompactKey ? (
+    <Pressable
+      ref={triggerRef}
+      accessibilityHint="근무·날짜 정보·특별 일정 표시를 확인합니다."
+      accessibilityLabel="달력 표시 안내 열기"
+      accessibilityRole="button"
+      onPress={onOpenLegend}
+      style={({ pressed }) => [
+        styles.guideRow,
+        pressed && styles.compactKeyPressed,
+      ]}>
+      <View style={styles.compactKeyTitle}>
         <AppIcon
           accessible={false}
-          color={palette.inkMuted}
-          name="chevron-forward"
-          size={18}
+          color={palette.indigoDark}
+          name="ellipse-outline"
+          size={20}
         />
-      </Pressable>
-    );
-  }
-
-  return (
+        <View style={styles.guideCopy}>
+          <AppText variant="label">표시 안내</AppText>
+          <AppText tone="secondary" variant="caption">
+            근무·날짜 정보·특별 일정 표시를 확인합니다.
+          </AppText>
+        </View>
+      </View>
+      <AppIcon
+        accessible={false}
+        color={palette.inkMuted}
+        name="chevron-forward"
+        size={18}
+      />
+    </Pressable>
+  ) : (
     <Pressable
       ref={triggerRef}
       accessibilityHint="전체 표시 안내를 엽니다."
@@ -242,6 +244,48 @@ export function CalendarMenuSections({
         <CompactKeyItem kind="override" label="직접 변경" palette={palette} styles={styles} />
       </View>
     </Pressable>
+  );
+
+  return (
+    <View style={styles.menuSections}>
+      <Pressable
+        ref={shareTriggerRef}
+        accessibilityHint="현재 달의 날짜, 근무, 공휴일만 담은 PNG를 만듭니다."
+        accessibilityLabel={
+          shareImageBusy ? '근무표 이미지 만드는 중' : '현재 달 이미지로 공유'
+        }
+        accessibilityRole="button"
+        accessibilityState={{ busy: shareImageBusy, disabled: shareImageBusy }}
+        disabled={shareImageBusy}
+        onPress={onShareImage}
+        style={({ pressed }) => [
+          styles.shareImageRow,
+          shareImageBusy && styles.shareImageRowDisabled,
+          pressed && !shareImageBusy && styles.compactKeyPressed,
+        ]}>
+        <View style={styles.shareImageCopy}>
+          <AppIcon
+            accessible={false}
+            color={palette.indigoDark}
+            name="share-outline"
+            size={20}
+          />
+          <View style={styles.shareImageText}>
+            <AppText variant="label">이미지로 공유</AppText>
+            <AppText tone="secondary" variant="caption">
+              날짜·근무·공휴일만 포함
+            </AppText>
+          </View>
+        </View>
+        <AppIcon
+          accessible={false}
+          color={palette.inkMuted}
+          name="chevron-forward"
+          size={18}
+        />
+      </Pressable>
+      {guide}
+    </View>
   );
 }
 
@@ -526,6 +570,33 @@ function CalendarLegendMarker({
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
+    menuSections: {
+      gap: spacing.small,
+    },
+    shareImageRow: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.medium,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+      backgroundColor: palette.surface,
+    },
+    shareImageRowDisabled: {
+      backgroundColor: palette.disabledSurface,
+    },
+    shareImageCopy: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.small,
+    },
+    shareImageText: { minWidth: 0, flex: 1, gap: 2 },
     holidayNotice: {
       flexDirection: 'row',
       alignItems: 'flex-start',

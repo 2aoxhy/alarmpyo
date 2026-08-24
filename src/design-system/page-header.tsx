@@ -16,6 +16,14 @@ export type PageHeaderProps = DesignSystemThemeProps & {
   align?: 'start' | 'center';
 };
 
+export function shouldStackPageHeaderAction(
+  width: number,
+  fontScale: number,
+  hasTrailingAction: boolean,
+) {
+  return hasTrailingAction && (width < 360 || fontScale >= 1.3);
+}
+
 export function PageHeader({
   title,
   subtitle,
@@ -27,17 +35,29 @@ export function PageHeader({
   const { colors } = useDesignSystemTheme(theme);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { fontScale, width } = useWindowDimensions();
-  const stacked = fontScale >= 1.4 || width < 320;
+  const stacked = shouldStackPageHeaderAction(width, fontScale, trailing != null);
   return (
-    <View style={[styles.header, stacked && styles.stacked]}>
-      {leading ? <View style={styles.side}>{leading}</View> : null}
-      <View style={[styles.copy, align === 'center' && styles.copyCentered]}>
-        <Heading align={align === 'center' ? 'center' : 'left'} level={2} style={styles.title}>
-          {title}
-        </Heading>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    <View style={[styles.header, stacked && styles.headerStacked]}>
+      <View style={styles.titleRow}>
+        <View style={[styles.side, styles.leadingSide, stacked && styles.sideStacked]}>
+          {leading}
+        </View>
+        <View
+          style={[
+            styles.copy,
+            align === 'center' && styles.copyCentered,
+            stacked && styles.copyStacked,
+          ]}>
+          <Heading align={align === 'center' ? 'center' : 'left'} level={2} style={styles.title}>
+            {title}
+          </Heading>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
+        <View style={[styles.side, styles.trailingSide, stacked && styles.sideStacked]}>
+          {stacked ? null : trailing}
+        </View>
       </View>
-      {trailing ? <View style={styles.side}>{trailing}</View> : null}
+      {stacked ? <View style={styles.actionRow}>{trailing}</View> : null}
     </View>
   );
 }
@@ -47,29 +67,48 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
     header: {
       width: '100%',
       minHeight: 52,
+    },
+    headerStacked: {
+      gap: space.xs,
+    },
+    titleRow: {
+      width: '100%',
+      minHeight: 52,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: space.md,
-    },
-    stacked: {
-      flexWrap: 'wrap',
-      alignItems: 'flex-start',
     },
     side: {
       minWidth: 48,
       minHeight: 48,
-      flexShrink: 0,
-      alignItems: 'center',
+      flex: 1,
       justifyContent: 'center',
+    },
+    leadingSide: { alignItems: 'flex-start' },
+    trailingSide: { alignItems: 'flex-end' },
+    sideStacked: {
+      width: 48,
+      flexBasis: 48,
+      flexGrow: 0,
+      flexShrink: 0,
     },
     copy: {
       minWidth: 0,
-      flex: 1,
+      flexShrink: 1,
       gap: space.xxs,
+    },
+    copyStacked: {
+      flexBasis: 0,
+      flexGrow: 1,
     },
     copyCentered: {
       alignItems: 'center',
+    },
+    actionRow: {
+      width: '100%',
+      minHeight: 48,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
     },
     title: { color: colors.text },
     subtitle: {

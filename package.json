@@ -1,7 +1,7 @@
 {
   "name": "alarmpyo",
   "main": "expo-router/entry",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
@@ -39,6 +39,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
+    "react-native-view-shot": "5.1.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1"
   },

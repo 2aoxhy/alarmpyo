@@ -23,7 +23,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     const status = alarmSettings.indexOf('testID="alarm-access-status"');
     const nextAlarm = alarmSettings.indexOf('<MenuGroup title="다음 알람">');
     const sleepReminder = alarmSettings.indexOf('<SleepReminderToggle');
-    const wakeTime = alarmSettings.indexOf('title="기상 시간"');
+    const wakeTime = alarmSettings.indexOf('title="근무 시작 전 알림"');
     const management = alarmSettings.indexOf('title="알람 관리"');
 
     expect(readiness).toBeGreaterThan(-1);
@@ -47,7 +47,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(statusCard).toContain('onPress={runAccessAction}');
   });
 
-  it('다음 필수 권한만 상단에 두고 전체 권한과 부가 기능은 펼침 영역에 모아요', () => {
+  it('필수 권한과 시험은 상단에 두고 선택 점검과 부가 기능은 펼침 영역에 모아요', () => {
     const managementBody = alarmSettings.indexOf('{managementOpen ? (');
     const permissions = alarmSettings.indexOf(
       '<AlarmPermissionChecklist',
@@ -61,9 +61,12 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain(
       'const [managementOpen, setManagementOpen] = useState(() =>',
     );
+    expect(alarmSettings).toContain("requestedFocus === 'management'");
     expect(alarmSettings).toContain('presentation="next-required"');
-    expect(permissionChecklist).toContain("presentation?: 'all' | 'next-required'");
+    expect(permissionChecklist).toContain("| 'recommended-only'");
     expect(permissionChecklist).toContain("presentation === 'next-required'");
+    expect(permissionChecklist).toContain("presentation === 'recommended-only'");
+    expect(permissionChecklist).toContain('model.summary');
     expect(permissionChecklist).toContain('model.nextRequiredTarget');
     expect(alarmSettings).toContain('expanded={managementOpen}');
     expect(alarmSettings).toContain(
@@ -72,9 +75,9 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain('expanded={historyOpen}');
     expect(permissions).toBeLessThan(managementBody);
     expect(managementBody).toBeGreaterThan(-1);
+    expect(testAlarm).toBeLessThan(managementBody);
     expect(sound).toBeGreaterThan(managementBody);
-    expect(testAlarm).toBeGreaterThan(sound);
-    expect(recentHistory).toBeGreaterThan(testAlarm);
+    expect(recentHistory).toBeGreaterThan(sound);
     expect(alarmSettings.match(/<DisclosureRow\b/g)).toHaveLength(1);
   });
 
@@ -96,7 +99,7 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain(
       'resolveAlarmPermissionLaunchNotice(result)',
     );
-    expect(alarmSettings).toContain('runtimeStatus.refresh(true)');
+    expect(alarmSettings).toContain('runtimeStatus.refresh()');
   });
 
   it('권한 딥링크는 행만 강조하고 사용자 동작 없이 설정을 열지 않아요', () => {

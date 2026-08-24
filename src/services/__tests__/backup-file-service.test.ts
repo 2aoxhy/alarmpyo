@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Platform } from 'react-native';
 
 import { getUtf8ByteLength } from '../../utils/utf8';
 import {
@@ -21,10 +22,19 @@ const sharing = vi.hoisted(() => ({
 const documentPicker = vi.hoisted(() => ({
   getDocumentAsync: vi.fn(),
 }));
+const storageAccessFramework = vi.hoisted(() => ({
+  requestDirectoryPermissionsAsync: vi.fn(),
+  createFileAsync: vi.fn(),
+}));
+const reactNative = vi.hoisted(() => ({
+  Platform: { OS: 'web' },
+}));
 
+vi.mock('react-native', () => reactNative);
 vi.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'cache://',
   EncodingType: { UTF8: 'utf8' },
+  StorageAccessFramework: storageAccessFramework,
   ...fileSystem,
 }));
 vi.mock('expo-sharing', () => sharing);
@@ -38,6 +48,78 @@ describe('백업 파일 내보내기와 가져오기', () => {
     fileSystem.deleteAsync.mockResolvedValue(undefined);
     sharing.isAvailableAsync.mockResolvedValue(true);
     sharing.shareAsync.mockResolvedValue(undefined);
+    storageAccessFramework.requestDirectoryPermissionsAsync.mockResolvedValue({
+      granted: true,
+      directoryUri: 'content://backup',
+    });
+    storageAccessFramework.createFileAsync.mockResolvedValue('content://backup/file');
+  });
+
+  it('Android는 시스템 폴더 선택에서 파일 저장 완료를 확인해요', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    const contents = '{"ok":true}';
+    fileSystem.readAsStringAsync.mockResolvedValue(contents);
+    try {
+      await expect(exportBackupFile(contents, { encrypted: true })).resolves.toEqual({
+        fileName: expect.stringMatching(/\.alarmpyo$/),
+        storageStatus: 'saved',
+      });
+      expect(storageAccessFramework.requestDirectoryPermissionsAsync).toHaveBeenCalledOnce();
+      expect(fileSystem.writeAsStringAsync).toHaveBeenCalledWith(
+        'content://backup/file',
+        contents,
+        { encoding: 'utf8' },
+      );
+      expect(sharing.shareAsync).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
+  it('Android 폴더 선택 취소는 파일을 만들지 않아요', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    storageAccessFramework.requestDirectoryPermissionsAsync.mockResolvedValueOnce({
+      granted: false,
+      directoryUri: null,
+    });
+    try {
+      await expect(exportBackupFile('{"ok":true}')).resolves.toEqual({
+        fileName: expect.any(String),
+        storageStatus: 'cancelled',
+      });
+      expect(storageAccessFramework.createFileAsync).not.toHaveBeenCalled();
+      expect(fileSystem.writeAsStringAsync).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
+  it('Android에서 쓰기 검증이 실패하면 손상된 대상 파일을 지워요', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+    fileSystem.readAsStringAsync.mockResolvedValueOnce('{"broken":true}');
+    try {
+      await expect(exportBackupFile('{"ok":true}')).rejects.toThrow(
+        '백업 파일을 정확히 저장하지 못했습니다',
+      );
+      expect(fileSystem.deleteAsync).toHaveBeenCalledWith(
+        'content://backup/file',
+        { idempotent: true },
+      );
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('내보내기도 4MB를 넘는 UTF-8 내용을 파일 생성 전에 거부합니다', async () => {

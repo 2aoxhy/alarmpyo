@@ -6,6 +6,17 @@ import type {
 
 const LAST_BACKUP_EXPORT_ATTEMPT_AT_KEY =
   'alarmpyo:last-external-backup-export-attempt:v1';
+const EXTERNAL_BACKUP_REMINDER_INTERVAL_MS = 30 * 24 * 60 * 60 * 1_000;
+
+export function isExternalBackupReminderDue(
+  lastExportAt: string | null,
+  now = new Date(),
+): boolean {
+  if (!lastExportAt) return true;
+  const timestamp = Date.parse(lastExportAt);
+  if (!Number.isFinite(timestamp)) return true;
+  return now.getTime() - timestamp >= EXTERNAL_BACKUP_REMINDER_INTERVAL_MS;
+}
 
 export type DataSettingsKeyValueStore = {
   getItem(key: string): Promise<string | null>;

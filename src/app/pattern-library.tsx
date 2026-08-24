@@ -28,7 +28,7 @@ import type { PatternVaultEntry } from '@/models/app-data';
 import {
   isPatternVaultEntryApplied,
 } from '@/services/pattern-vault-service';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { formatKoreanDate } from '@/utils/date';
 
 type BusyOperation = 'rollback' | `delete:${string}`;
@@ -47,12 +47,12 @@ function formatPatternAppliedAt(value: string): string {
 
 export default function PatternLibraryScreen() {
   const { showDialog } = useAppDialog();
+  const data = useAppSelector((store) => store.data);
   const {
-    data,
     deletePattern,
     importValidatedPattern,
     rollbackLastPatternApplication,
-  } = useAppStore();
+  } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const stackActions = width <= 320 || fontScale >= 1.5;
@@ -90,6 +90,38 @@ export default function PatternLibraryScreen() {
       undefined,
       { tone: 'danger' },
     );
+  };
+
+  const ensureOfficialPatternStored = async (
+    descriptor: ValidatedPatternDescriptor,
+  ): Promise<string | null> => {
+    if (anyBusyOperation) return null;
+    const result = await saveOfficialPatternThroughController(descriptor);
+    if (!result) return null;
+    if (result.status === 'saved' || result.status === 'unchanged') {
+      return result.patternId;
+    }
+    showDialog(
+      '패턴 저장 실패',
+      result.reason === 'vault-full'
+        ? '보관함이 가득 찼습니다. 사용하지 않는 패턴 삭제 필요.'
+        : '저장 공간 부족 또는 일시 오류입니다. 잠시 후 재시도 가능.',
+      undefined,
+      { tone: 'danger' },
+    );
+    return null;
+  };
+
+  const applyOfficialPattern = async (descriptor: ValidatedPatternDescriptor) => {
+    const patternId = await ensureOfficialPatternStored(descriptor);
+    if (!patternId) return;
+    router.push({ pathname: '/pattern-library-apply', params: { id: patternId } } as never);
+  };
+
+  const copyOfficialPattern = async (descriptor: ValidatedPatternDescriptor) => {
+    const patternId = await ensureOfficialPatternStored(descriptor);
+    if (!patternId) return;
+    router.push({ pathname: '/pattern-library-edit', params: { id: patternId } } as never);
   };
 
   const importPatternFile = async () => {
@@ -161,9 +193,13 @@ export default function PatternLibraryScreen() {
                 if (result.status === 'deleted' || result.status === 'not-found') return;
                 showDialog(
                   '삭제 실패',
-                  result.reason === 'pattern-in-use'
-                    ? '사용 중인 패턴 또는 복구 이력에 필요한 패턴'
-                    : '저장 공간을 확인한 뒤 다시 시도',
+                  result.reason === 'backup-failed'
+                    ? '안전 백업을 만들지 못해 패턴을 유지했습니다.'
+                    : result.reason === 'sync-failed'
+                      ? '패턴 삭제를 되돌렸습니다. 알람 상태 확인 필요.'
+                      : result.reason === 'rollback-failed'
+                        ? '삭제 상태를 확인할 수 없습니다. 현재 근무표·알람 상태 확인 필요.'
+                        : '저장 공간 부족 또는 일시 오류입니다. 잠시 후 재시도 가능.',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -319,16 +355,34 @@ export default function PatternLibraryScreen() {
                   {result.pattern.shiftCodes.length}일 주기 · {formatPatternSequence(result.pattern.shiftCodes)}
                 </AppText>
               </View>
-              {!alreadyStored ? (
+              <View style={[styles.officialActions, stackActions && styles.topActionsStacked]}>
                 <AppButton
                   disabled={anyBusyOperation !== null}
-                  icon="shield-outline"
-                  label="보관"
+                  icon="checkmark"
+                  label="이대로 적용"
                   loading={runtimeBusyOperation === `official-save:${result.id}`}
-                  onPress={() => void saveOfficialPattern(result.pattern)}
+                  onPress={() => void applyOfficialPattern(result.pattern)}
+                  style={styles.topAction}
+                />
+                <AppButton
+                  disabled={anyBusyOperation !== null}
+                  icon="options-outline"
+                  label="복사해서 수정"
+                  onPress={() => void copyOfficialPattern(result.pattern)}
+                  style={styles.topAction}
                   variant="secondary"
                 />
-              ) : null}
+                {!alreadyStored ? (
+                  <AppButton
+                    disabled={anyBusyOperation !== null}
+                    icon="shield-outline"
+                    label="보관만 하기"
+                    onPress={() => void saveOfficialPattern(result.pattern)}
+                    style={styles.topAction}
+                    variant="ghost"
+                  />
+                ) : null}
+              </View>
             </Surface>
           );
         })}
@@ -352,17 +406,15 @@ export default function PatternLibraryScreen() {
             <PatternVaultCard
               active={isPatternVaultEntryApplied(data, entry)}
               busy={anyBusyOperation !== null}
+              editLabel={entry.source === 'user' ? '편집' : '복사해서 수정'}
               entry={entry}
               key={entry.id}
               onApply={() =>
                 router.push({ pathname: '/pattern-library-apply', params: { id: entry.id } } as never)
               }
               onDelete={() => confirmDeletePattern(entry)}
-              onEdit={
-                entry.source === 'user'
-                  ? () =>
-                      router.push({ pathname: '/pattern-library-edit', params: { id: entry.id } } as never)
-                  : undefined
+              onEdit={() =>
+                router.push({ pathname: '/pattern-library-edit', params: { id: entry.id } } as never)
               }
               onShare={entry.source === 'user' ? () => void sharePattern(entry) : undefined}
             />
@@ -443,6 +495,11 @@ function createStyles(palette: AppPalette) {
     officialCard: {
       gap: spacing.large,
       padding: spacing.large,
+    },
+    officialActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.small,
     },
     officialCopy: {
       gap: spacing.tiny,

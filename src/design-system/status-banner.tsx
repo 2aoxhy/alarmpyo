@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import {
   interaction,
@@ -34,6 +36,8 @@ export type StatusBannerProps = DesignSystemThemeProps & {
   onAction?: () => void;
   /** 처음 표시할 때는 조용히 두고, 같은 배너의 내용이 바뀔 때만 읽어요. */
   announceChanges?: boolean;
+  /** 권한·오류처럼 즉시 알아야 하는 배너는 처음 표시할 때도 한 번 읽어요. */
+  announceOnMount?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -46,6 +50,7 @@ export function StatusBanner({
   actionLabel,
   onAction,
   announceChanges = true,
+  announceOnMount = false,
   style,
   theme,
   testID,
@@ -57,14 +62,16 @@ export function StatusBanner({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedIcon = icon ?? resolveToneIcon(tone);
   const actionAvailable = Boolean(actionLabel && onAction);
+  const actionFocus = useWebFocusVisible();
   const announcementKey = `${tone}\u0000${title ?? ''}\u0000${message}\u0000${actionLabel ?? ''}`;
-  const previousAnnouncementKeyRef = useRef(announcementKey);
+  const previousAnnouncementKeyRef = useRef<string | null>(null);
   const [liveRegion, setLiveRegion] = useState<'none' | 'polite' | 'assertive'>('none');
 
   useEffect(() => {
-    const changed = previousAnnouncementKeyRef.current !== announcementKey;
+    const firstAppearance = previousAnnouncementKeyRef.current === null;
+    const changed = !firstAppearance && previousAnnouncementKeyRef.current !== announcementKey;
     previousAnnouncementKeyRef.current = announcementKey;
-    if (!announceChanges || !changed) {
+    if ((!announceOnMount || !firstAppearance) && (!announceChanges || !changed)) {
       setLiveRegion('none');
       return;
     }
@@ -72,7 +79,7 @@ export function StatusBanner({
     setLiveRegion(tone === 'danger' ? 'assertive' : 'polite');
     const timeout = setTimeout(() => setLiveRegion('none'), 1_000);
     return () => clearTimeout(timeout);
-  }, [announceChanges, announcementKey, tone]);
+  }, [announceChanges, announceOnMount, announcementKey, tone]);
 
   return (
     <View
@@ -105,11 +112,14 @@ export function StatusBanner({
         <Pressable
           accessibilityLabel={actionLabel}
           accessibilityRole="button"
+          onBlur={actionFocus.onBlur}
+          onFocus={actionFocus.onFocus}
           onPress={onAction}
           style={({ pressed }) => [
             styles.action,
             stackAction && styles.actionStacked,
             pressed && styles.actionPressed,
+            actionFocus.focusVisible && styles.focusVisible,
           ]}>
           <Text style={[styles.actionLabel, { color: toneColors.foreground }]}>{actionLabel}</Text>
         </Pressable>
@@ -182,7 +192,7 @@ function createStyles(colors: SemanticColors) {
       minWidth: 0,
       flex: 1,
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: space.sm,
     },
     icon: {
@@ -217,6 +227,15 @@ function createStyles(colors: SemanticColors) {
     actionPressed: {
       opacity: interaction.pressedOpacity,
     },
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
     actionLabel: {
       ...typeScale.label,
       textAlign: 'center',

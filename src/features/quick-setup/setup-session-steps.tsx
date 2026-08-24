@@ -42,23 +42,27 @@ const SHIFT_NAMES: Record<Exclude<BaseWorkShiftId, 'off'>, string> = {
 
 export function SetupSourceStep({
   busy,
+  currentSequence,
   headingRef,
   onBeginCustom,
   onChangeCustomSequence,
   onReceive,
   onSelectRecommendation,
   onToggleRecommendations,
+  onUseCurrent,
   session,
   showCustomEditor,
   showRecommendations,
 }: {
   busy: boolean;
+  currentSequence: readonly BaseWorkShiftId[];
   headingRef: StepHeadingRef;
   onBeginCustom: () => void;
   onChangeCustomSequence: (sequence: BaseWorkShiftId[]) => void;
   onReceive: () => void;
   onSelectRecommendation: (presetId: WorkPatternPresetId) => void;
   onToggleRecommendations: () => void;
+  onUseCurrent: () => void;
   session: SetupSessionDraftV2;
   showCustomEditor: boolean;
   showRecommendations: boolean;
@@ -68,30 +72,37 @@ export function SetupSourceStep({
     <View style={styles.section}>
       <View
         accessible
-        accessibilityLabel="시작 방법"
+        accessibilityLabel="근무 순서 선택"
         collapsable={false}
         ref={headingRef}
         style={styles.heading}>
         <AppText accessibilityRole="header" variant="heading">
-          시작 방법
+          근무 순서
         </AppText>
       </View>
-      <Surface style={styles.exampleCard} tone="muted">
-        <AppText variant="caption" tone="secondary">기본 예시</AppText>
-        <AppText variant="label">주간 · 주간 · 야간 · 야간 · 휴무 · 휴무</AppText>
-        <AppText variant="caption" tone="tertiary">기기 저장 · 서버 전송 없음</AppText>
-      </Surface>
-      <AppButton
-        icon="download-outline"
-        label="근무표 불러오기"
-        loading={busy}
-        onPress={onReceive}
-      />
+      {session.mode === 'reconfigure' ? (
+        <SelectionCard
+          accessibilityLabel={`현재 근무표 사용. ${formatQuickSequence(currentSequence)}`}
+          onPress={onUseCurrent}
+          selected={session.source === 'current'}>
+          <View style={styles.optionCopy}>
+            <AppText variant="label">현재 순서 그대로</AppText>
+            <AppText tone="secondary" variant="caption">
+              {formatQuickSequence(currentSequence)}
+            </AppText>
+          </View>
+        </SelectionCard>
+      ) : null}
       <AppButton
         icon="repeat"
-        label="추천 근무 순서에서 선택"
+        label={
+          showRecommendations
+            ? '추천 순서 닫기'
+            : session.mode === 'reconfigure'
+              ? '다른 근무 순서 보기'
+              : '근무 순서 선택'
+        }
         onPress={onToggleRecommendations}
-        variant="secondary"
       />
       {showRecommendations ? (
         <View
@@ -116,7 +127,7 @@ export function SetupSourceStep({
       ) : null}
       <AppButton
         icon="add"
-        label="내 근무 순서 직접 만들기"
+        label="직접 만들기"
         onPress={onBeginCustom}
         variant="secondary"
       />
@@ -131,6 +142,13 @@ export function SetupSourceStep({
           />
         </Surface>
       ) : null}
+      <AppButton
+        icon="download-outline"
+        label="파일 불러오기"
+        loading={busy}
+        onPress={onReceive}
+        variant="ghost"
+      />
     </View>
   );
 }
@@ -229,6 +247,7 @@ export function SetupAnchorStep({
           <AppText variant="label">근무표 표시 시작일</AppText>
           <DatePickerField
             accessibilityLabel="근무표 표시 시작 날짜"
+            bufferManualInput
             onChange={onChangeDate}
             placeholder={today}
             today={today}
@@ -443,7 +462,7 @@ export function SetupAlarmStep({
 
 export function SetupSessionProgress({ compact, step }: { compact: boolean; step: number }) {
   const styles = useThemedStyles(createStyles);
-  const labels = ['시작 방법', '오늘 근무·시간', '알람 준비'] as const;
+  const labels = ['근무 순서', '오늘 근무·시간', '알람 준비'] as const;
   return (
     <View
       accessibilityLabel={`근무표 설정 ${step}단계, 총 3단계`}

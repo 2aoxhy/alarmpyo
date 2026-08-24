@@ -1,6 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 import {
   assertBackupFileByteSize,
@@ -18,8 +19,7 @@ type BackupFileExportOptions = {
 
 export type BackupFileExportResult = {
   fileName: string;
-  /** 공유 화면이 닫혀도 실제 저장·전달 여부는 Expo Sharing에서 확인할 수 없어요. */
-  storageStatus: 'unconfirmed';
+  storageStatus: 'saved' | 'unconfirmed' | 'cancelled';
 };
 
 function createBackupFileName(encrypted: boolean, now = new Date()) {
@@ -56,20 +56,48 @@ export async function exportBackupFile(
   contents: string,
   options: BackupFileExportOptions = {},
 ): Promise<BackupFileExportResult> {
+  const encrypted = options.encrypted === true;
+  const expectedByteSize = encrypted
+    ? getCheckedEncryptedBackupContentsByteSize(contents)
+    : getCheckedBackupContentsByteSize(contents);
+
+  const fileName = createBackupFileName(encrypted);
+  const mimeType = encrypted ? 'application/octet-stream' : 'application/json';
+
+  if (Platform.OS === 'android') {
+    const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (!permission.granted) return { fileName, storageStatus: 'cancelled' };
+    const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+      permission.directoryUri,
+      fileName,
+      mimeType,
+    );
+    try {
+      await FileSystem.writeAsStringAsync(uri, contents, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      const written = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      if (written !== contents) {
+        throw new Error('백업 파일을 정확히 저장하지 못했습니다. 다시 시도해야 합니다.');
+      }
+    } catch (error) {
+      await FileSystem.deleteAsync(uri, { idempotent: true }).catch(
+        () => undefined,
+      );
+      throw error;
+    }
+    return { fileName, storageStatus: 'saved' };
+  }
+
   if (!FileSystem.cacheDirectory) {
     throw new Error('백업 파일을 만들 수 있는 저장 공간이 없습니다.');
   }
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('이 휴대폰에서는 파일 공유를 사용할 수 없습니다.');
   }
-
-  const encrypted = options.encrypted === true;
-  const expectedByteSize = encrypted
-    ? getCheckedEncryptedBackupContentsByteSize(contents)
-    : getCheckedBackupContentsByteSize(contents);
-
   await cleanupPreviousBackupExports();
-  const fileName = createBackupFileName(encrypted);
   const uri = `${FileSystem.cacheDirectory}${fileName}`;
   await FileSystem.writeAsStringAsync(uri, contents, {
     encoding: FileSystem.EncodingType.UTF8,
@@ -89,7 +117,7 @@ export async function exportBackupFile(
     }
     await Sharing.shareAsync(uri, {
       dialogTitle: encrypted ? '알람표 암호화 백업 파일 저장' : '알람표 백업 파일 저장',
-      mimeType: encrypted ? 'application/octet-stream' : 'application/json',
+      mimeType,
       UTI: encrypted ? 'public.data' : 'public.json',
     });
   } catch (error) {

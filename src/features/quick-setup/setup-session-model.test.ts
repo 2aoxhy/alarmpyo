@@ -4,6 +4,7 @@ import { createDefaultAppData } from '../../services/app-data-service';
 import type { SetupDraft } from '../../services/setup-draft-service';
 import type { QuickSetupDraftV1 } from './quick-setup-model';
 import {
+  createSetupReferenceDatePatch,
   createSetupSessionDraft,
   migrateInitialSetupDraft,
   migrateQuickSetupDraft,
@@ -40,6 +41,7 @@ describe('통합 근무표 설정 세션', () => {
     });
 
     expect(draft.presetId).toBe('three-team-two-shift');
+    expect(draft.source).toBe('current');
     expect(draft.sequence).toEqual(['day', 'day', 'night', 'night', 'off', 'off']);
     expect(draft.alarmChoice).toBe('prepare');
     expect(draft.times.day.start).toMatch(/^\d{2}:\d{2}$/u);
@@ -65,6 +67,28 @@ describe('통합 근무표 설정 세션', () => {
       source: 'recommended',
       step: 'schedule-anchor',
       position: 1,
+    });
+  });
+
+  it('선택 전 중단한 재설정은 다시 열 때 현재 근무표를 기본 선택합니다', () => {
+    const data = createDefaultAppData('2026-08-24');
+    const draft = {
+      ...createSetupSessionDraft({
+        data,
+        mode: 'reconfigure' as const,
+        today: '2026-08-24',
+      }),
+      source: null,
+      presetId: null,
+      position: null,
+    };
+
+    expect(
+      migrateQuickSetupDraft({ data, draft, mode: 'reconfigure' }),
+    ).toMatchObject({
+      source: 'current',
+      presetId: 'three-team-two-shift',
+      position: 0,
     });
   });
 
@@ -120,5 +144,39 @@ describe('통합 근무표 설정 세션', () => {
       }),
     ).toBeNull();
   });
-});
 
+  it('직접 입력 중 partial·invalid 날짜는 세션 patch로 만들지 않습니다', () => {
+    expect(
+      createSetupReferenceDatePatch({
+        presetId: 'three-team-two-shift',
+        referenceDate: '2026-08',
+      }),
+    ).toBeNull();
+    expect(
+      createSetupReferenceDatePatch({
+        presetId: 'three-team-two-shift',
+        referenceDate: '2026-02-30',
+      }),
+    ).toBeNull();
+    expect(
+      createSetupReferenceDatePatch({
+        presetId: 'three-team-two-shift',
+        referenceDate: '2026-08-02',
+      }),
+    ).toEqual({
+      referenceDate: '2026-08-02',
+      position: null,
+      alarmChoice: null,
+      summaryConfirmation: null,
+    });
+  });
+
+  it('주간 고정 날짜는 유효할 때만 해당 요일 순번과 함께 세션에 반영합니다', () => {
+    expect(
+      createSetupReferenceDatePatch({
+        presetId: 'weekday',
+        referenceDate: '2026-08-02',
+      }),
+    ).toMatchObject({ referenceDate: '2026-08-02', position: 6 });
+  });
+});

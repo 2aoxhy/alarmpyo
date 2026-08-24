@@ -25,16 +25,15 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(quickSetup).toContain('<SetupSessionScreen mode="reconfigure" />');
   });
 
-  it('회사 유형과 조 수 대신 파일·추천 순서·직접 만들기를 먼저 보여요', () => {
+  it('재설정은 현재 근무표를 기본으로 두고 선택·직접 만들기·파일 순서로 보여요', () => {
     const screen = setupSessionSource();
 
     expect(screen).toContain('근무표 설정');
-    expect(screen).toContain('시작 방법');
-    expect(screen).toContain('주간 · 주간 · 야간 · 야간 · 휴무 · 휴무');
-    expect(screen).toContain('기기 저장 · 서버 전송 없음');
-    expect(screen).toContain('근무표 불러오기');
-    expect(screen).toContain('추천 근무 순서에서 선택');
-    expect(screen).toContain('내 근무 순서 직접 만들기');
+    expect(screen).toContain('근무 순서 선택');
+    expect(screen).toContain('현재 근무표 사용');
+    expect(screen).toContain('직접 만들기');
+    expect(screen).toContain('파일 불러오기');
+    expect(screen).toContain("session.source === 'current'");
     expect(screen).toContain('QUICK_SETUP_OPTIONS.map');
     expect(screen).not.toContain('option.detail');
     expect(screen).not.toContain('조 수를 선택합니다');
@@ -91,6 +90,21 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(model).toContain("draft.version === 2");
     expect(repository).toContain('SETUP_SESSION_DRAFT_KEY');
     expect(repository).toContain('QUICK_SETUP_DRAFT_KEY');
+  });
+
+  it('날짜 직접 입력은 화면에 보관하고 유효한 날짜만 재개 초안에 반영해요', () => {
+    const screen = setupSessionSource();
+    const nativeDatePicker = source('src/components/date-picker-field.tsx');
+    const webDatePicker = source('src/components/date-picker-field.web.tsx');
+
+    expect(screen).toContain('bufferManualInput');
+    expect(screen).toContain('createSetupReferenceDatePatch({');
+    expect(screen).toContain('if (patch) patchSession(patch);');
+    for (const datePicker of [nativeDatePicker, webDatePicker]) {
+      expect(datePicker).toContain('const [manualDraft, setManualDraft]');
+      expect(datePicker).toContain('createCompactDateInputUpdate(nextValue)');
+      expect(datePicker).toContain('if (update.dateKey && update.dateKey !== value)');
+    }
   });
 
   it('단계 전환은 TalkBack 초점과 한 번의 단계 안내를 사용해요', () => {

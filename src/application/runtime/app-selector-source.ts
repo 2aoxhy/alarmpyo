@@ -14,7 +14,9 @@ type InternalSubscription<TState, TSelected> = {
   selector: AppSelector<TState, TSelected>;
   equality: AppSelectorEquality<TSelected>;
   selected: TSelected;
-  listener: (() => void) | null;
+  selectedVersion: number;
+  listeners: Set<() => void>;
+  destroyed: boolean;
 };
 
 export type AppSelectorSource<TState> = {
@@ -35,18 +37,38 @@ export function createAppSelectorSource<TState>(
   initialState: TState,
 ): AppSelectorSource<TState> {
   let state = initialState;
+  let version = 0;
   const subscriptions = new Set<InternalSubscription<TState, unknown>>();
+
+  const refreshSelected = (
+    subscription: InternalSubscription<TState, unknown>,
+  ) => {
+    if (
+      subscription.destroyed ||
+      subscription.selectedVersion === version
+    ) {
+      return false;
+    }
+
+    const nextSelected = subscription.selector(state);
+    const changed = !subscription.equality(
+      subscription.selected,
+      nextSelected,
+    );
+    if (changed) subscription.selected = nextSelected;
+    subscription.selectedVersion = version;
+    return changed;
+  };
 
   return {
     getSnapshot: () => state,
     setSnapshot(nextState) {
       if (Object.is(state, nextState)) return;
       state = nextState;
+      version += 1;
       for (const subscription of subscriptions) {
-        const nextSelected = subscription.selector(nextState);
-        if (subscription.equality(subscription.selected, nextSelected)) continue;
-        subscription.selected = nextSelected;
-        subscription.listener?.();
+        if (!refreshSelected(subscription)) continue;
+        for (const listener of subscription.listeners) listener();
       }
     },
     createSubscription<TSelected>(
@@ -57,24 +79,33 @@ export function createAppSelectorSource<TState>(
         selector,
         equality,
         selected: selector(state),
-        listener: null,
+        selectedVersion: version,
+        listeners: new Set(),
+        destroyed: false,
       };
-      subscriptions.add(
-        subscription as InternalSubscription<TState, unknown>,
-      );
+      const sourceSubscription =
+        subscription as InternalSubscription<TState, unknown>;
       return {
-        getSnapshot: () => subscription.selected,
+        getSnapshot: () => {
+          refreshSelected(sourceSubscription);
+          return subscription.selected;
+        },
         subscribe(listener) {
-          subscription.listener = listener;
+          if (subscription.destroyed) return () => undefined;
+          refreshSelected(sourceSubscription);
+          subscription.listeners.add(listener);
+          subscriptions.add(sourceSubscription);
           return () => {
-            if (subscription.listener === listener) subscription.listener = null;
+            subscription.listeners.delete(listener);
+            if (subscription.listeners.size === 0) {
+              subscriptions.delete(sourceSubscription);
+            }
           };
         },
         destroy() {
-          subscriptions.delete(
-            subscription as InternalSubscription<TState, unknown>,
-          );
-          subscription.listener = null;
+          subscription.destroyed = true;
+          subscription.listeners.clear();
+          subscriptions.delete(sourceSubscription);
         },
       };
     },

@@ -22,6 +22,15 @@ export const REQUIRED_PLAY_PHYSICAL_CHECKS = Object.freeze([
   'officialPatternVerification',
   'userPatternApplyRollback',
   'externalPatternSettingsIsolated',
+  'calendarImageShare',
+  'calendarImageContainsNoPrivateData',
+  'alarmPermissionDirectSettingsAndResume',
+  'customTimerOneAndSixtyMinuteBoundary',
+  'timerStaleReadRejected',
+  'compactDateInputNormalization',
+  'activePatternDeletePreservesCurrentSchedule',
+  'activePatternDeleteClearsReferencedHistory',
+  'automaticScheduleThreeMonthWindow',
 ]);
 export const PLAY_DIRECT_UPGRADE_CHECKS = Object.freeze([
   'directApkUpgrade',

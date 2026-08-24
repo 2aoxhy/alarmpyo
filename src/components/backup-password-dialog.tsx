@@ -1,24 +1,15 @@
-import { useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton, AppText } from '@/components/ui-kit';
-import {
-  colorWithAlpha,
-  radii,
-  spacing,
-  type AppPalette,
-} from '@/constants/app-theme';
+import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { ModalSurface } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -30,12 +21,13 @@ export function BackupPasswordDialog({
   mode,
   onCancel,
   onSubmit,
+  returnFocusRef,
 }: {
   mode: BackupPasswordDialogMode | null;
   onCancel: () => void;
   onSubmit: (password: string) => Promise<void>;
+  returnFocusRef?: RefObject<React.ElementRef<typeof Pressable> | null>;
 }) {
-  const insets = useSafeAreaInsets();
   const { fontScale, width } = useWindowDimensions();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -98,53 +90,38 @@ export function BackupPasswordDialog({
   };
 
   return (
-    <Modal
-      animationType="fade"
-      navigationBarTranslucent
-      onRequestClose={() => {
-        if (!submitting) cancel();
-      }}
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      transparent
+    <ModalSurface
+      alert={Boolean(errorMessage)}
+      cancelable={!submitting}
+      footer={
+        <View style={[styles.actions, stackActions && styles.actionsStacked]}>
+          <AppButton
+            disabled={submitting}
+            label="취소"
+            onPress={cancel}
+            style={[styles.action, stackActions && styles.actionStacked]}
+            variant="secondary"
+          />
+          <AppButton
+            label={createMode ? '암호화해 저장' : '백업 열기'}
+            loading={submitting}
+            onPress={() => void submit()}
+            style={[styles.action, stackActions && styles.actionStacked]}
+          />
+        </View>
+      }
+      onClose={cancel}
+      returnFocusRef={returnFocusRef}
+      title={createMode ? '백업 비밀번호' : '암호화 백업 열기'}
       visible={mode !== null}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}>
-        <Pressable
-          accessibilityElementsHidden
-          accessible={false}
-          disabled={submitting}
-          onPress={cancel}
-          style={StyleSheet.absoluteFill}
-        />
-        <View
-          accessibilityRole="alert"
-          accessibilityViewIsModal
-          style={[
-            styles.dialog,
-            {
-              marginBottom: Math.max(insets.bottom, spacing.medium),
-            },
-          ]}>
-          <View style={styles.handle} />
-          <ScrollView
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
-            <View style={styles.content}>
-              <View style={styles.copy}>
-                <AppText accessibilityRole="header" variant="heading">
-                  {createMode ? '암호화 백업 비밀번호' : '암호화 백업 열기'}
-                </AppText>
-                <AppText tone="secondary">
-                  {createMode
-                    ? '비밀번호를 잊으면 백업을 복구할 수 없습니다. 알람표는 비밀번호를 저장하지 않습니다.'
-                    : '이 백업을 만들 때 사용한 비밀번호를 입력해야 합니다.'}
-                </AppText>
-              </View>
+      <View style={styles.content}>
+        <AppText tone="secondary">
+          {createMode
+            ? '비밀번호를 잊으면 백업을 복구할 수 없습니다. 비밀번호는 앱에 저장되지 않습니다.'
+            : '백업을 만들 때 사용한 비밀번호를 입력합니다.'}
+        </AppText>
 
-              <View style={styles.field}>
+        <View style={styles.field}>
                 <View style={styles.fieldHeader}>
                   <AppText variant="label">비밀번호</AppText>
                   <Pressable
@@ -184,10 +161,10 @@ export function BackupPasswordDialog({
                   textContentType="none"
                   value={password}
                 />
-              </View>
+        </View>
 
-              {createMode ? (
-                <View style={styles.field}>
+        {createMode ? (
+          <View style={styles.field}>
                   <AppText variant="label">비밀번호 다시 입력</AppText>
                   <TextInput
                     ref={confirmationInputRef}
@@ -209,80 +186,25 @@ export function BackupPasswordDialog({
                     textContentType="none"
                     value={confirmation}
                   />
-                </View>
-              ) : null}
-
-              {errorMessage ? (
-                <View accessibilityLiveRegion="assertive" style={styles.error}>
-                  <AppText color={palette.danger} variant="caption">
-                    {errorMessage}
-                  </AppText>
-                </View>
-              ) : null}
-            </View>
-          </ScrollView>
-
-          <View style={[styles.actions, stackActions && styles.actionsStacked]}>
-            <AppButton
-              disabled={submitting}
-              label="뒤로 가기"
-              onPress={cancel}
-              style={[styles.action, stackActions && styles.actionStacked]}
-              variant="secondary"
-            />
-            <AppButton
-              label={createMode ? '암호화해 저장하기' : '백업 열기'}
-              loading={submitting}
-              onPress={() => void submit()}
-              style={[styles.action, stackActions && styles.actionStacked]}
-            />
           </View>
+        ) : null}
+
+        {errorMessage ? (
+          <View accessibilityLiveRegion="assertive" style={styles.error}>
+            <AppText color={palette.danger} variant="caption">
+              {errorMessage}
+            </AppText>
+          </View>
+        ) : null}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </ModalSurface>
   );
 }
 
 function createStyles(palette: AppPalette, isDark: boolean) {
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      paddingHorizontal: spacing.medium,
-      backgroundColor: colorWithAlpha(
-        palette.shadowColor,
-        isDark ? 0.56 : 0.48,
-      ),
-    },
-    dialog: {
-      width: '100%',
-      maxWidth: 560,
-      maxHeight: '92%',
-      gap: spacing.large,
-      padding: spacing.xlarge,
-      borderRadius: radii.xlarge,
-      borderWidth: 1,
-      borderColor: palette.line,
-      backgroundColor: palette.surface,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 14 },
-      shadowOpacity: 0.3,
-      shadowRadius: 28,
-      elevation: 18,
-    },
-    handle: {
-      width: 38,
-      height: 4,
-      alignSelf: 'center',
-      borderRadius: radii.pill,
-      backgroundColor: palette.line,
-    },
     content: {
       gap: spacing.large,
-    },
-    copy: {
-      gap: spacing.small,
     },
     field: {
       gap: spacing.small,

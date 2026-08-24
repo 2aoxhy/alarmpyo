@@ -14,11 +14,17 @@ const dayEditor = readFileSync(
 
 describe('하루 일정 요약 우선 계약', () => {
   it('추가 설정을 네 개의 명확한 항목으로 나누고 한 항목만 열어요', () => {
-    for (const title of ['특별 일정', '근무 시간', '근무 알람', '메모']) {
+    for (const title of [
+      '달력 표시',
+      '특별 일정',
+      '근무 시간',
+      '근무 알람',
+      '메모',
+    ]) {
       expect(dayEditor).toContain(`title="${title}"`);
     }
     expect(dayEditor).toContain(
-      "type AdditionalPanel = 'exception' | 'time' | 'alarm' | 'note';",
+      "type AdditionalPanel = 'display' | 'exception' | 'time' | 'alarm' | 'note';",
     );
     expect(dayEditor).toContain(
       'setAdditionalPanel((current) => (current === panel ? null : panel))',

@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  appendQuickTimerKeypadDigits,
+  adjustQuickTimerDuration,
   createQuickTimerCountdownAnchor,
-  deleteQuickTimerKeypadDigit,
   formatQuickTimerCountdown,
   formatQuickTimerTarget,
   getQuickTimerActionPresentation,
   getQuickTimerDisplayLabel,
-  getQuickTimerKeypadPresentation,
+  getQuickTimerDurationStepperPresentation,
   getQuickTimerRemainingLabel,
   getQuickTimerRemainingMillis,
   getQuickTimerTargetAt,
@@ -86,47 +85,28 @@ describe('빠른 타이머 화면 모델', () => {
     });
   });
 
-  it('숫자 키패드는 분·초 네 자리 입력을 만들고 00 키와 지우기를 지원해요', () => {
-    let digits = appendQuickTimerKeypadDigits('', '1');
-    digits = appendQuickTimerKeypadDigits(digits, '5');
-    expect(getQuickTimerKeypadPresentation(digits)).toMatchObject({
-      minutes: '00',
-      seconds: '15',
-      canStart: false,
-    });
-
-    digits = appendQuickTimerKeypadDigits(digits, '00');
-    expect(getQuickTimerKeypadPresentation(digits)).toMatchObject({
-      minutes: '15',
-      seconds: '00',
-      durationMinutes: 15,
-      canStart: true,
-    });
-    expect(appendQuickTimerKeypadDigits(digits, '0')).toBe('1500');
-    expect(deleteQuickTimerKeypadDigit(digits)).toBe('150');
+  it('직접 입력은 키패드 없이 1~60분 안에서 10분·1분씩 조절해요', () => {
+    expect(adjustQuickTimerDuration(15, -10)).toBe(5);
+    expect(adjustQuickTimerDuration(5, -10)).toBe(1);
+    expect(adjustQuickTimerDuration(55, 10)).toBe(60);
+    expect(adjustQuickTimerDuration(60, 1)).toBe(60);
+    expect(adjustQuickTimerDuration(30, -1)).toBe(29);
+    expect(adjustQuickTimerDuration(30, 1)).toBe(31);
+    expect(adjustQuickTimerDuration(0, 1)).toBe(16);
   });
 
-  it('직접 입력은 시 표시 없이 1~60분과 정확한 분 단위만 시작해요', () => {
-    expect(getQuickTimerKeypadPresentation('60')).toMatchObject({
-      minutes: '00',
-      seconds: '60',
-      durationMinutes: null,
-      canStart: false,
+  it('직접 입력 조절기는 현재 분과 경계를 한 번에 설명해요', () => {
+    expect(getQuickTimerDurationStepperPresentation(1)).toEqual({
+      durationMinutes: 1,
+      canDecrease: false,
+      canIncrease: true,
+      accessibilityLabel: '1분. 1분에서 60분까지 조절할 수 있습니다.',
     });
-    expect(getQuickTimerKeypadPresentation('6000')).toMatchObject({
-      minutes: '60',
-      seconds: '00',
+    expect(getQuickTimerDurationStepperPresentation(60)).toMatchObject({
       durationMinutes: 60,
-      canStart: true,
+      canDecrease: true,
+      canIncrease: false,
     });
-    expect(getQuickTimerKeypadPresentation('6100')).toMatchObject({
-      durationMinutes: null,
-      canStart: false,
-    });
-    expect(getQuickTimerKeypadPresentation('15').errorText).toContain(
-      '끝 두 자리를 00',
-    );
-    expect(getQuickTimerKeypadPresentation('1500')).not.toHaveProperty('hours');
   });
 
   it('1분 이상은 올림한 분으로, 1분 미만은 초로 표시합니다', () => {

@@ -46,7 +46,7 @@ export function AlarmPermissionChecklist({
   focusRequest?: AlarmPermissionFocusRequest | null;
   launchNotice?: AlarmPermissionLaunchNotice | null;
   onOpenSettings: (target: AlarmPyoPermissionSettingsTarget) => void;
-  presentation?: 'all' | 'next-required';
+  presentation?: 'all' | 'next-required' | 'recommended-only';
   status: AlarmPyoAlarmStatus | null;
 }) {
   const { palette } = useAppTheme();
@@ -195,6 +195,16 @@ export function AlarmPermissionChecklist({
         : null);
     return (
       <View style={styles.compactContainer} testID="alarm-readiness-next">
+        <View style={styles.compactHeader}>
+          <AppText accessibilityRole="header" variant="label">
+            {model.summary}
+          </AppText>
+          <AppText tone="secondary" variant="caption">
+            {model.nextRequiredLabel
+              ? `다음 · ${model.nextRequiredLabel}`
+              : '알람 시험 가능'}
+          </AppText>
+        </View>
         {launchNotice ? (
           <StatusBanner
             announceChanges
@@ -231,6 +241,24 @@ export function AlarmPermissionChecklist({
             </AppText>
           </View>
         )}
+      </View>
+    );
+  }
+
+  if (presentation === 'recommended-only') {
+    return (
+      <View style={styles.container} testID="alarm-readiness-recommended">
+        <View style={styles.recommendedHeading}>
+          <AppText accessibilityRole="header" variant="label">
+            선택 점검
+          </AppText>
+          <AppText tone="secondary" variant="caption">
+            배터리 · 방해 금지 · 음량
+          </AppText>
+        </View>
+        <View style={styles.list}>
+          {model.recommended.map((item) => renderItem(item, true))}
+        </View>
       </View>
     );
   }
@@ -306,6 +334,9 @@ function createStyles(palette: AppPalette) {
     },
     compactContainer: {
       gap: spacing.medium,
+    },
+    compactHeader: {
+      gap: spacing.tiny,
     },
     header: {
       flexDirection: 'row',

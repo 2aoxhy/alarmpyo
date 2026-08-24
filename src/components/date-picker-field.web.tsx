@@ -8,9 +8,16 @@ import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { formatKoreanDate, isValidDateKey } from '@/utils/date';
+import {
+  createCompactDateInputUpdate,
+  formatCompactDateInputChange,
+  normalizeCompactDateInput,
+} from '@/utils/compact-date-input';
 
 type DatePickerFieldProps = {
   accessibilityLabel: string;
+  /** 직접 입력 중 partial/invalid 문자열을 외부 상태에 보내지 않습니다. */
+  bufferManualInput?: boolean;
   onChange: (dateKey: string) => void;
   placeholder: string;
   today: string;
@@ -19,6 +26,7 @@ type DatePickerFieldProps = {
 
 export function DatePickerField({
   accessibilityLabel,
+  bufferManualInput = false,
   onChange,
   placeholder,
   today,
@@ -29,10 +37,50 @@ export function DatePickerField({
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [pickerFocused, setPickerFocused] = useState(false);
   const [manualEntryFocused, setManualEntryFocused] = useState(false);
+  const [manualDraft, setManualDraft] = useState(() => ({
+    baseValue: value,
+    input: value,
+  }));
   const valid = isValidDateKey(value);
+  const displayedManualInput =
+    bufferManualInput && manualDraft.baseValue === value
+      ? manualDraft.input
+      : value;
+  const compactInputResult = normalizeCompactDateInput(displayedManualInput);
+  const manualInputValid = isValidDateKey(displayedManualInput);
+  const showInputHelp =
+    !valid || (bufferManualInput && manualEntryOpen && !manualInputValid);
   const pickerAccessibilityLabel = valid
     ? `${accessibilityLabel}, 현재 ${formatKoreanDate(value, true)}`
     : `${accessibilityLabel}, 날짜 미선택`;
+  const changeManualEntry = (nextValue: string) => {
+    if (!bufferManualInput) {
+      onChange(formatCompactDateInputChange(nextValue));
+      return;
+    }
+    const update = createCompactDateInputUpdate(nextValue);
+    setManualDraft({ baseValue: value, input: update.input });
+    if (update.dateKey && update.dateKey !== value) onChange(update.dateKey);
+  };
+  const commitManualEntry = () => {
+    setManualEntryFocused(false);
+    if (!bufferManualInput) {
+      const result = normalizeCompactDateInput(value);
+      if (result.valid && result.dateKey !== value) onChange(result.dateKey);
+      return;
+    }
+    const update = createCompactDateInputUpdate(displayedManualInput, {
+      finalize: true,
+    });
+    setManualDraft({ baseValue: value, input: update.input });
+    if (update.dateKey && update.dateKey !== value) onChange(update.dateKey);
+  };
+  const commitDate = (nextValue: string) => {
+    if (bufferManualInput) {
+      setManualDraft({ baseValue: nextValue, input: nextValue });
+    }
+    onChange(nextValue);
+  };
 
   return (
     <View style={styles.container}>
@@ -43,7 +91,8 @@ export function DatePickerField({
           onBlur: () => setPickerFocused(false),
           onChange: (event: { currentTarget: { value: string } }) => {
             void Haptics.selectionAsync();
-            onChange(event.currentTarget.value);
+            const nextValue = event.currentTarget.value;
+            if (!bufferManualInput || isValidDateKey(nextValue)) commitDate(nextValue);
           },
           onFocus: () => setPickerFocused(true),
           style: {
@@ -68,21 +117,30 @@ export function DatePickerField({
         <AppButton
           accessibilityHint="날짜를 오늘로 변경합니다."
           label="오늘"
-          onPress={() => onChange(today)}
+          onPress={() => commitDate(today)}
           size="compact"
           style={styles.todayButton}
           variant="secondary"
         />
       </View>
 
-      {valid ? (
+      {!showInputHelp ? (
         <AppText tone="secondary" style={styles.helpText} variant="caption">
           {formatKoreanDate(value, true)}
         </AppText>
       ) : (
-        <AppText color={palette.danger} style={styles.helpText} variant="caption">
-          날짜를 달력에서 선택해야 합니다.
-        </AppText>
+        <View accessibilityLiveRegion="polite">
+          <AppText
+            color={compactInputResult.valid ? palette.inkSoft : palette.danger}
+            style={styles.helpText}
+            variant="caption">
+            {compactInputResult.valid
+              ? `입력을 마치면 ${compactInputResult.dateKey}로 적용됩니다.`
+              : manualEntryOpen
+                ? compactInputResult.error
+                : '날짜를 선택하거나 직접 입력합니다.'}
+          </AppText>
+        </View>
       )}
 
       <AppButton
@@ -97,22 +155,24 @@ export function DatePickerField({
       {manualEntryOpen ? (
         <TextInput
           accessibilityLabel={`${accessibilityLabel} 직접 입력`}
+          accessibilityHint="2682, 260802 또는 20260802처럼 입력할 수 있습니다."
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={10}
-          onChangeText={onChange}
-          onBlur={() => setManualEntryFocused(false)}
+          onChangeText={changeManualEntry}
+          onBlur={commitManualEntry}
           onFocus={() => setManualEntryFocused(true)}
+          onSubmitEditing={commitManualEntry}
           placeholder={placeholder}
           placeholderTextColor={palette.inkSoft}
           selectTextOnFocus
           selectionColor={palette.indigo}
           style={[
             styles.dateInput,
-            !valid && styles.inputError,
+            !manualInputValid && styles.inputError,
             manualEntryFocused && styles.inputFocused,
           ]}
-          value={value}
+          value={displayedManualInput}
         />
       ) : null}
     </View>

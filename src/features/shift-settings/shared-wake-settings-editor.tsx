@@ -44,11 +44,13 @@ export function SharedWakeSettingsEditor({
   drafts,
   onChange,
   shifts,
+  targetDraftIds,
 }: {
   compact: boolean;
   drafts: readonly ShiftDraft[];
   onChange: (draftIds: readonly string[], patch: Partial<ShiftDraft>) => void;
   shifts: readonly ShiftType[];
+  targetDraftIds: readonly string[];
 }) {
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -60,7 +62,9 @@ export function SharedWakeSettingsEditor({
       return draft ? { draft, shift } : null;
     })
     .filter((entry): entry is { draft: ShiftDraft; shift: ShiftType } => entry !== null);
-  const draftIds = entries.map((entry) => entry.draft.id);
+  const draftIds = targetDraftIds.filter((id) =>
+    drafts.some((draft) => draft.id === id),
+  );
   const allEnabled = entries.length > 0 && entries.every((entry) => entry.draft.alarmEnabled);
   const anyEnabled = entries.some((entry) => entry.draft.alarmEnabled);
   const sharedLead =
@@ -91,17 +95,17 @@ export function SharedWakeSettingsEditor({
           void triggerSelectionFeedback();
           onChange(draftIds, { alarmEnabled });
         }}
-        subtitle={`${shiftNames} 근무에 같은 알람 설정을 적용합니다.`}
+        subtitle="패턴을 바꿔도 모든 근무에 같은 설정을 사용합니다."
         title="기상 알람 울리기"
         value={allEnabled}
       />
 
       <View style={styles.alarmSection}>
         <AppText accessibilityRole="header" variant="label">
-          기상 시간
+          근무 시작 전 알림
         </AppText>
         <AppText tone="secondary" variant="caption">
-          한 번 선택하면 {shiftNames} 근무에 동일하게 적용됩니다.
+          한 번 선택하면 주간·오후·야간에 같은 기준을 적용합니다.
         </AppText>
         <View
           accessibilityLabel={`${shiftNames} 공통 기상 시간`}
@@ -116,7 +120,7 @@ export function SharedWakeSettingsEditor({
               .join(' · ');
             return (
               <SelectionCard
-                accessibilityLabel={`${formatDuration(minutes)} 전. ${timeSummary}. ${shiftNames} 근무에 동일 적용`}
+                accessibilityLabel={`근무 시작 ${formatDuration(minutes)} 전. ${timeSummary}. 모든 근무에 동일 적용`}
                 contentStyle={styles.optionContent}
                 key={minutes}
                 onPress={() => {
@@ -163,7 +167,7 @@ export function SharedWakeSettingsEditor({
           title={
             sharedLead === null
               ? `${shiftNames} 설정이 서로 다릅니다`
-              : `${formatDuration(sharedLead)} 전 · ${shiftNames} 동일 적용`
+              : `근무 시작 ${formatDuration(sharedLead)} 전`
           }
           tone={sharedLead === null || (anyEnabled && !allEnabled) ? 'warning' : 'info'}
         />

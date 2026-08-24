@@ -7,17 +7,18 @@ import {
   packageVersionMatchesApp,
 } from '../app-version.mjs';
 
-describe('V18 앱 버전 계약', () => {
+describe('V19 앱 버전 계약', () => {
   it('V14 이전 계보와 V15 이후 간결 버전을 구분해요', () => {
     expect(formatReleaseName('1.0.14')).toBe('V14');
     expect(formatReleaseName('1.15')).toBe('V15');
     expect(formatReleaseName('1.16')).toBe('V16');
     expect(formatReleaseName('1.17')).toBe('V17');
     expect(formatReleaseName('1.18')).toBe('V18');
+    expect(formatReleaseName('1.19')).toBe('V19');
     expect(formatReleaseName('1.14')).toBe('V--');
   });
 
-  it('npm용 1.18.0과 앱 표시용 1.18을 같은 릴리스로 봅니다', () => {
+  it('npm용 1.19.0과 앱 표시용 1.19를 같은 릴리스로 봅니다', () => {
     expect(isSupportedPackageVersion('1.15.0')).toBe(true);
     expect(isSupportedAppVersion('1.15')).toBe(true);
     expect(isSupportedPackageVersion('1.16.0')).toBe(true);
@@ -26,8 +27,10 @@ describe('V18 앱 버전 계약', () => {
     expect(isSupportedAppVersion('1.17')).toBe(true);
     expect(isSupportedPackageVersion('1.18.0')).toBe(true);
     expect(isSupportedAppVersion('1.18')).toBe(true);
-    expect(packageVersionMatchesApp('1.18.0', '1.18')).toBe(true);
-    expect(packageVersionMatchesApp('1.17.0', '1.18')).toBe(false);
+    expect(isSupportedPackageVersion('1.19.0')).toBe(true);
+    expect(isSupportedAppVersion('1.19')).toBe(true);
+    expect(packageVersionMatchesApp('1.19.0', '1.19')).toBe(true);
+    expect(packageVersionMatchesApp('1.18.0', '1.19')).toBe(false);
   });
 
   it('기존 1.0.x 계보는 정확히 같은 값만 허용해요', () => {

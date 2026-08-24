@@ -13,7 +13,7 @@ describe('하루 일정 추가 설정 요약', () => {
         hasTimeOverride: false,
         hasNote: false,
       }),
-    ).toBe('특별 일정 · 시간 · 알람 · 메모');
+    ).toBe('표시 · 특별 일정 · 시간 · 알람 · 메모');
   });
 
   it('현재 적용된 설정만 짧게 모아서 보여줘요', () => {
@@ -34,6 +34,24 @@ describe('하루 일정 추가 설정 요약', () => {
         hasNote: true,
       }),
     ).toBe('메모 있음');
+  });
+
+  it('일정 표시를 끈 날짜는 추가 설정에서 바로 드러나요', () => {
+    expect(
+      buildAdditionalSettingsSummary({
+        hasTimeOverride: false,
+        hasNote: false,
+        scheduleHidden: true,
+      }),
+    ).toBe('표시 안 함');
+    expect(
+      shouldExpandAdditionalSettings({
+        hasException: false,
+        hasTimeOverride: false,
+        note: '',
+        scheduleHidden: true,
+      }),
+    ).toBe(true);
   });
 
   it('저장된 추가 설정이 있는 날짜는 처음부터 펼쳐요', () => {

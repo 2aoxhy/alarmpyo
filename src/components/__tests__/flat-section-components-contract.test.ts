@@ -24,22 +24,31 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(uiKit).toContain('borderBottomWidth: StyleSheet.hairlineWidth');
   });
 
-  it('목록 행은 일반 아이콘 타일을 없애고 48dp 정렬 영역과 접근성을 유지해요', () => {
+  it('목록 행은 보통 글자에서 본문과 중앙 정렬하고 큰 글자에서 제목 첫 줄에 맞춰요', () => {
     const uiKit = source('src/components/ui-kit.tsx');
     const listRow = section(uiKit, 'export function ListRow', 'export function MenuGroup');
 
-    expect(listRow).toContain('<View style={styles.listRowIcon}>');
+    expect(listRow).toContain(
+      'reflow && { height: titleLineHeight }',
+    );
+    expect(listRow).toContain('reflow && styles.listRowIconReflow');
     expect(listRow).not.toContain('<IconTile');
     expect(listRow).toContain("accessibilityRole={onPress ? 'button' : undefined}");
     expect(listRow).toContain('accessibilityState={onPress ?');
     expect(uiKit).toContain('width: controlSize.minimumTouchTarget');
-    expect(uiKit).toContain('height: controlSize.minimumTouchTarget');
+    expect(listRow).toContain(
+      'typeScale.label.lineHeight * Math.min(fontScale, 2)',
+    );
+    expect(uiKit).toContain("listRow: {\n    minHeight: 68,\n    flexDirection: 'row',\n    alignItems: 'center'");
+    expect(uiKit).toContain("listRowReflow: { alignItems: 'flex-start' }");
+    expect(uiKit).toContain("listRowIconReflow: {\n    alignSelf: 'flex-start'");
     expect(uiKit).toContain('reflow && styles.listRowReflow');
   });
 
   it('상태 배너는 3px 의미선과 작은 아이콘, 박스 없는 동작을 사용해요', () => {
     const banner = source('src/design-system/status-banner.tsx');
     const actionStyles = section(banner, 'action: {', 'actionStacked: {');
+    const contentRowStyles = section(banner, 'contentRow: {', 'icon: {');
 
     expect(banner).toContain('borderLeftWidth: 3');
     expect(banner).toContain('borderLeftColor: toneColors.foreground');
@@ -50,6 +59,7 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(actionStyles).toContain('minHeight: size.minimumTouchTarget');
     expect(banner).toContain('accessibilityLiveRegion={liveRegion}');
     expect(banner).toContain('accessibilityRole="button"');
+    expect(contentRowStyles).toContain("alignItems: 'center'");
   });
 
   it('펼침 행은 둥근 카드 없이 구분선과 큰 글자 재배치를 유지해요', () => {
@@ -76,5 +86,14 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(toggle).toContain('accessibilityState={{ checked: value, disabled }}');
     expect(toggle).toContain('width: size.minimumTouchTarget');
     expect(toggle).toContain('height: size.minimumTouchTarget');
+  });
+
+  it('포커스를 잃은 탭 화면을 시각·터치·접근성 트리에서 숨겨요', () => {
+    const uiKit = source('src/components/ui-kit.tsx');
+
+    expect(uiKit).toContain('const isFocused = useIsFocused();');
+    expect(uiKit).toContain('accessibilityElementsHidden={!isFocused}');
+    expect(uiKit).toContain("isFocused ? 'auto' : 'no-hide-descendants'");
+    expect(uiKit).toContain("display: 'none'");
   });
 });

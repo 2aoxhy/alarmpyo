@@ -52,6 +52,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      detachInactiveScreens
       safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerShown: false,
@@ -83,13 +84,11 @@ export default function TabsLayout() {
           floatingTabShadow,
           {
             bottom: tabBarLayout.bottom,
-            end: tabBarGeometry.inset,
             height: tabBarLayout.height,
-            paddingHorizontal: horizontalLayout.horizontalPadding,
-            // React Navigation의 기본 배치도 논리 좌표(start/end)를 사용합니다.
-            // Yoga에서 논리 좌표가 left/right보다 우선되므로 같은 inset을
-            // start/end에 직접 적용해 안전 영역이 비대칭이어도 중심축을 유지합니다.
+            left: tabBarGeometry.inset,
             start: tabBarGeometry.inset,
+            end: 'auto',
+            paddingHorizontal: horizontalLayout.horizontalPadding,
             width: tabBarGeometry.width,
           },
         ],

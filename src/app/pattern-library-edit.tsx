@@ -35,19 +35,24 @@ import {
 } from '@/features/pattern-library/pattern-sequence-day-editor';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PatternShiftCode } from '@/models/app-data';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 
 export default function PatternLibraryEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { showDialog } = useAppDialog();
-  const { data, saveUserPattern } = useAppStore();
+  const data = useAppSelector((store) => store.data);
+  const { saveUserPattern } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const navigation = useNavigation();
   const editing = id ? data.patternVault.find((entry) => entry.id === id) : undefined;
   const [initialDraft] = useState<PatternDraft>(() => {
     const created = createPatternDraft(editing);
-    if (editing) return created;
+    if (editing) {
+      return editing.source === 'user'
+        ? created
+        : { ...created, id: null, name: `${created.name} 복사본` };
+    }
     const initialSegments = compressPatternShiftCodes(created.shiftCodes);
     return { ...created, name: formatPatternComposerName(initialSegments) };
   });
@@ -188,7 +193,7 @@ export default function PatternLibraryEditScreen() {
     }
   };
 
-  if (id && (!editing || editing.source !== 'user')) {
+  if (id && !editing) {
     return (
       <Screen>
         <PageHeader title="패턴 편집" />
@@ -205,7 +210,15 @@ export default function PatternLibraryEditScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: editing ? '패턴 편집' : '패턴 만들기' }} />
+      <Stack.Screen
+        options={{
+          title: editing
+            ? editing.source === 'user'
+              ? '패턴 편집'
+              : '패턴 복사'
+            : '패턴 만들기',
+        }}
+      />
       <Screen
         contentStyle={styles.screen}
         footer={
@@ -221,7 +234,7 @@ export default function PatternLibraryEditScreen() {
         scroll>
         <PageHeader
           subtitle="근무 종류와 일수로 순서 만들기"
-          title={editing ? '패턴 편집' : '내 패턴 만들기'}
+          title={editing?.source === 'user' ? '패턴 편집' : editing ? '복사해서 수정' : '내 패턴 만들기'}
         />
         <View style={styles.nameSection}>
           <View style={styles.nameHeading}>
