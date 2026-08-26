@@ -1,11 +1,11 @@
 import type { RefObject } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
-import { DatePickerField } from '@/components/date-picker-field';
+import { AppSheet } from '@/components/app-sheet';
 import { SelectionCard, SelectionPill } from '@/components/selection-controls';
 import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner, Surface } from '@/design-system';
+import { StatusBanner, Surface, ToggleRow } from '@/design-system';
 import {
   PatternSequenceEditor,
   WorkTimeEditor,
@@ -15,24 +15,28 @@ import type {
   WorkPatternDraftValidation,
 } from '@/features/setup/work-pattern-draft';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { formatKoreanDate } from '@/utils/date';
-import type { BaseWorkShiftId, WorkPatternPresetId } from '@/utils/work-pattern';
+import {
+  getWorkPatternCategoryId,
+  getWorkPatternPreset,
+  type BaseWorkShiftId,
+  type WorkPatternPresetId,
+} from '@/utils/work-pattern';
 
 import {
-  formatQuickPositionLabel,
   formatQuickSequence,
+  QUICK_SETUP_GROUPS,
   QUICK_SETUP_OPTIONS,
-  type QuickSetupOption,
+  type QuickSetupGroupId,
 } from './quick-setup-model';
-import type {
-  SetupSessionAlarmChoice,
-  SetupSessionDraftV2,
-} from './setup-session-model';
+import type { SetupSessionDraftV2 } from './setup-session-model';
 
-type StepHeadingRef = RefObject<View | null>;
-type PreviewItem = ReturnType<
-  typeof import('./quick-setup-model').createQuickPreview
->[number];
+type StepHeadingRef = RefObject<Text | null>;
+type PreviewItem = {
+  dateKey: string;
+  dateLabel: string;
+  shiftTypeId: string;
+  shiftLabel: string;
+};
 
 const SHIFT_NAMES: Record<Exclude<BaseWorkShiftId, 'off'>, string> = {
   day: '주간',
@@ -40,97 +44,129 @@ const SHIFT_NAMES: Record<Exclude<BaseWorkShiftId, 'off'>, string> = {
   night: '야간',
 };
 
+const ALL_SHIFT_NAMES: Record<BaseWorkShiftId, string> = {
+  ...SHIFT_NAMES,
+  off: '휴무',
+};
+
 export function SetupSourceStep({
   busy,
-  currentSequence,
+  currentSequenceLabel,
+  expandedGroup,
   headingRef,
-  onBeginCustom,
   onChangeCustomSequence,
   onReceive,
+  onSelectGroup,
   onSelectRecommendation,
-  onToggleRecommendations,
   onUseCurrent,
   session,
   showCustomEditor,
-  showRecommendations,
 }: {
   busy: boolean;
-  currentSequence: readonly BaseWorkShiftId[];
+  currentSequenceLabel: string;
+  expandedGroup: QuickSetupGroupId | null;
   headingRef: StepHeadingRef;
-  onBeginCustom: () => void;
   onChangeCustomSequence: (sequence: BaseWorkShiftId[]) => void;
   onReceive: () => void;
+  onSelectGroup: (groupId: QuickSetupGroupId) => void;
   onSelectRecommendation: (presetId: WorkPatternPresetId) => void;
-  onToggleRecommendations: () => void;
   onUseCurrent: () => void;
   session: SetupSessionDraftV2;
   showCustomEditor: boolean;
-  showRecommendations: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
+  const selectedGroup =
+    session.source === 'custom'
+      ? 'custom'
+      : session.source === 'recommended'
+        ? getWorkPatternCategoryId(session.presetId)
+        : null;
   return (
     <View style={styles.section}>
-      <View
-        accessible
-        accessibilityLabel="근무 순서 선택"
-        collapsable={false}
-        ref={headingRef}
-        style={styles.heading}>
-        <AppText accessibilityRole="header" variant="heading">
-          근무 순서
+      <View style={styles.heading}>
+        <AppText accessibilityLabel="근무 순서 선택" accessibilityRole="header" ref={headingRef} variant="heading">
+          근무 방식
+        </AppText>
+        <AppText tone="secondary" variant="caption">
+          회사 근무 방식 선택
         </AppText>
       </View>
       {session.mode === 'reconfigure' ? (
         <SelectionCard
-          accessibilityLabel={`현재 근무표 사용. ${formatQuickSequence(currentSequence)}`}
+          accessibilityLabel={`현재 근무표 사용. ${currentSequenceLabel}`}
           onPress={onUseCurrent}
           selected={session.source === 'current'}>
           <View style={styles.optionCopy}>
             <AppText variant="label">현재 순서 그대로</AppText>
             <AppText tone="secondary" variant="caption">
-              {formatQuickSequence(currentSequence)}
+              {currentSequenceLabel}
             </AppText>
           </View>
         </SelectionCard>
       ) : null}
-      <AppButton
-        icon="repeat"
-        label={
-          showRecommendations
-            ? '추천 순서 닫기'
-            : session.mode === 'reconfigure'
-              ? '다른 근무 순서 보기'
-              : '근무 순서 선택'
-        }
-        onPress={onToggleRecommendations}
-      />
-      {showRecommendations ? (
-        <View
-          accessibilityLabel="추천 근무 순서"
-          accessibilityRole="radiogroup"
-          style={styles.options}>
-          {QUICK_SETUP_OPTIONS.map((option: QuickSetupOption) => (
-            <SelectionCard
-              accessibilityLabel={option.label}
-              key={option.presetId}
-              onPress={() => onSelectRecommendation(option.presetId)}
-              selected={
-                session.source === 'recommended' &&
-                session.presetId === option.presetId
-              }>
-              <View style={styles.optionCopy}>
-                <AppText variant="label">{option.label}</AppText>
-              </View>
-            </SelectionCard>
-          ))}
-        </View>
-      ) : null}
-      <AppButton
-        icon="add"
-        label="직접 만들기"
-        onPress={onBeginCustom}
-        variant="secondary"
-      />
+      <Surface density="compact" style={styles.choiceSurface}>
+        {QUICK_SETUP_GROUPS.map((group) => {
+          const groupOptions = QUICK_SETUP_OPTIONS.filter(
+            (option) => option.groupId === group.id,
+          );
+          const expanded = expandedGroup === group.id;
+          const selected = selectedGroup === group.id;
+          return (
+            <View key={group.id}>
+              <SelectionCard
+                accessibilityHint={
+                  groupOptions.length > 1
+                    ? '세부 근무 방식을 표시합니다.'
+                    : undefined
+                }
+                accessibilityLabel={`${group.label}. ${group.detail}`}
+                accessibilityRole="button"
+                contentStyle={styles.choiceRowContent}
+                onPress={() => onSelectGroup(group.id)}
+                selected={selected}
+                style={styles.choiceRow}>
+                <View style={styles.optionCopy}>
+                  <AppText variant="label">{group.label}</AppText>
+                  <AppText tone="secondary" variant="caption">
+                    {group.detail}
+                  </AppText>
+                </View>
+                {groupOptions.length > 1 ? (
+                  <AppText tone="secondary" variant="caption">
+                    {expanded ? '닫기' : '선택'}
+                  </AppText>
+                ) : null}
+              </SelectionCard>
+              {expanded && groupOptions.length > 1 ? (
+                <View
+                  accessibilityLabel={`${group.label} 유형`}
+                  accessibilityRole="radiogroup"
+                  style={styles.nestedOptions}>
+                  {groupOptions.map((option) => (
+                    <SelectionCard
+                      accessibilityLabel={`${option.label}. ${option.detail}`}
+                      contentStyle={styles.choiceRowContent}
+                      key={option.presetId}
+                      onPress={() => onSelectRecommendation(option.presetId)}
+                      selected={
+                        session.source === 'recommended' &&
+                        session.presetId === option.presetId
+                      }
+                      style={styles.nestedChoiceRow}>
+                      <View style={styles.optionCopy}>
+                        <AppText variant="label">{option.label}</AppText>
+                        <AppText tone="secondary" variant="caption">
+                          {option.detail}
+                        </AppText>
+                      </View>
+                    </SelectionCard>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </Surface>
       {showCustomEditor ? (
         <Surface style={styles.editorCard}>
           <AppText accessibilityRole="header" variant="label">
@@ -158,16 +194,13 @@ export function SetupAnchorStep({
   focusRequest,
   focusShiftTypeId,
   headingRef,
-  onChangeDate,
   onChangeTime,
   onSelectPosition,
-  onShowOtherDate,
   onToggleTimeEditor,
   preview,
   revealValidation,
   session,
   shiftColors,
-  showOtherDate,
   showTimeEditor,
   stackContent,
   stackTimeInputs,
@@ -178,20 +211,17 @@ export function SetupAnchorStep({
   focusRequest: number;
   focusShiftTypeId: EditableWorkShiftId | null;
   headingRef: StepHeadingRef;
-  onChangeDate: (date: string) => void;
   onChangeTime: (
     shiftTypeId: EditableWorkShiftId,
     field: 'start' | 'end',
     value: string,
   ) => void;
   onSelectPosition: (position: number) => void;
-  onShowOtherDate: () => void;
   onToggleTimeEditor: () => void;
   preview: PreviewItem[];
   revealValidation: boolean;
   session: SetupSessionDraftV2;
   shiftColors: Record<EditableWorkShiftId, string>;
-  showOtherDate: boolean;
   showTimeEditor: boolean;
   stackContent: boolean;
   stackTimeInputs: boolean;
@@ -199,16 +229,19 @@ export function SetupAnchorStep({
   validation: WorkPatternDraftValidation;
 }) {
   const styles = useThemedStyles(createStyles);
+  const shiftRoles = session.sequence.filter(
+    (id, index) => session.sequence.indexOf(id) === index,
+  );
+  const selectedRole =
+    session.position === null ? null : session.sequence[session.position] ?? null;
+  const occurrencePositions = selectedRole === null
+    ? []
+    : session.sequence.flatMap((id, index) => id === selectedRole ? [index] : []);
   return (
     <View style={styles.section}>
-      <View
-        accessible
-        accessibilityLabel="오늘 근무와 시간"
-        collapsable={false}
-        ref={headingRef}
-        style={styles.heading}>
-        <AppText accessibilityRole="header" variant="heading">
-          {session.referenceDate === today ? '오늘 근무 선택' : '선택 날짜 근무'}
+      <View style={styles.heading}>
+        <AppText accessibilityLabel="오늘 근무와 시간" accessibilityRole="header" ref={headingRef} variant="heading">
+          오늘 근무
         </AppText>
         <AppText tone="secondary" variant="caption">
           같은 근무가 이어지면 1·2일차 선택
@@ -220,52 +253,59 @@ export function SetupAnchorStep({
           {formatQuickSequence(session.sequence)}
         </AppText>
       </View>
-      {session.presetId === 'weekday' ? (
+      {session.source === 'current' ? (
+        <StatusBanner
+          message="기존 순서·기준일을 변경하지 않습니다."
+          title="현재 근무표 기준"
+          tone="neutral"
+        />
+      ) : session.presetId === 'weekday' ? (
         <StatusBanner
           message="월~금 주간 · 토~일 휴무"
           title="요일 기준"
           tone="neutral"
         />
       ) : (
-        <View
-          accessibilityLabel="기준 날짜의 근무"
-          accessibilityRole="radiogroup"
-          style={styles.positionOptions}>
-          {session.sequence.map((id, index) => (
-            <SelectionPill
-              key={`${id}-${index}`}
-              label={formatQuickPositionLabel(session.sequence, index)}
-              onPress={() => onSelectPosition(index)}
-              selected={session.position === index}
-              style={styles.positionOption}
-            />
-          ))}
+        <View style={styles.roleSelection}>
+          <View
+            accessibilityLabel="오늘 근무"
+            accessibilityRole="radiogroup"
+            style={styles.positionOptions}>
+            {shiftRoles.map((id) => {
+              const firstPosition = session.sequence.indexOf(id);
+              return (
+                <SelectionPill
+                  key={id}
+                  label={ALL_SHIFT_NAMES[id]}
+                  onPress={() => onSelectPosition(firstPosition)}
+                  selected={selectedRole === id}
+                  style={styles.positionOption}
+                />
+              );
+            })}
+          </View>
+          {occurrencePositions.length > 1 ? (
+            <View
+              accessibilityLabel={`${ALL_SHIFT_NAMES[selectedRole!]} 일차`}
+              accessibilityRole="radiogroup"
+              style={styles.positionOptions}>
+              {occurrencePositions.map((position, index) => (
+                <SelectionPill
+                  key={position}
+                  label={`${index + 1}일차`}
+                  onPress={() => onSelectPosition(position)}
+                  selected={session.position === position}
+                  style={styles.positionOption}
+                />
+              ))}
+            </View>
+          ) : null}
         </View>
-      )}
-      {showOtherDate ? (
-        <Surface style={styles.dateCard} tone="muted">
-          <AppText variant="label">근무표 표시 시작일</AppText>
-          <DatePickerField
-            accessibilityLabel="근무표 표시 시작 날짜"
-            bufferManualInput
-            onChange={onChangeDate}
-            placeholder={today}
-            today={today}
-            value={session.referenceDate}
-          />
-        </Surface>
-      ) : (
-        <AppButton
-          icon="calendar-outline"
-          label="다른 날짜부터 표시"
-          onPress={onShowOtherDate}
-          variant="ghost"
-        />
       )}
       {preview.length > 0 ? (
         <Surface style={styles.previewCard}>
           <AppText accessibilityRole="header" variant="label">
-            앞으로 7일
+            근무 예시
           </AppText>
           <View style={styles.previewList}>
             {preview.map((item) => (
@@ -284,7 +324,7 @@ export function SetupAnchorStep({
         </Surface>
       ) : (
         <StatusBanner
-          message="오늘 근무 선택 시 7일 일정 표시"
+          message="오늘 근무를 선택하면 7일 예시를 표시합니다."
           title="오늘 근무 미선택"
           tone="neutral"
         />
@@ -305,42 +345,45 @@ export function SetupAnchorStep({
             </AppText>
           </View>
           <AppButton
-            label={showTimeEditor ? '시간 접기' : '시간 수정'}
+            label="수정"
             onPress={onToggleTimeEditor}
             size="compact"
             variant="secondary"
           />
         </View>
-        {showTimeEditor ? (
-          <WorkTimeEditor
-            dayColor={shiftColors.day}
-            dayDuration={validation.shifts.day.duration}
-            dayEnd={session.times.day.end}
-            dayStart={session.times.day.start}
-            eveningColor={shiftColors.evening}
-            eveningDuration={validation.shifts.evening.duration}
-            eveningEnd={session.times.evening.end}
-            eveningStart={session.times.evening.start}
-            focusRequest={focusRequest}
-            focusShiftTypeId={focusShiftTypeId}
-            nightColor={shiftColors.night}
-            nightDuration={validation.shifts.night.duration}
-            nightEnd={session.times.night.end}
-            nightStart={session.times.night.start}
-            onChangeDayEnd={(value) => onChangeTime('day', 'end', value)}
-            onChangeDayStart={(value) => onChangeTime('day', 'start', value)}
-            onChangeEveningEnd={(value) => onChangeTime('evening', 'end', value)}
-            onChangeEveningStart={(value) => onChangeTime('evening', 'start', value)}
-            onChangeNightEnd={(value) => onChangeTime('night', 'end', value)}
-            onChangeNightStart={(value) => onChangeTime('night', 'start', value)}
-            revealErrors={revealValidation}
-            showDay={activeShiftIds.includes('day')}
-            showEvening={activeShiftIds.includes('evening')}
-            showNight={activeShiftIds.includes('night')}
-            stackTimeInputs={stackTimeInputs}
-          />
-        ) : null}
       </Surface>
+      <AppSheet
+        onClose={onToggleTimeEditor}
+        title="근무 시간"
+        visible={showTimeEditor}>
+        <WorkTimeEditor
+          dayColor={shiftColors.day}
+          dayDuration={validation.shifts.day.duration}
+          dayEnd={session.times.day.end}
+          dayStart={session.times.day.start}
+          eveningColor={shiftColors.evening}
+          eveningDuration={validation.shifts.evening.duration}
+          eveningEnd={session.times.evening.end}
+          eveningStart={session.times.evening.start}
+          focusRequest={focusRequest}
+          focusShiftTypeId={focusShiftTypeId}
+          nightColor={shiftColors.night}
+          nightDuration={validation.shifts.night.duration}
+          nightEnd={session.times.night.end}
+          nightStart={session.times.night.start}
+          onChangeDayEnd={(value) => onChangeTime('day', 'end', value)}
+          onChangeDayStart={(value) => onChangeTime('day', 'start', value)}
+          onChangeEveningEnd={(value) => onChangeTime('evening', 'end', value)}
+          onChangeEveningStart={(value) => onChangeTime('evening', 'start', value)}
+          onChangeNightEnd={(value) => onChangeTime('night', 'end', value)}
+          onChangeNightStart={(value) => onChangeTime('night', 'start', value)}
+          revealErrors={revealValidation}
+          showDay={activeShiftIds.includes('day')}
+          showEvening={activeShiftIds.includes('evening')}
+          showNight={activeShiftIds.includes('night')}
+          stackTimeInputs={stackTimeInputs}
+        />
+      </AppSheet>
       {!validation.safety.canSave ? (
         <StatusBanner
           message="이전 근무 종료 전 다음 근무 시작 · 시간 수정 필요"
@@ -360,100 +403,93 @@ export function SetupAnchorStep({
 
 export function SetupAlarmStep({
   headingRef,
+  onAlarmEnabledChange,
   onAdjustTime,
-  onSelectAlarmChoice,
   preview,
   session,
   validation,
 }: {
   headingRef: StepHeadingRef;
+  onAlarmEnabledChange: (enabled: boolean) => void;
   onAdjustTime: () => void;
-  onSelectAlarmChoice: (choice: Exclude<SetupSessionAlarmChoice, null>) => void;
   preview: PreviewItem[];
   session: SetupSessionDraftV2;
   validation: WorkPatternDraftValidation;
 }) {
   const styles = useThemedStyles(createStyles);
+  const alarmSupported = Platform.OS === 'android';
+  const alarmEnabled = alarmSupported && session.alarmChoice === 'prepare';
+  const patternLabel =
+    session.source === 'custom'
+      ? '직접 설정'
+      : session.presetId
+        ? getWorkPatternPreset(session.presetId).shortName
+        : '미선택';
+  const timeSummary = validation.activeShiftIds
+    .map(
+      (id) =>
+        `${SHIFT_NAMES[id]} ${session.times[id].start}~${session.times[id].end}`,
+    )
+    .join(' · ');
   return (
     <View style={styles.section}>
-      <View
-        accessible
-        accessibilityLabel="알람 준비"
-        collapsable={false}
-        ref={headingRef}
-        style={styles.heading}>
-        <AppText accessibilityRole="header" variant="heading">
-          근무 알람 준비
+      <View style={styles.heading}>
+        <AppText accessibilityLabel="알람 준비" accessibilityRole="header" ref={headingRef} variant="heading">
+          알람
         </AppText>
       </View>
-      <View style={styles.inlineSummary}>
-        <AppText variant="label">적용할 근무표</AppText>
-        <AppText tone="secondary" variant="body">
-          {formatQuickSequence(session.sequence)}
-        </AppText>
-        <AppText tone="secondary" variant="caption">
-          {formatKoreanDate(session.referenceDate)}부터 · 기준 근무 {preview[0]?.shiftLabel ?? '미선택'}
-        </AppText>
-      </View>
-      {validation.safety.canEnableAlarms ? (
-        <View
-          accessibilityLabel="알람 준비 방법"
-          accessibilityRole="radiogroup"
-          style={styles.options}>
-          {Platform.OS === 'android' ? (
-            <SelectionCard
-              accessibilityLabel="알람 준비. 필요한 권한 확인."
-              onPress={() => onSelectAlarmChoice('prepare')}
-              selected={session.alarmChoice === 'prepare'}>
-              <View style={styles.optionCopy}>
-                <AppText variant="label">알람 준비</AppText>
-                <AppText tone="secondary" variant="caption">필수 권한 확인</AppText>
-              </View>
-            </SelectionCard>
-          ) : null}
-          <SelectionCard
-            accessibilityLabel="근무표만 저장. 알람 끄기."
-            onPress={() => onSelectAlarmChoice('schedule-only')}
-            selected={session.alarmChoice === 'schedule-only'}>
-            <View style={styles.optionCopy}>
-              <AppText variant="label">근무표만 저장</AppText>
-              <AppText tone="secondary" variant="caption">근무 알람 끄기</AppText>
-            </View>
-          </SelectionCard>
+      <Surface density="compact" style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <AppText tone="secondary" variant="caption">근무 방식</AppText>
+          <AppText variant="label">{patternLabel}</AppText>
         </View>
-      ) : (
-        <Surface style={styles.warningCard}>
-          <StatusBanner
-            message="다음 알람이 이전 근무 중 울릴 수 있습니다."
-            title="알람 시간 겹침"
-            tone="warning"
-          />
-          <AppButton
-            icon="time-outline"
-            label="알람 시간 조정"
-            onPress={onAdjustTime}
-          />
-          <AppButton
-            icon="checkmark"
-            label="근무표만 저장하고 알람 끄기"
-            onPress={() => onSelectAlarmChoice('schedule-only')}
-            variant="secondary"
-          />
-        </Surface>
-      )}
-      {session.alarmChoice === 'schedule-only' ? (
+        <View style={styles.summaryRow}>
+          <AppText tone="secondary" variant="caption">오늘 근무</AppText>
+          <AppText variant="label">{preview[0]?.shiftLabel ?? '미선택'}</AppText>
+        </View>
+        <View style={styles.summaryRow}>
+          <AppText tone="secondary" variant="caption">근무 시간</AppText>
+          <AppText style={styles.summaryValue} variant="label">
+            {timeSummary || '근무 없음'}
+          </AppText>
+        </View>
+        <View style={styles.summaryRow}>
+          <AppText tone="secondary" variant="caption">근무 알람</AppText>
+          <AppText variant="label">{alarmEnabled ? '켜짐' : '꺼짐'}</AppText>
+        </View>
+      </Surface>
+      <ToggleRow
+        disabled={!alarmSupported || !validation.safety.canEnableAlarms}
+        icon="alarm-outline"
+        onValueChange={onAlarmEnabledChange}
+        subtitle={
+          !alarmSupported
+            ? '안드로이드에서 지원합니다.'
+            : validation.safety.canEnableAlarms
+              ? '근무에 맞춰 알람을 준비합니다.'
+              : '근무 시간 수정 필요'
+        }
+        title="근무 알람"
+        value={alarmEnabled}
+      />
+      {!validation.safety.canEnableAlarms ? (
         <StatusBanner
-          message="근무표 저장 후 근무 알람 끄기"
-          title="알람 없이 저장"
+          actionLabel="시간 수정"
+          message="다음 알람이 이전 근무 중 울릴 수 있습니다."
+          onAction={onAdjustTime}
+          title="알람 시간 겹침"
+          tone="warning"
+        />
+      ) : session.alarmChoice === 'schedule-only' ? (
+        <StatusBanner
+          message="근무표는 저장하고 알람은 사용하지 않습니다."
+          title="알람 꺼짐"
           tone="neutral"
         />
       ) : null}
       <View style={styles.storageCard}>
-        <AppText accessibilityRole="header" variant="label">
-          기기 저장
-        </AppText>
         <AppText tone="secondary" variant="caption">
-          서버 전송 없음 · 앱 삭제 시 근무표·메모·설정 삭제 · 데이터 메뉴에서 외부 백업 가능
+          설정은 이 기기에 저장됩니다.
         </AppText>
       </View>
     </View>
@@ -462,7 +498,7 @@ export function SetupAlarmStep({
 
 export function SetupSessionProgress({ compact, step }: { compact: boolean; step: number }) {
   const styles = useThemedStyles(createStyles);
-  const labels = ['근무 순서', '오늘 근무·시간', '알람 준비'] as const;
+  const labels = ['근무 방식', '오늘 근무·시간', '알람'] as const;
   return (
     <View
       accessibilityLabel={`근무표 설정 ${step}단계, 총 3단계`}
@@ -486,6 +522,35 @@ function createStyles(palette: AppPalette) {
     exampleCard: { gap: spacing.tiny },
     options: { gap: spacing.small },
     optionCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
+    choiceSurface: {
+      overflow: 'hidden',
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
+    choiceRow: {
+      borderWidth: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
+      borderRadius: 0,
+    },
+    choiceRowContent: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.small,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: spacing.small,
+    },
+    nestedOptions: {
+      paddingLeft: spacing.medium,
+      backgroundColor: palette.surfaceSoft,
+    },
+    nestedChoiceRow: {
+      borderWidth: 0,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+      borderRadius: 0,
+    },
     editorCard: { gap: spacing.medium },
     inlineSummary: {
       gap: spacing.tiny,
@@ -494,9 +559,9 @@ function createStyles(palette: AppPalette) {
       paddingLeft: spacing.medium,
       paddingVertical: spacing.tiny,
     },
+    roleSelection: { gap: spacing.small },
     positionOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     positionOption: { minWidth: 112, flexGrow: 1 },
-    dateCard: { gap: spacing.small },
     previewCard: { gap: spacing.medium },
     previewList: { gap: spacing.tiny },
     previewRow: {
@@ -518,7 +583,23 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'space-between',
       gap: spacing.small,
     },
-    warningCard: { gap: spacing.small },
+    summaryCard: {
+      gap: 0,
+      paddingHorizontal: spacing.medium,
+      paddingVertical: 0,
+    },
+    summaryRow: {
+      minHeight: 48,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.small,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
+      paddingVertical: spacing.small,
+    },
+    summaryValue: { minWidth: 0, flexShrink: 1, textAlign: 'right' },
     storageCard: {
       gap: spacing.tiny,
       paddingTop: spacing.small,

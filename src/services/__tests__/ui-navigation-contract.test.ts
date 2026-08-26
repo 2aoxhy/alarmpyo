@@ -53,12 +53,12 @@ describe('핵심 화면 탐색 계약', () => {
 
     for (const label of [
       '현재 근무표 사용',
-      '근무 순서 선택',
-      '직접 만들기',
+      '근무 방식',
+      '직접 설정',
       '파일 불러오기',
-      '앞으로 7일',
-      '알람 준비하기',
-      '근무표만 저장',
+      '근무 예시',
+      '알람 설정',
+      '근무 알람',
     ]) {
       expect(quickSetup).toContain(label);
     }
@@ -97,7 +97,7 @@ describe('핵심 화면 탐색 계약', () => {
     const uiKit = source('src/components/ui-kit.tsx');
     const contentStyle = uiKit.indexOf('contentStyle,');
     const protectedBottomSpacing = uiKit.indexOf(
-      ': { paddingBottom: floatingTabBarContentOffset },',
+      '{ paddingBottom: contentBottomInset },',
       contentStyle,
     );
 
@@ -106,6 +106,7 @@ describe('핵심 화면 탐색 계약', () => {
     );
     expect(contentStyle).toBeGreaterThan(-1);
     expect(protectedBottomSpacing).toBeGreaterThan(contentStyle);
+    expect(uiKit).toContain('resolveScreenContentBottomInset({');
     expect(uiKit).toContain(
       'typeScale.label.lineHeight * Math.min(fontScale, 2)',
     );

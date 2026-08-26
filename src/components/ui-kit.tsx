@@ -3,11 +3,15 @@ import {
   type PropsWithChildren,
   type ReactNode,
   type Ref,
+  useEffect,
+  useId,
+  useState,
 } from 'react';
 import { useIsFocused } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -27,6 +31,10 @@ import {
 } from 'react-native-safe-area-context';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import {
+  resolveScreenContentBottomInset,
+  useGlobalBottomOverlayLayout,
+} from '@/components/global-bottom-overlay-layout';
 import { type AppPalette } from '@/constants/app-theme';
 import {
   createSemanticColors,
@@ -123,20 +131,47 @@ export function Screen({
   const isFocused = useIsFocused();
   const styles = useThemedStyles(createStyles);
   const { fontScale } = useWindowDimensions();
+  const footerOwner = useId();
+  const hasFooter = Boolean(footer);
+  const [footerInset, setFooterInset] = useState(0);
+  const {
+    contentInset: globalBottomOverlayInset,
+    registerBottomControlInset,
+  } = useGlobalBottomOverlayLayout();
   const floatingTabBarContentOffset = resolveFloatingTabBarLayout(
     fontScale,
     insets.bottom,
     Platform.OS === 'web',
   ).contentOffset;
+  const contentBottomInset = resolveScreenContentBottomInset({
+    floatingControlInset: floatingTabBarContentOffset,
+    footerInset: footer ? footerInset : null,
+    footerPadding: space.xl,
+    globalOverlayInset: globalBottomOverlayInset,
+    overlayGap: space.sm,
+  });
+
+  useEffect(() => {
+    if (!isFocused || !hasFooter || footerInset <= 0) {
+      registerBottomControlInset(footerOwner, 0);
+      return;
+    }
+    registerBottomControlInset(footerOwner, footerInset);
+    return () => registerBottomControlInset(footerOwner, 0);
+  }, [footerInset, footerOwner, hasFooter, isFocused, registerBottomControlInset]);
+
+  const measureFooter = (event: LayoutChangeEvent) => {
+    const nextInset =
+      event.nativeEvent.layout.height + Math.max(footerBottomOffset, 0);
+    setFooterInset((current) => (current === nextInset ? current : nextInset));
+  };
   const content = (
     <View
       style={[
         styles.screenContent,
         { maxWidth: maxContentWidth },
         contentStyle,
-        footer
-          ? styles.screenContentWithFooter
-          : { paddingBottom: floatingTabBarContentOffset },
+        { paddingBottom: contentBottomInset },
       ]}>
       {children}
     </View>
@@ -175,6 +210,7 @@ export function Screen({
         )}
         {footer ? (
           <View
+            onLayout={measureFooter}
             style={[
               styles.footer,
               {
@@ -380,37 +416,39 @@ export function ListRow({
         (disabled || loading) && styles.rowDisabled,
         rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible,
       ]}>
-      <View
-        style={[
-          styles.listRowIcon,
-          reflow && styles.listRowIconReflow,
-          reflow && { height: titleLineHeight },
-        ]}>
-        <AppIcon
-          accessible={false}
-          color={iconForeground}
-          name={icon}
-          size={controlSize.iconMedium}
-        />
-      </View>
-      <View style={styles.listRowText}>
-        <AppText variant="label" color={foreground} style={styles.listRowTitle}>
-          {title}
-        </AppText>
-        {subtitle ? (
-          <AppText
-            variant="caption"
-            tone="secondary"
-            numberOfLines={
-              allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2
-            }
-            style={styles.listRowSubtitle}>
-            {subtitle}
+      <View style={[styles.listRowMain, reflow && styles.listRowMainReflow]}>
+        <View style={[styles.listRowIcon, { height: titleLineHeight }]}>
+          <AppIcon
+            accessible={false}
+            color={iconForeground}
+            name={icon}
+            size={controlSize.iconMedium}
+          />
+        </View>
+        <View style={styles.listRowText}>
+          <AppText variant="label" color={foreground} style={styles.listRowTitle}>
+            {title}
           </AppText>
-        ) : null}
+          {subtitle ? (
+            <AppText
+              variant="caption"
+              tone="secondary"
+              numberOfLines={
+                allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2
+              }
+              style={styles.listRowSubtitle}>
+              {subtitle}
+            </AppText>
+          ) : null}
+        </View>
       </View>
       {loading || trailing || onPress ? (
-        <View style={[styles.listRowTrailing, { minHeight: titleLineHeight }]}>
+        <View
+          style={[
+            styles.listRowTrailing,
+            reflow && styles.listRowTrailingReflow,
+            { minHeight: titleLineHeight },
+          ]}>
           {loading ? (
             <ActivityIndicator color={palette.indigo} size="small" />
           ) : (
@@ -556,15 +594,27 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
-  listRowReflow: { alignItems: 'flex-start' },
+  listRowReflow: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+    gap: space.xs,
+  },
+  listRowMain: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+  },
+  listRowMainReflow: {
+    width: '100%',
+    flex: 0,
+  },
   listRowIcon: {
     width: controlSize.minimumTouchTarget,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  listRowIconReflow: {
-    alignSelf: 'flex-start',
   },
   rowPressed: { backgroundColor: palette.surfaceSoft },
   rowDisabled: {
@@ -585,9 +635,13 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   },
   listRowTrailing: {
     minWidth: controlSize.minimumTouchTarget,
+    minHeight: controlSize.minimumTouchTarget,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listRowTrailingReflow: {
+    alignSelf: 'flex-end',
   },
   menuGroup: {
     gap: space.sm,

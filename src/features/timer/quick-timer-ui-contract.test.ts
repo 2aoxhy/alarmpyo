@@ -125,18 +125,39 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
   });
 
-  it('직접 입력은 1~60분 비순환 세로 휠과 하나의 접근성 조절기를 제공해요', () => {
+  it('직접 입력은 부드러운 1~60분 휠과 중앙 숫자 입력을 함께 제공해요', () => {
     expect(stepper).toContain('presentationStyle="fullScreen"');
-    expect(stepper).toContain('onRequestClose={onCancel}');
+    expect(stepper).toContain('onRequestClose={handleCancel}');
     expect(stepper).toContain('<FlatList');
     expect(stepper).toContain('snapToInterval={wheelLayout.itemHeight}');
-    expect(stepper).toContain('disableIntervalMomentum');
+    expect(stepper).toContain('decelerationRate="normal"');
+    expect(stepper).not.toContain('disableIntervalMomentum');
+    expect(stepper).not.toContain('SCROLL_SETTLE_DELAY_MS = 80');
+    expect(stepper).toContain('SCROLL_FALLBACK_SETTLE_DELAY_MS = 220');
     expect(stepper).toContain('quickTimerOffsetToDuration(');
     expect(stepper).toContain('quickTimerDurationToOffset(');
-    expect(stepper).toContain('accessibilityRole="adjustable"');
+    expect(stepper).toContain('interactionRevisionRef');
+    expect(stepper).toContain('dragRevisionRef');
+    expect(stepper).toContain('momentumRevisionRef');
+    expect(stepper).toContain('programmaticScrollRef');
+    expect(stepper).toContain('shouldAcceptQuickTimerWheelEvent({');
+    expect(stepper).toContain("entryModeRef.current === 'wheel'");
+    expect(stepper).toContain("accessibilityRole={entryMode === 'wheel' ? 'adjustable' : undefined}");
     expect(stepper).toContain("actionName === 'increment'");
     expect(stepper).toContain("actionName === 'decrement'");
+    expect(stepper).toContain("actionName === 'activate'");
+    expect(stepper).toContain('onAccessibilityTap={beginNumericEntry}');
     expect(stepper).toContain('importantForAccessibility="no-hide-descendants"');
+    expect(stepper).toContain('<TextInput');
+    expect(stepper).toContain('inputMode="numeric"');
+    expect(stepper).toContain('keyboardType="number-pad"');
+    expect(stepper).toContain('maxLength={2}');
+    expect(stepper).toContain('parseQuickTimerDurationInput(');
+    expect(stepper).toContain("pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}");
+    expect(stepper).toContain('scheduleAdjustableFocus');
+    expect(stepper).toContain('focusRevisionRef');
+    expect(stepper).toContain('clearSettleTimeout();');
+    expect(stepper).toContain('styles.selectedValueSide');
     expect(stepper).toContain('quick-timer-stepper-start');
     expect(stepper).toContain('accessibilityViewIsModal');
     expect(stepper).toContain("from 'react-native-safe-area-context'");

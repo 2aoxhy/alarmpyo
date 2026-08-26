@@ -9,6 +9,7 @@ import {
   migrateInitialSetupDraft,
   migrateQuickSetupDraft,
   parseSetupSessionDraft,
+  resolveSetupScheduleStartDate,
 } from './setup-session-model';
 
 describe('통합 근무표 설정 세션', () => {
@@ -27,7 +28,7 @@ describe('통합 근무표 설정 세션', () => {
       step: 'schedule-source',
       presetId: null,
       position: null,
-      alarmChoice: null,
+      alarmChoice: 'prepare',
     });
   });
 
@@ -61,7 +62,12 @@ describe('통합 근무표 설정 세션', () => {
     };
 
     expect(
-      migrateQuickSetupDraft({ data, draft: legacy, mode: 'reconfigure' }),
+      migrateQuickSetupDraft({
+        data,
+        draft: legacy,
+        mode: 'reconfigure',
+        today: '2026-08-24',
+      }),
     ).toMatchObject({
       version: 2,
       source: 'recommended',
@@ -84,7 +90,12 @@ describe('통합 근무표 설정 세션', () => {
     };
 
     expect(
-      migrateQuickSetupDraft({ data, draft, mode: 'reconfigure' }),
+      migrateQuickSetupDraft({
+        data,
+        draft,
+        mode: 'reconfigure',
+        today: '2026-08-24',
+      }),
     ).toMatchObject({
       source: 'current',
       presetId: 'three-team-two-shift',
@@ -113,7 +124,9 @@ describe('통합 근무표 설정 세션', () => {
       confirmedWorkTimeSignature: null,
     };
 
-    expect(migrateInitialSetupDraft({ data, draft: legacy })).toMatchObject({
+    expect(
+      migrateInitialSetupDraft({ data, draft: legacy, today: '2026-08-24' }),
+    ).toMatchObject({
       mode: 'initial',
       source: 'recommended',
       step: 'schedule-anchor',
@@ -123,6 +136,48 @@ describe('통합 근무표 설정 세션', () => {
       },
       alarmChoice: 'prepare',
     });
+  });
+
+  it('오래된 재개 초안은 오늘까지 경과한 주기 위치로 이동합니다', () => {
+    const data = createDefaultAppData('2026-08-24');
+    const draft = {
+      ...createSetupSessionDraft({
+        data,
+        mode: 'reconfigure' as const,
+        today: '2026-08-24',
+      }),
+      step: 'schedule-anchor' as const,
+      referenceDate: '2026-08-24',
+      position: 1,
+    };
+
+    expect(
+      migrateQuickSetupDraft({
+        data,
+        draft,
+        mode: 'reconfigure',
+        today: '2026-08-26',
+      }),
+    ).toMatchObject({ referenceDate: '2026-08-26', position: 3 });
+  });
+
+  it('현재 근무표 재설정만 기존 표시 시작일을 보존합니다', () => {
+    expect(
+      resolveSetupScheduleStartDate({
+        currentScheduleStartDate: '2026-05-01',
+        mode: 'reconfigure',
+        source: 'current',
+        today: '2026-08-26',
+      }),
+    ).toBe('2026-05-01');
+    expect(
+      resolveSetupScheduleStartDate({
+        currentScheduleStartDate: '2026-05-01',
+        mode: 'reconfigure',
+        source: 'recommended',
+        today: '2026-08-26',
+      }),
+    ).toBe('2026-08-26');
   });
 
   it('손상된 V2와 범위를 벗어난 순번을 거부합니다', () => {

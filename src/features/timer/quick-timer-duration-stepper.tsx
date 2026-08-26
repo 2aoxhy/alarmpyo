@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   findNodeHandle,
@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   useWindowDimensions,
@@ -33,17 +34,26 @@ import type { QuickTimerDuration } from './quick-timer-controller';
 import {
   clampQuickTimerDuration,
   getQuickTimerDurationStepperPresentation,
+  parseQuickTimerDurationInput,
   QUICK_TIMER_CUSTOM_INITIAL_DURATION,
   quickTimerDurationToOffset,
   quickTimerOffsetToDuration,
   resolveQuickTimerWheelLayout,
+  shouldAcceptQuickTimerWheelEvent,
 } from './quick-timer-model';
 
 const QUICK_TIMER_DURATIONS = Array.from(
   { length: 60 },
   (_, index) => (index + 1) as QuickTimerDuration,
 );
-const SCROLL_SETTLE_DELAY_MS = 80;
+const SCROLL_FALLBACK_SETTLE_DELAY_MS = 220;
+
+type TimerEntryMode = 'wheel' | 'numeric';
+
+type ProgrammaticWheelScroll = {
+  revision: number;
+  targetOffset: number;
+};
 
 function resolveInitialDuration(
   durationMinutes: QuickTimerDuration | null | undefined,
@@ -77,14 +87,32 @@ export function QuickTimerDurationStepper({
   );
   const listRef = useRef<FlatList<QuickTimerDuration>>(null);
   const adjustableRef = useRef<View | null>(null);
+  const numericInputRef = useRef<TextInput | null>(null);
   const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interactionRevisionRef = useRef(0);
+  const dragRevisionRef = useRef<number | null>(null);
+  const momentumRevisionRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef<ProgrammaticWheelScroll | null>(null);
+  const focusRevisionRef = useRef(0);
+  const restoreAdjustableFocusRef = useRef(false);
+  const visibleRef = useRef(visible);
+  const entryModeRef = useRef<TimerEntryMode>('wheel');
   const wasVisibleRef = useRef(false);
   const durationRef = useRef<QuickTimerDuration>(initialDuration);
   const committedDurationRef = useRef<QuickTimerDuration>(initialDuration);
   const offsetRef = useRef(initialOffset);
   const [durationMinutes, setDurationMinutes] = useState(initialDuration);
+  const [entryMode, setEntryMode] = useState<TimerEntryMode>('wheel');
+  const [numericInput, setNumericInput] = useState(String(initialDuration));
+  const [numericInputError, setNumericInputError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const presentation = getQuickTimerDurationStepperPresentation(durationMinutes);
+  const numericInputResult = parseQuickTimerDurationInput(numericInput);
+  const presentedDuration =
+    entryMode === 'numeric' && numericInputResult.valid
+      ? numericInputResult.durationMinutes
+      : durationMinutes;
+  const presentation = getQuickTimerDurationStepperPresentation(presentedDuration);
   const stackActions = width < 360 || fontScale >= 1.4;
   const selectionTop =
     (wheelLayout.viewportHeight - wheelLayout.itemHeight) / 2;
@@ -101,10 +129,58 @@ export function QuickTimerDurationStepper({
         ? 28
         : 24;
 
+  useLayoutEffect(() => {
+    visibleRef.current = visible;
+    entryModeRef.current = entryMode;
+  }, [entryMode, visible]);
+
   const clearSettleTimeout = useCallback(() => {
     if (settleTimeoutRef.current === null) return;
     clearTimeout(settleTimeoutRef.current);
     settleTimeoutRef.current = null;
+  }, []);
+
+  const clearFocusTimeout = useCallback(() => {
+    if (focusTimeoutRef.current === null) return;
+    clearTimeout(focusTimeoutRef.current);
+    focusTimeoutRef.current = null;
+  }, []);
+
+  const scheduleAdjustableFocus = useCallback((delay: number) => {
+    clearFocusTimeout();
+    const revision = ++focusRevisionRef.current;
+    focusTimeoutRef.current = setTimeout(() => {
+      focusTimeoutRef.current = null;
+      if (
+        revision !== focusRevisionRef.current ||
+        !visibleRef.current ||
+        entryModeRef.current !== 'wheel'
+      ) {
+        return;
+      }
+      if (Platform.OS === 'web') {
+        (
+          adjustableRef.current as
+            | (View & { focus?: () => void })
+            | null
+        )?.focus?.();
+        return;
+      }
+      const node = findNodeHandle(adjustableRef.current);
+      if (node) AccessibilityInfo.setAccessibilityFocus(node);
+    }, delay);
+  }, [clearFocusTimeout]);
+
+  const startProgrammaticScroll = useCallback((
+    offset: number,
+    animated: boolean,
+    revision: number,
+  ) => {
+    programmaticScrollRef.current = animated
+      ? { revision, targetOffset: offset }
+      : null;
+    momentumRevisionRef.current = animated ? revision : null;
+    listRef.current?.scrollToOffset({ animated, offset });
   }, []);
 
   const publishDuration = useCallback((nextDuration: QuickTimerDuration) => {
@@ -120,7 +196,20 @@ export function QuickTimerDurationStepper({
     void triggerSelectionFeedback();
   }, []);
 
-  const commitOffset = useCallback((offset: number, withFeedback: boolean) => {
+  const settleOffset = useCallback((
+    offset: number,
+    withFeedback: boolean,
+    revision: number,
+  ) => {
+    if (!shouldAcceptQuickTimerWheelEvent({
+      actualOffset: offset,
+      currentRevision: interactionRevisionRef.current,
+      eventRevision: revision,
+      visible: visibleRef.current,
+      wheelActive: entryModeRef.current === 'wheel',
+    })) {
+      return durationRef.current;
+    }
     const nextDuration = quickTimerOffsetToDuration(
       offset,
       wheelLayout.itemHeight,
@@ -131,16 +220,36 @@ export function QuickTimerDurationStepper({
     );
     offsetRef.current = snappedOffset;
     publishDuration(nextDuration);
-    listRef.current?.scrollToOffset({ animated: false, offset: snappedOffset });
+    if (Math.abs(offset - snappedOffset) > 0.5) {
+      startProgrammaticScroll(snappedOffset, !reduceMotion, revision);
+    } else {
+      programmaticScrollRef.current = null;
+      momentumRevisionRef.current = null;
+    }
+    if (dragRevisionRef.current === revision) dragRevisionRef.current = null;
     if (withFeedback) emitSelectionFeedback(nextDuration);
     return nextDuration;
-  }, [emitSelectionFeedback, publishDuration, wheelLayout.itemHeight]);
+  }, [
+    emitSelectionFeedback,
+    publishDuration,
+    reduceMotion,
+    startProgrammaticScroll,
+    wheelLayout.itemHeight,
+  ]);
 
   const selectDuration = useCallback((
     nextValue: number,
     animated = !reduceMotion,
   ) => {
-    if (busy) return;
+    if (
+      busy ||
+      !visibleRef.current ||
+      entryModeRef.current !== 'wheel'
+    ) {
+      return;
+    }
+    const revision = ++interactionRevisionRef.current;
+    dragRevisionRef.current = null;
     const nextDuration = clampQuickTimerDuration(nextValue);
     const nextOffset = quickTimerDurationToOffset(
       nextDuration,
@@ -150,13 +259,61 @@ export function QuickTimerDurationStepper({
     offsetRef.current = nextOffset;
     publishDuration(nextDuration);
     emitSelectionFeedback(nextDuration);
-    listRef.current?.scrollToOffset({ animated, offset: nextOffset });
+    startProgrammaticScroll(nextOffset, animated, revision);
   }, [
     busy,
     clearSettleTimeout,
     emitSelectionFeedback,
     publishDuration,
     reduceMotion,
+    startProgrammaticScroll,
+    wheelLayout.itemHeight,
+  ]);
+
+  const beginNumericEntry = useCallback(() => {
+    if (busy || !visibleRef.current || entryModeRef.current !== 'wheel') return;
+    interactionRevisionRef.current += 1;
+    dragRevisionRef.current = null;
+    programmaticScrollRef.current = null;
+    clearSettleTimeout();
+    clearFocusTimeout();
+    focusRevisionRef.current += 1;
+    setNumericInput(String(durationRef.current));
+    setNumericInputError(null);
+    entryModeRef.current = 'numeric';
+    setEntryMode('numeric');
+  }, [busy, clearFocusTimeout, clearSettleTimeout]);
+
+  const commitNumericEntry = useCallback(() => {
+    const result = parseQuickTimerDurationInput(numericInput);
+    if (!result.valid) {
+      setNumericInputError(result.error);
+      return null;
+    }
+
+    const revision = ++interactionRevisionRef.current;
+    dragRevisionRef.current = null;
+    clearSettleTimeout();
+    const nextOffset = quickTimerDurationToOffset(
+      result.durationMinutes,
+      wheelLayout.itemHeight,
+    );
+    offsetRef.current = nextOffset;
+    publishDuration(result.durationMinutes);
+    emitSelectionFeedback(result.durationMinutes);
+    startProgrammaticScroll(nextOffset, !reduceMotion, revision);
+    setNumericInputError(null);
+    restoreAdjustableFocusRef.current = true;
+    entryModeRef.current = 'wheel';
+    setEntryMode('wheel');
+    return result.durationMinutes;
+  }, [
+    clearSettleTimeout,
+    emitSelectionFeedback,
+    numericInput,
+    publishDuration,
+    reduceMotion,
+    startProgrammaticScroll,
     wheelLayout.itemHeight,
   ]);
 
@@ -178,6 +335,13 @@ export function QuickTimerDurationStepper({
   useEffect(() => {
     if (!visible) {
       wasVisibleRef.current = false;
+      interactionRevisionRef.current += 1;
+      dragRevisionRef.current = null;
+      programmaticScrollRef.current = null;
+      momentumRevisionRef.current = null;
+      clearSettleTimeout();
+      clearFocusTimeout();
+      focusRevisionRef.current += 1;
       return;
     }
     if (wasVisibleRef.current) return;
@@ -187,17 +351,27 @@ export function QuickTimerDurationStepper({
       durationRef.current = nextDuration;
       committedDurationRef.current = nextDuration;
       setDurationMinutes(nextDuration);
+      setNumericInput(String(nextDuration));
+      setNumericInputError(null);
+      entryModeRef.current = 'wheel';
+      setEntryMode('wheel');
       listRef.current?.scrollToIndex({
         animated: false,
         index: nextDuration - 1,
       });
     }, 0);
     return () => clearTimeout(timeout);
-  }, [initialDurationMinutes, visible]);
+  }, [clearFocusTimeout, clearSettleTimeout, initialDurationMinutes, visible]);
 
   useEffect(() => {
     if (!visible) return;
+    interactionRevisionRef.current += 1;
+    dragRevisionRef.current = null;
+    programmaticScrollRef.current = null;
+    momentumRevisionRef.current = null;
+    clearSettleTimeout();
     const timeout = setTimeout(() => {
+      if (!visibleRef.current) return;
       const nextOffset = quickTimerDurationToOffset(
         durationRef.current,
         wheelLayout.itemHeight,
@@ -206,23 +380,64 @@ export function QuickTimerDurationStepper({
       listRef.current?.scrollToOffset({ animated: false, offset: nextOffset });
     }, 0);
     return () => clearTimeout(timeout);
-  }, [visible, wheelLayout.itemHeight]);
+  }, [clearSettleTimeout, visible, wheelLayout.itemHeight]);
 
   useEffect(() => {
-    if (!visible || Platform.OS === 'web') return;
-    const timeout = setTimeout(() => {
-      const node = findNodeHandle(adjustableRef.current);
-      if (node) AccessibilityInfo.setAccessibilityFocus(node);
-    }, 180);
-    return () => clearTimeout(timeout);
-  }, [visible]);
+    if (!visible) return;
+    if (entryMode === 'numeric') {
+      clearFocusTimeout();
+      const revision = ++focusRevisionRef.current;
+      focusTimeoutRef.current = setTimeout(() => {
+        focusTimeoutRef.current = null;
+        if (
+          revision === focusRevisionRef.current &&
+          visibleRef.current &&
+          entryModeRef.current === 'numeric'
+        ) {
+          numericInputRef.current?.focus();
+        }
+      }, 0);
+      return clearFocusTimeout;
+    }
+    if (restoreAdjustableFocusRef.current) {
+      restoreAdjustableFocusRef.current = false;
+      scheduleAdjustableFocus(Platform.OS === 'web' ? 0 : 80);
+      return clearFocusTimeout;
+    }
+  }, [
+    clearFocusTimeout,
+    entryMode,
+    scheduleAdjustableFocus,
+    visible,
+  ]);
 
-  useEffect(() => clearSettleTimeout, [clearSettleTimeout]);
+  useEffect(() => {
+    if (!visible) return;
+    scheduleAdjustableFocus(Platform.OS === 'web' ? 0 : 180);
+    return clearFocusTimeout;
+  }, [clearFocusTimeout, scheduleAdjustableFocus, visible]);
+
+  useEffect(() => () => {
+    clearFocusTimeout();
+    clearSettleTimeout();
+  }, [clearFocusTimeout, clearSettleTimeout]);
 
   const observeScroll = useCallback((
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
     const nextOffset = event.nativeEvent.contentOffset.y;
+    if (
+      programmaticScrollRef.current !== null ||
+      !shouldAcceptQuickTimerWheelEvent({
+        actualOffset: nextOffset,
+        currentRevision: interactionRevisionRef.current,
+        eventRevision: dragRevisionRef.current,
+        visible: visibleRef.current,
+        wheelActive: entryModeRef.current === 'wheel',
+      })
+    ) {
+      return;
+    }
     offsetRef.current = nextOffset;
     publishDuration(
       quickTimerOffsetToDuration(nextOffset, wheelLayout.itemHeight),
@@ -232,33 +447,140 @@ export function QuickTimerDurationStepper({
   const scheduleDragSettle = useCallback((
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
-    offsetRef.current = event.nativeEvent.contentOffset.y;
+    const nextOffset = event.nativeEvent.contentOffset.y;
+    const revision = dragRevisionRef.current;
+    if (!shouldAcceptQuickTimerWheelEvent({
+      actualOffset: nextOffset,
+      currentRevision: interactionRevisionRef.current,
+      eventRevision: revision,
+      visible: visibleRef.current,
+      wheelActive: entryModeRef.current === 'wheel',
+    })) {
+      return;
+    }
+    offsetRef.current = nextOffset;
     clearSettleTimeout();
     settleTimeoutRef.current = setTimeout(() => {
       settleTimeoutRef.current = null;
-      commitOffset(offsetRef.current, true);
-    }, SCROLL_SETTLE_DELAY_MS);
-  }, [clearSettleTimeout, commitOffset]);
+      if (revision !== null) settleOffset(offsetRef.current, true, revision);
+    }, SCROLL_FALLBACK_SETTLE_DELAY_MS);
+  }, [clearSettleTimeout, settleOffset]);
+
+  const handleMomentumBegin = useCallback(() => {
+    if (!visibleRef.current || entryModeRef.current !== 'wheel') return;
+    const programmatic = programmaticScrollRef.current;
+    momentumRevisionRef.current =
+      programmatic?.revision ?? dragRevisionRef.current;
+    clearSettleTimeout();
+  }, [clearSettleTimeout]);
 
   const handleMomentumEnd = useCallback((
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
+    const nextOffset = event.nativeEvent.contentOffset.y;
+    const revision = momentumRevisionRef.current;
+    const programmatic = programmaticScrollRef.current;
+    const expectedOffset =
+      programmatic?.revision === revision
+        ? programmatic.targetOffset
+        : null;
+    if (!shouldAcceptQuickTimerWheelEvent({
+      actualOffset: nextOffset,
+      currentRevision: interactionRevisionRef.current,
+      eventRevision: revision,
+      expectedOffset,
+      visible: visibleRef.current,
+      wheelActive: entryModeRef.current === 'wheel',
+    })) {
+      return;
+    }
+
     clearSettleTimeout();
-    commitOffset(event.nativeEvent.contentOffset.y, true);
-  }, [clearSettleTimeout, commitOffset]);
+    if (programmatic?.revision === revision) {
+      offsetRef.current = programmatic.targetOffset;
+      programmaticScrollRef.current = null;
+      momentumRevisionRef.current = null;
+      return;
+    }
+    if (revision !== null) settleOffset(nextOffset, true, revision);
+  }, [clearSettleTimeout, settleOffset]);
+
+  const beginWheelDrag = useCallback(() => {
+    if (!visibleRef.current || entryModeRef.current !== 'wheel') return;
+    const revision = ++interactionRevisionRef.current;
+    dragRevisionRef.current = revision;
+    programmaticScrollRef.current = null;
+    clearSettleTimeout();
+  }, [clearSettleTimeout]);
+
+  const handleCancel = useCallback(() => {
+    interactionRevisionRef.current += 1;
+    dragRevisionRef.current = null;
+    programmaticScrollRef.current = null;
+    momentumRevisionRef.current = null;
+    clearSettleTimeout();
+    clearFocusTimeout();
+    focusRevisionRef.current += 1;
+    restoreAdjustableFocusRef.current = false;
+    setNumericInputError(null);
+    entryModeRef.current = 'wheel';
+    setEntryMode('wheel');
+    onCancel();
+  }, [clearFocusTimeout, clearSettleTimeout, onCancel]);
 
   const handleSubmit = useCallback(() => {
     if (busy) return;
+    if (entryMode === 'numeric') {
+      const result = parseQuickTimerDurationInput(numericInput);
+      if (!result.valid) {
+        setNumericInputError(result.error);
+        return;
+      }
+      interactionRevisionRef.current += 1;
+      dragRevisionRef.current = null;
+      programmaticScrollRef.current = null;
+      momentumRevisionRef.current = null;
+      clearSettleTimeout();
+      clearFocusTimeout();
+      focusRevisionRef.current += 1;
+      restoreAdjustableFocusRef.current = false;
+      publishDuration(result.durationMinutes);
+      emitSelectionFeedback(result.durationMinutes);
+      onSubmit(result.durationMinutes);
+      return;
+    }
+
+    interactionRevisionRef.current += 1;
+    dragRevisionRef.current = null;
+    programmaticScrollRef.current = null;
+    momentumRevisionRef.current = null;
     clearSettleTimeout();
-    const nextDuration = commitOffset(offsetRef.current, false);
+    clearFocusTimeout();
+    focusRevisionRef.current += 1;
+    const nextDuration = quickTimerOffsetToDuration(
+      offsetRef.current,
+      wheelLayout.itemHeight,
+    );
+    publishDuration(nextDuration);
+    emitSelectionFeedback(nextDuration);
     onSubmit(nextDuration);
-  }, [busy, clearSettleTimeout, commitOffset, onSubmit]);
+  }, [
+    busy,
+    clearFocusTimeout,
+    clearSettleTimeout,
+    emitSelectionFeedback,
+    entryMode,
+    numericInput,
+    onSubmit,
+    publishDuration,
+    wheelLayout.itemHeight,
+  ]);
 
   return (
     <Modal
       animationType="fade"
       hardwareAccelerated
-      onRequestClose={onCancel}
+      onRequestClose={handleCancel}
       presentationStyle="fullScreen"
       statusBarTranslucent={false}
       visible={visible}>
@@ -279,7 +601,7 @@ export function QuickTimerDurationStepper({
             hitSlop={8}
             onBlur={closeFocus.onBlur}
             onFocus={closeFocus.onFocus}
-            onPress={onCancel}
+            onPress={handleCancel}
             style={({ pressed }) => [
               styles.headerClose,
               pressed && !busy && styles.pressed,
@@ -301,13 +623,15 @@ export function QuickTimerDurationStepper({
           </AppText>
           <View
             ref={adjustableRef}
-            accessible
+            accessible={entryMode === 'wheel'}
             accessibilityActions={[
               { label: '1분 늘리기', name: 'increment' },
               { label: '1분 줄이기', name: 'decrement' },
+              { label: '숫자로 입력', name: 'activate' },
             ]}
+            accessibilityHint="위아래로 조절하거나 두 번 눌러 숫자로 입력합니다."
             accessibilityLabel="타이머 시간"
-            accessibilityRole="adjustable"
+            accessibilityRole={entryMode === 'wheel' ? 'adjustable' : undefined}
             accessibilityState={{ disabled: busy }}
             accessibilityValue={{ text: presentation.accessibilityLabel }}
             collapsable={false}
@@ -318,7 +642,11 @@ export function QuickTimerDurationStepper({
               if (event.nativeEvent.actionName === 'decrement') {
                 selectDuration(durationRef.current - 1, false);
               }
+              if (event.nativeEvent.actionName === 'activate') {
+                beginNumericEntry();
+              }
             }}
+            onAccessibilityTap={beginNumericEntry}
             style={[
               styles.wheel,
               {
@@ -335,9 +663,8 @@ export function QuickTimerDurationStepper({
               contentContainerStyle={{ paddingVertical: selectionTop }}
               contentOffset={{ x: 0, y: initialOffset }}
               data={QUICK_TIMER_DURATIONS}
-              decelerationRate="fast"
-              disableIntervalMomentum
-              extraData={durationMinutes}
+              decelerationRate="normal"
+              extraData={`${durationMinutes}:${entryMode}`}
               getItemLayout={(_, index) => ({
                 index,
                 length: wheelLayout.itemHeight,
@@ -345,55 +672,81 @@ export function QuickTimerDurationStepper({
               })}
               importantForAccessibility="no-hide-descendants"
               keyExtractor={(item) => item.toString()}
-              onMomentumScrollBegin={clearSettleTimeout}
+              onMomentumScrollBegin={handleMomentumBegin}
               onMomentumScrollEnd={handleMomentumEnd}
               onScroll={observeScroll}
-              onScrollBeginDrag={clearSettleTimeout}
+              onScrollBeginDrag={beginWheelDrag}
               onScrollEndDrag={scheduleDragSettle}
               overScrollMode="never"
+              pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}
               renderItem={({ item }) => {
                 const selected = item === durationMinutes;
                 return (
                   <Pressable
                     accessible={false}
                     accessibilityElementsHidden
-                    disabled={busy}
+                    disabled={busy || entryMode === 'numeric'}
                     importantForAccessibility="no-hide-descendants"
-                    onPress={() => selectDuration(item)}
+                    onPress={() => {
+                      if (selected) {
+                        beginNumericEntry();
+                        return;
+                      }
+                      selectDuration(item);
+                    }}
                     style={[
                       styles.wheelRow,
                       { height: wheelLayout.itemHeight },
                     ]}>
-                    <Text
-                      allowFontScaling={false}
-                      style={[
-                        styles.wheelNumber,
-                        {
-                          color: selected ? colors.text : colors.textSoft,
-                          fontSize: selectedFontSize,
-                          lineHeight: wheelLayout.itemHeight - 8,
-                        },
-                        selected && styles.wheelNumberSelected,
-                      ]}>
-                      {item}
-                      {selected ? (
+                    {selected ? (
+                      <View style={styles.selectedValueRow}>
+                        <View style={styles.selectedValueSide} />
                         <Text
                           allowFontScaling={false}
                           style={[
-                            styles.wheelUnit,
+                            styles.wheelNumber,
+                            styles.wheelNumberSelected,
                             {
                               color: colors.text,
-                              fontSize: neighborFontSize * 0.72,
+                              fontSize: selectedFontSize,
+                              lineHeight: wheelLayout.itemHeight - 8,
                             },
                           ]}>
-                          {'\u00A0'}분
+                          {item}
                         </Text>
-                      ) : null}
-                    </Text>
+                        <View style={styles.selectedValueSide}>
+                          <Text
+                            allowFontScaling={false}
+                            style={[
+                              styles.wheelUnit,
+                              {
+                                color: colors.text,
+                                fontSize: neighborFontSize * 0.72,
+                                lineHeight: neighborFontSize,
+                              },
+                            ]}>
+                            분
+                          </Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text
+                        allowFontScaling={false}
+                        style={[
+                          styles.wheelNeighborNumber,
+                          {
+                            color: colors.textSoft,
+                            fontSize: neighborFontSize,
+                            lineHeight: wheelLayout.itemHeight - 8,
+                          },
+                        ]}>
+                        {item}
+                      </Text>
+                    )}
                   </Pressable>
                 );
               }}
-              scrollEnabled={!busy}
+              scrollEnabled={!busy && entryMode === 'wheel'}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={false}
               snapToAlignment="start"
@@ -401,6 +754,64 @@ export function QuickTimerDurationStepper({
               style={styles.wheelList}
               testID="quick-timer-duration-wheel"
             />
+            {entryMode === 'numeric' ? (
+              <View
+                style={[
+                  styles.numericOverlay,
+                  {
+                    top: selectionTop,
+                    height: wheelLayout.itemHeight,
+                    backgroundColor: colors.background,
+                  },
+                ]}>
+                <View style={styles.selectedValueSide} />
+                <TextInput
+                  ref={numericInputRef}
+                  accessibilityHint="1분부터 60분까지 입력합니다."
+                  accessibilityLabel="타이머 분 직접 입력"
+                  allowFontScaling={false}
+                  aria-invalid={!numericInputResult.valid}
+                  autoCorrect={false}
+                  editable={!busy}
+                  inputMode="numeric"
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  onChangeText={(value) => {
+                    setNumericInput(value);
+                    const result = parseQuickTimerDurationInput(value);
+                    setNumericInputError(result.valid ? null : result.error);
+                  }}
+                  onSubmitEditing={commitNumericEntry}
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  selectionColor={colors.accent}
+                  style={[
+                    styles.numericInput,
+                    {
+                      color: colors.text,
+                      fontSize: selectedFontSize,
+                      lineHeight: wheelLayout.itemHeight - 8,
+                    },
+                  ]}
+                  testID="quick-timer-duration-input"
+                  value={numericInput}
+                />
+                <View style={styles.selectedValueSide}>
+                  <Text
+                    allowFontScaling={false}
+                    style={[
+                      styles.wheelUnit,
+                      {
+                        color: colors.text,
+                        fontSize: neighborFontSize * 0.72,
+                        lineHeight: neighborFontSize,
+                      },
+                    ]}>
+                    분
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             <View
               pointerEvents="none"
               style={[
@@ -408,10 +819,25 @@ export function QuickTimerDurationStepper({
                 {
                   top: selectionTop,
                   height: wheelLayout.itemHeight,
-                  borderColor: colors.borderStrong,
+                  borderColor: numericInputError
+                    ? colors.danger
+                    : entryMode === 'numeric'
+                      ? colors.focus
+                      : colors.borderStrong,
+                  borderTopWidth: entryMode === 'numeric' ? 2 : 1,
+                  borderBottomWidth: entryMode === 'numeric' ? 2 : 1,
                 },
               ]}
             />
+          </View>
+          <View
+            accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}>
+            <AppText
+              color={numericInputError ? colors.danger : colors.textMuted}
+              style={styles.inputHint}
+              variant="caption">
+              {numericInputError ?? '가운데 숫자를 누르면 직접 입력할 수 있습니다.'}
+            </AppText>
           </View>
         </View>
 
@@ -424,7 +850,7 @@ export function QuickTimerDurationStepper({
           <Button
             disabled={busy}
             label="취소"
-            onPress={onCancel}
+            onPress={handleCancel}
             style={styles.action}
             testID="quick-timer-stepper-cancel"
             variant="secondary"
@@ -435,7 +861,7 @@ export function QuickTimerDurationStepper({
                 ? `${presentation.durationMinutes}분으로 변경`
                 : `${presentation.durationMinutes}분 타이머 시작`
             }
-            disabled={busy}
+            disabled={busy || (entryMode === 'numeric' && !numericInputResult.valid)}
             icon="play"
             label={replacingTimer ? `${presentation.durationMinutes}분으로 변경` : '시작'}
             loading={busy}
@@ -494,8 +920,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  selectedValueRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedValueSide: {
+    width: 52,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   wheelNumber: {
     ...typeScale.display,
+    flex: 1,
+    includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
+  wheelNeighborNumber: {
+    ...typeScale.heading,
     width: '100%',
     includeFontPadding: false,
     fontVariant: ['tabular-nums'],
@@ -506,12 +952,37 @@ const styles = StyleSheet.create({
   wheelUnit: {
     ...typeScale.heading,
     includeFontPadding: false,
+    textAlign: 'center',
     textAlignVertical: 'center',
+  },
+  numericOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numericInput: {
+    ...typeScale.display,
+    flex: 1,
+    height: '100%',
+    padding: 0,
+    includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
+  inputHint: {
+    minHeight: typeScale.caption.lineHeight,
+    textAlign: 'center',
   },
   selectionFrame: {
     position: 'absolute',
     left: 0,
     right: 0,
+    zIndex: 3,
     borderTopWidth: 1,
     borderBottomWidth: 1,
   },

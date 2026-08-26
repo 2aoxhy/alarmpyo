@@ -58,6 +58,9 @@ export function StatusBanner({
   const { colors } = useDesignSystemTheme(theme);
   const { fontScale, width } = useWindowDimensions();
   const stackAction = fontScale >= 1.35 || width < 360;
+  const firstLineHeight =
+    (title ? typeScale.label.lineHeight : typeScale.body.lineHeight) *
+    Math.min(Math.max(fontScale, 1), 2);
   const toneColors = resolveToneColors(colors, tone);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedIcon = icon ?? resolveToneIcon(tone);
@@ -95,7 +98,7 @@ export function StatusBanner({
       ]}
       testID={testID}>
       <View style={styles.contentRow}>
-        <View style={styles.icon}>
+        <View style={[styles.icon, { height: firstLineHeight }]}>
           <AppIcon
             accessible={false}
             color={toneColors.foreground}
@@ -192,12 +195,11 @@ function createStyles(colors: SemanticColors) {
       minWidth: 0,
       flex: 1,
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: space.sm,
     },
     icon: {
       width: size.iconMedium,
-      minHeight: typeScale.body.lineHeight,
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',

@@ -25,9 +25,18 @@ export type QuickSetupDraftV1 = {
 
 export type QuickSetupOption = {
   detail: string;
+  groupId: QuickSetupGroupId;
   label: string;
   presetId: WorkPatternPresetId;
   sequence: readonly BaseWorkShiftId[];
+};
+
+export type QuickSetupGroupId = 'weekday' | 'two-shift' | 'three-shift' | 'custom';
+
+export type QuickSetupGroup = {
+  detail: string;
+  id: QuickSetupGroupId;
+  label: string;
 };
 
 export type QuickSetupShiftTimeRow = Pick<
@@ -44,26 +53,21 @@ const QUICK_PRESET_IDS: readonly Exclude<WorkPatternPresetId, 'custom'>[] = [
   'four-team-three-shift',
 ];
 
-const QUICK_LABELS: Readonly<Record<(typeof QUICK_PRESET_IDS)[number], string>> = {
-  weekday: '월~금 주간',
-  'two-team-two-shift': '주간 → 야간',
-  'three-team-two-shift': '주간 2일 → 야간 2일 → 휴무 2일',
-  'four-team-two-shift': '주간 → 야간 → 휴무 2일',
-  'three-team-three-shift': '주간 → 오후 → 야간',
-  'four-team-three-shift': '주간 → 오후 → 야간 → 휴무',
+const QUICK_GROUPS: Readonly<Record<(typeof QUICK_PRESET_IDS)[number], QuickSetupGroupId>> = {
+  weekday: 'weekday',
+  'two-team-two-shift': 'two-shift',
+  'three-team-two-shift': 'two-shift',
+  'four-team-two-shift': 'two-shift',
+  'three-team-three-shift': 'three-shift',
+  'four-team-three-shift': 'three-shift',
 };
 
-export const QUICK_SETUP_OPTIONS: readonly QuickSetupOption[] = QUICK_PRESET_IDS.map(
-  (presetId) => {
-    const preset = getWorkPatternPreset(presetId);
-    return {
-      detail: `${preset.shortName} · ${preset.description}`,
-      label: QUICK_LABELS[presetId],
-      presetId,
-      sequence: preset.shiftTypeIds,
-    };
-  },
-);
+export const QUICK_SETUP_GROUPS: readonly QuickSetupGroup[] = [
+  { id: 'weekday', label: '주간 고정', detail: '평일 주간 근무' },
+  { id: 'two-shift', label: '2교대', detail: '주간·야간 교대' },
+  { id: 'three-shift', label: '3교대', detail: '주간·오후·야간 교대' },
+  { id: 'custom', label: '직접 설정', detail: '회사 근무 순서를 직접 만듭니다' },
+] as const;
 
 const SHIFT_LABELS: Readonly<Record<BaseWorkShiftId, string>> = {
   day: '주간',
@@ -71,6 +75,19 @@ const SHIFT_LABELS: Readonly<Record<BaseWorkShiftId, string>> = {
   night: '야간',
   off: '휴무',
 };
+
+export const QUICK_SETUP_OPTIONS: readonly QuickSetupOption[] = QUICK_PRESET_IDS.map(
+  (presetId) => {
+    const preset = getWorkPatternPreset(presetId);
+    return {
+      detail: `예시: ${formatQuickSequence(preset.shiftTypeIds)}`,
+      groupId: QUICK_GROUPS[presetId],
+      label: preset.shortName,
+      presetId,
+      sequence: preset.shiftTypeIds,
+    };
+  },
+);
 
 export function formatQuickSequence(sequence: readonly BaseWorkShiftId[]): string {
   return sequence.map((id) => SHIFT_LABELS[id]).join(' → ');

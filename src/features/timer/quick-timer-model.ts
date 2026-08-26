@@ -45,6 +45,15 @@ export type QuickTimerWheelLayout = {
   viewportHeight: number;
 };
 
+export type QuickTimerWheelEventGuard = {
+  actualOffset: number;
+  currentRevision: number;
+  eventRevision: number | null;
+  expectedOffset?: number | null;
+  visible: boolean;
+  wheelActive: boolean;
+};
+
 export const QUICK_TIMER_CUSTOM_INITIAL_DURATION = 15;
 
 export function clampQuickTimerDuration(value: number): QuickTimerDuration {
@@ -96,6 +105,28 @@ export function quickTimerOffsetToDuration(
 ): QuickTimerDuration {
   const safeOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0;
   return clampQuickTimerDuration(Math.round(safeOffset / itemHeight) + 1);
+}
+
+export function shouldAcceptQuickTimerWheelEvent({
+  actualOffset,
+  currentRevision,
+  eventRevision,
+  expectedOffset = null,
+  visible,
+  wheelActive,
+}: QuickTimerWheelEventGuard): boolean {
+  if (
+    !visible ||
+    !wheelActive ||
+    eventRevision === null ||
+    eventRevision !== currentRevision
+  ) {
+    return false;
+  }
+  return (
+    expectedOffset === null ||
+    Math.abs(actualOffset - expectedOffset) <= 0.5
+  );
 }
 
 export function parseQuickTimerDurationInput(

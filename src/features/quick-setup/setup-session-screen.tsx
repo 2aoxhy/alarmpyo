@@ -2,9 +2,11 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  BackHandler,
   findNodeHandle,
   Platform,
   StyleSheet,
+  Text,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -33,7 +35,8 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { clearSetupDraft, readSetupDraft } from '@/services/setup-draft-service';
 import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
-import { toDateKey } from '@/utils/date';
+import { addDays, formatKoreanDate, toDateKey } from '@/utils/date';
+import { calculatePatternPosition, isPatternScheduleDate } from '@/services/pattern-engine';
 import { formatTimeInput } from '@/utils/shift-time';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
@@ -46,12 +49,16 @@ import {
 } from '@/utils/work-pattern';
 
 import { quickSetupDraftController } from './quick-setup-draft-controller';
-import { createQuickPreview, QUICK_SETUP_OPTIONS } from './quick-setup-model';
+import {
+  createQuickPreview,
+  QUICK_SETUP_OPTIONS,
+  type QuickSetupGroupId,
+} from './quick-setup-model';
 import {
   createSetupSessionDraft,
-  createSetupReferenceDatePatch,
   migrateInitialSetupDraft,
   migrateQuickSetupDraft,
+  resolveSetupScheduleStartDate,
   type SetupSessionDraftV2,
   type SetupSessionMode,
 } from './setup-session-model';
@@ -82,7 +89,12 @@ function projectWorkPatternDraft(
     presetId: session.presetId,
     categoryId: getWorkPatternCategoryId(session.presetId),
     sequence: [...session.sequence],
-    scheduleStartDate: session.referenceDate,
+    scheduleStartDate: resolveSetupScheduleStartDate({
+      currentScheduleStartDate: base.scheduleStartDate,
+      mode: session.mode,
+      source: session.source,
+      today,
+    }),
     referenceDate: session.referenceDate,
     position:
       session.presetId === 'weekday'
@@ -119,31 +131,29 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
   const compactProgress = width <= 320 || fontScale >= 1.4;
   const { data } = useAppStoreData();
   const {
-    completeInitialSetup,
-    createBackup,
-    disableAlarms,
-    enableAlarms,
+    commitSetup,
     previewSharedWorkSettings,
     requestAlarmAccess,
-    updatePatternDetailed,
   } = useAppStoreActions();
   const [today] = useState(() => toDateKey(new Date()));
   const initialDataRef = useRef(data);
   const [draftSession] = useState(() => quickSetupDraftController.createSession());
-  const [session, setSession] = useState<SetupSessionDraftV2>(() =>
-    createSetupSessionDraft({ data, mode, today }),
-  );
+  const [session, setSession] = useState<SetupSessionDraftV2>(() => {
+    const created = createSetupSessionDraft({ data, mode, today });
+    return Platform.OS === 'android'
+      ? created
+      : { ...created, alarmChoice: 'schedule-only' };
+  });
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState<QuickSetupGroupId | null>(null);
   const [showCustomEditor, setShowCustomEditor] = useState(false);
-  const [showOtherDate, setShowOtherDate] = useState(false);
-  const [showTimeEditor, setShowTimeEditor] = useState(mode === 'initial');
+  const [showTimeEditor, setShowTimeEditor] = useState(false);
   const [revealValidation, setRevealValidation] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const [focusShiftTypeId, setFocusShiftTypeId] =
     useState<EditableWorkShiftId | null>(null);
-  const stepHeadingRef = useRef<View>(null);
+  const stepHeadingRef = useRef<Text>(null);
 
   useEffect(() => {
     let active = true;
@@ -151,25 +161,34 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       const initialData = initialDataRef.current;
       const stored = await draftSession.hydrate();
       let restored = stored
-        ? migrateQuickSetupDraft({ data: initialData, draft: stored, mode })
+        ? migrateQuickSetupDraft({ data: initialData, draft: stored, mode, today })
         : null;
       if (!restored && mode === 'initial') {
         const legacy = await readSetupDraft();
         if (legacy) {
-          restored = migrateInitialSetupDraft({ data: initialData, draft: legacy });
+          restored = migrateInitialSetupDraft({
+            data: initialData,
+            draft: legacy,
+            today,
+          });
         }
       }
       if (!active) return;
       if (restored) {
         const compatible =
           Platform.OS !== 'android' && restored.alarmChoice === 'prepare'
-            ? { ...restored, alarmChoice: null }
+            ? { ...restored, alarmChoice: 'schedule-only' as const }
             : restored;
         setSession(compatible);
-        setShowRecommendations(restored.source === 'recommended');
+        const categoryId = getWorkPatternCategoryId(restored.presetId);
+        setExpandedGroup(
+          restored.source === 'recommended' &&
+          (categoryId === 'two-shift' || categoryId === 'three-shift')
+            ? categoryId
+            : null,
+        );
         setShowCustomEditor(restored.source === 'custom');
-        setShowOtherDate(restored.referenceDate !== today);
-        setShowTimeEditor(mode === 'initial' || restored.source === 'received-file');
+        setShowTimeEditor(false);
       }
       setHydrated(true);
     })().catch(() => {
@@ -192,13 +211,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
         const node = findNodeHandle(stepHeadingRef.current);
         if (node !== null) AccessibilityInfo.setAccessibilityFocus(node);
       }
-      const label =
-        session.step === 'schedule-source'
-          ? '근무 순서 선택, 1단계'
-          : session.step === 'schedule-anchor'
-            ? '오늘 근무와 시간 확인, 2단계'
-            : '알람 준비, 3단계';
-      AccessibilityInfo.announceForAccessibility(label);
     }, 80);
     return () => clearTimeout(timeout);
   }, [hydrated, session.step]);
@@ -212,8 +224,24 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     [data.shiftTypes, workDraft],
   );
   const preview = useMemo(
-    () =>
-      session.position === null
+    () => session.source === 'current'
+      ? Array.from({ length: 7 }, (_, offset) => {
+          const dateKey = addDays(today, offset);
+          const position = isPatternScheduleDate(data.pattern, dateKey)
+            ? calculatePatternPosition(data.pattern, dateKey)
+            : null;
+          const shiftTypeId = position === null
+            ? null
+            : data.pattern.shiftTypeIds[position] ?? null;
+          const shift = data.shiftTypes.find((candidate) => candidate.id === shiftTypeId);
+          return {
+            dateKey,
+            dateLabel: formatKoreanDate(dateKey),
+            shiftTypeId: shiftTypeId ?? 'off',
+            shiftLabel: shift?.name ?? '일정 없음',
+          };
+        })
+      : session.position === null
         ? []
         : createQuickPreview(
             session.sequence,
@@ -222,13 +250,12 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
               ? getWeekdayPatternPosition(session.referenceDate)
               : session.position,
           ),
-    [session.position, session.presetId, session.referenceDate, session.sequence],
+    [data.pattern, data.shiftTypes, session.position, session.presetId, session.referenceDate, session.sequence, session.source, today],
   );
   const activeShiftIds = validation.activeShiftIds;
-  const currentSequence = data.pattern.shiftTypeIds.filter(
-    (id): id is BaseWorkShiftId =>
-      id === 'day' || id === 'evening' || id === 'night' || id === 'off',
-  );
+  const currentSequenceLabel = data.pattern.shiftTypeIds
+    .map((id) => data.shiftTypes.find((shift) => shift.id === id)?.name ?? id)
+    .join(' → ');
   const dayShift = data.shiftTypes.find((shift) => shift.id === 'day');
   const eveningShift = data.shiftTypes.find((shift) => shift.id === 'evening');
   const nightShift = data.shiftTypes.find((shift) => shift.id === 'night');
@@ -271,32 +298,39 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
           ? getWeekdayPatternPosition(current.referenceDate)
           : null,
       times: applySuggestedTimes(current, presetId),
-      alarmChoice: null,
       summaryConfirmation: null,
     }));
-    setShowRecommendations(true);
+    const categoryId = getWorkPatternCategoryId(presetId);
+    setExpandedGroup(
+      categoryId === 'two-shift' || categoryId === 'three-shift'
+        ? categoryId
+        : null,
+    );
     setShowCustomEditor(false);
-    setShowTimeEditor(mode === 'initial');
+    setShowTimeEditor(false);
   };
 
   const useCurrentSchedule = () => {
     if (mode !== 'reconfigure') return;
-    setSession(createSetupSessionDraft({ data, mode, today }));
-    setShowRecommendations(false);
+    const created = createSetupSessionDraft({ data, mode, today });
+    setSession(
+      Platform.OS === 'android'
+        ? created
+        : { ...created, alarmChoice: 'schedule-only' },
+    );
+    setExpandedGroup(null);
     setShowCustomEditor(false);
-    setShowOtherDate(false);
     setShowTimeEditor(false);
   };
 
   const beginCustomSequence = () => {
     setShowCustomEditor(true);
-    setShowRecommendations(false);
+    setExpandedGroup('custom');
     setSession((current) => ({
       ...current,
       source: 'custom',
       presetId: getWorkPatternPresetId(current.sequence),
       position: null,
-      alarmChoice: null,
       summaryConfirmation: null,
     }));
   };
@@ -308,10 +342,9 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       presetId: getWorkPatternPresetId(sequence),
       sequence,
       position: null,
-      alarmChoice: null,
       summaryConfirmation: null,
     }));
-    setShowTimeEditor(true);
+    setShowTimeEditor(false);
   };
 
   const receiveSettings = async () => {
@@ -321,6 +354,8 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       const picked = await dataSettingsController.pickWorkSettingsFile();
       if (!picked) return;
       const received = previewSharedWorkSettings(picked.contents);
+      // The sharing service validates the portable contract as base-shift-only.
+      // Keep this narrowing at the UI boundary instead of coercing unknown IDs.
       const sequence = received.document.workSettings.pattern.shiftTypeIds.filter(
         (id): id is BaseWorkShiftId =>
           id === 'day' || id === 'evening' || id === 'night' || id === 'off',
@@ -360,10 +395,11 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
           evening: readTime('evening'),
           night: readTime('night'),
         },
-        alarmChoice: null,
         summaryConfirmation: null,
       }));
-      setShowTimeEditor(true);
+      setExpandedGroup(null);
+      setShowCustomEditor(false);
+      setShowTimeEditor(false);
     } catch (error) {
       showDialog(
         '받은 근무표를 읽지 못했습니다',
@@ -389,7 +425,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
         ...current.times,
         [shiftTypeId]: { ...current.times[shiftTypeId], [field]: value },
       },
-      alarmChoice: null,
       summaryConfirmation: null,
     }));
   };
@@ -439,9 +474,13 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     };
     patchSession({
       step: 'alarm-readiness',
-      alarmChoice: canPrepareAlarms && data.settings.notificationsEnabled
-        ? 'prepare'
-        : null,
+      alarmChoice:
+        canPrepareAlarms
+          ? session.alarmChoice ??
+            (mode === 'initial' || data.settings.notificationsEnabled
+              ? 'prepare'
+              : 'schedule-only')
+          : 'schedule-only',
       summaryConfirmation: createWorkPatternSummarySignature(reviewed),
     });
   };
@@ -469,31 +508,25 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
           alarmReady = false;
         }
       }
-      const mutation = buildWorkPatternMutation(currentDraft, data.shiftTypes);
-      let saved = false;
-      if (mode === 'initial') {
-        saved = await completeInitialSetup({
-          ...mutation,
-          notificationsEnabled: session.alarmChoice === 'prepare',
-        });
-      } else {
-        await createBackup();
-        const result = await updatePatternDetailed(
-          mutation.pattern,
-          mutation.shiftTypePatches,
-        );
-        saved = result.operationSucceeded;
-        if (saved && session.alarmChoice === 'schedule-only' && data.settings.notificationsEnabled) {
-          alarmReady = await disableAlarms();
-        } else if (
-          saved &&
-          session.alarmChoice === 'prepare' &&
-          !data.settings.notificationsEnabled
-        ) {
-          alarmReady = (await enableAlarms()) && alarmReady;
-        }
-      }
-      if (!saved) {
+      const built = buildWorkPatternMutation(currentDraft, data.shiftTypes);
+      // `current` means time/alarm editing only. Keep every original pattern field,
+      // including user/legacy shift IDs and its exact anchor/start dates.
+      const mutation = session.source === 'current'
+        ? {
+            pattern: data.pattern,
+            shiftTypePatches: Object.fromEntries(
+              Object.entries(built.shiftTypePatches).filter(([id]) =>
+                data.pattern.shiftTypeIds.includes(id),
+              ),
+            ),
+          }
+        : built;
+      const committed = await commitSetup({
+        mode,
+        ...mutation,
+        notificationsEnabled: session.alarmChoice === 'prepare',
+      });
+      if (!committed.primarySaved) {
         showDialog(
           '저장 실패',
           '현재 자료 유지 · 저장 공간 확인 필요',
@@ -502,6 +535,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
         );
         return;
       }
+      alarmReady = alarmReady && committed.followUpSucceeded;
       await Promise.all([
         draftSession.complete().catch(() => undefined),
         clearSetupDraft().catch(() => undefined),
@@ -542,12 +576,10 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
     session.step === 'schedule-source' ? 1 : session.step === 'schedule-anchor' ? 2 : 3;
   const footerLabel =
     session.step === 'schedule-source'
-      ? '다음 · 오늘 근무'
+      ? '다음'
       : session.step === 'schedule-anchor'
-        ? '알람 준비하기'
-        : mode === 'initial'
-          ? '이 근무표로 시작'
-          : '변경 저장';
+        ? '알람 설정'
+        : '설정 완료';
   const footerDisabled =
     !hydrated ||
     busy ||
@@ -566,6 +598,22 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       patchSession({ step: 'schedule-anchor' });
     }
   };
+
+  useEffect(() => {
+    if (!hydrated || Platform.OS !== 'android') return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (session.step === 'schedule-source') return false;
+      setSession((current) => ({
+        ...current,
+        step:
+          current.step === 'alarm-readiness'
+            ? 'schedule-anchor'
+            : 'schedule-source',
+      }));
+      return true;
+    });
+    return () => subscription.remove();
+  }, [hydrated, session.step]);
 
   const footer = hydrated ? (
     <View style={[styles.footer, stackActions && styles.footerStacked]}>
@@ -621,20 +669,27 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       {hydrated && session.step === 'schedule-source' ? (
         <SetupSourceStep
           busy={busy}
-          currentSequence={currentSequence}
+          currentSequenceLabel={currentSequenceLabel}
           headingRef={stepHeadingRef}
-          onBeginCustom={beginCustomSequence}
           onChangeCustomSequence={changeCustomSequence}
           onReceive={() => void receiveSettings()}
-          onSelectRecommendation={selectRecommendation}
-          onToggleRecommendations={() => {
-            setShowRecommendations((current) => !current);
+          onSelectGroup={(groupId) => {
+            if (groupId === 'weekday') {
+              selectRecommendation('weekday');
+              return;
+            }
+            if (groupId === 'custom') {
+              beginCustomSequence();
+              return;
+            }
+            setExpandedGroup((current) => current === groupId ? null : groupId);
             setShowCustomEditor(false);
           }}
+          onSelectRecommendation={selectRecommendation}
           onUseCurrent={useCurrentSchedule}
+          expandedGroup={expandedGroup}
           session={session}
           showCustomEditor={showCustomEditor}
-          showRecommendations={showRecommendations}
         />
       ) : null}
 
@@ -644,13 +699,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
           focusRequest={focusRequest}
           focusShiftTypeId={focusShiftTypeId}
           headingRef={stepHeadingRef}
-          onChangeDate={(referenceDate) => {
-            const patch = createSetupReferenceDatePatch({
-              presetId: session.presetId,
-              referenceDate,
-            });
-            if (patch) patchSession(patch);
-          }}
           onChangeTime={changeTime}
           onSelectPosition={(position) =>
             patchSession({
@@ -659,7 +707,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
               summaryConfirmation: null,
             })
           }
-          onShowOtherDate={() => setShowOtherDate(true)}
           onToggleTimeEditor={() => setShowTimeEditor((current) => !current)}
           preview={preview}
           revealValidation={revealValidation}
@@ -669,7 +716,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
             evening: eveningAppearance?.accentColor ?? palette.indigoDark,
             night: nightAppearance?.accentColor ?? palette.violet,
           }}
-          showOtherDate={showOtherDate}
           showTimeEditor={showTimeEditor}
           stackContent={stackActions}
           stackTimeInputs={stackTimeInputs}
@@ -689,7 +735,9 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
               summaryConfirmation: null,
             });
           }}
-          onSelectAlarmChoice={(alarmChoice) => patchSession({ alarmChoice })}
+          onAlarmEnabledChange={(enabled) =>
+            patchSession({ alarmChoice: enabled ? 'prepare' : 'schedule-only' })
+          }
           preview={preview}
           session={session}
           validation={validation}

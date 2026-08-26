@@ -19,6 +19,7 @@ import {
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   resolveQuickTimerWheelLayout,
+  shouldAcceptQuickTimerWheelEvent,
   shouldStackQuickTimerActions,
 } from './quick-timer-model';
 
@@ -89,7 +90,7 @@ describe('빠른 타이머 화면 모델', () => {
     });
   });
 
-  it('직접 입력은 키패드 없이 1~60분 안에서 10분·1분씩 조절해요', () => {
+  it('직접 입력 보조 조절은 1~60분 안에서 10분·1분씩 이동해요', () => {
     expect(adjustQuickTimerDuration(15, -10)).toBe(5);
     expect(adjustQuickTimerDuration(5, -10)).toBe(1);
     expect(adjustQuickTimerDuration(55, 10)).toBe(60);
@@ -123,6 +124,39 @@ describe('빠른 타이머 화면 모델', () => {
     expect(quickTimerOffsetToDuration(-50, 64)).toBe(1);
     expect(quickTimerOffsetToDuration(14 * 64, 64)).toBe(15);
     expect(quickTimerOffsetToDuration(100_000, 64)).toBe(60);
+  });
+
+  it('스크롤 이벤트는 현재 보이는 휠의 같은 revision과 목표 위치만 받아요', () => {
+    const currentEvent = {
+      actualOffset: 896,
+      currentRevision: 8,
+      eventRevision: 8,
+      visible: true,
+      wheelActive: true,
+    };
+    expect(shouldAcceptQuickTimerWheelEvent(currentEvent)).toBe(true);
+    expect(
+      shouldAcceptQuickTimerWheelEvent({ ...currentEvent, eventRevision: 7 }),
+    ).toBe(false);
+    expect(
+      shouldAcceptQuickTimerWheelEvent({ ...currentEvent, visible: false }),
+    ).toBe(false);
+    expect(
+      shouldAcceptQuickTimerWheelEvent({ ...currentEvent, wheelActive: false }),
+    ).toBe(false);
+    expect(
+      shouldAcceptQuickTimerWheelEvent({
+        ...currentEvent,
+        expectedOffset: 960,
+      }),
+    ).toBe(false);
+    expect(
+      shouldAcceptQuickTimerWheelEvent({
+        ...currentEvent,
+        actualOffset: 960.4,
+        expectedOffset: 960,
+      }),
+    ).toBe(true);
   });
 
   it('일반 화면은 5행, 큰 글자나 낮은 화면은 3행, 짧은 200% 화면은 1행 휠을 사용해요', () => {

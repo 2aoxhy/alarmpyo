@@ -25,51 +25,65 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(quickSetup).toContain('<SetupSessionScreen mode="reconfigure" />');
   });
 
-  it('재설정은 현재 근무표를 기본으로 두고 선택·직접 만들기·파일 순서로 보여요', () => {
+  it('재설정은 현재 근무표를 보존하고 표준 6종을 네 그룹으로 보여요', () => {
     const screen = setupSessionSource();
 
     expect(screen).toContain('근무표 설정');
-    expect(screen).toContain('근무 순서 선택');
+    expect(screen).toContain('근무 방식');
     expect(screen).toContain('현재 근무표 사용');
-    expect(screen).toContain('직접 만들기');
+    expect(screen).toContain('직접 설정');
     expect(screen).toContain('파일 불러오기');
     expect(screen).toContain("session.source === 'current'");
-    expect(screen).toContain('QUICK_SETUP_OPTIONS.map');
-    expect(screen).not.toContain('option.detail');
+    expect(screen).toContain('QUICK_SETUP_GROUPS.map');
+    expect(screen).toContain('groupOptions.map');
+    expect(screen).toContain('option.detail');
     expect(screen).not.toContain('조 수를 선택합니다');
     expect(screen).not.toContain('<WorkModeStep');
   });
 
-  it('오늘 근무·7일 미리보기·인라인 시간을 한 단계에서 확인해요', () => {
+  it('오늘 근무·근무 예시·사용 근무 시간만 한 단계에서 확인해요', () => {
     const screen = setupSessionSource();
 
     expect(screen).toContain("session.step === 'schedule-anchor'");
-    expect(screen).toContain('오늘 근무 선택');
-    expect(screen).toContain('앞으로 7일');
+    expect(screen).toContain('오늘 근무');
+    expect(screen).toContain('근무 예시');
     expect(screen).toContain('<WorkTimeEditor');
     expect(screen).toContain("showDay={activeShiftIds.includes('day')}");
     expect(screen).toContain("showEvening={activeShiftIds.includes('evening')}");
     expect(screen).toContain("showNight={activeShiftIds.includes('night')}");
+    expect(screen).not.toContain('근무표 표시 시작일');
+    expect(screen).not.toContain('DatePickerField');
     expect(screen).not.toContain("router.push('/shift-settings?focus=time'");
   });
 
-  it('알람 충돌은 시간 조정과 알람 없이 저장을 명시적으로 나눠요', () => {
+  it('알람은 하나의 토글로 설정하고 시간 충돌 시 수정으로 연결해요', () => {
     const screen = setupSessionSource();
 
-    expect(screen).toContain('알람 시간 조정');
-    expect(screen).toContain('근무표만 저장하고 알람 끄기');
-    expect(screen).toContain("onSelectAlarmChoice('schedule-only')");
+    expect(screen).toContain('<ToggleRow');
+    expect(screen).toContain('title="근무 알람"');
+    expect(screen).toContain('actionLabel="시간 수정"');
+    expect(screen).toContain("enabled ? 'prepare' : 'schedule-only'");
     expect(screen).toContain('validation.safety.canEnableAlarms');
+    expect(screen).not.toContain('근무표만 저장');
     expect(screen).not.toContain('이대로 사용');
   });
 
-  it('최초 설정은 한 번의 원자적 저장을 사용하고 재설정은 안전 백업을 만들어요', () => {
+  it('최초·재설정은 store의 단일 setup commit을 사용해요', () => {
     const screen = setupSessionSource();
+    const store = source('src/store/app-store.tsx');
 
     expect(screen).toContain('buildWorkPatternMutation(currentDraft, data.shiftTypes)');
-    expect(screen).toContain('completeInitialSetup({');
-    expect(screen).toContain('await createBackup();');
-    expect(screen).toContain('await updatePatternDetailed(');
+    expect(screen).toContain('await commitSetup({');
+    expect(screen).toContain("session.source === 'current'");
+    expect(screen).toContain('pattern: data.pattern');
+    expect(store).toContain("mode === 'reconfigure'");
+    expect(store).toContain('await writeAutomaticBackup(storageWriter, current)');
+    expect(store).toContain('notificationsEnabled,');
+    expect(store).toContain('primarySaved: result.primarySaved');
+    expect(screen).not.toContain('await createBackup();');
+    expect(screen).not.toContain('await updatePatternDetailed(');
+    expect(screen).not.toContain('await enableAlarms()');
+    expect(screen).not.toContain('await disableAlarms()');
     expect(screen).not.toContain('applySharedWorkSettings(');
   });
 
@@ -84,7 +98,7 @@ describe('통합 근무표 설정 화면 계약', () => {
 
     expect(screen).toContain('migrateQuickSetupDraft({');
     expect(screen).toContain(
-      'migrateInitialSetupDraft({ data: initialData, draft: legacy })',
+      'migrateInitialSetupDraft({',
     );
     expect(model).toContain('export type SetupSessionDraftV2');
     expect(model).toContain("draft.version === 2");
@@ -92,26 +106,24 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(repository).toContain('QUICK_SETUP_DRAFT_KEY');
   });
 
-  it('날짜 직접 입력은 화면에 보관하고 유효한 날짜만 재개 초안에 반영해요', () => {
+  it('첫 설정은 오늘부터 시작하고 재설정의 현재 시작일은 보존해요', () => {
     const screen = setupSessionSource();
-    const nativeDatePicker = source('src/components/date-picker-field.tsx');
-    const webDatePicker = source('src/components/date-picker-field.web.tsx');
 
-    expect(screen).toContain('bufferManualInput');
-    expect(screen).toContain('createSetupReferenceDatePatch({');
-    expect(screen).toContain('if (patch) patchSession(patch);');
-    for (const datePicker of [nativeDatePicker, webDatePicker]) {
-      expect(datePicker).toContain('const [manualDraft, setManualDraft]');
-      expect(datePicker).toContain('createCompactDateInputUpdate(nextValue)');
-      expect(datePicker).toContain('if (update.dateKey && update.dateKey !== value)');
-    }
+    expect(screen).toContain('resolveSetupScheduleStartDate({');
+    expect(screen).toContain("session.source === 'current'");
+    expect(screen).not.toContain('<DatePickerField');
+    expect(screen).not.toContain('다른 날짜부터 표시');
   });
 
-  it('단계 전환은 TalkBack 초점과 한 번의 단계 안내를 사용해요', () => {
+  it('단계 전환은 TalkBack 제목 초점만 사용해 중복 낭독하지 않아요', () => {
     const screen = setupSessionSource();
 
     expect(screen).toContain('AccessibilityInfo.setAccessibilityFocus(node)');
-    expect(screen).toContain('AccessibilityInfo.announceForAccessibility(label)');
+    expect(screen).not.toContain('AccessibilityInfo.announceForAccessibility');
+    expect(screen).toContain('const stepHeadingRef = useRef<Text>(null)');
+    const steps = source('src/features/quick-setup/setup-session-steps.tsx');
+    expect(steps).toContain('accessibilityRole="header" ref={headingRef}');
+    expect(steps).not.toContain('accessible\n        accessibilityLabel="오늘 근무와 시간"');
     expect(screen).toContain('accessibilityRole="progressbar"');
     expect(screen).toContain('accessibilityValue={{ min: 1, max: 3, now: step }}');
   });
@@ -137,12 +149,11 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(components).toContain('target.current?.focus()');
   });
 
-  it('앱 삭제 위험과 외부 백업 경로를 마지막 단계에 표시해요', () => {
+  it('저장 안내는 마지막 단계에 한 줄로 표시해요', () => {
     const screen = setupSessionSource();
 
-    expect(screen).toContain('기기 저장');
-    expect(screen).toContain('앱 삭제 시 근무표·메모·설정 삭제');
-    expect(screen).toContain('데이터 메뉴에서 외부 백업 가능');
+    expect(screen).toContain('설정은 이 기기에 저장됩니다.');
+    expect(screen).not.toContain('앱 삭제 시 근무표·메모·설정 삭제');
   });
 
   it('최초 설정의 브랜드 배경과 저장 진행 상태를 유지해요', () => {

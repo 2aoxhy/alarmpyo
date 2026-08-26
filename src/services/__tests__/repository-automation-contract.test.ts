@@ -53,7 +53,7 @@ describe('저장소 자동화 계약', () => {
     expect(eas.build.base.autoIncrement).toBe(false);
   });
 
-  it('앱은 V1.21 1.21(21) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
+  it('앱은 V1.22 1.22(22) 후속 후보이고 direct·Play의 첫 릴리스 계보를 유지합니다', () => {
     const pkg = json('package.json');
     const lock = json('package-lock.json');
     const app = json('app.json').expo;
@@ -65,16 +65,16 @@ describe('저장소 자동화 계약', () => {
       iosBuildNumber: app.ios.buildNumber,
     };
 
-    expect(pkg.version).toBe('1.21.0');
+    expect(pkg.version).toBe('1.22.0');
     expect(lock.version).toBe(pkg.version);
     expect(lock.packages[''].version).toBe(pkg.version);
     expect(candidate).toEqual({
-      versionName: '1.21',
-      androidVersionCode: 21,
-      iosBuildNumber: '21',
+      versionName: '1.22',
+      androidVersionCode: 22,
+      iosBuildNumber: '22',
     });
     expect(source('docs/release-lineage.md')).toContain(
-      '현재 소스의 후속 후보는 `V1.21 · 1.21(21)`입니다.',
+      '현재 소스의 후속 후보는 `V1.22 · 1.22(22)`입니다.',
     );
     expect(source('docs/release-lineage.md')).toContain(
       'V11 · `versionCode 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았습니다. V12 · `1.0.12(12)`는 Play Internal에 배포했습니다.',
@@ -83,10 +83,10 @@ describe('저장소 자동화 계약', () => {
       'V09는 사용하지 않습니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      'Play Console에 업로드된 V20의 `versionCode: 20`이 현재 확인할 Play 계보의 기준값입니다.',
+      'Play Internal과 Alpha에 활성화된 V1.21의 `versionCode: 21`이 현재 확인한 Play 계보의 기준값입니다.',
     );
     expect(source('docs/google-play-release-runbook-ko.md')).toContain(
-      '같은 versionCode 21 번들',
+      '같은 versionCode 22 번들',
     );
     expect(direct.initialRelease).toEqual({
       versionName: '1.0.1',
@@ -117,11 +117,11 @@ describe('저장소 자동화 계약', () => {
     expect(
       json('docs/play-release-evidence.example.json')
         .highestPreviouslyDistributedVersionCode,
-    ).toBe(20);
+    ).toBe(21);
     expect(
       json('docs/play-release-evidence.example.json')
         .highestExistingPlayVersionCode,
-    ).toBe(20);
+    ).toBe(21);
   });
 
   it('패턴 적용 안내는 앞으로 7일의 변경 전·후를 우선하고 전체 42일 비교를 선택적으로 제공합니다', () => {

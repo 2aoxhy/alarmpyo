@@ -6,6 +6,7 @@ import {
   createQuickSetupDraft,
   formatQuickPositionLabel,
   formatQuickSequence,
+  QUICK_SETUP_GROUPS,
   QUICK_SETUP_OPTIONS,
   resolveQuickSetupShiftTimeRows,
 } from './quick-setup-model';
@@ -15,15 +16,32 @@ import {
 } from '../../services/work-settings-share-service';
 
 describe('근무표·알람 간편 설정 모델', () => {
-  it('조 이름보다 실제 근무 순서를 먼저 보여 줍니다', () => {
-    expect(QUICK_SETUP_OPTIONS.map((option) => option.label)).toEqual([
-      '월~금 주간',
-      '주간 → 야간',
-      '주간 2일 → 야간 2일 → 휴무 2일',
-      '주간 → 야간 → 휴무 2일',
-      '주간 → 오후 → 야간',
-      '주간 → 오후 → 야간 → 휴무',
+  it('표준 6종을 주간 고정·2교대·3교대로 묶어 보여 줍니다', () => {
+    expect(QUICK_SETUP_GROUPS.map((group) => group.label)).toEqual([
+      '주간 고정',
+      '2교대',
+      '3교대',
+      '직접 설정',
     ]);
+    expect(QUICK_SETUP_OPTIONS.map((option) => option.label)).toEqual([
+      '주간 고정',
+      '2조 2교대',
+      '3조 2교대',
+      '4조 2교대',
+      '3조 3교대',
+      '4조 3교대',
+    ]);
+    expect(QUICK_SETUP_OPTIONS.map((option) => option.groupId)).toEqual([
+      'weekday',
+      'two-shift',
+      'two-shift',
+      'two-shift',
+      'three-shift',
+      'three-shift',
+    ]);
+    expect(QUICK_SETUP_OPTIONS[2].detail).toBe(
+      '예시: 주간 → 주간 → 야간 → 야간 → 휴무 → 휴무',
+    );
     expect(formatQuickSequence(['day', 'day', 'night', 'night', 'off', 'off']))
       .toBe('주간 → 주간 → 야간 → 야간 → 휴무 → 휴무');
   });

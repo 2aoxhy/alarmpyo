@@ -108,6 +108,17 @@ export type InitialSetupInput = {
   shiftTypePatches: Record<string, Partial<ShiftType>>;
 };
 
+export type SetupCommitInput = InitialSetupInput & {
+  mode: 'initial' | 'reconfigure';
+};
+
+export type SetupCommitResult = {
+  /** The canonical AppData snapshot reached primary storage. */
+  primarySaved: boolean;
+  /** Native alarm/backup follow-up may be retried without losing user intent. */
+  followUpSucceeded: boolean;
+};
+
 export type UpdatePatternOptions = {
   clearFutureScheduleOverridesFrom?: string;
 };
@@ -178,6 +189,7 @@ export type AppStore = {
   ) => Promise<boolean>;
   completeSetup: (pattern?: RotationPattern) => Promise<boolean>;
   completeInitialSetup: (input: InitialSetupInput) => Promise<boolean>;
+  commitSetup: (input: SetupCommitInput) => Promise<SetupCommitResult>;
   getAlarmStatus: () => Promise<AlarmPyoAlarmStatus>;
   requestAlarmAccess: () => Promise<boolean>;
   resyncAlarms: (force?: boolean) => Promise<boolean>;

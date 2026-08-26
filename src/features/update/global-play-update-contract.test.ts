@@ -51,14 +51,48 @@ describe('전역 Play 업데이트 화면 계약', () => {
     expect(provider).not.toContain('if (busy) return;');
   });
 
-  it('24시간 미루기와 다운로드 중 비차단 진행 표시를 분리합니다', () => {
+  it('중앙 알림과 다운로드 이후 비차단 상태 표시를 분리합니다', () => {
     const provider = source(
       'src/features/update/global-play-update-controller.tsx',
     );
     expect(provider).toContain('label="24시간 후 다시 알림"');
-    expect(provider).toContain("kind !== 'downloading'");
-    expect(provider).toContain('accessibilityRole="progressbar"');
+    expect(provider).toContain('<PlayUpdateStatusBar');
+    expect(provider).toContain('getPlayUpdateStatusBarPresentation');
+    expect(provider).toContain("'progressbar'");
     expect(provider).toContain('accessibilityLiveRegion="none"');
+    expect(provider).toContain('resolveFloatingTabBarLayout');
+    expect(provider).toContain('resolveFloatingTabBarGeometry');
+    expect(provider).toMatch(
+      /kind === null\s*\|\|\s*kind === 'available'/,
+    );
+    expect(provider).toContain('shouldPresentPlayUpdateStatusBar(status, snooze, now)');
+    expect(provider).toContain('GlobalBottomOverlayLayoutContext.Provider');
+    expect(provider).toContain('registerBottomControlInset');
+    expect(provider).toContain("presentation.actionLabel ? 'box-none' : 'none'");
+    expect(provider).toContain('actionFocus.focusVisible');
+  });
+
+  it('공통 Screen이 상태 바와 footer 높이를 콘텐츠 여백에 반영합니다', () => {
+    const screen = source('src/components/ui-kit.tsx');
+    const layout = source('src/components/global-bottom-overlay-layout.tsx');
+    expect(screen).toContain('useGlobalBottomOverlayLayout()');
+    expect(screen).toContain('registerBottomControlInset(footerOwner, footerInset)');
+    expect(screen).toContain('resolveScreenContentBottomInset({');
+    expect(screen).toContain('onLayout={measureFooter}');
+    expect(layout).toContain('contentInset: number');
+  });
+
+  it('Play 흐름을 열기 전에 같은 버전의 중앙 안내를 처리합니다', () => {
+    const provider = source(
+      'src/features/update/global-play-update-controller.tsx',
+    );
+    const actionStart = provider.indexOf("if (kind === 'available')");
+    const snooze = provider.indexOf('await snoozeFor24Hours()', actionStart);
+    const playStart = provider.indexOf('await startFlexiblePlayUpdate()', actionStart);
+    expect(actionStart).toBeGreaterThan(-1);
+    expect(snooze).toBeGreaterThan(actionStart);
+    expect(playStart).toBeGreaterThan(snooze);
+    expect(provider).toContain(').catch(() => undefined);');
   });
 
   it('Today의 기존 배너를 제거하고 설정 두 단계에 상태 배지를 유지합니다', () => {

@@ -27,6 +27,13 @@ export type PlayUpdateModalPresentation = {
   snoozable: boolean;
 };
 
+export type PlayUpdateStatusBarPresentation = {
+  actionLabel: '설치' | '다시 시도' | null;
+  message: string;
+  title: string;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+};
+
 /** Keeps the known target version when Play Core reports a transient failure
  * without release metadata. This lets retry UI remain actionable. */
 export function mergePlayUpdateStatus(
@@ -90,14 +97,81 @@ export function shouldPresentPlayUpdateModal(
   now = Date.now(),
 ): boolean {
   const kind = resolvePlayUpdateNoticeKind(status);
-  if (!status || kind === null || kind === 'downloading' || kind === 'installed') {
+  // 중앙 알림은 새 버전을 처음 발견했을 때만 사용해요. 다운로드 이후의
+  // 상태는 비차단 상태 바로 이어서 보여 줘 모달이 두 번 뜨지 않게 합니다.
+  if (!status || kind !== 'available') {
     return false;
   }
-  if (kind === 'installing') return true;
   return !isPlayUpdatePromptSnoozed(
     snooze,
     status.availableVersionCode,
     now,
+  );
+}
+
+export function getPlayUpdateStatusBarPresentation(
+  kind: PlayUpdateNoticeKind | null,
+  progress: number | null,
+): PlayUpdateStatusBarPresentation | null {
+  switch (kind) {
+    case 'downloading':
+      return {
+        actionLabel: null,
+        message:
+          progress === null
+            ? 'Google Play에서 준비 중'
+            : `${Math.round(progress)}% 완료`,
+        title: '업데이트 다운로드 중',
+        tone: 'info',
+      };
+    case 'downloaded':
+      return {
+        actionLabel: '설치',
+        message: '다운로드 완료',
+        title: '업데이트 준비 완료',
+        tone: 'success',
+      };
+    case 'installing':
+      return {
+        actionLabel: null,
+        message: 'Google Play에서 처리 중',
+        title: '업데이트 설치 중',
+        tone: 'warning',
+      };
+    case 'failed':
+      return {
+        actionLabel: '다시 시도',
+        message: '네트워크 연결 확인',
+        title: '업데이트 실패',
+        tone: 'danger',
+      };
+    case 'available':
+    case 'installed':
+    case null:
+      return null;
+  }
+}
+
+export function shouldPresentPlayUpdateStatusBar(
+  status: PlayUpdateStatus | null,
+  snooze: PlayUpdatePromptSnooze | null,
+  now = Date.now(),
+): boolean {
+  const kind = resolvePlayUpdateNoticeKind(status);
+  if (
+    !status ||
+    kind === null ||
+    kind === 'available' ||
+    kind === 'installed'
+  ) {
+    return false;
+  }
+
+  const canceled =
+    status.state === 'canceled' || status.installStatus === 'canceled';
+  return !(
+    canceled &&
+    isPlayUpdatePromptSnoozed(snooze, status.availableVersionCode, now)
   );
 }
 

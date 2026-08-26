@@ -150,21 +150,76 @@ export function createSetupSessionDraft({
     position: mode === 'reconfigure' ? position : null,
     times: readTimes(data.shiftTypes),
     alarmChoice:
-      mode === 'reconfigure' && data.settings.notificationsEnabled
+      mode === 'initial' || data.settings.notificationsEnabled
         ? 'prepare'
-        : null,
+        : 'schedule-only',
     summaryConfirmation: null,
   };
+}
+
+function normalizeSessionReferenceDate({
+  data,
+  draft,
+  today,
+}: {
+  data: AppData;
+  draft: SetupSessionDraftV2;
+  today: string;
+}): SetupSessionDraftV2 {
+  if (!isValidDraftDateKey(today)) return draft;
+  const normalizedAlarmChoice =
+    draft.alarmChoice ??
+    (draft.mode === 'initial' || data.settings.notificationsEnabled
+      ? 'prepare'
+      : 'schedule-only');
+  if (draft.referenceDate === today) {
+    return { ...draft, alarmChoice: normalizedAlarmChoice };
+  }
+  const position =
+    draft.presetId === 'weekday'
+      ? getWeekdayPatternPosition(today)
+      : draft.position === null
+        ? null
+        : getPatternPositionForDate({
+            date: today,
+            referenceDate: draft.referenceDate,
+            referencePosition: draft.position,
+            sequenceLength: draft.sequence.length,
+          });
+  return {
+    ...draft,
+    referenceDate: today,
+    position,
+    alarmChoice: normalizedAlarmChoice,
+  };
+}
+
+export function resolveSetupScheduleStartDate({
+  currentScheduleStartDate,
+  mode,
+  source,
+  today,
+}: {
+  currentScheduleStartDate: string;
+  mode: SetupSessionMode;
+  source: SetupSessionSource | null;
+  today: string;
+}): string {
+  return mode === 'reconfigure' && source === 'current'
+    ? currentScheduleStartDate
+    : today;
 }
 
 export function migrateQuickSetupDraft({
   data,
   draft,
   mode,
+  today,
 }: {
   data: AppData;
   draft: StoredSetupSessionDraft;
   mode: SetupSessionMode;
+  today: string;
 }): SetupSessionDraftV2 | null {
   if (draft.version === 2) {
     if (draft.mode !== mode) return null;
@@ -175,74 +230,93 @@ export function migrateQuickSetupDraft({
     ) {
       const sequence = safeBaseSequence(data);
       const presetId = getWorkPatternPresetId(sequence);
-      return {
-        ...draft,
-        source: 'current',
-        presetId,
-        sequence,
-        position:
-          presetId === 'weekday'
-            ? getWeekdayPatternPosition(draft.referenceDate)
-            : getPatternPositionForDate({
-                date: draft.referenceDate,
-                referenceDate: data.pattern.anchorDate,
-                referencePosition: 0,
-                sequenceLength: sequence.length,
-              }),
-      };
+      return normalizeSessionReferenceDate({
+        data,
+        today,
+        draft: {
+          ...draft,
+          source: 'current',
+          presetId,
+          sequence,
+          position:
+            presetId === 'weekday'
+              ? getWeekdayPatternPosition(draft.referenceDate)
+              : getPatternPositionForDate({
+                  date: draft.referenceDate,
+                  referenceDate: data.pattern.anchorDate,
+                  referencePosition: 0,
+                  sequenceLength: sequence.length,
+                }),
+        },
+      });
     }
-    return draft;
+    return normalizeSessionReferenceDate({ data, draft, today });
   }
   if (mode !== 'reconfigure') return null;
-  return {
-    version: 2,
-    mode,
-    source:
-      draft.source === 'received-file'
-        ? 'received-file'
-        : draft.source === 'direct'
-          ? 'recommended'
-          : null,
-    // v1은 근무표를 먼저 저장한 뒤 3단계로 이동했습니다. V2는 마지막
-    // 버튼에서 원자적으로 저장하므로 2단계 확인부터 다시 시작합니다.
-    step: draft.step === 'alarm-readiness' ? 'schedule-anchor' : draft.step,
-    presetId: draft.presetId,
-    sequence: [...draft.sequence],
-    referenceDate: draft.referenceDate,
-    position: draft.position,
-    times: readTimes(data.shiftTypes),
-    alarmChoice: data.settings.notificationsEnabled ? 'prepare' : null,
-    summaryConfirmation: null,
-  };
+  return normalizeSessionReferenceDate({
+    data,
+    today,
+    draft: {
+      version: 2,
+      mode,
+      source:
+        draft.source === 'received-file'
+          ? 'received-file'
+          : draft.source === 'direct'
+            ? 'recommended'
+            : null,
+      // v1은 근무표를 먼저 저장한 뒤 3단계로 이동했습니다. V2는 마지막
+      // 버튼에서 원자적으로 저장하므로 2단계 확인부터 다시 시작합니다.
+      step: draft.step === 'alarm-readiness' ? 'schedule-anchor' : draft.step,
+      presetId: draft.presetId,
+      sequence: [...draft.sequence],
+      referenceDate: draft.referenceDate,
+      position: draft.position,
+      times: readTimes(data.shiftTypes),
+      alarmChoice: data.settings.notificationsEnabled ? 'prepare' : 'schedule-only',
+      summaryConfirmation: null,
+    },
+  });
 }
 
 export function migrateInitialSetupDraft({
   data,
   draft,
+  today,
 }: {
   data: AppData;
   draft: SetupDraft;
+  today: string;
 }): SetupSessionDraftV2 {
-  return {
-    version: 2,
-    mode: 'initial',
-    source: draft.presetId === 'custom' ? 'custom' : draft.presetId ? 'recommended' : null,
-    step: draft.step === 1 ? 'schedule-source' : 'schedule-anchor',
-    presetId: draft.presetId,
-    sequence: [...draft.sequence],
-    referenceDate: draft.referenceDate,
-    position: draft.position,
-    times: {
-      day: { start: draft.dayStart, end: draft.dayEnd },
-      evening: { start: draft.eveningStart, end: draft.eveningEnd },
-      night: { start: draft.nightStart, end: draft.nightEnd },
+  return normalizeSessionReferenceDate({
+    data,
+    today,
+    draft: {
+      version: 2,
+      mode: 'initial',
+      source:
+        draft.presetId === 'custom'
+          ? 'custom'
+          : draft.presetId
+            ? 'recommended'
+            : null,
+      step: draft.step === 1 ? 'schedule-source' : 'schedule-anchor',
+      presetId: draft.presetId,
+      sequence: [...draft.sequence],
+      referenceDate: draft.referenceDate,
+      position: draft.position,
+      times: {
+        day: { start: draft.dayStart, end: draft.dayEnd },
+        evening: { start: draft.eveningStart, end: draft.eveningEnd },
+        night: { start: draft.nightStart, end: draft.nightEnd },
+      },
+      alarmChoice: draft.alarmsWanted ? 'prepare' : 'schedule-only',
+      summaryConfirmation:
+        draft.confirmedSequenceSignature === draft.confirmedWorkTimeSignature
+          ? draft.confirmedSequenceSignature
+          : null,
     },
-    alarmChoice: draft.alarmsWanted ? 'prepare' : null,
-    summaryConfirmation:
-      draft.confirmedSequenceSignature === draft.confirmedWorkTimeSignature
-        ? draft.confirmedSequenceSignature
-        : null,
-  };
+  });
 }
 
 export function parseSetupSessionDraft(value: unknown): SetupSessionDraftV2 | null {

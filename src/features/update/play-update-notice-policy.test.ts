@@ -4,11 +4,13 @@ import type { PlayUpdateStatus } from '@/services/play-app-update-policy';
 
 import {
   getPlayUpdateStatusBadge,
+  getPlayUpdateStatusBarPresentation,
   getPlayUpdateModalPresentation,
   getPlayUpdateTransitionAnnouncement,
   mergePlayUpdateStatus,
   resolvePlayUpdateNoticeKind,
   shouldPresentPlayUpdateModal,
+  shouldPresentPlayUpdateStatusBar,
 } from './play-update-notice-policy';
 
 const BASE_STATUS: PlayUpdateStatus = {
@@ -35,7 +37,7 @@ describe('전역 Play 업데이트 안내 정책', () => {
     expect(shouldPresentPlayUpdateModal(BASE_STATUS, snooze, 1_000)).toBe(true);
   });
 
-  it('설치 준비와 실패도 24시간 미룰 수 있지만 설치 중은 닫지 않습니다', () => {
+  it('가용 상태 이후에는 중앙 모달을 다시 열지 않습니다', () => {
     const snooze = { versionCode: 15, snoozedUntil: 86_401_000 };
     const downloaded = {
       ...BASE_STATUS,
@@ -54,10 +56,13 @@ describe('전역 Play 업데이트 안내 정책', () => {
     };
     expect(shouldPresentPlayUpdateModal(downloaded, snooze, 1_000)).toBe(false);
     expect(shouldPresentPlayUpdateModal(failed, snooze, 1_000)).toBe(false);
-    expect(shouldPresentPlayUpdateModal(installing, snooze, 1_000)).toBe(true);
+    expect(shouldPresentPlayUpdateModal(installing, snooze, 1_000)).toBe(false);
+    expect(shouldPresentPlayUpdateModal(downloaded, null, 1_000)).toBe(false);
+    expect(shouldPresentPlayUpdateModal(failed, null, 1_000)).toBe(false);
+    expect(shouldPresentPlayUpdateModal(installing, null, 1_000)).toBe(false);
   });
 
-  it('다운로드 중에는 작은 진행 표시만 사용하고 설치 중에는 중앙 모달을 유지합니다', () => {
+  it('다운로드와 설치 상태는 중앙 모달 대신 비차단 상태 표시를 사용합니다', () => {
     const downloading = {
       ...BASE_STATUS,
       installStatus: 'downloading' as const,
@@ -71,12 +76,59 @@ describe('전역 Play 업데이트 안내 정책', () => {
     expect(resolvePlayUpdateNoticeKind(downloading)).toBe('downloading');
     expect(shouldPresentPlayUpdateModal(downloading, null)).toBe(false);
     expect(resolvePlayUpdateNoticeKind(installing)).toBe('installing');
-    expect(shouldPresentPlayUpdateModal(installing, null)).toBe(true);
-    expect(getPlayUpdateModalPresentation('installing', 15)).toMatchObject({
-      primaryLabel: null,
-      snoozable: false,
-      title: 'V15 설치 중',
+    expect(shouldPresentPlayUpdateModal(installing, null)).toBe(false);
+    expect(getPlayUpdateStatusBarPresentation('downloading', 42.4)).toEqual({
+      actionLabel: null,
+      message: '42% 완료',
+      title: '업데이트 다운로드 중',
+      tone: 'info',
     });
+    expect(getPlayUpdateStatusBarPresentation('installing', null)).toEqual({
+      actionLabel: null,
+      message: 'Google Play에서 처리 중',
+      title: '업데이트 설치 중',
+      tone: 'warning',
+    });
+  });
+
+  it('설치 준비와 실패 상태 바에 필요한 행동만 제공합니다', () => {
+    expect(getPlayUpdateStatusBarPresentation('downloaded', null)).toEqual({
+      actionLabel: '설치',
+      message: '다운로드 완료',
+      title: '업데이트 준비 완료',
+      tone: 'success',
+    });
+    expect(getPlayUpdateStatusBarPresentation('failed', null)).toEqual({
+      actionLabel: '다시 시도',
+      message: '네트워크 연결 확인',
+      title: '업데이트 실패',
+      tone: 'danger',
+    });
+    expect(getPlayUpdateStatusBarPresentation('available', null)).toBeNull();
+    expect(getPlayUpdateStatusBarPresentation('installed', null)).toBeNull();
+  });
+
+  it('Play 취소 직후에는 24시간 동안 재시도 상태 바를 다시 띄우지 않습니다', () => {
+    const canceled = {
+      ...BASE_STATUS,
+      installStatus: 'canceled' as const,
+      state: 'canceled' as const,
+    };
+    const snooze = { versionCode: 15, snoozedUntil: 86_401_000 };
+
+    expect(shouldPresentPlayUpdateStatusBar(canceled, snooze, 1_000)).toBe(
+      false,
+    );
+    expect(shouldPresentPlayUpdateStatusBar(canceled, snooze, 86_401_001)).toBe(
+      true,
+    );
+    expect(
+      shouldPresentPlayUpdateStatusBar(
+        { ...canceled, availableVersionCode: 16 },
+        snooze,
+        1_000,
+      ),
+    ).toBe(true);
   });
 
   it('설치 완료 상태는 안내와 배지를 정리합니다', () => {

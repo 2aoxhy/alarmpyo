@@ -24,14 +24,11 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(uiKit).toContain('borderBottomWidth: StyleSheet.hairlineWidth');
   });
 
-  it('목록 행은 보통 글자에서 본문과 중앙 정렬하고 큰 글자에서 제목 첫 줄에 맞춰요', () => {
+  it('목록 행 아이콘은 글자 크기와 관계없이 제목 첫 줄 중심에 맞춰요', () => {
     const uiKit = source('src/components/ui-kit.tsx');
     const listRow = section(uiKit, 'export function ListRow', 'export function MenuGroup');
 
-    expect(listRow).toContain(
-      'reflow && { height: titleLineHeight }',
-    );
-    expect(listRow).toContain('reflow && styles.listRowIconReflow');
+    expect(listRow).toContain('{ height: titleLineHeight }');
     expect(listRow).not.toContain('<IconTile');
     expect(listRow).toContain("accessibilityRole={onPress ? 'button' : undefined}");
     expect(listRow).toContain('accessibilityState={onPress ?');
@@ -40,9 +37,12 @@ describe('평면형 공통 컴포넌트 계약', () => {
       'typeScale.label.lineHeight * Math.min(fontScale, 2)',
     );
     expect(uiKit).toContain("listRow: {\n    minHeight: 68,\n    flexDirection: 'row',\n    alignItems: 'center'");
-    expect(uiKit).toContain("listRowReflow: { alignItems: 'flex-start' }");
-    expect(uiKit).toContain("listRowIconReflow: {\n    alignSelf: 'flex-start'");
+    expect(uiKit).toContain(
+      "listRowReflow: {\n    alignItems: 'stretch',\n    flexDirection: 'column'",
+    );
     expect(uiKit).toContain('reflow && styles.listRowReflow');
+    expect(listRow).toContain('reflow && styles.listRowMainReflow');
+    expect(listRow).toContain('reflow && styles.listRowTrailingReflow');
   });
 
   it('상태 배너는 3px 의미선과 작은 아이콘, 박스 없는 동작을 사용해요', () => {
@@ -59,7 +59,8 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(actionStyles).toContain('minHeight: size.minimumTouchTarget');
     expect(banner).toContain('accessibilityLiveRegion={liveRegion}');
     expect(banner).toContain('accessibilityRole="button"');
-    expect(contentRowStyles).toContain("alignItems: 'center'");
+    expect(contentRowStyles).toContain("alignItems: 'flex-start'");
+    expect(banner).toContain('{ height: firstLineHeight }');
   });
 
   it('펼침 행은 둥근 카드 없이 구분선과 큰 글자 재배치를 유지해요', () => {
@@ -72,6 +73,9 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(disclosure).toContain('width: size.minimumTouchTarget');
     expect(disclosure).toContain('height: size.minimumTouchTarget');
     expect(disclosure).toContain('const reflow = shouldReflowControl(width, fontScale);');
+    expect(disclosure).toContain("flexDirection: 'column'");
+    expect(disclosure).toContain('reflow && styles.mainContentReflow');
+    expect(disclosure).toContain('reflow && styles.trailingReflow');
     expect(disclosure).toContain('accessibilityState={{ disabled, expanded }}');
   });
 
@@ -84,6 +88,9 @@ describe('평면형 공통 컴포넌트 계약', () => {
     expect(toggle).not.toContain('iconTile');
     expect(toggle).toContain('accessibilityRole="switch"');
     expect(toggle).toContain('accessibilityState={{ checked: value, disabled }}');
+    expect(toggle).toContain("flexDirection: 'column'");
+    expect(toggle).toContain('reflow && styles.mainContentReflow');
+    expect(toggle).toContain('reflow && styles.trailingReflow');
     expect(toggle).toContain('width: size.minimumTouchTarget');
     expect(toggle).toContain('height: size.minimumTouchTarget');
   });

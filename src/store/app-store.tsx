@@ -71,6 +71,8 @@ import type {
   SaveRetryAction,
   SaveStatus,
   SleepReminderSyncStatus,
+  SetupCommitInput,
+  SetupCommitResult,
   UpdatePatternOptions,
   UpdatePatternResult,
 } from '@/application/app-store-contract';
@@ -1785,6 +1787,74 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [finalizeScheduleMutation, replaceDataAndPersist],
   );
 
+  const commitSetup = useCallback(
+    async ({ mode, pattern, notificationsEnabled, shiftTypePatches }: SetupCommitInput): Promise<SetupCommitResult> => {
+      const failed = (): SetupCommitResult => ({
+        primarySaved: false,
+        followUpSucceeded: false,
+      });
+      if (
+        pattern.shiftTypeIds.length === 0 ||
+        !isValidDateKey(pattern.anchorDate) ||
+        !isValidDateKey(pattern.scheduleStartDate ?? pattern.anchorDate) ||
+        !hasOnlyKnownShiftTypeIds(dataRef.current.shiftTypes, Object.keys(shiftTypePatches))
+      ) {
+        return failed();
+      }
+
+      return mutationCoordinator.run(async () => {
+        const current = dataRef.current;
+        if (mode === 'reconfigure') {
+          try {
+            await writeAutomaticBackup(storageWriter, current);
+            if (!(await runtime.writeBackup(current))) return failed();
+          } catch {
+            return failed();
+          }
+        }
+        const withSetup = mode === 'initial'
+          ? applyInitialSetupValues(current, {
+              pattern,
+              notificationsEnabled,
+              shiftTypePatches,
+            })
+          : {
+              ...applyPatternSettings(current, pattern, shiftTypePatches),
+              settings: {
+                ...current.settings,
+                notificationsEnabled,
+                ...(!notificationsEnabled
+                  ? markAlarmDisableSyncPending(current.settings)
+                  : null),
+              },
+            };
+        const enforced = enforceAppDataScheduleSafety(withSetup);
+        if (enforced.data === null) {
+          reportInvalidWorkSchedule();
+          return failed();
+        }
+        const result = await replaceDataAndPersistDetailedInternal(
+          enforced.data,
+          true,
+          true,
+        );
+        if (result.primarySaved) reportUnsafeAlarmSchedule(enforced);
+        return {
+          primarySaved: result.primarySaved,
+          followUpSucceeded: result.operationSucceeded && !result.partialFailure,
+        };
+      });
+    },
+    [
+      mutationCoordinator,
+      replaceDataAndPersistDetailedInternal,
+      reportInvalidWorkSchedule,
+      reportUnsafeAlarmSchedule,
+      runtime,
+      storageWriter,
+    ],
+  );
+
   const getAlarmStatus = useCallback(() => runtime.readAlarmStatus(), [runtime]);
 
   const requestAlarmAccess = useCallback(async () => {
@@ -2829,6 +2899,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       toggleWidgetDisplayOption,
       completeSetup,
       completeInitialSetup,
+      commitSetup,
       getAlarmStatus,
       requestAlarmAccess,
       resyncAlarms,
@@ -2863,6 +2934,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [
       completeSetup,
       completeInitialSetup,
+      commitSetup,
       createBackup,
       dismissPlayUpdate,
       disableAlarms,
