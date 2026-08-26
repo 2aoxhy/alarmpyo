@@ -30,5 +30,6 @@ export function formatReleaseName(appVersion) {
   if (legacy) return `V${Number(legacy[1]).toString().padStart(2, '0')}`;
   const compact = COMPACT_APP_VERSION.exec(appVersion ?? '');
   if (!compact || Number(compact[1]) < 15) return 'V--';
+  if (Number(compact[1]) >= 21) return `V${appVersion}`;
   return `V${Number(compact[1])}`;
 }

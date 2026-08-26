@@ -55,7 +55,7 @@ export default function DisplaySettingsScreen() {
       <Stack.Screen options={{ title: '홈 화면 위젯' }} />
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText tone="secondary">4×1 위젯에 표시할 정보를 선택합니다.</AppText>
+          <AppText tone="secondary">4×2 위젯에 표시할 정보를 선택합니다.</AppText>
         </View>
         {!androidWidgetSupported ? (
           <View accessible style={styles.platformNotice}>

@@ -9,7 +9,10 @@ import {
   getScheduleStartDate,
   resolveEffectiveDayFromAppData,
 } from './app-data-service';
-import { buildAlarmPyoAlarmPlan } from './alarm-planner';
+import {
+  buildAlarmPyoAlarmPlan,
+  resolveAlarmPyoAlarmShift,
+} from './alarm-planner';
 import { getCachedFutureAlarmProjection } from './schedule-projection-cache';
 
 // 위젯은 한 번 설치하면 오래 열지 않을 수 있어 오늘부터 윤년 1년치를 보관해요.
@@ -172,12 +175,11 @@ export function buildAlarmPyoWidgetSnapshot(
     setupCompleted: data.settings.setupCompleted,
     displayOptions: { ...data.settings.widgetDisplayOptions },
     alarms: alarmPlans.map((alarm) => {
-      const accentColor = customShiftAccent(
-        data.shiftTypes.find((shift) => shift.id === alarm.shiftTypeId),
-      );
+      const shift = resolveAlarmPyoAlarmShift(data.shiftTypes, alarm);
+      const accentColor = customShiftAccent(shift);
       return {
         alarmAt: alarm.alarmAt,
-        shiftTypeId: alarm.shiftTypeId,
+        shiftTypeId: shift?.id ?? alarm.shiftTypeId,
         shiftName: alarm.shiftName,
         ...(accentColor ? { accentColor } : {}),
       };

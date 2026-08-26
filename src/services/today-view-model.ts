@@ -42,6 +42,13 @@ export type TodayAlarmSummary = {
   description?: string;
 };
 
+export type TodayHomeState =
+  | 'working'
+  | 'off'
+  | 'before'
+  | 'finished'
+  | 'empty';
+
 /**
  * 366일 알람 계획은 분 단위 화면 갱신과 분리하여 계산합니다.
  * 호출부는 앱 데이터나 날짜가 바뀔 때만 이 값을 다시 만듭니다.
@@ -189,7 +196,7 @@ export function buildTodayViewModel(input: {
     if (upcomingWorkDays.length < 3) upcomingWorkDays.push(moment);
   }
 
-  const homeState = current
+  const homeState: TodayHomeState = current
     ? 'working'
     : todayShift?.isOff
       ? 'off'
@@ -243,7 +250,9 @@ export function buildTodayViewModel(input: {
     ? compactHome
       ? `${parseDateKey(nextWork.dateKey).getMonth() + 1}월 ${parseDateKey(nextWork.dateKey).getDate()}일 · ${formatCompactTime(nextWork.shift.startMinutes)}`
       : `${formatKoreanDate(nextWork.dateKey)} · ${formatMinutes(nextWork.shift.startMinutes)} 시작`
-    : `${ALARM_PLAN_HORIZON_DAYS}일 내 예정 근무 없음`;
+    : homeState === 'off'
+      ? '예정된 근무 없음'
+      : `${ALARM_PLAN_HORIZON_DAYS}일 내 예정 근무 없음`;
   const footerLabel =
     homeState === 'working'
       ? '퇴근까지'

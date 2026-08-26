@@ -14,6 +14,8 @@ export const CALENDAR_IMAGE_LOGICAL_WIDTH = 360;
 export const CALENDAR_IMAGE_LOGICAL_HEIGHT = 450;
 export const CALENDAR_IMAGE_PIXEL_WIDTH = 1080;
 export const CALENDAR_IMAGE_PIXEL_HEIGHT = 1350;
+export const CALENDAR_IMAGE_WEEK_COUNT = 6;
+const CALENDAR_IMAGE_WEEKDAY_COUNT = 7;
 
 export type CalendarImageShareDay = Readonly<{
   dateKey: string;
@@ -64,6 +66,22 @@ function freezeDay(day: CalendarImageShareDay): CalendarImageShareDay {
   return Object.freeze(day);
 }
 
+function createEmptyShareDay(
+  year: number,
+  month: number,
+  weekIndex: number,
+  weekdayIndex: number,
+): CalendarImageShareDay {
+  return freezeDay({
+    dateKey: `empty:${year}-${month + 1}:${weekIndex}:${weekdayIndex}`,
+    day: 0,
+    holidayLabel: null,
+    inCurrentMonth: false,
+    shiftLabel: null,
+    shiftRole: null,
+  });
+}
+
 /** 탭 순간의 월 표시만 깊게 동결하여 이후 월 이동이나 저장 변경의 영향을 받지 않습니다. */
 export function buildCalendarImageShareSnapshot(
   source: CalendarImageShareSource,
@@ -81,9 +99,18 @@ export function buildCalendarImageShareSnapshot(
     );
   }
 
-  const weeks = source.cellRows.map((row) =>
+  const weeks = Array.from({ length: CALENDAR_IMAGE_WEEK_COUNT }, (_, weekIndex) =>
     Object.freeze(
-      row.map((cell) => {
+      Array.from({ length: CALENDAR_IMAGE_WEEKDAY_COUNT }, (_, weekdayIndex) => {
+        const cell = source.cellRows[weekIndex]?.[weekdayIndex];
+        if (!cell) {
+          return createEmptyShareDay(
+            source.year,
+            source.month,
+            weekIndex,
+            weekdayIndex,
+          );
+        }
         if (!cell.inCurrentMonth) {
           return freezeDay({
             dateKey: cell.dateKey,

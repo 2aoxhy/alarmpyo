@@ -119,24 +119,43 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('minHeight: 64');
     expect(timer).toContain('elementRef={directInputButtonRef}');
     expect(timer).toContain('restoreDirectInputFocus');
+    expect(timer).toContain('customDurationInitialMinutes');
+    expect(timer).not.toContain('key={`${customDurationOpen}');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
   });
 
-  it('직접 입력은 1~60분 조절기와 네 개의 증감 버튼을 제공해요', () => {
+  it('직접 입력은 1~60분 비순환 세로 휠과 하나의 접근성 조절기를 제공해요', () => {
     expect(stepper).toContain('presentationStyle="fullScreen"');
     expect(stepper).toContain('onRequestClose={onCancel}');
-    expect(stepper).toContain('[-10, -1, 1, 10]');
+    expect(stepper).toContain('<FlatList');
+    expect(stepper).toContain('snapToInterval={wheelLayout.itemHeight}');
+    expect(stepper).toContain('disableIntervalMomentum');
+    expect(stepper).toContain('quickTimerOffsetToDuration(');
+    expect(stepper).toContain('quickTimerDurationToOffset(');
     expect(stepper).toContain('accessibilityRole="adjustable"');
     expect(stepper).toContain("actionName === 'increment'");
     expect(stepper).toContain("actionName === 'decrement'");
+    expect(stepper).toContain('importantForAccessibility="no-hide-descendants"');
     expect(stepper).toContain('quick-timer-stepper-start');
     expect(stepper).toContain('accessibilityViewIsModal');
-    expect(stepper).toContain('<ScrollView');
-    expect(stepper).toContain('contentContainerStyle={styles.content}');
-    expect(stepper).toContain('flexGrow: 1');
+    expect(stepper).toContain("from 'react-native-safe-area-context'");
+    expect(stepper).toContain('includeFontPadding: false');
+    expect(stepper).toContain('wasVisibleRef');
+    expect(stepper).not.toContain('<ScrollView');
+    expect(stepper).not.toContain('quick-timer-adjust-');
     expect(stepper).not.toContain('초');
     expect(stepper).not.toContain('00시');
+  });
+
+  it('공통 버튼은 아이콘과 문구를 같은 기준선의 콘텐츠 묶음에 배치해요', () => {
+    const button = source('src/design-system/button.tsx');
+
+    expect(button).toContain('style={styles.content}');
+    expect(button).toContain('style={styles.iconSlot}');
+    expect(button).toContain('includeFontPadding: false');
+    expect(button).toContain("alignItems: 'center'");
+    expect(button).not.toContain('minWidth: size.regularControl');
   });
 
   it('상태 관측 revision으로 오래된 조회가 새 작업 결과를 덮지 않아요', () => {

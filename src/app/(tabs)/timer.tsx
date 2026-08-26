@@ -88,6 +88,8 @@ export default function TimerScreen() {
   const [schedulingDuration, setSchedulingDuration] =
     useState<QuickTimerDuration | null>(null);
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [customDurationInitialMinutes, setCustomDurationInitialMinutes] =
+    useState<QuickTimerDuration>(15);
   const [loadError, setLoadError] = useState(false);
   const directInputButtonRef = useRef<ElementRef<typeof Pressable>>(null);
   const shouldRestoreDirectInputFocusRef = useRef(false);
@@ -365,6 +367,7 @@ export default function TimerScreen() {
 
   const openCustomDuration = () => {
     if (busyAction !== null || actionRevisionRef.current !== null) return;
+    setCustomDurationInitialMinutes(status?.durationMinutes ?? 15);
     setCustomDurationOpen(true);
   };
 
@@ -679,8 +682,7 @@ export default function TimerScreen() {
     </Screen>
     <QuickTimerDurationStepper
       busy={busyAction === 'schedule'}
-      initialDurationMinutes={status?.durationMinutes}
-      key={`${customDurationOpen}:${status?.durationMinutes ?? 15}`}
+      initialDurationMinutes={customDurationInitialMinutes}
       onCancel={() => closeCustomDuration()}
       onSubmit={submitCustomDuration}
       replacingTimer={hasTimer}

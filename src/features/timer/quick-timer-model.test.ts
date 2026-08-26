@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   adjustQuickTimerDuration,
+  clampQuickTimerDuration,
   createQuickTimerCountdownAnchor,
   formatQuickTimerCountdown,
   formatQuickTimerTarget,
@@ -13,8 +14,11 @@ import {
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
   parseQuickTimerDurationInput,
+  quickTimerDurationToOffset,
+  quickTimerOffsetToDuration,
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
+  resolveQuickTimerWheelLayout,
   shouldStackQuickTimerActions,
 } from './quick-timer-model';
 
@@ -100,12 +104,57 @@ describe('빠른 타이머 화면 모델', () => {
       durationMinutes: 1,
       canDecrease: false,
       canIncrease: true,
-      accessibilityLabel: '1분. 1분에서 60분까지 조절할 수 있습니다.',
+      accessibilityLabel: '현재 1분, 최소 1분, 최대 60분',
     });
     expect(getQuickTimerDurationStepperPresentation(60)).toMatchObject({
       durationMinutes: 60,
       canDecrease: true,
       canIncrease: false,
+    });
+  });
+
+  it('스크롤 휠은 1~60분과 오프셋을 정확히 왕복 변환해요', () => {
+    expect(clampQuickTimerDuration(-10)).toBe(1);
+    expect(clampQuickTimerDuration(1.6)).toBe(2);
+    expect(clampQuickTimerDuration(99)).toBe(60);
+    expect(clampQuickTimerDuration(Number.NaN)).toBe(15);
+    expect(quickTimerDurationToOffset(1, 64)).toBe(0);
+    expect(quickTimerDurationToOffset(60, 64)).toBe(3_776);
+    expect(quickTimerOffsetToDuration(-50, 64)).toBe(1);
+    expect(quickTimerOffsetToDuration(14 * 64, 64)).toBe(15);
+    expect(quickTimerOffsetToDuration(100_000, 64)).toBe(60);
+  });
+
+  it('일반 화면은 5행, 큰 글자나 낮은 화면은 3행, 짧은 200% 화면은 1행 휠을 사용해요', () => {
+    expect(resolveQuickTimerWheelLayout(800, 1)).toEqual({
+      itemHeight: 64,
+      visibleItemCount: 5,
+      viewportHeight: 320,
+    });
+    expect(resolveQuickTimerWheelLayout(699, 1)).toEqual({
+      itemHeight: 64,
+      visibleItemCount: 3,
+      viewportHeight: 192,
+    });
+    expect(resolveQuickTimerWheelLayout(800, 1.4)).toEqual({
+      itemHeight: 80,
+      visibleItemCount: 3,
+      viewportHeight: 240,
+    });
+    expect(resolveQuickTimerWheelLayout(800, 2)).toEqual({
+      itemHeight: 104,
+      visibleItemCount: 3,
+      viewportHeight: 312,
+    });
+    expect(resolveQuickTimerWheelLayout(568, 2)).toEqual({
+      itemHeight: 104,
+      visibleItemCount: 1,
+      viewportHeight: 104,
+    });
+    expect(resolveQuickTimerWheelLayout(699, 2)).toEqual({
+      itemHeight: 104,
+      visibleItemCount: 1,
+      viewportHeight: 104,
     });
   });
 

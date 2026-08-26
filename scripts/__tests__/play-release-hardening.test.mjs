@@ -324,7 +324,7 @@ describe('Play AAB 하드닝', () => {
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");
   });
 
-  it('V20은 V19 Play 초안 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
+  it('V1.21은 V20 계보 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
     const app = JSON.parse(source('app.json')).expo;
     const pkg = JSON.parse(source('package.json'));
     const runbook = source('docs/google-play-release-runbook-ko.md');
@@ -337,41 +337,41 @@ describe('Play AAB 하드닝', () => {
       source('assets/play-store/phone-screenshots/manifest.json'),
     );
 
-    expect(pkg.version).toBe('1.20.0');
+    expect(pkg.version).toBe('1.21.0');
     expect(app).toMatchObject({
-      version: '1.20',
-      android: { versionCode: 20 },
-      ios: { buildNumber: '20' },
+      version: '1.21',
+      android: { versionCode: 21 },
+      ios: { buildNumber: '21' },
     });
     expect(evidenceExample).toMatchObject({
-      versionName: '1.20',
-      versionCode: 20,
-      highestPreviouslyDistributedVersionCode: 18,
-      highestExistingPlayVersionCode: 19,
+      versionName: '1.21',
+      versionCode: 21,
+      highestPreviouslyDistributedVersionCode: 20,
+      highestExistingPlayVersionCode: 20,
     });
     expect(screenshotManifest).toMatchObject({
-      release: 'V20',
+      release: 'V1.21',
       status: 'recapture-required',
     });
 
     expect(runbook).toContain(
-      'Play Console에 업로드된 V19의 `versionCode: 19`가 현재 확인된 Play 계보의 최고값입니다.',
+      'Play Console에 업로드된 V20의 `versionCode: 20`이 현재 확인할 Play 계보의 기준값입니다.',
     );
     expect(runbook).toContain(
       'V17 `versionCode: 17`과 V11 `versionCode: 11`은 로컬 구현·검증만 완료하고 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다.',
     );
     expect(runbook).toContain(
-      '확인한 최고값이 `20` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
+      '확인한 최고값이 `21` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
     );
     expect(runbook).toContain(
-      'Play Console 번들 라이브러리에서 **같은 versionCode 20 번들**을 Alpha 출시로 추가하거나 승격합니다.',
+      'Play Console 번들 라이브러리에서 **같은 versionCode 21 번들**을 Alpha 출시로 추가하거나 승격합니다.',
     );
     expect(runbook).toContain('AAB를 다시 업로드하지 않습니다.');
     expect(releaseNotes).toContain(
-      'V20은 `versionCode 20` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 Play Console 번들 라이브러리의 같은 번들을 Alpha로 승격합니다.',
+      'V1.21은 `versionCode 21` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 Play Console 번들 라이브러리의 같은 번들을 Alpha로 승격합니다.',
     );
     expect(lineage).toContain(
-      'V19 · `1.19(19)`는 Play Internal 초안으로만 등록했으며, 현재 소스의 후속 후보는 `V20 · 1.20(20)`입니다.',
+      '현재 소스의 후속 후보는 `V1.21 · 1.21(21)`입니다.',
     );
   });
 });

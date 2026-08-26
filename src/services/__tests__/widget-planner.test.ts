@@ -139,6 +139,30 @@ describe('buildAlarmPyoWidgetSnapshot', () => {
     });
   });
 
+  it('대체근무 알람은 snapshot v2에서 주간과 야간 역할을 구분해요', () => {
+    const data = createDefaultAppData('2026-07-13');
+    data.pattern.shiftTypeIds = ['substitute-day', 'substitute-night'];
+    data.settings.setupCompleted = true;
+    data.settings.notificationsEnabled = true;
+    data.settings.widgetDisplayOptions = {
+      todayShift: false,
+      nextShift: false,
+      nextAlarm: true,
+    };
+
+    const snapshot = buildAlarmPyoWidgetSnapshot(
+      data,
+      (dateKey) => resolveShiftFromAppData(data, dateKey),
+      { now: new Date(2026, 6, 13, 3), horizonDays: 2 },
+    );
+
+    expect(snapshot.version).toBe(2);
+    expect(snapshot.alarms.map((alarm) => alarm.shiftTypeId)).toEqual([
+      'substitute-day',
+      'substitute-night',
+    ]);
+  });
+
   it('연차와 교육 같은 예외 일정 이름을 위젯에 전달합니다', () => {
     const data = createDefaultAppData('2026-07-13');
     data.dayExceptions['2026-07-13'] = 'leave';

@@ -5,20 +5,26 @@ import org.junit.Test
 
 class AlarmPyoWidgetSizePolicyTest {
   @Test
-  fun `uses the minimum layout at the declared 4 by 1 height`() {
+  fun `uses the medium layout at the declared 4 by 2 height`() {
     assertEquals(
-      AlarmPyoWidgetHeightMode.MINIMUM,
+      AlarmPyoWidgetHeightMode.MEDIUM,
       AlarmPyoWidgetSizePolicy.heightMode(AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP)
     )
   }
 
   @Test
-  fun `keeps the minimum layout through small launcher rounding`() {
-    assertEquals(AlarmPyoWidgetHeightMode.MINIMUM, AlarmPyoWidgetSizePolicy.heightMode(64))
+  fun `keeps the compact fallback below the two row threshold`() {
+    assertEquals(
+      AlarmPyoWidgetHeightMode.MINIMUM,
+      AlarmPyoWidgetSizePolicy.heightMode(AlarmPyoWidgetSizePolicy.MEDIUM_HEIGHT_MIN_DP - 1)
+    )
   }
 
   @Test
-  fun `restores details when the launcher provides enough height`() {
-    assertEquals(AlarmPyoWidgetHeightMode.REGULAR, AlarmPyoWidgetSizePolicy.heightMode(65))
+  fun `restores the medium hierarchy at the two row threshold`() {
+    assertEquals(
+      AlarmPyoWidgetHeightMode.MEDIUM,
+      AlarmPyoWidgetSizePolicy.heightMode(AlarmPyoWidgetSizePolicy.MEDIUM_HEIGHT_MIN_DP)
+    )
   }
 }

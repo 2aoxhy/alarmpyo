@@ -1,4 +1,5 @@
 import type { PlayUpdateStatus } from '@/services/play-app-update-policy';
+import { formatAppReleaseVersionCode } from '../../utils/app-release-version';
 
 import {
   isPlayUpdatePromptSnoozed,
@@ -145,7 +146,7 @@ export function getPlayUpdateModalPresentation(
   kind: PlayUpdateNoticeKind | null,
   versionCode: number,
 ): PlayUpdateModalPresentation {
-  const versionLabel = versionCode > 0 ? `V${versionCode}` : '새 버전';
+  const versionLabel = formatAppReleaseVersionCode(versionCode);
   switch (kind) {
     case 'downloaded':
       return {

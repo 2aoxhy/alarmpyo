@@ -16,6 +16,8 @@ export const BRAND_ASSET_PATHS = Object.freeze({
   adaptiveMonochrome: 'assets/images/alarmpyo-adaptive-monochrome.png',
   favicon: 'assets/images/favicon.png',
   splash: 'assets/images/splash-transparent.png',
+  launchArrows: 'assets/images/alarmpyo-launch-arrows.png',
+  launchHands: 'assets/images/alarmpyo-launch-hands.png',
   playIcon: 'assets/play-store/alarmpyo-icon-512.png',
   featureGraphic: 'assets/play-store/alarmpyo-feature-graphic.png',
 });
@@ -451,6 +453,88 @@ export function composeBrandFeatureGraphic(master, wordmarkFontBytes) {
   );
 }
 
+export function splitLaunchLogoLayers(master) {
+  ensure(
+    master?.width === 1024
+      && master?.height === 1024
+      && master.pixels?.length === 1024 * 1024 * 4,
+    '시작 화면 레이어는 1024×1024 RGBA 마스터에서 생성해야 해요.',
+  );
+
+  const pixelCount = master.width * master.height;
+  const seen = new Uint8Array(pixelCount);
+  const queue = new Int32Array(pixelCount);
+  const components = [];
+  const isVisible = (index) => master.pixels[index * 4 + 3] > 0;
+
+  for (let seed = 0; seed < pixelCount; seed += 1) {
+    if (seen[seed] || !isVisible(seed)) continue;
+    let head = 0;
+    let tail = 0;
+    const indexes = [];
+    queue[tail] = seed;
+    tail += 1;
+    seen[seed] = 1;
+
+    while (head < tail) {
+      const index = queue[head];
+      head += 1;
+      indexes.push(index);
+      const y = Math.floor(index / master.width);
+      const x = index - y * master.width;
+      for (const neighbor of [
+        index - 1,
+        index + 1,
+        index - master.width,
+        index + master.width,
+      ]) {
+        if (
+          neighbor < 0
+          || neighbor >= pixelCount
+          || seen[neighbor]
+          || !isVisible(neighbor)
+        ) {
+          continue;
+        }
+        const neighborY = Math.floor(neighbor / master.width);
+        const neighborX = neighbor - neighborY * master.width;
+        if (Math.abs(neighborX - x) + Math.abs(neighborY - y) !== 1) continue;
+        seen[neighbor] = 1;
+        queue[tail] = neighbor;
+        tail += 1;
+      }
+    }
+    components.push(indexes);
+  }
+
+  components.sort((left, right) => right.length - left.length);
+  ensure(
+    components.length === 3
+      && components[0].length === components[1].length
+      && components[2].length < components[0].length,
+    '시작 화면 로고는 대칭 화살표 2개와 시곗바늘 1개로 분리되어야 해요.',
+  );
+
+  const createLayer = (selectedComponents) => {
+    const pixels = new Uint8Array(master.pixels.length);
+    for (const component of selectedComponents) {
+      for (const index of component) {
+        const offset = index * 4;
+        pixels[offset] = master.pixels[offset];
+        pixels[offset + 1] = master.pixels[offset + 1];
+        pixels[offset + 2] = master.pixels[offset + 2];
+        pixels[offset + 3] = master.pixels[offset + 3];
+      }
+    }
+    return { height: master.height, pixels, width: master.width };
+  };
+
+  return {
+    arrows: createLayer(components.slice(0, 2)),
+    hands: createLayer(components.slice(2)),
+  };
+}
+
 export function buildBrandAssets(
   flatMasterBytes,
   wordmarkFontBytes,
@@ -462,6 +546,7 @@ export function buildBrandAssets(
   const flatMaster = decodeBrandMaster(flatMasterBytes, { profile: 'flat' });
   const texturedMaster = decodeBrandMaster(texturedMasterBytes, { profile: 'textured' });
   const compactMaster = decodeBrandMaster(compactMasterBytes, { profile: 'compact' });
+  const launchLayers = splitLaunchLogoLayers(texturedMaster);
   const normalizedTexturedMark = encodePng({ colorType: 6, ...texturedMaster });
   const adaptiveMark = encodePng({ colorType: 6, ...flatMaster });
   const faviconMark = compactMaster;
@@ -473,6 +558,8 @@ export function buildBrandAssets(
     [BRAND_ASSET_PATHS.adaptiveMonochrome, adaptiveMark],
     [BRAND_ASSET_PATHS.favicon, encodePng(compositeMark(faviconMark, 48, 48))],
     [BRAND_ASSET_PATHS.splash, normalizedTexturedMark],
+    [BRAND_ASSET_PATHS.launchArrows, encodePng({ colorType: 6, ...launchLayers.arrows })],
+    [BRAND_ASSET_PATHS.launchHands, encodePng({ colorType: 6, ...launchLayers.hands })],
     [BRAND_ASSET_PATHS.playIcon, encodePng(compositeMark(playMark, 512, 512))],
     [
       BRAND_ASSET_PATHS.featureGraphic,

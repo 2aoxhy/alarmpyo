@@ -43,7 +43,12 @@ export function validatePhoneScreenshotManifest(
 ) {
   ensure(plainObject(manifest), `${label}가 JSON 객체가 아니에요.`);
   ensure(manifest.version === 1, `${label} version은 1이어야 해요.`);
-  ensure(/^V\d{2}$/u.test(manifest.release), `${label} release는 V00 형식이어야 해요.`);
+  const currentRelease = /^V1\.(\d{2,})$/u.exec(manifest.release ?? '');
+  ensure(
+    /^V\d{2}$/u.test(manifest.release) ||
+      (currentRelease !== null && Number(currentRelease[1]) >= 21),
+    `${label} release는 V00 또는 V1.21 이후 형식이어야 해요.`,
+  );
   ensure(
     PHONE_SCREENSHOT_MANIFEST_STATUSES.has(manifest.status),
     `${label} status가 올바르지 않아요.`,

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "com.personal.alarmpyo",
-  "versionName": "1.20",
-  "versionCode": 20,
+  "versionName": "1.21",
+  "versionCode": 21,
   "aabSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "easBuildId": "11111111-1111-4111-8111-111111111111",
@@ -11,8 +11,8 @@
     "sizeBytes": 1
   },
   "appSigningCertificateSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  "highestPreviouslyDistributedVersionCode": 18,
-  "highestExistingPlayVersionCode": 19,
+  "highestPreviouslyDistributedVersionCode": 20,
+  "highestExistingPlayVersionCode": 20,
   "track": "closed",
   "checkedAt": "2026-08-24T12:00:00.000Z",
   "physicalDeviceEvidence": {

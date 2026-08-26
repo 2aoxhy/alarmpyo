@@ -61,6 +61,84 @@ class AlarmPyoWidgetFormatterTest {
   }
 
   @Test
+  fun `keeps substitute day and night visuals distinct from ordinary shifts`() {
+    val substituteDay = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry("2026-07-13", "substitute-day", "주간 대체근무", 7 * 60, 18 * 60)
+        )
+      ),
+      timestamp(2026, 7, 13, 10, 0),
+      seoul
+    )
+    val substituteNight = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry(
+            "2026-07-13",
+            "substitute-night",
+            "야간 대체근무",
+            18 * 60,
+            7 * 60,
+            endsNextDay = true
+          )
+        )
+      ),
+      timestamp(2026, 7, 13, 23, 0),
+      seoul
+    )
+
+    assertEquals(AlarmPyoWidgetVisual.SUBSTITUTE_DAY, substituteDay.visual)
+    assertEquals(AlarmPyoWidgetVisual.SUBSTITUTE_NIGHT, substituteNight.visual)
+  }
+
+  @Test
+  fun `uses substitute visuals when the next alarm is the only selection`() {
+    val alarmAt = timestamp(2026, 7, 13, 16, 10)
+    val dayAlarm = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry("2026-07-13", "off", "휴무", null, null, isOff = true)
+        ),
+        displayOptions = AlarmPyoWidgetDisplayOptions(
+          todayShift = false,
+          nextShift = false,
+          nextAlarm = true
+        ),
+        alarms = listOf(
+          AlarmPyoWidgetAlarm(alarmAt, "substitute-day", "주간 대체근무")
+        )
+      ),
+      timestamp(2026, 7, 13, 10, 0),
+      seoul
+    )
+    val nightAlarm = AlarmPyoWidgetFormatter.format(
+      AlarmPyoWidgetSnapshot(
+        generatedAt = 0,
+        entries = listOf(
+          entry("2026-07-13", "off", "휴무", null, null, isOff = true)
+        ),
+        displayOptions = AlarmPyoWidgetDisplayOptions(
+          todayShift = false,
+          nextShift = false,
+          nextAlarm = true
+        ),
+        alarms = listOf(
+          AlarmPyoWidgetAlarm(alarmAt, "substitute-night", "야간 대체근무")
+        )
+      ),
+      timestamp(2026, 7, 13, 10, 0),
+      seoul
+    )
+
+    assertEquals(AlarmPyoWidgetVisual.SUBSTITUTE_DAY, dayAlarm.visual)
+    assertEquals(AlarmPyoWidgetVisual.SUBSTITUTE_NIGHT, nightAlarm.visual)
+  }
+
+  @Test
   fun `keeps custom daytime and overnight shifts neutral with their saved accent`() {
     val daytime = AlarmPyoWidgetFormatter.format(
       AlarmPyoWidgetSnapshot(

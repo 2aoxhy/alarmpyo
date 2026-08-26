@@ -39,7 +39,64 @@ export type QuickTimerDurationStepperPresentation = {
   accessibilityLabel: string;
 };
 
+export type QuickTimerWheelLayout = {
+  itemHeight: 64 | 80 | 104;
+  visibleItemCount: 1 | 3 | 5;
+  viewportHeight: number;
+};
+
 export const QUICK_TIMER_CUSTOM_INITIAL_DURATION = 15;
+
+export function clampQuickTimerDuration(value: number): QuickTimerDuration {
+  const rounded = Number.isFinite(value)
+    ? Math.round(value)
+    : QUICK_TIMER_CUSTOM_INITIAL_DURATION;
+  return Math.min(
+    QUICK_TIMER_MAX_DURATION_MINUTES,
+    Math.max(QUICK_TIMER_MIN_DURATION_MINUTES, rounded),
+  );
+}
+
+export function resolveQuickTimerWheelLayout(
+  height: number,
+  fontScale: number,
+): QuickTimerWheelLayout {
+  const safeHeight = Number.isFinite(height) ? Math.max(0, height) : 700;
+  const safeFontScale = Number.isFinite(fontScale)
+    ? Math.max(1, fontScale)
+    : 1;
+  const itemHeight = safeFontScale >= 1.8
+    ? 104
+    : safeFontScale >= 1.4
+      ? 80
+      : 64;
+  const visibleItemCount =
+    safeFontScale >= 1.8 && safeHeight < 700
+      ? 1
+      : safeFontScale >= 1.4 || safeHeight < 700
+        ? 3
+        : 5;
+  return {
+    itemHeight,
+    visibleItemCount,
+    viewportHeight: itemHeight * visibleItemCount,
+  };
+}
+
+export function quickTimerDurationToOffset(
+  durationMinutes: number,
+  itemHeight: QuickTimerWheelLayout['itemHeight'],
+): number {
+  return (clampQuickTimerDuration(durationMinutes) - 1) * itemHeight;
+}
+
+export function quickTimerOffsetToDuration(
+  offset: number,
+  itemHeight: QuickTimerWheelLayout['itemHeight'],
+): QuickTimerDuration {
+  const safeOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0;
+  return clampQuickTimerDuration(Math.round(safeOffset / itemHeight) + 1);
+}
 
 export function parseQuickTimerDurationInput(
   input: string,
@@ -91,7 +148,7 @@ export function getQuickTimerDurationStepperPresentation(
     durationMinutes: safeDuration,
     canDecrease: safeDuration > QUICK_TIMER_MIN_DURATION_MINUTES,
     canIncrease: safeDuration < QUICK_TIMER_MAX_DURATION_MINUTES,
-    accessibilityLabel: `${safeDuration}분. ${QUICK_TIMER_MIN_DURATION_MINUTES}분에서 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 조절할 수 있습니다.`,
+    accessibilityLabel: `현재 ${safeDuration}분, 최소 ${QUICK_TIMER_MIN_DURATION_MINUTES}분, 최대 ${QUICK_TIMER_MAX_DURATION_MINUTES}분`,
   };
 }
 

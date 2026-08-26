@@ -146,6 +146,8 @@ internal enum class AlarmPyoWidgetVisual {
   DAY,
   EVENING,
   NIGHT,
+  SUBSTITUTE_DAY,
+  SUBSTITUTE_NIGHT,
   CUSTOM,
   TRAINING,
   RESERVE,
@@ -593,11 +595,11 @@ internal object AlarmPyoWidgetFormatter {
   private fun visualForAlarm(alarm: AlarmPyoWidgetAlarm): AlarmPyoWidgetVisual = when {
     alarm.shiftTypeId == "exception-training" -> AlarmPyoWidgetVisual.TRAINING
     alarm.shiftTypeId == "exception-reserve" -> AlarmPyoWidgetVisual.RESERVE
-    alarm.shiftTypeId == "night" ||
-      alarm.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.NIGHT
+    alarm.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.SUBSTITUTE_NIGHT
+    alarm.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.SUBSTITUTE_DAY
+    alarm.shiftTypeId == "night" -> AlarmPyoWidgetVisual.NIGHT
     alarm.shiftTypeId == "evening" -> AlarmPyoWidgetVisual.EVENING
-    alarm.shiftTypeId == "day" ||
-      alarm.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.DAY
+    alarm.shiftTypeId == "day" -> AlarmPyoWidgetVisual.DAY
     else -> AlarmPyoWidgetVisual.CUSTOM
   }
 
@@ -605,11 +607,11 @@ internal object AlarmPyoWidgetFormatter {
     entry.shiftTypeId == "exception-training" -> AlarmPyoWidgetVisual.TRAINING
     entry.shiftTypeId == "exception-reserve" -> AlarmPyoWidgetVisual.RESERVE
     entry.isOff -> AlarmPyoWidgetVisual.OFF
-    entry.shiftTypeId == "night" ||
-      entry.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.NIGHT
+    entry.shiftTypeId == "substitute-night" -> AlarmPyoWidgetVisual.SUBSTITUTE_NIGHT
+    entry.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.SUBSTITUTE_DAY
+    entry.shiftTypeId == "night" -> AlarmPyoWidgetVisual.NIGHT
     entry.shiftTypeId == "evening" -> AlarmPyoWidgetVisual.EVENING
-    entry.shiftTypeId == "day" ||
-      entry.shiftTypeId == "substitute-day" -> AlarmPyoWidgetVisual.DAY
+    entry.shiftTypeId == "day" -> AlarmPyoWidgetVisual.DAY
     else -> AlarmPyoWidgetVisual.CUSTOM
   }
 

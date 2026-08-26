@@ -50,6 +50,17 @@ describe('달력 이미지 공유 UI 계약', () => {
     expect(sources).not.toContain('알람표 근무 일정');
   });
 
+  it('고정 6행과 글자 크기 독립형 타이포·하단 근무 띠를 사용합니다', () => {
+    const modelSource = readCalendarSource('calendar-image-share-model.ts');
+    const captureSource = readCalendarSource('calendar-image-capture-layer.tsx');
+
+    expect(modelSource).toContain('CALENDAR_IMAGE_WEEK_COUNT = 6');
+    expect(captureSource.match(/allowFontScaling=\{false\}/gu)?.length).toBe(5);
+    expect(captureSource).toContain('numberOfLines={2}');
+    expect(captureSource).toContain('styles.shiftStrip');
+    expect(captureSource).not.toContain('styles.shiftBadge');
+  });
+
   it('오류 팝업을 뒤로 닫아도 이미지 공유 버튼으로 초점을 복원합니다', () => {
     expect(calendarScreenSource).toContain(
       "{ tone: 'neutral', onDismiss: restoreImageShareFocus }",

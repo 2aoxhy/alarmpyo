@@ -124,6 +124,7 @@ export default function TodayScreen() {
         footerValue={viewModel.footerValue}
         heroDetail={viewModel.heroDetail}
         heroTitle={viewModel.heroTitle}
+        homeState={viewModel.homeState}
         largeText={largeText}
         shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}

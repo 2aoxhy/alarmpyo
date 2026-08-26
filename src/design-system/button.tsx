@@ -7,6 +7,7 @@ import {
   Text,
   type StyleProp,
   useWindowDimensions,
+  View,
   type ViewStyle,
 } from 'react-native';
 
@@ -99,18 +100,30 @@ export function Button({
         style,
       ]}
       testID={testID}>
-      {loading ? (
-        <ActivityIndicator color={foreground} size="small" />
-      ) : visibleIcon ? (
-        <AppIcon accessible={false} color={foreground} name={visibleIcon} size={19} />
-      ) : null}
-      <Text
+      <View
         accessibilityElementsHidden
         importantForAccessibility="no"
-        numberOfLines={reflow ? undefined : 2}
-        style={[styles.label, { color: foreground }]}>
-        {visibleLabel}
-      </Text>
+        style={styles.content}>
+        {loading || visibleIcon ? (
+          <View style={styles.iconSlot}>
+            {loading ? (
+              <ActivityIndicator color={foreground} size="small" />
+            ) : visibleIcon ? (
+              <AppIcon
+                accessible={false}
+                color={foreground}
+                name={visibleIcon}
+                size={19}
+              />
+            ) : null}
+          </View>
+        ) : null}
+        <Text
+          numberOfLines={reflow ? undefined : 2}
+          style={[styles.label, { color: foreground }]}>
+          {visibleLabel}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -128,6 +141,20 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       paddingVertical: space.sm,
       borderRadius: radius.md,
       overflow: 'hidden',
+    },
+    content: {
+      maxWidth: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.sm,
+    },
+    iconSlot: {
+      width: 22,
+      height: 22,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     compact: {
       minWidth: 88,
@@ -171,7 +198,6 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
         : {},
     label: {
       ...typeScale.label,
-      minWidth: size.regularControl,
       flexShrink: 1,
       includeFontPadding: false,
       fontSize: 16,

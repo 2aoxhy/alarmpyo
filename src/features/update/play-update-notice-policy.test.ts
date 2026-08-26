@@ -145,4 +145,16 @@ describe('전역 Play 업데이트 안내 정책', () => {
       title: 'V15 설치 중',
     });
   });
+
+  it('V1.21부터 업데이트 제목에 새 버전 형식을 사용합니다', () => {
+    expect(getPlayUpdateModalPresentation('available', 20).title).toBe(
+      '새 버전 V20',
+    );
+    expect(getPlayUpdateModalPresentation('available', 21).title).toBe(
+      '새 버전 V1.21',
+    );
+    expect(getPlayUpdateModalPresentation('downloaded', 21).title).toBe(
+      'V1.21 설치 준비',
+    );
+  });
 });

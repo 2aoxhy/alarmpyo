@@ -12,9 +12,6 @@ import { AppButton, AppText } from '@/components/ui-kit';
 import { AppDialogProvider, useAppDialog } from '@/components/app-dialog';
 import {
   LaunchTransitionOverlay,
-  resolveFrozenLaunchFontMode,
-  resolveLaunchFontMode,
-  type FrozenLaunchFontMode,
 } from '@/components/launch-transition-overlay';
 import { SaveErrorBanner } from '@/components/save-error-banner';
 import { SaveToast } from '@/components/save-toast';
@@ -46,31 +43,16 @@ export default function RootLayout() {
 
 function RootLayoutContent() {
   const reduceMotionStatus = useReduceMotionStatus();
-  const [fontsLoaded, fontError] = useFonts({
+  useFonts({
     WantedSansMedium: require('../../assets/fonts/WantedSans-Medium.ttf'),
     WantedSansBold: require('../../assets/fonts/WantedSans-Bold.ttf'),
     WantedSansExtraBold: require('../../assets/fonts/WantedSans-ExtraBold.ttf'),
   });
-  const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);
-  const launchFontMode = resolveLaunchFontMode(
-    fontsLoaded,
-    Boolean(fontError) || fontLoadTimedOut,
-  );
-  const launchReadyFontMode = resolveFrozenLaunchFontMode(null, launchFontMode);
-
-  useEffect(() => {
-    if (fontsLoaded || fontError) return;
-    const timeout = setTimeout(() => setFontLoadTimedOut(true), 8_000);
-    return () => clearTimeout(timeout);
-  }, [fontError, fontsLoaded]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppStoreProvider>
-        <AppBootstrap
-          launchFontMode={launchReadyFontMode}
-          reduceMotion={!reduceMotionStatus.known || reduceMotionStatus.enabled}
-        />
+        <AppBootstrap reduceMotion={!reduceMotionStatus.known || reduceMotionStatus.enabled} />
       </AppStoreProvider>
     </GestureHandlerRootView>
   );
@@ -131,16 +113,13 @@ class RootErrorBoundary extends Component<
 }
 
 function AppBootstrap({
-  launchFontMode,
   reduceMotion,
 }: {
-  launchFontMode: FrozenLaunchFontMode;
   reduceMotion: boolean;
 }) {
   const { loadError } = useAppStoreStatus();
   const { ready } = useAppStoreData();
   const bootstrapReady = ready || Boolean(loadError);
-  const [visibleLaunchFontMode] = useState(launchFontMode);
   const [hasRevealed, setHasRevealed] = useState(false);
   const [launchSurfaceReady, setLaunchSurfaceReady] = useState(false);
   const [launchVisible, setLaunchVisible] = useState(true);
@@ -178,7 +157,6 @@ function AppBootstrap({
         <>
           <StatusBar animated style="light" />
           <LaunchTransitionOverlay
-            fontMode={visibleLaunchFontMode}
             onFinished={finishLaunch}
             onReady={handleLaunchReady}
             ready={bootstrapReady && hasRevealed}

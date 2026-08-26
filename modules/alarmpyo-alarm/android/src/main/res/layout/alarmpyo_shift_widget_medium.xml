@@ -14,27 +14,24 @@
         android:layout_height="match_parent"
         android:background="@drawable/alarmpyo_widget_day_background"
         android:baselineAligned="false"
-        android:gravity="center_vertical"
         android:importantForAccessibility="noHideDescendants"
-        android:orientation="horizontal"
-        android:paddingStart="13dp"
-        android:paddingTop="5dp"
-        android:paddingEnd="7dp"
-        android:paddingBottom="5dp">
+        android:orientation="vertical"
+        android:paddingStart="17dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
 
         <LinearLayout
-            android:id="@+id/alarmpyo_widget_primary_panel"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="11"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:paddingEnd="8dp">
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/alarmpyo_widget_date"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:includeFontPadding="false"
@@ -43,63 +40,78 @@
                 android:textColor="@color/alarmpyo_text_secondary"
                 android:textSize="12sp" />
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/alarmpyo_widget_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/alarmpyo_widget_preview_status"
+                android:textColor="@color/alarmpyo_widget_icon_day"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/alarmpyo_widget_primary_panel"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingTop="7dp"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:id="@+id/alarmpyo_widget_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/alarmpyo_widget_preview_title"
+                android:textColor="@color/alarmpyo_text_primary"
+                android:textSize="20sp" />
 
-                <TextView
-                    android:id="@+id/alarmpyo_widget_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:text="@string/alarmpyo_widget_preview_title"
-                    android:textColor="@color/alarmpyo_text_primary"
-                    android:textSize="16sp" />
-
-                <TextView
-                    android:id="@+id/alarmpyo_widget_schedule"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
-                    android:ellipsize="end"
-                    android:fontFamily="sans-serif"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:text="@string/alarmpyo_widget_preview_schedule"
-                    android:textColor="@color/alarmpyo_text_secondary"
-                    android:textSize="12sp" />
-            </LinearLayout>
+            <TextView
+                android:id="@+id/alarmpyo_widget_schedule"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/alarmpyo_widget_preview_schedule"
+                android:textColor="@color/alarmpyo_text_secondary"
+                android:textSize="13sp" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/alarmpyo_widget_secondary_panel"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="10"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:background="@drawable/alarmpyo_widget_bottom_panel"
             android:gravity="center_vertical"
             android:orientation="vertical"
             android:paddingStart="12dp"
-            android:paddingTop="2dp"
+            android:paddingTop="7dp"
             android:paddingEnd="10dp"
-            android:paddingBottom="2dp">
+            android:paddingBottom="7dp">
 
             <LinearLayout
                 android:id="@+id/alarmpyo_widget_secondary_first"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/alarmpyo_widget_bottom_label"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
@@ -111,13 +123,14 @@
 
                 <TextView
                     android:id="@+id/alarmpyo_widget_bottom_value"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
+                    android:gravity="end"
                     android:includeFontPadding="false"
-                    android:lineSpacingExtra="1dp"
                     android:maxLines="1"
                     android:text="@string/alarmpyo_widget_preview_next_value"
                     android:textColor="@color/alarmpyo_text_primary"
@@ -128,8 +141,8 @@
                 android:id="@+id/alarmpyo_widget_secondary_divider"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="2dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"
                 android:alpha="0.18"
                 android:background="@color/alarmpyo_text_primary"
                 android:importantForAccessibility="no"
@@ -139,12 +152,13 @@
                 android:id="@+id/alarmpyo_widget_secondary_second"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
                 android:visibility="gone">
 
                 <TextView
                     android:id="@+id/alarmpyo_widget_secondary_label"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
@@ -156,11 +170,13 @@
 
                 <TextView
                     android:id="@+id/alarmpyo_widget_secondary_value"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
+                    android:gravity="end"
                     android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/alarmpyo_widget_preview_next_value"
@@ -170,15 +186,14 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- A narrow semantic rail keeps shift color separate from the neutral card. -->
     <FrameLayout
         android:id="@+id/alarmpyo_widget_meaning_line"
         android:layout_width="3dp"
         android:layout_height="match_parent"
         android:layout_gravity="start|center_vertical"
         android:layout_marginStart="6dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp"
         android:background="@color/alarmpyo_widget_icon_unknown"
         android:importantForAccessibility="no" />
 </FrameLayout>

@@ -51,61 +51,62 @@ export function CalendarImageCaptureLayer({
       transparent
       visible>
       <View style={styles.modalRoot}>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        pointerEvents="none"
-        style={styles.captureStage}>
-        <ViewShot
-          ref={captureRef}
-          onLayout={onCaptureLayout}
-          style={styles.image}>
-          <View style={styles.titleArea}>
-            <Text style={styles.title}>
-              {snapshot.year}년 {snapshot.month + 1}월 근무표
-            </Text>
-          </View>
-          <View style={styles.weekdayRow}>
-            {WEEKDAY_LABELS.map((label, index) => (
-              <View key={label} style={styles.weekdayCell}>
-                <Text
-                  style={[
-                    styles.weekdayText,
-                    index === 0 && styles.sundayText,
-                    index === 6 && styles.saturdayText,
-                  ]}>
-                  {label}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.weeks}>
-            {snapshot.weeks.map((week) => (
-              <View key={week[0]?.dateKey} style={styles.weekRow}>
-                {week.map((day, weekdayIndex) => (
-                  <CalendarImageDayCell
-                    day={day}
-                    key={day.dateKey}
-                    weekdayIndex={weekdayIndex}
-                  />
-                ))}
-              </View>
-            ))}
-          </View>
-        </ViewShot>
-      </View>
-      <View
-        accessible
-        accessibilityLabel="근무표 공유 이미지를 만드는 중입니다."
-        accessibilityLiveRegion="polite"
-        accessibilityRole="progressbar"
-        accessibilityViewIsModal
-        style={styles.busyCover}>
-        <View style={styles.busyCard}>
-          <ActivityIndicator color="#89CEFF" size="small" />
-          <AppText variant="label">공유 이미지 만드는 중</AppText>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={styles.captureStage}>
+          <ViewShot
+            ref={captureRef}
+            onLayout={onCaptureLayout}
+            style={styles.image}>
+            <View style={styles.titleArea}>
+              <Text allowFontScaling={false} style={styles.title}>
+                {snapshot.year}년 {snapshot.month + 1}월 근무표
+              </Text>
+            </View>
+            <View style={styles.weekdayRow}>
+              {WEEKDAY_LABELS.map((label, index) => (
+                <View key={label} style={styles.weekdayCell}>
+                  <Text
+                    allowFontScaling={false}
+                    style={[
+                      styles.weekdayText,
+                      index === 0 && styles.sundayText,
+                      index === 6 && styles.saturdayText,
+                    ]}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.weeks}>
+              {snapshot.weeks.map((week) => (
+                <View key={week[0]?.dateKey} style={styles.weekRow}>
+                  {week.map((day, weekdayIndex) => (
+                    <CalendarImageDayCell
+                      day={day}
+                      key={day.dateKey}
+                      weekdayIndex={weekdayIndex}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </ViewShot>
         </View>
-      </View>
+        <View
+          accessible
+          accessibilityLabel="근무표 공유 이미지를 만드는 중입니다."
+          accessibilityLiveRegion="polite"
+          accessibilityRole="progressbar"
+          accessibilityViewIsModal
+          style={styles.busyCover}>
+          <View style={styles.busyCard}>
+            <ActivityIndicator color="#89CEFF" size="small" />
+            <AppText variant="label">공유 이미지 만드는 중</AppText>
+          </View>
+        </View>
       </View>
     </Modal>
   );
@@ -129,24 +130,30 @@ function CalendarImageDayCell({
 
   return (
     <View style={styles.dayCell}>
-      <Text style={[styles.dayNumber, dateColorStyle]}>{day.day}</Text>
+      <Text
+        allowFontScaling={false}
+        style={[styles.dayNumber, dateColorStyle]}>
+        {day.day}
+      </Text>
       <View style={styles.dayDetails}>
         {day.holidayLabel ? (
-          <Text numberOfLines={1} style={styles.holidayLabel}>
+          <Text
+            allowFontScaling={false}
+            numberOfLines={2}
+            style={styles.holidayLabel}>
             {day.holidayLabel}
           </Text>
-        ) : (
-          <View style={styles.emptyLabel} />
-        )}
+        ) : null}
         {day.shiftLabel && roleColors ? (
           <View
             style={[
-              styles.shiftBadge,
+              styles.shiftStrip,
               { backgroundColor: roleColors.backgroundColor },
             ]}>
             <Text
+              allowFontScaling={false}
               adjustsFontSizeToFit
-              minimumFontScale={0.72}
+              minimumFontScale={0.78}
               numberOfLines={1}
               style={[styles.shiftLabel, { color: roleColors.color }]}>
               {day.shiftLabel}
@@ -179,11 +186,9 @@ const styles = StyleSheet.create({
     height: CALENDAR_IMAGE_LOGICAL_HEIGHT,
     overflow: 'hidden',
     backgroundColor: '#101214',
-    borderWidth: 1,
-    borderColor: '#353A42',
   },
   titleArea: {
-    height: 65,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -193,19 +198,29 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '800',
+    lineHeight: 27,
+    includeFontPadding: false,
     letterSpacing: -0.6,
+    textAlignVertical: 'center',
   },
   weekdayRow: {
-    height: 29,
+    height: 28,
     flexDirection: 'row',
     backgroundColor: '#181B1F',
     borderBottomWidth: 1,
     borderBottomColor: '#59616C',
   },
   weekdayCell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  weekdayText: { color: '#D9DEE5', fontSize: 12, fontWeight: '700' },
+  weekdayText: {
+    color: '#D9DEE5',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
   sundayText: { color: '#FF899B' },
   saturdayText: { color: '#89CEFF' },
   weeks: { flex: 1 },
@@ -213,17 +228,18 @@ const styles = StyleSheet.create({
   dayCell: {
     minWidth: 0,
     flex: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 5,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#59616C',
+    paddingTop: 4,
+    paddingHorizontal: 3,
+    paddingBottom: 3,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#3F4650',
     backgroundColor: '#181B1F',
   },
   emptyDayCell: {
     flex: 1,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#353A42',
     backgroundColor: '#22262B',
   },
@@ -232,24 +248,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     lineHeight: 18,
+    includeFontPadding: false,
     fontVariant: ['tabular-nums'],
+    textAlignVertical: 'center',
   },
-  dayDetails: { minHeight: 31, flex: 1, justifyContent: 'flex-end', gap: 3 },
+  dayDetails: {
+    minHeight: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
+    gap: 2,
+  },
   holidayLabel: {
     color: '#FF899B',
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: '700',
-    lineHeight: 10,
+    lineHeight: 9,
+    includeFontPadding: false,
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
-  emptyLabel: { height: 10 },
-  shiftBadge: {
-    minHeight: 18,
+  shiftStrip: {
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderRadius: 5,
+    marginHorizontal: -3,
+    marginBottom: -3,
+    paddingHorizontal: 2,
   },
-  shiftLabel: { fontSize: 10, fontWeight: '800', lineHeight: 13 },
+  shiftLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 11,
+    includeFontPadding: false,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
   busyCover: {
     position: 'absolute',
     top: 0,

@@ -73,6 +73,29 @@ describe('달력 이미지 공유 snapshot', () => {
     expect(createCalendarImageFileName(snapshot)).toBe('2026-08-근무표.png');
   });
 
+  it.each([4, 5, 6])('%i주 입력도 빈 칸을 채운 고정 6주 이미지로 만듭니다', (weekCount) => {
+    const model = buildAugustModel();
+    const snapshot = buildCalendarImageShareSnapshot({
+      automaticScheduleVisible: model.automaticScheduleVisible,
+      cellRows: model.cellRows.slice(0, weekCount),
+      effectiveDays: model.effectiveDays,
+      holidayDataStatus: model.holidayDataStatus,
+      holidays: model.holidays,
+      month: model.month.month,
+      year: model.month.year,
+    });
+
+    expect(snapshot.weeks).toHaveLength(6);
+    expect(snapshot.weeks.every((week) => week.length === 7)).toBe(true);
+    expect(
+      snapshot.weeks
+        .slice(weekCount)
+        .flat()
+        .every((day) => !day.inCurrentMonth && day.day === 0),
+    ).toBe(true);
+    expect(new Set(snapshot.weeks.flat().map((day) => day.dateKey)).size).toBe(42);
+  });
+
   it('자동 일정 범위 밖의 달은 공유하지 않습니다', () => {
     const model = buildCalendarMonthViewModel({
       automaticScheduleReferenceDateKey: '2026-08-24',

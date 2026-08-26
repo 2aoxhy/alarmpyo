@@ -24,12 +24,40 @@ async function createTexturedMasterFixture({ centerCutout = false, extent = 758 
   for (let offset = 3; offset < pixels.length; offset += 4) pixels[offset] = 0;
   const start = Math.floor((size - extent) / 2);
   const end = start + extent;
+  const center = size / 2;
+  const arrowThickness = Math.max(24, Math.floor(extent * 0.18));
+  const handHalfWidth = Math.max(48, Math.floor(extent * 0.2));
+  const handHalfHeight = Math.max(24, Math.floor(extent * 0.09));
+  const cutoutHalfSize = 20;
   for (let y = start; y < end; y += 1) {
     for (let x = start; x < end; x += 1) {
-      const inCutout = centerCutout
-        && x >= 462 && x < 562
-        && y >= 462 && y < 562;
-      if (!inCutout) pixels[(y * size + x) * 4 + 3] = 255;
+      const inTopArrow = y < start + arrowThickness;
+      const inBottomArrow = y >= end - arrowThickness;
+      const inHands = x >= center - handHalfWidth
+        && x < center + handHalfWidth
+        && y >= center - handHalfHeight
+        && y < center + handHalfHeight;
+      const inSymmetricArrowCutout = centerCutout
+        && x >= center - cutoutHalfSize
+        && x < center + cutoutHalfSize
+        && (
+          (y >= start + arrowThickness / 2 - cutoutHalfSize
+            && y < start + arrowThickness / 2 + cutoutHalfSize)
+          || (y >= end - arrowThickness / 2 - cutoutHalfSize
+            && y < end - arrowThickness / 2 + cutoutHalfSize)
+        );
+      const inHandCutout = centerCutout
+        && x >= center - cutoutHalfSize
+        && x < center + cutoutHalfSize
+        && y >= center - cutoutHalfSize
+        && y < center + cutoutHalfSize;
+      if (
+        (inTopArrow || inBottomArrow || inHands)
+        && !inSymmetricArrowCutout
+        && !inHandCutout
+      ) {
+        pixels[(y * size + x) * 4 + 3] = 255;
+      }
     }
   }
   return sharp(pixels, { raw: { channels: 4, height: size, width: size } })
@@ -212,7 +240,7 @@ describe('브랜드 파생 자산', () => {
         texturedMasterBytes,
         compactMasterBytes,
       ).size,
-    ).toBe(7);
+    ).toBe(9);
   });
 
   it('화살표는 180도 회전, 10시 10분 바늘은 좌우 완전 대칭이에요', async () => {
@@ -254,7 +282,7 @@ describe('브랜드 파생 자산', () => {
     expect(assets.get(BRAND_ASSET_PATHS.splash)).toBeInstanceOf(Buffer);
   });
 
-  it('질감 마스터는 스플래시와 대표 그래픽에만 영향을 줘요', async () => {
+  it('질감 마스터는 스플래시·시작 레이어와 대표 그래픽에만 영향을 줘요', async () => {
     const [compactMasterBytes, flatMasterBytes, wordmarkFontBytes, texturedA, texturedB] = await Promise.all([
       readFile(resolve(BRAND_ASSET_PATHS.compactMaster)),
       readFile(resolve(BRAND_ASSET_PATHS.master)),
@@ -276,6 +304,8 @@ describe('브랜드 파생 자산', () => {
     );
     const texturedOutputs = new Set([
       BRAND_ASSET_PATHS.splash,
+      BRAND_ASSET_PATHS.launchArrows,
+      BRAND_ASSET_PATHS.launchHands,
       BRAND_ASSET_PATHS.featureGraphic,
     ]);
 
@@ -286,6 +316,40 @@ describe('브랜드 파생 자산', () => {
         expect(bytes.equals(assetsB.get(path))).toBe(true);
       }
     }
+  });
+
+  it('시작 화면의 화살표·바늘 레이어를 합치면 기존 스플래시와 픽셀 단위로 같아요', async () => {
+    const [compactMasterBytes, flatMasterBytes, texturedMasterBytes, wordmarkFontBytes] = await Promise.all([
+      readFile(resolve(BRAND_ASSET_PATHS.compactMaster)),
+      readFile(resolve(BRAND_ASSET_PATHS.master)),
+      readFile(resolve(BRAND_ASSET_PATHS.texturedMaster)),
+      readFile(resolve(BRAND_ASSET_PATHS.wordmarkFont)),
+    ]);
+    const assets = buildBrandAssets(
+      flatMasterBytes,
+      wordmarkFontBytes,
+      texturedMasterBytes,
+      compactMasterBytes,
+    );
+    const readRgba = async (bytes) => sharp(bytes).ensureAlpha().raw().toBuffer();
+    const [splash, arrows, hands] = await Promise.all([
+      readRgba(assets.get(BRAND_ASSET_PATHS.splash)),
+      readRgba(assets.get(BRAND_ASSET_PATHS.launchArrows)),
+      readRgba(assets.get(BRAND_ASSET_PATHS.launchHands)),
+    ]);
+
+    let overlappingPixels = 0;
+    let alphaMismatches = 0;
+    for (let offset = 0; offset < splash.length; offset += 4) {
+      const arrowsAlpha = arrows[offset + 3];
+      const handsAlpha = hands[offset + 3];
+      if (arrowsAlpha > 0 && handsAlpha > 0) overlappingPixels += 1;
+      if (Math.max(arrowsAlpha, handsAlpha) !== splash[offset + 3]) {
+        alphaMismatches += 1;
+      }
+    }
+    expect(overlappingPixels).toBe(0);
+    expect(alphaMismatches).toBe(0);
   });
 
   it('질감 마스터의 크기·중심·여백 계약과 필수 입력을 검증해요', async () => {

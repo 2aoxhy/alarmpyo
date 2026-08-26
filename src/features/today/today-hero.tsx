@@ -18,6 +18,7 @@ import {
   shouldStackHeroFooter,
 } from '@/design-system';
 import type { DayExceptionType, ShiftType } from '@/models/app-data';
+import type { TodayHomeState } from '@/services/today-view-model';
 import { formatKoreanDate } from '@/utils/date';
 import { getDayExceptionLabel } from '@/utils/day-exception';
 
@@ -29,6 +30,7 @@ type TodayHeroProps = {
   footerValue: string;
   heroDetail: string;
   heroTitle: string;
+  homeState: TodayHomeState;
   largeText: boolean;
   shift: ShiftType | null;
   statusLabel: string;
@@ -42,6 +44,7 @@ export function TodayHero({
   footerValue,
   heroDetail,
   heroTitle,
+  homeState,
   largeText,
   shift,
   statusLabel,
@@ -51,7 +54,41 @@ export function TodayHero({
   const { fontScale, width } = useWindowDimensions();
   const visualRole = resolveShiftVisualRole(shift, Boolean(activeException));
   const heroTheme = resolveShiftHeroTheme(visualRole, shift?.color);
+  const statusTextColor =
+    visualRole === 'custom' ? palette.white : heroTheme.accent;
   const stackFooter = shouldStackHeroFooter(width, fontScale) || largeText;
+  const condensedLayout =
+    homeState === 'off' ||
+    homeState === 'finished' ||
+    homeState === 'empty';
+  const editButton = (
+    <Pressable
+      accessibilityHint="선택한 날짜의 근무와 시간을 수정합니다."
+      accessibilityLabel={`${formatKoreanDate(editorDateKey)} 일정 수정하기`}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={() =>
+        router.push({
+          pathname: '/day/[date]',
+          params: { date: editorDateKey },
+        })
+      }
+      style={({ pressed }) => [
+        styles.heroEdit,
+        stackFooter && styles.heroEditStacked,
+        pressed && styles.pressed,
+      ]}>
+      <AppIcon
+        accessible={false}
+        color={palette.white}
+        name="options-outline"
+        size={18}
+      />
+      <AppText color={palette.white} style={styles.heroEditLabel} variant="label">
+        일정 수정하기
+      </AppText>
+    </Pressable>
+  );
 
   return (
     <LinearGradient
@@ -61,7 +98,7 @@ export function TodayHero({
       style={[
         styles.hero,
         compact && styles.heroCompact,
-        largeText && styles.heroLargeText,
+        condensedLayout && styles.heroCondensed,
       ]}>
       <View
         pointerEvents="none"
@@ -71,7 +108,7 @@ export function TodayHero({
       <View style={styles.heroStatus}>
         <View style={[styles.statusDot, { backgroundColor: heroTheme.accent }]} />
         <AppText
-          color={palette.white}
+          color={statusTextColor}
           numberOfLines={largeText ? undefined : 1}
           variant="caption">
           {activeException
@@ -81,10 +118,15 @@ export function TodayHero({
       </View>
 
       <View style={[styles.heroCopy, compact && styles.heroCopyCompact]}>
-        <AppText accessibilityRole="header" color={palette.white} variant="display">
+        <AppText
+          accessibilityRole="header"
+          color={palette.white}
+          variant="display">
           {heroTitle}
         </AppText>
-        <AppText color={colorWithAlpha(palette.white, 0.92)}>{heroDetail}</AppText>
+        <AppText color={colorWithAlpha(palette.white, 0.92)}>
+          {heroDetail}
+        </AppText>
       </View>
 
       <View style={styles.heroFooterPanel}>
@@ -98,39 +140,16 @@ export function TodayHero({
               styles.heroFooterCopy,
               stackFooter && styles.heroFooterCopyCompact,
             ]}>
-            <AppText color={colorWithAlpha(palette.white, 0.78)} variant="caption">
+            <AppText
+              color={colorWithAlpha(palette.white, 0.78)}
+              variant="caption">
               {footerLabel}
             </AppText>
             <AppText color={palette.white} variant="heading">
               {footerValue}
             </AppText>
           </View>
-          <Pressable
-            accessibilityHint="선택한 날짜의 근무와 시간을 수정합니다."
-            accessibilityLabel={`${formatKoreanDate(editorDateKey)} 일정 수정하기`}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() =>
-              router.push({
-                pathname: '/day/[date]',
-                params: { date: editorDateKey },
-              })
-            }
-            style={({ pressed }) => [
-              styles.heroEdit,
-              stackFooter && styles.heroEditStacked,
-              pressed && styles.pressed,
-            ]}>
-            <AppIcon
-              accessible={false}
-              color={palette.white}
-              name="options-outline"
-              size={18}
-            />
-            <AppText color={palette.white} style={styles.heroEditLabel} variant="label">
-              일정 수정하기
-            </AppText>
-          </Pressable>
+          {editButton}
         </View>
       </View>
     </LinearGradient>
@@ -140,17 +159,17 @@ export function TodayHero({
 const createStyles = (_palette: AppPalette) =>
   StyleSheet.create({
     hero: {
-      minHeight: 208,
-      justifyContent: 'space-between',
+      minHeight: 188,
       overflow: 'hidden',
       borderRadius: radii.large,
       padding: spacing.large,
+      gap: spacing.small,
     },
     heroCompact: {
-      minHeight: 200,
+      minHeight: 180,
     },
-    heroLargeText: {
-      minHeight: 240,
+    heroCondensed: {
+      minHeight: 172,
     },
     heroAccent: {
       position: 'absolute',
@@ -180,16 +199,17 @@ const createStyles = (_palette: AppPalette) =>
     heroCopy: {
       position: 'relative',
       zIndex: 1,
-      maxWidth: '88%',
+      width: '100%',
       gap: spacing.tiny,
-      marginVertical: spacing.medium,
+      marginVertical: spacing.small,
     },
     heroCopyCompact: {
-      maxWidth: '100%',
+      marginVertical: spacing.tiny,
     },
     heroFooterPanel: {
       position: 'relative',
       zIndex: 1,
+      marginTop: 'auto',
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: 'rgba(255, 255, 255, 0.28)',
       paddingTop: spacing.small,

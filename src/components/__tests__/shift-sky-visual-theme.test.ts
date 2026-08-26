@@ -98,6 +98,17 @@ describe('오늘 히어로 근무 의미색 계약', () => {
     expect(substituteNight.accent).toBe('#F0C36A');
   });
 
+  it.each([
+    ['day', '#58D9BC'],
+    ['evening', '#F0C36A'],
+    ['night', '#89CEFF'],
+  ] as const)('%s 상태 의미색은 배경 양 끝에서 3:1 이상입니다', (role, color) => {
+    const theme = resolveShiftHeroTheme(role);
+    for (const background of theme.gradient) {
+      expect(contrast(color, background)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('사용자 근무색은 저장값을 바꾸지 않고 강조색으로만 사용합니다', () => {
     expect(resolveShiftHeroTheme('custom', '#12ab34')).toMatchObject({
       accent: '#12AB34',

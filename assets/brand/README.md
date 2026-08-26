@@ -25,6 +25,8 @@ Play 대표 그래픽의 `알람표` 워드마크는 저장소의 `WantedSans-Ex
 - 대표 그래픽: 1024×500, `#101214` 배경, 왼쪽 흰색 마크와 오른쪽 흰색 `알람표`
 - 평면 파생 대상: 앱·적응형·단색 아이콘, Play 아이콘
 - 질감 파생 대상: 스플래시, Play 대표 그래픽
+- 시작 전환 파생 대상: `alarmpyo-launch-arrows.png`, `alarmpyo-launch-hands.png`.
+  두 파일은 질감 스플래시와 픽셀 단위로 동일하게 합성되며 각각 따로 수정하지 않아요.
 - 소형 파생 대상: 48×48 웹 favicon
 
 Play 등록 전에는 `npm run release:verify:play-store-assets`도 실행해 크기·색상 형식과 실제 스크린샷을 확인해요.

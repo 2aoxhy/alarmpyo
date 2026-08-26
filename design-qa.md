@@ -1,57 +1,56 @@
-# V20 Design QA
+# V1.21 텍스트 전용 Today·위젯 QA
 
-## V18 Baseline Evidence
+## 적용 기준
 
-- V20은 아래 V18 실행 화면을 비교 기준으로 사용합니다. V20 최종 판정은 Play Internal 설치본의 새 스크린샷과 실기기 검증을 필요로 합니다.
-- Selected V18 source visual: `C:/Users/2aoxh/.codex/generated_images/019ff187-2bce-7f70-9a41-84c0e4483ced/exec-7faa73e9-9fad-45f3-8261-1c16865f2769.png`
-- Source normalization: `docs/design-qa/v18/source-reference-normalized-426.png`
-- Browser implementation: `docs/design-qa/v18/implementation-normalized-426.png`
-- Side-by-side comparison: `docs/design-qa/v18/comparison-setup-source-step.png`
-- Additional browser captures: `setup-source-step-320.png`, `today-390.png`, `calendar-390.png`, `timer-390.png`, `settings-390.png`, `alarm-settings-390.png`, `data-settings-390.png`
-- Reference size: 853 × 1844 px, normalized to 426 × 922 px.
-- Implementation viewport: 426 × 922 CSS px at device scale factor 1. A second setup capture used 320 × 844 CSS px.
-- Compared state: quick setup step 1, with recommended/custom pattern details collapsed and the primary next action visible.
+- Today 카드와 Android 위젯에서 주간·오후·야간·휴무 장식 그림을 모두 제거합니다.
+- 근무 역할은 기존 배경색, 상태 점·문자색, 3dp 의미선으로만 구분합니다.
+- 내비게이션과 `일정 수정하기` 같은 기능 아이콘은 유지합니다.
+- AppData, widget snapshot v2, 네이티브 API, 알람·딥링크 계약은 변경하지 않습니다.
 
-## V18 Final Comparison
+## Today 카드
 
-- No visible P0, P1, or P2 issue remains in the side-by-side comparison.
-- Typography: hierarchy is now factual and compact. The oversized assistant-style question and explanatory paragraph were intentionally replaced by a short heading, concrete example, and direct actions.
-- Spacing: the thin progress indicator, flat information rows, and fixed primary action remain legible without overlap at both tested widths. The open lower area is intentional and keeps the setup decision uncluttered.
-- Color: semantic day/night shift colors remain, while decorative pills, nested cards, and broad accent fills were reduced. Focus and action colors retain their functional meaning.
-- Imagery: no new decorative illustration was introduced. Existing product icons are used only when they clarify an action or state.
-- Copy: explanations were shortened to user actions and verifiable facts, including `주간·주간·야간·야간·휴무·휴무` and `기기 저장 · 서버 전송 없음`.
-- Console: the fresh browser session after restarting Metro had 0 errors. One React Native Web `shadow*` deprecation warning remains and does not affect behavior or layout.
-- The full 864 × 922 side-by-side image was sufficient to inspect the complete screen, labels, controls, and spacing; no additional focused-region crop was required.
+- 정보 순서는 `상태 → 근무 제목 → 근무 시간·설명 → 구분선 → 남은 시간 또는 다음 근무 → 일정 수정하기`입니다.
+- 장식 슬롯과 고정 여백을 없애 제목·설명·후속 정보가 카드 전체 폭을 사용합니다.
+- 기준 최소 높이는 일반 188dp, 좁은 화면 180dp, 휴무·완료·빈 상태 172dp입니다. 최대 높이는 고정하지 않아 큰 글자에서 내용만큼 늘어납니다.
+- 좁은 화면과 큰 글자에서는 후속 정보와 수정 버튼을 세로로 배치합니다.
+- 제목과 설명에는 줄 수 제한을 두지 않았습니다.
+- 기본 역할의 상태 문자는 역할 강조색을 사용하고, 사용자 근무는 대비가 보장되는 흰색을 사용합니다.
 
-## V20 Release Checks
+## Android 위젯
 
-- `근무표와 알람` 통합 허브와 이어서 설정하기·처음부터 흐름을 320~768dp에서 확인합니다.
-- 오늘 화면 권한 안내, 1~60분 타이머 조절, 날짜 자동 형식 변환, 패턴 삭제·복구를 TalkBack과 200% 글자에서 확인합니다.
-- 달력 PNG에는 월·날짜·요일·실제 근무·공휴일만 노출되고, 메모·알람·패턴명·사용자 정보가 없는지 실제 공유 파일로 확인합니다.
-- 하단 탭·선택 패널·고정 하단 영역의 중앙 오차가 대칭·비대칭 안전 영역에서 1dp 이하인지 확인합니다.
-- 새 화면은 `01 오늘 → 02 달력 → 03 타이머 → 04 설정` 순으로 V20 Play 설치본에서 다시 촬영합니다.
+- 4×2는 `날짜·상태 → 근무·시간 → 다음 근무·알람`의 세로 텍스트 구조입니다.
+- 4×1은 왼쪽에 근무·시간, 오른쪽에 다음 근무·알람을 표시합니다.
+- 글자 130% 이상에서는 4×1의 시간 설명만 숨기고, 180% 이상에서는 4×2도 상태·시간 설명을 숨겨 제목·날짜·다음 정보만 유지합니다.
+- 4×2의 큰 글자 상태에서는 내부 세로 여백을 줄여 110dp 최소 높이에서도 핵심 세 줄이 잘리지 않게 합니다.
+- 150~179%에서는 네 정보를 모두 유지하면서 표시 기준을 10~13sp로 조정합니다. 실제 화면 크기는 15~23dp이며, 180%부터는 핵심 세 줄만 유지합니다.
+- 주간·오후·야간·휴무·특별 일정은 배경과 의미선으로 구분합니다. 주간·야간 대체근무는 해당 배경을 유지하고 호박색 의미선을 사용합니다.
+- RemoteViews의 역할 `ImageView`, 이미지 설정 호출, Today·네이티브 역할 PNG를 제거했습니다.
+- 위젯 루트가 실제 일정 전체를 한 번만 읽고 내부 텍스트가 중복 초점을 만들지 않도록 자식 접근성 노출을 차단했습니다.
+- 사용자 근무는 의미선에 저장 색상을 유지하되, 상태 문자는 흰색으로 표시해 4.5:1 문자 대비를 보장합니다.
 
-## Previous Interaction and Responsive Checks
+## 자동 검증
 
-- Verified step 1 → today-work step → alarm-readiness step, then back navigation to step 1.
-- No settings were saved during visual QA, so the existing user configuration was not modified.
-- Verified the 320 × 844 setup view: no horizontal clipping, truncated copy, or covered bottom action.
-- Verified Today, Calendar, Timer, Settings, Alarm Settings, and Data Settings at 390dp browser width after the shared flat-row redesign.
-- Physical Samsung checks, Android native alarm/keypad rendering, and 200% device-font validation remain release-gate checks rather than browser claims.
+- Today 텍스트 계층·압축 높이·큰 글자 footer 배치 계약
+- 4×2·4×1 RemoteViews ID와 크기별 가시성 분기 계약
+- 주간·오후·야간·휴무·대체근무·특별 일정의 의미색 매핑
+- 장식 이미지 코드·리소스 참조 부재
+- widget snapshot v2 유지와 대체근무 알람 역할 보존
+- XML 파싱, Android 리소스 컴파일, Kotlin formatter 단위 테스트
+- TypeScript, ESLint, 전체 Vitest 회귀 검사
 
-## Comparison History
+검증 결과:
 
-1. The earlier screen used a decorative three-part stepper, a large assistant-like question, long guidance copy, repeated badges, and nested cards.
-2. The setup flow was changed to one compact progress line, direct choices, an always-visible factual example, and a single bottom action.
-3. Shared settings components were flattened into divider-based rows with small semantic rails only where status needs emphasis.
-4. Today retained useful shift color but removed atmospheric decoration and repeated callouts. Timer, alarm, and data screens now use shorter operational wording.
-5. The final post-fix side-by-side comparison confirms the intentional utility-first result while preserving the selected flow and all required actions.
+- 사용자 문구·공식 패턴 검증, TypeScript, ESLint 통과
+- 관련 Today·위젯 계약 53개 통과
+- 전체 Vitest 213개 파일·1,598개 테스트 통과(`testTimeout=15000`)
+- 기본 5초 실행에서 병렬 네이티브 빌드 중 서명 테스트 1건이 시간 초과했으나, 해당 파일 5개 테스트를 15초 기준으로 다시 실행해 모두 통과
+- JDK 17 Android 네이티브 단위 테스트 191개, 리소스 컴파일, 병합 Manifest 통과(`BUILD SUCCESSFUL`)
+- `git diff --check` 통과
 
-## Remaining P3 Release Checks
+## 남은 실기기 확인
 
-- Confirm 140–200% Android font scaling and native full-screen alarm rendering on a Samsung device.
-- Recapture final Play Store screenshots from the verified V20 installation.
-- Remove the React Native Web shadow deprecation warning during a later compatibility cleanup.
+- One UI 런처에서 4×2·4×1 크기 변경과 130·180·200% 글자 배율의 실제 줄바꿈을 확인합니다.
+- TalkBack이 위젯의 날짜·상태·근무·다음 정보를 한 번만 읽는지 확인합니다.
+- 이 확인은 AAB·업로드·배포 없이 개발 빌드에서 수행합니다.
 
-V18 baseline result: passed
-V20 release result: pending Internal-device verification
+final result: automated checks passed

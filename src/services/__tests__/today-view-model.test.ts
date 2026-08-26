@@ -138,6 +138,44 @@ describe('오늘 화면 계산 모델', () => {
     expect(resolveCount).toBeLessThan(30);
   });
 
+  it('휴무일은 다음 근무를 카드 하단에 표시합니다', () => {
+    const model = buildTodayViewModel({
+      data,
+      now: new Date(2026, 6, 31, 12, 0),
+      resolveShift: (dateKey) =>
+        dateKey === '2026-07-31' ? offShift : dayShift,
+      alarmPlanSummary: { plannedAlarmCount: 0 },
+      alarmStatus: null,
+      alarmStatusError: false,
+      alarmPlatformSupported: true,
+      compactHome: true,
+    });
+
+    expect(model.homeState).toBe('off');
+    expect(model.heroTitle).toBe('휴무');
+    expect(model.heroDetail).toBe('근무 없음');
+    expect(model.footerLabel).toBe('다음 근무: 주간');
+    expect(model.footerValue).toBe('8월 1일 · 07:00');
+  });
+
+  it('조회 범위 안에 다음 근무가 없는 휴무일은 짧은 빈 상태를 표시합니다', () => {
+    const model = buildTodayViewModel({
+      data,
+      now: new Date(2026, 6, 31, 12, 0),
+      resolveShift: (dateKey) =>
+        dateKey === '2026-07-31' ? offShift : null,
+      alarmPlanSummary: { plannedAlarmCount: 0 },
+      alarmStatus: null,
+      alarmStatusError: false,
+      alarmPlatformSupported: true,
+      compactHome: false,
+    });
+
+    expect(model.homeState).toBe('off');
+    expect(model.footerLabel).toBe('다음 근무');
+    expect(model.footerValue).toBe('예정된 근무 없음');
+  });
+
   it('수면 알림 손상이 있으면 예약 수가 맞아도 준비됨과 동시에 표시하지 않아요', () => {
     const enabledData: AppData = {
       ...data,
