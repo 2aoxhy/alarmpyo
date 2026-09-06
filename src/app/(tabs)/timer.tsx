@@ -50,6 +50,7 @@ import {
 } from '@/features/timer/quick-timer-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
 import { QuickTimerDurationStepper } from '@/features/timer/quick-timer-duration-stepper';
+import { QuickTimerPresets } from '@/features/timer/quick-timer-presets';
 import {
   createQuickTimerObservationSession,
   type TimerObservationRevision,
@@ -73,12 +74,6 @@ export default function TimerScreen() {
   const screenActive = useScreenActive();
   const stackActions = shouldStackQuickTimerActions(width, fontScale);
   const presetColumns = resolveQuickTimerPresetColumns(width, fontScale);
-  const presetButtonStyle =
-    presetColumns === 1
-      ? styles.presetButtonFull
-      : presetColumns === 2
-        ? styles.presetButtonHalf
-        : styles.presetButtonQuarter;
   const countdownFontSize = resolveQuickTimerCountdownSize(width, fontScale);
   const [status, setStatus] = useState<QuickTimerStatus | null>(null);
   const [countdownAnchor, setCountdownAnchor] =
@@ -464,15 +459,10 @@ export default function TimerScreen() {
     !hasTimer &&
     status.state !== 'error' &&
     status.storageHealth !== 'corrupt';
-  const schedulingCustomDuration =
-    schedulingDuration !== null &&
-    !quickTimerController.durations.some(
-      (durationMinutes) => durationMinutes === schedulingDuration,
-    );
 
   return (
     <>
-    <Screen contentStyle={styles.screenContent}>
+    <Screen contentStyle={styles.screenContent} removeClippedSubviews={false}>
       <PageHeader
         align="center"
         subtitle="15·30·45분 · 직접 입력"
@@ -570,34 +560,15 @@ export default function TimerScreen() {
               <AppText tone="secondary" variant="label">
                 다른 시간으로 변경
               </AppText>
-              <View style={styles.presetButtons}>
-                {quickTimerController.durations.map((durationMinutes) => (
-                  <Button
-                    accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 변경합니다.`}
-                    accessibilityLabel={`${durationMinutes}분 타이머로 변경`}
-                    disabled={busyAction !== null}
-                    icon="timer-outline"
-                    key={durationMinutes}
-                    label={`${durationMinutes}분`}
-                    loading={schedulingDuration === durationMinutes}
-                    onPress={() => selectDuration(durationMinutes, Date.now())}
-                    style={[styles.presetButton, presetButtonStyle]}
-                    variant="ghost"
-                  />
-                ))}
-                <Button
-                  accessibilityHint="1분부터 60분까지 입력해 현재 타이머를 변경합니다."
-                  accessibilityLabel="타이머 시간 직접 입력"
-                  disabled={busyAction !== null}
-                  icon="time-outline"
-                  label="직접 입력"
-                  loading={schedulingCustomDuration}
-                  onPress={openCustomDuration}
-                  elementRef={directInputButtonRef}
-                  style={[styles.presetButton, presetButtonStyle]}
-                  variant="ghost"
-                />
-              </View>
+              <QuickTimerPresets
+                columns={presetColumns}
+                disabled={busyAction !== null}
+                directInputButtonRef={directInputButtonRef}
+                onDirectInput={openCustomDuration}
+                onSelectDuration={(durationMinutes) => selectDuration(durationMinutes, Date.now())}
+                replacingTimer
+                schedulingDuration={schedulingDuration}
+              />
             </View>
           ) : null}
         </Surface>
@@ -611,32 +582,15 @@ export default function TimerScreen() {
               한 번에 1개만 실행
             </AppText>
           </View>
-          <View style={styles.presetButtons}>
-            {quickTimerController.durations.map((durationMinutes) => (
-              <Button
-                accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울립니다.`}
-                accessibilityLabel={`${durationMinutes}분 타이머 시작`}
-                disabled={busyAction !== null || status.state === 'action-required'}
-                icon="timer-outline"
-                key={durationMinutes}
-                label={`${durationMinutes}분`}
-                loading={schedulingDuration === durationMinutes}
-                onPress={() => selectDuration(durationMinutes, Date.now())}
-                style={[styles.presetButton, presetButtonStyle]}
-              />
-            ))}
-            <Button
-              accessibilityHint="1분부터 60분까지 타이머 시간을 입력합니다."
-              accessibilityLabel="타이머 시간 직접 입력"
-              disabled={busyAction !== null || status.state === 'action-required'}
-              icon="time-outline"
-              label="직접 입력"
-              loading={schedulingCustomDuration}
-              onPress={openCustomDuration}
-              elementRef={directInputButtonRef}
-              style={[styles.presetButton, presetButtonStyle]}
-            />
-          </View>
+          <QuickTimerPresets
+            columns={presetColumns}
+            disabled={busyAction !== null || status.state === 'action-required'}
+            directInputButtonRef={directInputButtonRef}
+            onDirectInput={openCustomDuration}
+            onSelectDuration={(durationMinutes) => selectDuration(durationMinutes, Date.now())}
+            replacingTimer={false}
+            schedulingDuration={schedulingDuration}
+          />
         </Surface>
       ) : null}
 
@@ -701,11 +655,6 @@ function createStyles(palette: AppPalette) {
       borderTopColor: palette.line,
     },
     idleCopy: { alignItems: 'center', gap: space.sm },
-    presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-    presetButton: { minHeight: 64 },
-    presetButtonFull: { width: '100%' },
-    presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
-    presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },
     infoRow: {
       minHeight: 48,
       flexDirection: 'row',

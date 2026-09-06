@@ -18,16 +18,27 @@ internal data class AlarmPyoWidgetPresentation(
   val nextMaxLines: Int
 )
 
-/** Layout decisions use the space reported by the launcher, not its cell label. */
+/** Standard dimensions plus an optional validated launcher grid hint. */
 internal object AlarmPyoWidgetPresentationPolicy {
   fun resolve(
     state: AlarmPyoWidgetViewState,
     minHeightDp: Int,
     minWidthDp: Int,
     fontScale: Float
+  ): AlarmPyoWidgetPresentation = resolve(
+    state,
+    AlarmPyoWidgetSizePolicy.geometry(minHeightDp = minHeightDp, minWidthDp = minWidthDp),
+    fontScale
+  )
+
+  fun resolve(
+    state: AlarmPyoWidgetViewState,
+    geometry: AlarmPyoWidgetGeometry,
+    fontScale: Float
   ): AlarmPyoWidgetPresentation {
-    val height = minHeightDp.coerceAtLeast(AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP)
-    val mode = AlarmPyoWidgetSizePolicy.heightMode(height)
+    val height = geometry.minHeightDp
+    val minWidthDp = geometry.minWidthDp
+    val mode = AlarmPyoWidgetSizePolicy.heightMode(geometry)
     val compact = mode == AlarmPyoWidgetHeightMode.MINIMUM
     val scale = fontScale.takeIf { it.isFinite() && it > 0f } ?: 1f
     val largeText = scale >= 1.3f

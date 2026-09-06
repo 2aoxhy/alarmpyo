@@ -231,6 +231,35 @@ describe('AppStoreEngine integrated persistence and lifecycle', () => {
     expect(h.engine.getSnapshot().alarmSyncStatus).toBe('error');
   });
 
+  it('still commits an explicit alarm OFF command when automatic work is backgrounded', async () => {
+    const data = initialData();
+    data.settings.notificationsEnabled = true;
+    const h = await start(data);
+    h.engine.updateLifecycle({ active: false, transitionId: 0 });
+    await h.engine.commands.disableAlarms();
+    expect(h.events.indexOf(`write:${APP_DATA_STORAGE_KEY}`)).toBeLessThan(
+      h.events.indexOf('alarms:cancel-all'),
+    );
+    expect(h.engine.getSnapshot().data.settings.notificationsEnabled).toBe(false);
+    expect(JSON.parse(h.values.get(APP_DATA_STORAGE_KEY)!).settings.notificationsEnabled).toBe(false);
+  });
+
+  it('defers boot alarm observation while inactive and resumes one automatic observation', async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    engines.push(h.engine);
+    const readStatus = vi.spyOn(h.runtime, 'readAlarmStatus');
+    h.engine.updateLifecycle({ active: false, transitionId: 0 });
+    await h.engine.start();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(readStatus).not.toHaveBeenCalled();
+    h.engine.updateLifecycle({ active: true, transitionId: 1 });
+    await vi.advanceTimersByTimeAsync(550);
+    expect(readStatus).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(readStatus).toHaveBeenCalledTimes(1);
+  });
+
   it('serializes rapid edits and retains the last edit after background flush and restart', async () => {
     const h = await start();
     await Promise.all(

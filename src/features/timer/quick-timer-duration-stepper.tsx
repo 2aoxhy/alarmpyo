@@ -641,10 +641,11 @@ export function QuickTimerDurationStepper({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
+          removeClippedSubviews={false}
           showsVerticalScrollIndicator={false}
           style={styles.body}>
         <View style={styles.content}>
-          <View testID="quick-timer-duration-range">
+          <View collapsable={false} testID="quick-timer-duration-range">
             <AppText tone="secondary" style={styles.centerText} variant="body">
               1분부터 60분까지
             </AppText>
@@ -700,6 +701,7 @@ export function QuickTimerDurationStepper({
               onScrollEndDrag={scheduleDragSettle}
               overScrollMode="never"
               pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}
+              removeClippedSubviews={false}
               scrollEnabled={!busy && entryMode === 'wheel'}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={false}
@@ -854,6 +856,7 @@ export function QuickTimerDurationStepper({
           </View>
           <View
             accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}
+            collapsable={false}
             style={styles.inputHintContainer}
             testID="quick-timer-duration-help">
             <AppText

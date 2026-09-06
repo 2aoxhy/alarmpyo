@@ -144,16 +144,9 @@ internal object AlarmPyoShiftWidgetUpdater {
     val fontScale = context.resources.configuration.fontScale
     ids.forEach { widgetId ->
       val options = manager.getAppWidgetOptions(widgetId)
-      val minHeightDp = options.getInt(
-        AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP
-      )
-      val minWidthDp = options.getInt(
-        AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_WIDTH_DP
-      )
+      val geometry = AlarmPyoWidgetOptions.geometry(options)
       val presentation = AlarmPyoWidgetPresentationPolicy.resolve(
-        state, minHeightDp, minWidthDp, fontScale
+        state, geometry, fontScale
       )
       val views = createRemoteViews(context, state, presentation)
       views.setOnClickPendingIntent(R.id.alarmpyo_widget_root, openAppIntent(context))

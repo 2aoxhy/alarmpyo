@@ -2,6 +2,7 @@ import {
   isQuickTimerDuration,
   QUICK_TIMER_MAX_DURATION_MINUTES,
   QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
   type QuickTimerDuration,
 } from '../../models/quick-timer';
 
@@ -25,6 +26,18 @@ export type QuickTimerCountdownAnchor = {
 };
 
 export type QuickTimerPresetColumns = 1 | 2 | 4;
+export type QuickTimerPreset = (typeof QUICK_TIMER_PRESET_DURATIONS)[number] | 'custom';
+
+export function getQuickTimerPresetRows(
+  columns: QuickTimerPresetColumns,
+): readonly (readonly QuickTimerPreset[])[] {
+  const options: QuickTimerPreset[] = [...QUICK_TIMER_PRESET_DURATIONS, 'custom'];
+  const rows: QuickTimerPreset[][] = [];
+  for (let index = 0; index < options.length; index += columns) {
+    rows.push(options.slice(index, index + columns));
+  }
+  return rows;
+}
 
 export type QuickTimerDurationInputResult =
   | { valid: true; durationMinutes: QuickTimerDuration }

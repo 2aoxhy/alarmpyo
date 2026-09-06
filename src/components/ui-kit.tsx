@@ -120,6 +120,7 @@ export function Screen({
   maxContentWidth = 600,
   safeAreaEdges = DEFAULT_SCREEN_SAFE_AREA_EDGES,
   showsVerticalScrollIndicator = Platform.OS !== 'web',
+  removeClippedSubviews,
 }: PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
@@ -129,6 +130,7 @@ export function Screen({
   maxContentWidth?: number;
   safeAreaEdges?: readonly Edge[];
   showsVerticalScrollIndicator?: boolean;
+  removeClippedSubviews?: boolean;
 }>) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -205,6 +207,7 @@ export function Screen({
             contentContainerStyle={styles.scrollContent}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={removeClippedSubviews}
             showsVerticalScrollIndicator={showsVerticalScrollIndicator}>
             {content}
           </ScrollView>

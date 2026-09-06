@@ -10,6 +10,7 @@ import {
   getQuickTimerDurationStepperPresentation,
   getQuickTimerRemainingLabel,
   getQuickTimerRemainingMillis,
+  getQuickTimerPresetRows,
   getQuickTimerTargetAt,
   isQuickTimerScheduleConfirmed,
   parseQuickTimerDurationInput,
@@ -265,6 +266,15 @@ describe('빠른 타이머 화면 모델', () => {
     expect(resolveQuickTimerPresetColumns(500, 1)).toBe(4);
     expect(resolveQuickTimerPresetColumns(768, 1.3)).toBe(4);
     expect(resolveQuickTimerPresetColumns(768, 1.4)).toBe(1);
+  });
+
+  it.each([
+    [1, [[15], [30], [45], ['custom']]],
+    [2, [[15, 30], [45, 'custom']]],
+    [4, [[15, 30, 45, 'custom']]],
+  ] as const)('%i열 프리셋은 모든 선택지를 정확히 한 번씩 명시적 행에 배치합니다', (columns, rows) => {
+    expect(getQuickTimerPresetRows(columns)).toEqual(rows);
+    expect(getQuickTimerPresetRows(columns).flat()).toEqual([15, 30, 45, 'custom']);
   });
 
   it('320dp의 200% 글자에서도 카운트다운 숫자가 한 줄에 들어와요', () => {

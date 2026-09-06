@@ -18,6 +18,8 @@ export class AppStoreLifecycleCoordinator {
   private previouslyReady = false;
   private previousAlarmSignature: string | null = null;
   private alarmTimer: ReturnType<typeof setTimeout> | null = null;
+  private alarmSyncPending = false;
+  private lifecycleRevision = 0;
 
   constructor(
     private readonly context: AppStoreEngineContext,
@@ -31,24 +33,28 @@ export class AppStoreLifecycleCoordinator {
 
   stop(): void {
     this.enabled = false;
+    this.lifecycleRevision += 1;
     this.previouslyReady = false;
     this.previousData = null;
     this.previousAlarmSignature = null;
+    this.alarmSyncPending = false;
     this.clearAutomaticTimer();
-    if (this.alarmTimer !== null) clearTimeout(this.alarmTimer);
-    this.alarmTimer = null;
+    this.clearAlarmTimer();
   }
 
   update(next: AppStoreLifecycle): void {
-    const resumed = next.active && next.transitionId > this.lifecycle.transitionId;
+    const resumed = next.active && (
+      !this.lifecycle.active || next.transitionId > this.lifecycle.transitionId
+    );
     const backgrounded = !next.active && this.lifecycle.active;
     this.lifecycle = next;
+    if (resumed || backgrounded) this.lifecycleRevision += 1;
+    if (backgrounded) this.clearAlarmTimer();
     if (!this.enabled || !this.context.readyRef.current) return;
     if (backgrounded) this.flush();
     if (resumed) {
-      void this.context.mutationCoordinator.run(() =>
-        this.operations.syncSleepRemindersForSnapshot(this.context.dataRef.current),
-      );
+      this.scheduleSleepReconciliation();
+      this.schedulePendingAlarmSync();
     }
   }
 
@@ -61,29 +67,57 @@ export class AppStoreLifecycleCoordinator {
     this.previousData = snapshot.data;
     if (!snapshot.ready) return;
     if (becameReady) {
-      void this.context.mutationCoordinator.run(() =>
-        this.operations.syncSleepRemindersForSnapshot(this.context.dataRef.current),
-      );
+      this.scheduleSleepReconciliation();
     }
     if (becameReady || dataChanged) {
       this.scheduleAutomaticSave(snapshot);
       const signature = getAlarmScheduleSignature(snapshot.data);
       if (signature !== this.previousAlarmSignature || becameReady) {
         this.previousAlarmSignature = signature;
-        if (this.alarmTimer !== null) clearTimeout(this.alarmTimer);
-        this.alarmTimer = setTimeout(() => {
-          this.alarmTimer = null;
-          if (!this.enabled || !this.context.readyRef.current) return;
-          const currentSignature = getAlarmScheduleSignature(this.context.dataRef.current);
-          if (
-            this.context.lastAlarmSyncSignatureRef.current === currentSignature &&
-            this.context.failedAlarmSyncSignatureRef.current !== currentSignature
-          )
-            return;
-          void this.operations.resyncAlarms();
-        }, 500);
+        this.alarmSyncPending = true;
+        this.schedulePendingAlarmSync();
       }
     }
+  }
+
+  private scheduleSleepReconciliation(): void {
+    if (!this.enabled || !this.lifecycle.active || !this.context.readyRef.current) return;
+    const revision = this.lifecycleRevision;
+    void this.context.mutationCoordinator.run(async () => {
+      // A foreground refresh may still be waiting behind a durable save when
+      // the app backgrounds or restarts. Do not run that stale automatic work.
+      if (
+        !this.enabled || !this.lifecycle.active || !this.context.readyRef.current ||
+        revision !== this.lifecycleRevision
+      ) return false;
+      return this.operations.syncSleepRemindersForSnapshot(this.context.dataRef.current);
+    });
+  }
+
+  private clearAlarmTimer(): void {
+    if (this.alarmTimer !== null) clearTimeout(this.alarmTimer);
+    this.alarmTimer = null;
+  }
+
+  private schedulePendingAlarmSync(): void {
+    this.clearAlarmTimer();
+    if (
+      !this.alarmSyncPending || !this.enabled ||
+      !this.lifecycle.active || !this.context.readyRef.current
+    ) return;
+    this.alarmTimer = setTimeout(() => {
+      this.alarmTimer = null;
+      if (!this.enabled || !this.lifecycle.active || !this.context.readyRef.current) return;
+      this.alarmSyncPending = false;
+      const currentSignature = getAlarmScheduleSignature(this.context.dataRef.current);
+      if (
+        this.context.lastAlarmSyncSignatureRef.current === currentSignature &&
+        this.context.failedAlarmSyncSignatureRef.current !== currentSignature
+      ) return;
+      // Only the delayed automatic check is deferred. Explicit save/OFF/retry
+      // commands and native alarms already registered with Android stay intact.
+      void this.operations.resyncAlarms();
+    }, 500);
   }
 
   private clearAutomaticTimer(): void {

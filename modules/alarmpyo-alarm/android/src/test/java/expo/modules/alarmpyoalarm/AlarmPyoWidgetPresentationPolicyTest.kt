@@ -117,6 +117,58 @@ class AlarmPyoWidgetPresentationPolicyTest {
     assertEquals(resolve(state(), 56), resolve(state(), 56, scale = Float.NaN))
   }
 
+  @Test
+  fun `Samsung measured four by one applies compact hierarchy at 115 percent`() {
+    val geometry = AlarmPyoWidgetSizePolicy.geometry(
+      sizes = listOf(AlarmPyoWidgetReportedSize(401.07f, 100.27f)),
+      rowSpan = 1, columnSpan = 4
+    )
+    val compact = AlarmPyoWidgetPresentationPolicy.resolve(state(), geometry, 1.15f)
+    assertEquals(AlarmPyoWidgetHeightMode.MINIMUM, compact.heightMode)
+    assertFalse(compact.showDate)
+    assertFalse(compact.showStatus)
+    assertTrue(compact.showSchedule)
+    assertNotNull(compact.nextSection)
+    assertNull(compact.alarmSection)
+  }
+
+  @Test
+  fun `One UI compact layout retains next work and hides time for large text`() {
+    val geometry = AlarmPyoWidgetSizePolicy.geometry(
+      minHeightDp = 100, minWidthDp = 401, rowSpan = 1, columnSpan = 4
+    )
+    for (scale in listOf(1.3f, 1.4f, 1.8f, 2f)) {
+      val compact = AlarmPyoWidgetPresentationPolicy.resolve(state(), geometry, scale)
+      assertEquals(AlarmPyoWidgetHeightMode.MINIMUM, compact.heightMode)
+      assertFalse(compact.showSchedule)
+      assertFalse(compact.showDate)
+      assertFalse(compact.showStatus)
+      assertNotNull(compact.nextSection)
+      assertNull(compact.alarmSection)
+      assertEquals(2, compact.nextMaxLines)
+    }
+  }
+
+  @Test
+  fun `One UI expanded hierarchy still adapts to available height and font scale`() {
+    val geometry = AlarmPyoWidgetSizePolicy.geometry(
+      minHeightDp = 216, minWidthDp = 401, rowSpan = 2, columnSpan = 4
+    )
+    val normal = AlarmPyoWidgetPresentationPolicy.resolve(state(), geometry, 1.15f)
+    assertEquals(AlarmPyoWidgetHeightMode.MEDIUM, normal.heightMode)
+    assertNotNull(normal.alarmSection)
+    assertTrue(normal.showDate)
+    assertTrue(normal.showStatus)
+    assertTrue(normal.showSchedule)
+    val large = AlarmPyoWidgetPresentationPolicy.resolve(state(), geometry, 2f)
+    assertEquals(AlarmPyoWidgetHeightMode.MEDIUM, large.heightMode)
+    assertNotNull(large.nextSection)
+    assertNull(large.alarmSection)
+    assertTrue(large.showDate)
+    assertFalse(large.showStatus)
+    assertFalse(large.showSchedule)
+  }
+
   private fun resolve(
     state: AlarmPyoWidgetViewState,
     height: Int,

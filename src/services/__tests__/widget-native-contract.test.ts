@@ -203,13 +203,18 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     const sizePolicySource = readSource(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetSizePolicy.kt',
     );
+    const optionsSource = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetOptions.kt',
+    );
 
     expect(widgetInfo).toContain('android:minHeight="56dp"');
     expect(widgetInfo).toContain('android:minResizeHeight="56dp"');
     expect(providerSource).toContain('onAppWidgetOptionsChanged');
-    expect(providerSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT');
+    expect(optionsSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT');
     expect(providerSource).toContain('manager.getAppWidgetOptions(widgetId)');
-    expect(providerSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH');
+    expect(providerSource).toContain('AlarmPyoWidgetOptions.geometry(options)');
+    expect(providerSource).toContain('state, geometry, fontScale');
+    expect(optionsSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH');
     expect(providerSource).toContain('presentation.nextSection');
     expect(providerSource).toContain('presentation.alarmSection');
     expect(providerSource).toContain('R.layout.alarmpyo_shift_widget_compact');
@@ -218,6 +223,27 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(providerSource).toContain('R.id.alarmpyo_widget_status');
     expect(sizePolicySource).toContain('DEFAULT_MIN_HEIGHT_DP = 56');
     expect(sizePolicySource).toContain('MEDIUM_HEIGHT_MIN_DP = 96');
+  });
+
+  it('One UI 1행 정보와 Android 12 크기 목록을 안전하게 읽고 런처 기본값을 보존해요', () => {
+    const optionsSource = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetOptions.kt',
+    );
+    const sizePolicySource = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetSizePolicy.kt',
+    );
+    expect(optionsSource).toContain('"semAppWidgetRowSpan"');
+    expect(optionsSource).toContain('"semAppWidgetColumnSpan"');
+    expect(optionsSource).toContain('Build.VERSION.SDK_INT < Build.VERSION_CODES.S');
+    expect(optionsSource).toContain('options.getParcelableArrayList<SizeF>(');
+    expect(optionsSource).toContain('sizes.filterIsInstance<SizeF>()');
+    expect(optionsSource).toContain('AppWidgetManager.OPTION_APPWIDGET_SIZES');
+    expect(optionsSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT');
+    expect(optionsSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH');
+    expect(optionsSource).toContain('getOrDefault(emptyList())');
+    expect(sizePolicySource).toContain('geometry.rowSpan == 1');
+    expect(sizePolicySource).toContain('heightMode(geometry.minHeightDp)');
+    expect(sizePolicySource).toContain('validDimension(it.widthDp) && validDimension(it.heightDp)');
   });
 
   it('다크그레이 위젯의 글자와 조작 경계 대비를 유지해요', () => {

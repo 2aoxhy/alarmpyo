@@ -15,6 +15,7 @@ describe('빠른 타이머 화면 계약', () => {
   const stepper = source('src/features/timer/quick-timer-duration-stepper.tsx');
   const controller = source('src/features/timer/quick-timer-controller.ts');
   const countdown = source('src/features/timer/quick-timer-countdown.tsx');
+  const presets = source('src/features/timer/quick-timer-presets.tsx');
   const settings = source('src/components/settings-home.tsx');
 
   it('하단 메뉴를 오늘·달력·타이머·설정 순서로 표시해요', () => {
@@ -33,15 +34,15 @@ describe('빠른 타이머 화면 계약', () => {
   });
 
   it('15분·30분·45분·직접 입력을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
-    expect(timer).toContain('quickTimerController.durations.map');
+    expect(timer.match(/<QuickTimerPresets/g)).toHaveLength(2);
     expect(controller).toContain('QUICK_TIMER_DURATIONS');
-    expect(timer).toContain('label="직접 입력"');
+    expect(presets).toContain('label="직접 입력"');
     expect(timer).toContain('<QuickTimerDurationStepper');
     expect(timer).toContain('onSubmit={submitCustomDuration}');
     expect(timer).not.toContain('label="60분"');
     expect(timer).toContain('한 번에 1개만 실행');
     expect(timer).toContain('`${durationMinutes}분으로 변경`');
-    expect(timer).toContain('현재 타이머를 취소하고');
+    expect(presets).toContain('현재 타이머를 취소하고');
   });
 
   it('실행 중에는 일시정지·초기화, 일시정지 중에는 재개를 제공합니다', () => {
@@ -112,17 +113,26 @@ describe('빠른 타이머 화면 계약', () => {
   it('프리셋은 화면 폭과 글자 크기에 따라 1·2·4열로 재배치해요', () => {
     expect(timer).toContain('shouldStackQuickTimerActions(width, fontScale)');
     expect(timer).toContain('resolveQuickTimerPresetColumns(width, fontScale)');
-    expect(timer).toContain('styles.presetButtonFull');
-    expect(timer).toContain('styles.presetButtonHalf');
-    expect(timer).toContain('styles.presetButtonQuarter');
-    expect(timer).toContain("flexWrap: 'wrap'");
-    expect(timer).toContain('minHeight: 64');
-    expect(timer).toContain('elementRef={directInputButtonRef}');
+    expect(presets).toContain('getQuickTimerPresetRows(columns)');
+    expect(presets).toContain('rows.map');
+    expect(presets).not.toContain("flexWrap: 'wrap'");
+    expect(presets).toContain('minHeight: 64');
+    expect(presets).toContain('elementRef={directInputButtonRef}');
     expect(timer).toContain('restoreDirectInputFocus');
     expect(timer).toContain('customDurationInitialMinutes');
     expect(timer).not.toContain('key={`${customDurationOpen}');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
+  });
+
+  it('상태 전환과 숫자 입력 중에도 프리셋·도움말 native 경계를 유지하고 clipping을 끕니다', () => {
+    expect(timer).toContain('removeClippedSubviews={false}');
+    expect(presets.match(/collapsable=\{false\}/g)).toHaveLength(2);
+    expect(presets).toContain('testID="quick-timer-presets"');
+    expect(presets).not.toContain('setInterval');
+    expect(stepper.match(/removeClippedSubviews=\{false\}/g)).toHaveLength(2);
+    expect(stepper).toContain('<View collapsable={false} testID="quick-timer-duration-range">');
+    expect(stepper).toMatch(/collapsable=\{false\}\s+style=\{styles.inputHintContainer\}/);
   });
 
   it('직접 입력은 부드러운 1~60분 휠과 중앙 숫자 입력을 함께 제공해요', () => {
