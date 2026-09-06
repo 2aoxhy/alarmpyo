@@ -324,7 +324,7 @@ describe('Play AAB 하드닝', () => {
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");
   });
 
-  it('V1.22는 V1.21 계보 다음에 AAB 한 번으로 Internal과 Alpha를 이어갑니다', () => {
+  it('V1.23은 V1.22 뒤의 AAB 후보이며 업로드·승격을 별도 승인으로 남깁니다', () => {
     const app = JSON.parse(source('app.json')).expo;
     const pkg = JSON.parse(source('package.json'));
     const runbook = source('docs/google-play-release-runbook-ko.md');
@@ -337,38 +337,45 @@ describe('Play AAB 하드닝', () => {
       source('assets/play-store/phone-screenshots/manifest.json'),
     );
 
-    expect(pkg.version).toBe('1.22.0');
+    expect(pkg.version).toBe('1.23.0');
     expect(app).toMatchObject({
-      version: '1.22',
-      android: { versionCode: 22 },
-      ios: { buildNumber: '22' },
+      version: '1.23',
+      android: { versionCode: 23 },
+      ios: { buildNumber: '23' },
     });
     expect(evidenceExample).toMatchObject({
-      versionName: '1.22',
-      versionCode: 22,
-      highestPreviouslyDistributedVersionCode: 21,
-      highestExistingPlayVersionCode: 21,
+      versionName: '1.23',
+      versionCode: 23,
+      highestPreviouslyDistributedVersionCode: 22,
+      highestExistingPlayVersionCode: 22,
     });
     expect(screenshotManifest).toMatchObject({
-      release: 'V1.22',
+      release: 'V1.23',
       status: 'recapture-required',
     });
 
     expect(runbook).toContain(
-      'Play Internal과 Alpha에 활성화된 V1.21의 `versionCode: 21`이 현재 확인한 Play 계보의 기준값입니다.',
+      '현재 Play Internal은 V1.22의 `versionCode: 22`, Alpha는 V1.21의 `versionCode: 21`이 활성 상태입니다.',
     );
     expect(runbook).toContain(
-      '확인한 최고값이 `22` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.',
+      '확인한 최고값이 `23` 이상이면 생성·업로드를 중단하며 자동 증분하지 않습니다.',
     );
     expect(runbook).toContain(
-      'Play Console 번들 라이브러리에서 **같은 versionCode 22 번들**을 Alpha로 승격합니다.',
+      'Play Console 번들 라이브러리에서 **같은 versionCode 23 번들**을 Alpha로 승격합니다.',
     );
     expect(runbook).toContain('AAB를 다시 업로드하지 않습니다.');
+    expect(runbook).toContain('--output .release/play/v123-verified-release-evidence.json');
     expect(releaseNotes).toContain(
-      'V1.22는 `versionCode 22` AAB를 한 번만 빌드해 Internal에서 검증한 뒤 Play Console 번들 라이브러리의 같은 번들을 Alpha로 승격합니다.',
+      'V1.23은 `versionCode 23` AAB 생성·검증까지만 승인된 후보입니다.',
+    );
+    expect(releaseNotes).toContain(
+      'Play 업로드·Internal 출시·Alpha 승격은 하지 않았으며 별도 승인이 필요합니다.',
+    );
+    expect(runbook).toContain(
+      '현재 V1.23(23)의 승인 범위는 **AAB 생성·검증까지만**입니다.',
     );
     expect(lineage).toContain(
-      '현재 소스의 후속 후보는 `V1.22 · 1.22(22)`입니다.',
+      '현재 소스의 후속 후보는 `V1.23 · 1.23(23)`입니다.',
     );
   });
 });

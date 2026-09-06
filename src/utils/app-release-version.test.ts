@@ -16,12 +16,14 @@ describe('앱 표시 버전', () => {
     expect(formatAppReleaseVersion('1.20')).toBe('V20');
     expect(formatAppReleaseVersion('1.21')).toBe('V1.21');
     expect(formatAppReleaseVersion('1.22')).toBe('V1.22');
+    expect(formatAppReleaseVersion('1.23')).toBe('V1.23');
   });
 
   it('Play versionCode도 V1.21 경계부터 새 형식으로 표시해요', () => {
     expect(formatAppReleaseVersionCode(20)).toBe('V20');
     expect(formatAppReleaseVersionCode(21)).toBe('V1.21');
     expect(formatAppReleaseVersionCode(22)).toBe('V1.22');
+    expect(formatAppReleaseVersionCode(23)).toBe('V1.23');
     expect(formatAppReleaseVersionCode(0)).toBe('새 버전');
   });
 

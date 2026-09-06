@@ -48,7 +48,10 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       expect(layout).not.toContain('alarmpyo_widget_status_background');
       expect(layout).not.toContain('alarmpyo_widget_bottom_panel');
       expect(layout).toContain('android:importantForAccessibility="noHideDescendants"');
-      expect(layout).toContain('android:id="@+id/alarmpyo_widget_primary_divider"');
+      expect(layout).not.toContain('alarmpyo_widget_primary_divider');
+      expect(layout).not.toContain('alarmpyo_widget_secondary_panel');
+      expect(layout).not.toContain('alarmpyo_widget_bottom_label');
+      expect(layout).not.toContain('alarmpyo_widget_secondary_label');
     });
     expect(providerSource).not.toContain('setImageViewResource');
     expect(providerSource).not.toContain('setColorFilter');
@@ -133,9 +136,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       expect(layout).not.toMatch(/<View(?:\s|>)/);
       expect(layout).not.toMatch(/<Space(?:\s|>)/);
     });
-    expect(widgetLayout).toContain(
-      'android:id="@+id/alarmpyo_widget_secondary_divider"',
-    );
+    expect(widgetLayout).not.toContain('alarmpyo_widget_secondary_divider');
     expect(mediumLayout).toContain(
       'android:id="@+id/alarmpyo_widget_status"',
     );
@@ -149,7 +150,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       [...provider.matchAll(/R\.id\.(alarmpyo_widget_\w+)/g)]
         .map((match) => match[1])
         // 이 ID는 mediumHeight 분기 안에서만 바인딩합니다.
-        .filter((id) => id !== 'alarmpyo_widget_status'),
+        .filter((id) => !['alarmpyo_widget_status', 'alarmpyo_widget_header'].includes(id)),
     );
     for (const name of ['compact', 'medium']) {
       const layout = readSource(
@@ -160,6 +161,53 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       );
       expect([...boundIds].filter((id) => !viewIds.has(id))).toEqual([]);
     }
+  });
+
+  it('두 크기 모두 큰 근무명과 보조 텍스트 묶음을 대칭 여백의 중앙에 놓아요', () => {
+    for (const [name, titleSize, padding] of [
+      ['compact', 24, 6],
+      ['medium', 32, 12],
+    ] as const) {
+      const layout = readSource(
+        `modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_${name}.xml`,
+      );
+      const tag = (id: string) => layout.match(
+        new RegExp(`<[^>]+android:id="@\\+id/${id}"[^>]*>`, 'u'),
+      )?.[0];
+      const card = tag('alarmpyo_widget_card');
+      expect(card).toContain('android:gravity="center"');
+      expect(card).toContain('android:orientation="vertical"');
+      expect(card).toContain('android:paddingStart="20dp"');
+      expect(card).toContain('android:paddingEnd="20dp"');
+      expect(card).toContain(`android:paddingTop="${padding}dp"`);
+      expect(card).toContain(`android:paddingBottom="${padding}dp"`);
+      expect(layout).not.toContain('android:layout_weight');
+      for (const id of ['title', 'schedule', 'bottom_value', 'secondary_value']) {
+        const text = tag(`alarmpyo_widget_${id}`);
+        expect(text).toContain('android:layout_width="match_parent"');
+        expect(text).toContain('android:gravity="center"');
+        expect(text).toContain('android:includeFontPadding="false"');
+        expect(text).toContain('android:maxLines="1"');
+      }
+      expect(tag('alarmpyo_widget_title')).toContain(`android:textSize="${titleSize}sp"`);
+      expect(tag('alarmpyo_widget_schedule')).toContain('android:textSize="14sp"');
+    }
+  });
+
+  it('다음 근무 박스의 바인딩과 생성형 미리보기의 옛 모양도 함께 제거해요', () => {
+    const provider = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoShiftWidgetProvider.kt',
+    );
+    for (const removedId of ['primary_divider', 'secondary_panel', 'secondary_divider',
+      'secondary_second', 'bottom_label', 'secondary_label']) {
+      expect(provider).not.toContain(`R.id.alarmpyo_widget_${removedId}`);
+    }
+    const preview = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetPreviewPolicy.kt',
+    );
+    expect(preview).toContain('RENDER_SCHEMA_VERSION = 3');
+    expect(preview).toContain('presentation.titleSizeSp');
+    expect(preview).toContain('presentation.showSchedule');
   });
 
   it('4×1과 4×2 위젯의 모든 글자는 12sp 이상이고 긴 보조 정보는 축약해요', () => {

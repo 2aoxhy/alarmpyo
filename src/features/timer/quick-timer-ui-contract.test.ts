@@ -137,7 +137,7 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('직접 입력은 부드러운 1~60분 휠과 중앙 숫자 입력을 함께 제공해요', () => {
     expect(stepper).toContain('presentationStyle="fullScreen"');
-    expect(stepper).toContain('onRequestClose={handleCancel}');
+    expect(stepper).toContain('onRequestClose={handleRequestClose}');
     expect(stepper).toContain('QUICK_TIMER_DURATIONS.map');
     expect(stepper).not.toContain('<FlatList');
     expect(stepper).toContain('snapToInterval={wheelLayout.itemHeight}');
@@ -153,7 +153,7 @@ describe('빠른 타이머 화면 계약', () => {
     expect(stepper).toContain('programmaticScrollRef');
     expect(stepper).toContain('shouldAcceptQuickTimerWheelEvent({');
     expect(stepper).toContain("entryModeRef.current === 'wheel'");
-    expect(stepper).toContain("accessibilityRole={entryMode === 'wheel' ? 'adjustable' : undefined}");
+    expect(stepper).toMatch(/accessibilityRole=\{\s*entryMode === 'wheel' \? 'adjustable' : undefined\s*\}/);
     expect(stepper).toContain("actionName === 'increment'");
     expect(stepper).toContain("actionName === 'decrement'");
     expect(stepper).toContain("actionName === 'activate'");
@@ -164,7 +164,7 @@ describe('빠른 타이머 화면 계약', () => {
     expect(stepper).toContain('keyboardType="number-pad"');
     expect(stepper).toContain('maxLength={2}');
     expect(stepper).toContain('parseQuickTimerDurationInput(');
-    expect(stepper).toContain("pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}");
+    expect(stepper).toMatch(/pointerEvents=\{\s*entryMode === 'numeric' \? 'none' : 'auto'\s*\}/);
     expect(stepper).toContain('scheduleAdjustableFocus');
     expect(stepper).toContain('focusRevisionRef');
     expect(stepper).toContain('clearSettleTimeout();');
@@ -186,6 +186,30 @@ describe('빠른 타이머 화면 계약', () => {
     expect(stepper).not.toContain('quick-timer-adjust-');
     expect(stepper).not.toContain('초');
     expect(stepper).not.toContain('00시');
+  });
+
+  it('Android IME 겹침만 확보하고 뒤로가기로 숫자 입력을 함께 닫지 않습니다', () => {
+    expect(stepper).toContain("navigationBarTranslucent={Platform.OS === 'android'}");
+    expect(stepper).toContain("statusBarTranslucent={Platform.OS === 'android'}");
+    expect(stepper).toContain("edges={['top', 'right', 'bottom', 'left']}");
+    expect(stepper).toContain('ref={modalViewportRef}');
+    expect(stepper).toContain('onLayout={measureKeyboardOverlap}');
+    expect(stepper).toContain('measureInWindow');
+    expect(stepper).toContain('createQuickTimerKeyboardLayoutSession');
+    expect(stepper).toContain("Keyboard.addListener('keyboardDidShow'");
+    expect(stepper).toContain("Keyboard.addListener('keyboardDidHide'");
+    expect(stepper).toContain('session.dispose()');
+    expect(stepper).toContain('shown.remove()');
+    expect(stepper).toContain('hidden.remove()');
+    expect(stepper).toMatch(/Platform.OS === 'android' && \{\s*paddingBottom: androidKeyboardInset,?\s*\}/);
+    expect(stepper).toMatch(/behavior=\{\s*Platform.OS === 'ios' \? 'padding' : undefined\s*\}/);
+    const keyboardDismissal = stepper.slice(
+      stepper.indexOf("if (action === 'dismiss-keyboard')"),
+      stepper.indexOf('handleCancel();', stepper.indexOf("if (action === 'dismiss-keyboard')")),
+    );
+    expect(keyboardDismissal).toContain('Keyboard.dismiss()');
+    expect(keyboardDismissal).toContain('return;');
+    expect(keyboardDismissal).not.toMatch(/setNumericInput|setEntryMode|onCancel|onSubmit/);
   });
 
   it('공통 버튼은 아이콘과 문구를 같은 기준선의 콘텐츠 묶음에 배치해요', () => {

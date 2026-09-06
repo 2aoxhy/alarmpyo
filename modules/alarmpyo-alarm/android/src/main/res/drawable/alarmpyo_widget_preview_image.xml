@@ -13,12 +13,14 @@
         android:strokeWidth="1" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M30,36H186M30,63H154M246,36H302M320,36H374M246,63H292M310,63H374"
+        android:pathData="M126,32H274"
         android:strokeColor="@color/alarmpyo_text_primary"
-        android:strokeWidth="6" />
+        android:strokeWidth="12" />
     <path
-        android:fillColor="@color/alarmpyo_widget_card_border"
-        android:pathData="M226,18H227V82H226Z" />
+        android:fillColor="@android:color/transparent"
+        android:pathData="M130,56H270M102,76H298"
+        android:strokeColor="@color/alarmpyo_text_secondary"
+        android:strokeWidth="6" />
     <path
         android:fillColor="@color/alarmpyo_widget_icon_day"
         android:pathData="M8,14H11V86H8Z"

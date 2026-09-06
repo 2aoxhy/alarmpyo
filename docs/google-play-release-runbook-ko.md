@@ -2,6 +2,8 @@
 
 이 문서는 알람표의 Play 내부 테스트부터 production 출고까지 적용하는 차단 게이트입니다. 실제 업로드·트랙 배포·production 출시는 사용자가 명시적으로 요청한 경우에만 실행합니다. Play 배포본은 직접 APK 설치 화면·JavaScript 코드·네이티브 설치 API·Provider·`REQUEST_INSTALL_PACKAGES`를 빌드 시점에 제외하고, 직접 배포 APK는 기존 업데이트 기능을 유지합니다.
 
+현재 V1.23(23)의 승인 범위는 **AAB 생성·검증까지만**입니다. Play 업로드·Internal 출시·Alpha 승격은 하지 않았으며 이번 작업에서 실행하지 않습니다. 아래 Play 설치·촬영·제출 절차는 별도 승인 이후의 참고입니다. 현재 Internal V1.22(22)와 Alpha V1.21(21)을 유지하고, V1.22 AAB·출처·실기기 기록을 덮어쓰지 않습니다.
+
 현재 AlarmPyo 계보는 `app.json`의 공식 Expo 프로젝트와 direct APK 인증서에 연결되었습니다. direct 공개 정책은 production Hosting URL만 남아 `releaseState: blocked`입니다. Play 정책은 이 direct Hosting 상태와 독립적이며, Google 관리 별도 App Signing 인증서를 Play Console에서 확인했습니다. 각 배포 명령은 해당 정책이 활성화되기 전에는 실행하지 않습니다.
 
 ## 0. 출시 전에 정책 결정을 완료합니다
@@ -43,7 +45,7 @@ same-signer를 확정하면 direct→Play 제자리 업데이트와 자료·권�
 - 웹 원장뿐 아니라 메신저·파일 공유·테스터 전달까지 포함한 **실제 유통 direct APK 최고 versionCode**
 - 후보를 올리기 전에 Play Console의 모든 트랙·초안·과거 업로드에서 확인한 **기존 최고 versionCode**
 
-Play Internal과 Alpha에 활성화된 V1.21의 `versionCode: 21`이 현재 확인한 Play 계보의 기준값입니다. V19는 Internal 초안과 App Bundle만 등록하고 출시하지 않았고 V17 `versionCode: 17`과 V11 `versionCode: 11`은 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다. 현재 V1.22 후보는 `versionCode: 22`입니다. 업로드 직전에 Play Console의 모든 트랙·초안·App Bundle Explorer에서 실제 최고값을 다시 확인하고 `.release/play/release-evidence.json`에 기록합니다. 확인한 최고값이 `22` 이상이면 업로드를 중단하며 자동 증분하지 않습니다.
+현재 Play Internal은 V1.22의 `versionCode: 22`, Alpha는 V1.21의 `versionCode: 21`이 활성 상태입니다. V19는 Internal 초안과 App Bundle만 등록하고 출시하지 않았고 V17 `versionCode: 17`과 V11 `versionCode: 11`은 Play에 업로드하지 않았으며 V09는 사용하지 않았습니다. 현재 V1.23 후보는 `versionCode: 23`입니다. AAB 생성 전과 향후 업로드 직전에 Play Console의 모든 트랙·초안·App Bundle Explorer에서 실제 최고값을 다시 확인하고 후보별 증거에 기록합니다. 확인한 최고값이 `23` 이상이면 생성·업로드를 중단하며 자동 증분하지 않습니다.
 
 ## 1-1. 별도 Play App Signing 인증서를 처음 확인합니다
 
@@ -96,13 +98,13 @@ EAS 빌드 상세 JSON을 BOM 없는 UTF-8로 저장하고 EAS 원본 AAB를 다
 New-Item -ItemType Directory -Force .release/play | Out-Null
 $metadata = node scripts/run-eas-cli.mjs build:view <빌드-ID> --json
 [System.IO.File]::WriteAllText(
-  (Join-Path (Get-Location) '.release/eas-build-play-v122.json'),
+  (Join-Path (Get-Location) '.release/eas-build-play-v123.json'),
   ($metadata -join [Environment]::NewLine),
   [System.Text.UTF8Encoding]::new($false)
 )
 
-npm run release:verify:aab -- --aab .release/play/AlarmPyo-V1.22.aab `
-  --eas-build .release/eas-build-play-v122.json
+npm run release:verify:aab -- --aab .release/play/AlarmPyo-V1.23.aab `
+  --eas-build .release/eas-build-play-v123.json
 ```
 
 AAB 검증기는 다음을 모두 확인합니다.
@@ -128,18 +130,20 @@ AAB 검증기는 다음을 모두 확인합니다.
 
 ## 5. 내부 초안과 Alpha 활성 제출을 분리합니다
 
+이후 단계는 V1.23 AAB 생성 요청에 포함되지 않습니다. 업로드를 별도 승인받은 경우에만 실행합니다.
+
 ```powershell
-npm run submit:internal -- --aab .release/play/AlarmPyo-V1.22.aab `
-  --eas-build .release/eas-build-play-v122.json
+npm run submit:internal -- --aab .release/play/AlarmPyo-V1.23.aab `
+  --eas-build .release/eas-build-play-v123.json
 ```
 
 이 명령은 전체 사전 검증과 AAB·EAS 원본 검증을 다시 실행한 뒤 `internal` 트랙의 **초안**으로만 업로드합니다. 초안만으로는 Play Store 설치 링크가 열리지 않으므로, 업로드 후 Play Console에서 같은 번들의 내부 테스트 릴리스를 검토하고 출시해 내부 테스터에게 활성화합니다.
 
-V1.21 `versionCode 21`은 Internal과 Alpha에 이미 배포했습니다. V17은 Play에 업로드하지 않았고 V19는 Internal 초안과 App Bundle만 등록했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. V1.22는 새 `versionCode 22` 번들을 Internal에서 먼저 검증합니다. AppData v21 호환·간소화된 설정·개인 알람 보존·1~60분 타이머·업데이트 안내·네이티브 알람·위젯 호환·R8 가독화 파일을 확인하고 차단 항목이 0건일 때 Play Console 번들 라이브러리에서 **같은 versionCode 22 번들**을 Alpha로 승격합니다. AAB를 다시 업로드하지 않습니다.
+V1.22 `versionCode 22`는 Internal에 활성화되어 있고 Alpha는 V1.21 `versionCode 21`을 유지합니다. V17은 Play에 업로드하지 않았고 V19는 Internal 초안과 App Bundle만 등록했습니다. 같은 versionCode를 다시 업로드하거나 재사용하지 않습니다. 향후 V1.23 배포를 별도 승인받으면 새 `versionCode 23` 번들을 Internal에서 먼저 검증합니다. AppData v21 호환·개인 알람 보존·1~60분 타이머의 키보드·뒤로가기·위젯 두 크기·R8 가독화 파일을 확인하고 차단 항목이 0건일 때 Play Console 번들 라이브러리에서 **같은 versionCode 23 번들**을 Alpha로 승격합니다. AAB를 다시 업로드하지 않습니다.
 
 패턴을 적용하기 전에는 앞으로 7일 변경 전·후를 먼저 확인하고, 필요할 때만 전체 42일 비교를 펼칩니다.
 
-Internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다. V1.22는 Internal에 먼저 업로드하므로 이번 출시에 이 명령을 실행하지 않습니다.
+Internal 단계를 생략하고 검증된 새 versionCode를 Alpha 테스터에게 한 번에 바로 제공하는 다른 릴리스에서만 다음 명령을 사용합니다. V1.23은 AAB 생성만 승인되었으므로 이번 작업에서 이 명령을 실행하지 않습니다. 향후 Internal에 올린 경우에도 재업로드 대신 기존 번들을 승격합니다.
 
 ```powershell
 npm run submit:alpha -- --aab <Internal에 올리지 않은 새 AAB> `
@@ -154,7 +158,7 @@ npm run submit:alpha -- --aab <Internal에 올리지 않은 새 AAB> `
 
 ## 6. Play 생성 APK의 실기기 증거를 만듭니다
 
-`docs/play-release-evidence.example.json`과 세 원본 예제를 `.release/play` 아래 대응 경로로 복사한 뒤 실제 값만 기록합니다. 예제의 `false`는 검사 없이 `true`로 바꾸지 않습니다.
+`docs/play-release-evidence.example.json`과 세 원본 예제를 `.release/play` 아래 `v123-` 접두사가 붙은 새 파일로 복사한 뒤 실제 값만 기록합니다. 상위 증거의 연결 경로도 같은 후보 파일명에 맞춥니다. 기존 버전의 원본·검증 출력은 덮어쓰지 않으며 예제의 `false`는 검사 없이 `true`로 바꾸지 않습니다.
 
 Samsung 실기기에서는 다음을 확인합니다.
 
@@ -169,16 +173,17 @@ Samsung 실기기에서는 다음을 확인합니다.
 각 원본 JSON의 SHA-256을 계산해 상위 증거에 기록합니다.
 
 ```powershell
-Get-FileHash .release/play/device-evidence/current-samsung.json -Algorithm SHA256
-Get-FileHash .release/play/device-evidence/page-size-16kb.json -Algorithm SHA256
-Get-FileHash .release/play/prelaunch-evidence/report.json -Algorithm SHA256
+Get-FileHash .release/play/device-evidence/v123-current-samsung.json -Algorithm SHA256
+Get-FileHash .release/play/device-evidence/v123-page-size-16kb.json -Algorithm SHA256
+Get-FileHash .release/play/prelaunch-evidence/v123-report.json -Algorithm SHA256
 
 npm run release:verify:play-evidence -- `
-  --provenance .release/play/AlarmPyo-V1.22.aab.provenance.json `
-  --evidence .release/play/release-evidence.json
+  --provenance .release/play/AlarmPyo-V1.23.aab.provenance.json `
+  --evidence .release/play/v123-release-evidence.json `
+  --output .release/play/v123-verified-release-evidence.json
 ```
 
-검증기는 AAB SHA-256, EAS 빌드 ID, Git 커밋, R8 가독화 파일, versionCode 계보, Play 정책 인증서, Samsung·16KB 원본 증거 해시, 사전 출시 보고서를 대조합니다. direct 인증서 지문을 Play 설치본에 자동 적용하지 않습니다. 통과 결과는 `.release/play/verified-release-evidence.json`에 생성되며 14일 동안만 유효합니다. 이 파일이 없거나 오래되었으면 production으로 진행하지 않습니다.
+검증기는 AAB SHA-256, EAS 빌드 ID, Git 커밋, R8 가독화 파일, versionCode 계보, Play 정책 인증서, Samsung·16KB 원본 증거 해시, 사전 출시 보고서를 대조합니다. direct 인증서 지문을 Play 설치본에 자동 적용하지 않습니다. 위 명령은 통과 결과를 `.release/play/v123-verified-release-evidence.json`에 저장하며 14일 동안만 유효합니다. 별도 운영 명령에서 이 파일을 사용할 때에도 후보 경로를 명시합니다. 이 파일이 없거나 오래되었으면 production으로 진행하지 않습니다.
 
 ## 7. 사전 출시 보고서와 정책 선언을 완료합니다
 
@@ -218,7 +223,7 @@ production 승인 조건은 다음과 같습니다.
 
 다음 중 하나라도 발생하면 확대를 멈추고 해당 출시를 중단합니다.
 
-- 설치·실행 실패, Play V1.21→V1.22 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
+- 설치·실행 실패, Play V1.21·V1.22→V1.23 업데이트에서 데이터·권한 손실, 또는 Play 설치본 서명 불일치
 - direct→Play는 별도 signer 때문에 제자리 업데이트가 불가능하므로 실패 판정 대신 외부 백업·제거·Play판 설치·복원 안내를 확인
 - 근무 알람 미전달, 중복 알람, 재부팅·시간대 변경 복구 실패, 전체 화면·알람음·위젯 회귀
 - 새 보안·개인정보·정책 위반 또는 Play 정책 거부

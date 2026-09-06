@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   AccessibilityInfo,
   findNodeHandle,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -32,6 +33,10 @@ import { triggerSelectionFeedback } from '@/features/feedback/feedback-controlle
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import type { QuickTimerDuration } from './quick-timer-controller';
+import {
+  createQuickTimerKeyboardLayoutSession,
+  resolveQuickTimerModalBackAction,
+} from './quick-timer-keyboard-policy';
 import {
   clampQuickTimerDuration,
   getQuickTimerDurationStepperPresentation,
@@ -92,6 +97,16 @@ export function QuickTimerDurationStepper({
     wheelLayout.itemHeight,
   );
   const listRef = useRef<ScrollView>(null);
+  const modalViewportRef = useRef<View | null>(null);
+  const keyboardLayoutRef = useRef<ReturnType<
+    typeof createQuickTimerKeyboardLayoutSession
+  > | null>(null);
+  const keyboardStateRef = useRef({
+    visible: false,
+    observed: false,
+    dismissRequested: false,
+    hiddenAt: null as number | null,
+  });
   const adjustableRef = useRef<View | null>(null);
   const numericInputRef = useRef<TextInput | null>(null);
   const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +127,7 @@ export function QuickTimerDurationStepper({
   const [numericInput, setNumericInput] = useState(String(initialDuration));
   const [numericInputError, setNumericInputError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [androidKeyboardInset, setAndroidKeyboardInset] = useState(0);
   const numericInputResult = parseQuickTimerDurationInput(numericInput);
   const presentedDuration =
     entryMode === 'numeric' && numericInputResult.valid
@@ -138,6 +154,69 @@ export function QuickTimerDurationStepper({
     visibleRef.current = visible;
     entryModeRef.current = entryMode;
   }, [entryMode, visible]);
+
+  const measureKeyboardOverlap = useCallback(() => {
+    keyboardLayoutRef.current?.refresh();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !visible) return;
+    const session = createQuickTimerKeyboardLayoutSession({
+      measureViewport: (callback) => {
+        modalViewportRef.current?.measureInWindow(
+          (_x, y, _width, measuredHeight) => {
+            callback({ y, height: measuredHeight });
+          },
+        );
+      },
+      publishInset: setAndroidKeyboardInset,
+    });
+    keyboardLayoutRef.current = session;
+    keyboardStateRef.current = {
+      visible: false,
+      observed: false,
+      dismissRequested: false,
+      hiddenAt: null,
+    };
+    const shown = Keyboard.addListener('keyboardDidShow', (event) => {
+      if (keyboardLayoutRef.current !== session) return;
+      keyboardStateRef.current = {
+        visible: true,
+        observed: true,
+        dismissRequested: false,
+        hiddenAt: null,
+      };
+      session.observeKeyboard(event.endCoordinates);
+    });
+    const hidden = Keyboard.addListener('keyboardDidHide', () => {
+      if (keyboardLayoutRef.current !== session) return;
+      keyboardStateRef.current = {
+        visible: false,
+        observed: true,
+        dismissRequested: false,
+        hiddenAt: performance.now(),
+      };
+      session.observeKeyboard(null);
+    });
+    const currentKeyboard = Keyboard.metrics();
+    if (currentKeyboard && Keyboard.isVisible()) {
+      keyboardStateRef.current.visible = true;
+      keyboardStateRef.current.observed = true;
+      session.observeKeyboard(currentKeyboard);
+    } else {
+      session.observeKeyboard(null);
+    }
+    return () => {
+      shown.remove();
+      hidden.remove();
+      session.dispose();
+      keyboardLayoutRef.current = null;
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    measureKeyboardOverlap();
+  }, [height, measureKeyboardOverlap, width]);
 
   const clearSettleTimeout = useCallback(() => {
     if (settleTimeoutRef.current === null) return;
@@ -545,6 +624,33 @@ export function QuickTimerDurationStepper({
     onCancel();
   }, [clearFocusTimeout, clearSettleTimeout, onCancel, setEntryMode]);
 
+  const handleRequestClose = useCallback(() => {
+    const keyboardState = keyboardStateRef.current;
+    const action = resolveQuickTimerModalBackAction({
+      android: Platform.OS === 'android',
+      busy,
+      numericEntry: entryModeRef.current === 'numeric',
+      keyboardVisible: keyboardState.visible || Keyboard.isVisible(),
+      keyboardObserved: keyboardState.observed,
+      inputFocused: numericInputRef.current?.isFocused() ?? false,
+      dismissRequested: keyboardState.dismissRequested,
+      millisecondsSinceKeyboardHide:
+        keyboardState.hiddenAt === null
+          ? null
+          : performance.now() - keyboardState.hiddenAt,
+    });
+    if (action === 'ignore') return;
+    if (action === 'dismiss-keyboard') {
+      clearFocusTimeout();
+      focusRevisionRef.current += 1;
+      keyboardState.dismissRequested = true;
+      numericInputRef.current?.blur();
+      Keyboard.dismiss();
+      return;
+    }
+    handleCancel();
+  }, [busy, clearFocusTimeout, handleCancel]);
+
   const handleSubmit = useCallback(() => {
     if (busy) return;
     if (entryMode === 'numeric') {
@@ -594,157 +700,285 @@ export function QuickTimerDurationStepper({
   ]);
 
   return (
+    // Fabric measures Modal descendants from the Modal's own origin, whereas
+    // Keyboard.screenY uses the display origin. An edge-to-edge Android dialog
+    // aligns those origins; SafeAreaView still protects the visible content.
     <Modal
       animationType="fade"
       hardwareAccelerated
-      onRequestClose={handleCancel}
+      navigationBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={handleRequestClose}
       presentationStyle="fullScreen"
-      statusBarTranslucent={false}
-      visible={visible}>
-      <SafeAreaView
-        accessibilityViewIsModal
-        edges={['top', 'right', 'bottom', 'left']}
-        style={[styles.modalRoot, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerSide} />
-          <AppText accessibilityRole="header" aria-level={1} style={styles.headerTitle} variant="title">
-            타이머 직접 입력
-          </AppText>
-          <Pressable
-            accessibilityLabel="직접 입력 닫기"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            hitSlop={8}
-            onBlur={closeFocus.onBlur}
-            onFocus={closeFocus.onFocus}
-            onPress={handleCancel}
-            style={({ pressed }) => [
-              styles.headerClose,
-              pressed && !busy && styles.pressed,
-              closeFocus.focusVisible &&
-                !busy && [styles.focusVisible, { outlineColor: colors.focus }],
-            ]}>
-            <AppIcon
-              accessible={false}
-              color={busy ? colors.textDisabled : colors.text}
-              name="close"
-              size={26}
-            />
-          </Pressable>
-        </View>
+      statusBarTranslucent={Platform.OS === 'android'}
+      visible={visible}
+    >
+      <View
+        ref={modalViewportRef}
+        collapsable={false}
+        onLayout={measureKeyboardOverlap}
+        style={[styles.modalRoot, { backgroundColor: colors.background }]}
+      >
+        <View
+          style={[
+            styles.modalRoot,
+            Platform.OS === 'android' && {
+              paddingBottom: androidKeyboardInset,
+            },
+          ]}
+        >
+          <SafeAreaView
+            accessibilityViewIsModal
+            edges={['top', 'right', 'bottom', 'left']}
+            style={[styles.modalRoot, { backgroundColor: colors.background }]}
+          >
+            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+              <View style={styles.headerSide} />
+              <AppText
+                accessibilityRole="header"
+                aria-level={1}
+                style={styles.headerTitle}
+                variant="title"
+              >
+                타이머 직접 입력
+              </AppText>
+              <Pressable
+                accessibilityLabel="직접 입력 닫기"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                hitSlop={8}
+                onBlur={closeFocus.onBlur}
+                onFocus={closeFocus.onFocus}
+                onPress={handleCancel}
+                style={({ pressed }) => [
+                  styles.headerClose,
+                  pressed && !busy && styles.pressed,
+                  closeFocus.focusVisible &&
+                    !busy && [
+                      styles.focusVisible,
+                      { outlineColor: colors.focus },
+                    ],
+                ]}
+              >
+                <AppIcon
+                  accessible={false}
+                  color={busy ? colors.textDisabled : colors.text}
+                  name="close"
+                  size={26}
+                />
+              </Pressable>
+            </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.body}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-          removeClippedSubviews={false}
-          showsVerticalScrollIndicator={false}
-          style={styles.body}>
-        <View style={styles.content}>
-          <View collapsable={false} testID="quick-timer-duration-range">
-            <AppText tone="secondary" style={styles.centerText} variant="body">
-              1분부터 60분까지
-            </AppText>
-          </View>
-          <View
-            ref={adjustableRef}
-            accessible={entryMode === 'wheel'}
-            accessibilityActions={[
-              { label: '1분 늘리기', name: 'increment' },
-              { label: '1분 줄이기', name: 'decrement' },
-              { label: '숫자로 입력', name: 'activate' },
-            ]}
-            accessibilityHint="위아래로 조절하거나 두 번 눌러 숫자로 입력합니다."
-            accessibilityLabel="타이머 시간"
-            accessibilityRole={entryMode === 'wheel' ? 'adjustable' : undefined}
-            accessibilityState={{ disabled: busy }}
-            accessibilityValue={{ text: presentation.accessibilityLabel }}
-            collapsable={false}
-            onAccessibilityAction={(event) => {
-              if (event.nativeEvent.actionName === 'increment') {
-                selectDuration(durationRef.current + 1, false);
-              }
-              if (event.nativeEvent.actionName === 'decrement') {
-                selectDuration(durationRef.current - 1, false);
-              }
-              if (event.nativeEvent.actionName === 'activate') {
-                beginNumericEntry();
-              }
-            }}
-            onAccessibilityTap={beginNumericEntry}
-            style={[
-              styles.wheel,
-              {
-                height: wheelLayout.viewportHeight,
-                borderColor: colors.border,
-              },
-            ]}
-            testID="quick-timer-duration-adjustable">
-            <ScrollView
-              ref={listRef}
-              accessible={false}
-              accessibilityElementsHidden
-              bounces={false}
-              contentContainerStyle={{ paddingVertical: selectionTop }}
-              contentOffset={{ x: 0, y: initialOffset }}
-              decelerationRate="normal"
-              importantForAccessibility="no-hide-descendants"
-              nestedScrollEnabled
-              onMomentumScrollBegin={handleMomentumBegin}
-              onMomentumScrollEnd={handleMomentumEnd}
-              onScroll={observeScroll}
-              onScrollBeginDrag={beginWheelDrag}
-              onScrollEndDrag={scheduleDragSettle}
-              overScrollMode="never"
-              pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}
-              removeClippedSubviews={false}
-              scrollEnabled={!busy && entryMode === 'wheel'}
-              scrollEventThrottle={16}
-              showsVerticalScrollIndicator={false}
-              snapToAlignment="start"
-              snapToInterval={wheelLayout.itemHeight}
-              style={styles.wheelList}
-              testID="quick-timer-duration-wheel">
-              {QUICK_TIMER_DURATIONS.map((item) => {
-                const selected = item === durationMinutes;
-                return (
-                  <Pressable
-                    accessible={false}
-                    accessibilityElementsHidden
-                    disabled={busy || entryMode === 'numeric'}
-                    importantForAccessibility="no-hide-descendants"
-                    key={item}
-                    onPress={() => {
-                      if (selected) {
-                        beginNumericEntry();
-                        return;
-                      }
-                      selectDuration(item);
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.body}
+            >
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                removeClippedSubviews={false}
+                showsVerticalScrollIndicator={false}
+                style={styles.body}
+              >
+                <View style={styles.content}>
+                  <View collapsable={false} testID="quick-timer-duration-range">
+                    <AppText
+                      tone="secondary"
+                      style={styles.centerText}
+                      variant="body"
+                    >
+                      1분부터 60분까지
+                    </AppText>
+                  </View>
+                  <View
+                    ref={adjustableRef}
+                    accessible={entryMode === 'wheel'}
+                    accessibilityActions={[
+                      { label: '1분 늘리기', name: 'increment' },
+                      { label: '1분 줄이기', name: 'decrement' },
+                      { label: '숫자로 입력', name: 'activate' },
+                    ]}
+                    accessibilityHint="위아래로 조절하거나 두 번 눌러 숫자로 입력합니다."
+                    accessibilityLabel="타이머 시간"
+                    accessibilityRole={
+                      entryMode === 'wheel' ? 'adjustable' : undefined
+                    }
+                    accessibilityState={{ disabled: busy }}
+                    accessibilityValue={{
+                      text: presentation.accessibilityLabel,
                     }}
+                    collapsable={false}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'increment') {
+                        selectDuration(durationRef.current + 1, false);
+                      }
+                      if (event.nativeEvent.actionName === 'decrement') {
+                        selectDuration(durationRef.current - 1, false);
+                      }
+                      if (event.nativeEvent.actionName === 'activate') {
+                        beginNumericEntry();
+                      }
+                    }}
+                    onAccessibilityTap={beginNumericEntry}
                     style={[
-                      styles.wheelRow,
-                      { height: wheelLayout.itemHeight },
-                    ]}>
-                    {selected ? (
-                      <View style={styles.selectedValueRow}>
+                      styles.wheel,
+                      {
+                        height: wheelLayout.viewportHeight,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    testID="quick-timer-duration-adjustable"
+                  >
+                    <ScrollView
+                      ref={listRef}
+                      accessible={false}
+                      accessibilityElementsHidden
+                      bounces={false}
+                      contentContainerStyle={{ paddingVertical: selectionTop }}
+                      contentOffset={{ x: 0, y: initialOffset }}
+                      decelerationRate="normal"
+                      importantForAccessibility="no-hide-descendants"
+                      nestedScrollEnabled
+                      onMomentumScrollBegin={handleMomentumBegin}
+                      onMomentumScrollEnd={handleMomentumEnd}
+                      onScroll={observeScroll}
+                      onScrollBeginDrag={beginWheelDrag}
+                      onScrollEndDrag={scheduleDragSettle}
+                      overScrollMode="never"
+                      pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}
+                      removeClippedSubviews={false}
+                      scrollEnabled={!busy && entryMode === 'wheel'}
+                      scrollEventThrottle={16}
+                      showsVerticalScrollIndicator={false}
+                      snapToAlignment="start"
+                      snapToInterval={wheelLayout.itemHeight}
+                      style={styles.wheelList}
+                      testID="quick-timer-duration-wheel"
+                    >
+                      {QUICK_TIMER_DURATIONS.map((item) => {
+                        const selected = item === durationMinutes;
+                        return (
+                          <Pressable
+                            accessible={false}
+                            accessibilityElementsHidden
+                            disabled={busy || entryMode === 'numeric'}
+                            importantForAccessibility="no-hide-descendants"
+                            key={item}
+                            onPress={() => {
+                              if (selected) {
+                                beginNumericEntry();
+                                return;
+                              }
+                              selectDuration(item);
+                            }}
+                            style={[
+                              styles.wheelRow,
+                              { height: wheelLayout.itemHeight },
+                            ]}
+                          >
+                            {selected ? (
+                              <View style={styles.selectedValueRow}>
+                                <View style={styles.selectedValueSide} />
+                                <Text
+                                  allowFontScaling={false}
+                                  style={[
+                                    styles.wheelNumber,
+                                    styles.wheelNumberSelected,
+                                    {
+                                      color: colors.text,
+                                      fontSize: selectedFontSize,
+                                      lineHeight: wheelLayout.itemHeight - 8,
+                                    },
+                                  ]}
+                                >
+                                  {item}
+                                </Text>
+                                <View style={styles.selectedValueSide}>
+                                  <Text
+                                    allowFontScaling={false}
+                                    style={[
+                                      styles.wheelUnit,
+                                      {
+                                        color: colors.text,
+                                        fontSize: neighborFontSize * 0.72,
+                                        lineHeight: neighborFontSize,
+                                      },
+                                    ]}
+                                  >
+                                    분
+                                  </Text>
+                                </View>
+                              </View>
+                            ) : (
+                              <Text
+                                allowFontScaling={false}
+                                style={[
+                                  styles.wheelNeighborNumber,
+                                  {
+                                    color: colors.textSoft,
+                                    fontSize: neighborFontSize,
+                                    lineHeight: wheelLayout.itemHeight - 8,
+                                  },
+                                ]}
+                              >
+                                {item}
+                              </Text>
+                            )}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                    {entryMode === 'numeric' ? (
+                      <View
+                        style={[
+                          styles.numericOverlay,
+                          {
+                            top: selectionTop,
+                            height: wheelLayout.itemHeight,
+                            backgroundColor: colors.background,
+                          },
+                        ]}
+                      >
                         <View style={styles.selectedValueSide} />
-                        <Text
+                        <TextInput
+                          ref={numericInputRef}
+                          accessibilityHint="1분부터 60분까지 입력합니다."
+                          accessibilityLabel="타이머 분 직접 입력"
                           allowFontScaling={false}
+                          aria-invalid={!numericInputResult.valid}
+                          autoCorrect={false}
+                          editable={!busy}
+                          inputMode="numeric"
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          onFocus={() => {
+                            keyboardStateRef.current.dismissRequested = false;
+                            keyboardStateRef.current.hiddenAt = null;
+                            keyboardStateRef.current.observed = false;
+                          }}
+                          onChangeText={(value) => {
+                            setNumericInput(value);
+                            const result = parseQuickTimerDurationInput(value);
+                            setNumericInputError(
+                              result.valid ? null : result.error,
+                            );
+                          }}
+                          onSubmitEditing={commitNumericEntry}
+                          returnKeyType="done"
+                          selectTextOnFocus
+                          selectionColor={colors.accent}
                           style={[
-                            styles.wheelNumber,
-                            styles.wheelNumberSelected,
+                            styles.numericInput,
                             {
                               color: colors.text,
                               fontSize: selectedFontSize,
                               lineHeight: wheelLayout.itemHeight - 8,
                             },
-                          ]}>
-                          {item}
-                        </Text>
+                          ]}
+                          testID="quick-timer-duration-input"
+                          value={numericInput}
+                        />
                         <View style={styles.selectedValueSide}>
                           <Text
                             allowFontScaling={false}
@@ -755,155 +989,96 @@ export function QuickTimerDurationStepper({
                                 fontSize: neighborFontSize * 0.72,
                                 lineHeight: neighborFontSize,
                               },
-                            ]}>
+                            ]}
+                          >
                             분
                           </Text>
                         </View>
                       </View>
-                    ) : (
-                      <Text
-                        allowFontScaling={false}
-                        style={[
-                          styles.wheelNeighborNumber,
-                          {
-                            color: colors.textSoft,
-                            fontSize: neighborFontSize,
-                            lineHeight: wheelLayout.itemHeight - 8,
-                          },
-                        ]}>
-                        {item}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            {entryMode === 'numeric' ? (
+                    ) : null}
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.selectionFrame,
+                        {
+                          top: selectionTop,
+                          height: wheelLayout.itemHeight,
+                          borderColor: numericInputError
+                            ? colors.danger
+                            : entryMode === 'numeric'
+                              ? colors.focus
+                              : colors.borderStrong,
+                          borderTopWidth: entryMode === 'numeric' ? 2 : 1,
+                          borderBottomWidth: entryMode === 'numeric' ? 2 : 1,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View
+                    accessibilityLiveRegion={
+                      numericInputError ? 'assertive' : 'none'
+                    }
+                    collapsable={false}
+                    style={styles.inputHintContainer}
+                    testID="quick-timer-duration-help"
+                  >
+                    <AppText
+                      color={
+                        numericInputError ? colors.danger : colors.textMuted
+                      }
+                      style={styles.inputHint}
+                      variant="caption"
+                    >
+                      {numericInputError ??
+                        (entryMode === 'numeric'
+                          ? '입력한 시간으로 타이머를 시작합니다.'
+                          : '가운데 숫자를 누르면 직접 입력할 수 있습니다.')}
+                    </AppText>
+                  </View>
+                </View>
+              </ScrollView>
+
               <View
                 style={[
-                  styles.numericOverlay,
-                  {
-                    top: selectionTop,
-                    height: wheelLayout.itemHeight,
-                    backgroundColor: colors.background,
-                  },
-                ]}>
-                <View style={styles.selectedValueSide} />
-                <TextInput
-                  ref={numericInputRef}
-                  accessibilityHint="1분부터 60분까지 입력합니다."
-                  accessibilityLabel="타이머 분 직접 입력"
-                  allowFontScaling={false}
-                  aria-invalid={!numericInputResult.valid}
-                  autoCorrect={false}
-                  editable={!busy}
-                  inputMode="numeric"
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  onChangeText={(value) => {
-                    setNumericInput(value);
-                    const result = parseQuickTimerDurationInput(value);
-                    setNumericInputError(result.valid ? null : result.error);
-                  }}
-                  onSubmitEditing={commitNumericEntry}
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  selectionColor={colors.accent}
-                  style={[
-                    styles.numericInput,
-                    {
-                      color: colors.text,
-                      fontSize: selectedFontSize,
-                      lineHeight: wheelLayout.itemHeight - 8,
-                    },
-                  ]}
-                  testID="quick-timer-duration-input"
-                  value={numericInput}
+                  styles.actions,
+                  stackActions && styles.actionsStacked,
+                  { borderTopColor: colors.border },
+                ]}
+              >
+                <Button
+                  disabled={busy}
+                  label="취소"
+                  onPress={handleCancel}
+                  style={styles.action}
+                  testID="quick-timer-stepper-cancel"
+                  variant="secondary"
                 />
-                <View style={styles.selectedValueSide}>
-                  <Text
-                    allowFontScaling={false}
-                    style={[
-                      styles.wheelUnit,
-                      {
-                        color: colors.text,
-                        fontSize: neighborFontSize * 0.72,
-                        lineHeight: neighborFontSize,
-                      },
-                    ]}>
-                    분
-                  </Text>
-                </View>
+                <Button
+                  accessibilityLabel={
+                    replacingTimer
+                      ? `${presentation.durationMinutes}분으로 변경`
+                      : `${presentation.durationMinutes}분 타이머 시작`
+                  }
+                  disabled={
+                    busy ||
+                    (entryMode === 'numeric' && !numericInputResult.valid)
+                  }
+                  icon="play"
+                  label={
+                    replacingTimer
+                      ? `${presentation.durationMinutes}분으로 변경`
+                      : '시작'
+                  }
+                  loading={busy}
+                  onPress={handleSubmit}
+                  style={styles.action}
+                  testID="quick-timer-stepper-start"
+                />
               </View>
-            ) : null}
-            <View
-              pointerEvents="none"
-              style={[
-                styles.selectionFrame,
-                {
-                  top: selectionTop,
-                  height: wheelLayout.itemHeight,
-                  borderColor: numericInputError
-                    ? colors.danger
-                    : entryMode === 'numeric'
-                      ? colors.focus
-                      : colors.borderStrong,
-                  borderTopWidth: entryMode === 'numeric' ? 2 : 1,
-                  borderBottomWidth: entryMode === 'numeric' ? 2 : 1,
-                },
-              ]}
-            />
-          </View>
-          <View
-            accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}
-            collapsable={false}
-            style={styles.inputHintContainer}
-            testID="quick-timer-duration-help">
-            <AppText
-              color={numericInputError ? colors.danger : colors.textMuted}
-              style={styles.inputHint}
-              variant="caption">
-              {numericInputError ?? (
-                entryMode === 'numeric'
-                  ? '입력한 시간으로 타이머를 시작합니다.'
-                  : '가운데 숫자를 누르면 직접 입력할 수 있습니다.'
-              )}
-            </AppText>
-          </View>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
         </View>
-        </ScrollView>
-
-        <View
-          style={[
-            styles.actions,
-            stackActions && styles.actionsStacked,
-            { borderTopColor: colors.border },
-          ]}>
-          <Button
-            disabled={busy}
-            label="취소"
-            onPress={handleCancel}
-            style={styles.action}
-            testID="quick-timer-stepper-cancel"
-            variant="secondary"
-          />
-          <Button
-            accessibilityLabel={
-              replacingTimer
-                ? `${presentation.durationMinutes}분으로 변경`
-                : `${presentation.durationMinutes}분 타이머 시작`
-            }
-            disabled={busy || (entryMode === 'numeric' && !numericInputResult.valid)}
-            icon="play"
-            label={replacingTimer ? `${presentation.durationMinutes}분으로 변경` : '시작'}
-            loading={busy}
-            onPress={handleSubmit}
-            style={styles.action}
-            testID="quick-timer-stepper-start"
-          />
-        </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

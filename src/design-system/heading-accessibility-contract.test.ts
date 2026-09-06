@@ -55,7 +55,7 @@ describe('화면 제목 접근성 위계', () => {
 
   it('타이머 본문은 H2, 별도 직접 입력 모달은 자체 H1을 제공합니다', () => {
     expect(source('src/app/(tabs)/timer.tsx')).toContain('accessibilityRole="header" aria-level={2} style={styles.centerText}');
-    expect(source('src/features/timer/quick-timer-duration-stepper.tsx')).toContain('accessibilityRole="header" aria-level={1} style={styles.headerTitle}');
+    expect(source('src/features/timer/quick-timer-duration-stepper.tsx')).toMatch(/accessibilityRole="header"\s+aria-level=\{1\}\s+style=\{styles.headerTitle\}/);
   });
 
   it('달력은 화면 H1, 월 H2, 큰 글자 주차 목록 H3입니다', () => {

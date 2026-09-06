@@ -50,7 +50,7 @@ class AlarmPyoWidgetPreviewPolicyTest {
   }
 
   @Test
-  fun `같은 큰 글자 단계에서도 실제 줄 수가 바뀌면 미리보기를 갱신해요`() {
+  fun `같은 큰 글자 단계에서도 실제 글자 크기가 바뀌면 미리보기를 갱신해요`() {
     assertNotEquals(
       AlarmPyoWidgetPreviewPolicy.signature(state(), 1.3f),
       AlarmPyoWidgetPreviewPolicy.signature(state(), 1.7f)
@@ -62,7 +62,7 @@ class AlarmPyoWidgetPreviewPolicyTest {
     val original = state()
     val originalSignature = AlarmPyoWidgetPreviewPolicy.signature(original, 1f)
 
-    assertEquals(
+    assertNotEquals(
       originalSignature,
       AlarmPyoWidgetPreviewPolicy.signature(original, 1.29f)
     )

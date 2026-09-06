@@ -13,13 +13,15 @@ internal data class AlarmPyoWidgetPresentation(
   val showDate: Boolean,
   val showStatus: Boolean,
   val showSchedule: Boolean,
-  val showSectionLabels: Boolean,
   val titleSizeSp: Float,
-  val nextMaxLines: Int
+  val estimatedHeightDp: Float
 )
 
 /** Standard dimensions plus an optional validated launcher grid hint. */
 internal object AlarmPyoWidgetPresentationPolicy {
+  const val DETAIL_SIZE_SP = 14f
+  private const val LINE_HEIGHT_FACTOR = 1.25f
+
   fun resolve(
     state: AlarmPyoWidgetViewState,
     minHeightDp: Int,
@@ -49,7 +51,7 @@ internal object AlarmPyoWidgetPresentationPolicy {
     )
     // The configured primary stays intact, including an existing alarm-only
     // selection. A compact work widget does not append a second alarm block.
-    val next = if (compact) {
+    var next = if (compact) {
       sections.firstOrNull { it.kind == AlarmPyoWidgetSectionKind.NEXT_WORK }
         ?: sections.firstOrNull { it.kind == AlarmPyoWidgetSectionKind.GENERIC }
     } else {
@@ -57,40 +59,46 @@ internal object AlarmPyoWidgetPresentationPolicy {
     }
     var alarm = if (!compact && !veryLargeText) sections.getOrNull(1) else null
     var schedule = if (compact) !largeText else !veryLargeText
-    var titleSize = when {
-      veryLargeText || minWidthDp < 260 -> 14f
-      compact || largeText -> 16f
-      else -> 18f
-    }
+    // A centered single column gives the primary the full width. Long custom
+    // names may ellipsize at 16sp; the root description keeps the full text.
+    val preferredTitleSize = if (compact) 24f else 32f
+    val titleUnits = state.titleText.sumOf { character ->
+      when {
+        character.isWhitespace() -> 0.35
+        character.code < 128 -> 0.6
+        else -> 1.0
+      }
+    }.toFloat().coerceAtLeast(1f)
+    val availableWidth = (minWidthDp - 44).coerceAtLeast(1)
+    var titleSize = kotlin.math.floor(availableWidth / (titleUnits * scale))
+      .coerceIn(16f, preferredTitleSize)
     var date = !compact
-
-    if (!compact) {
-      // includeFontPadding=false still needs ascent/descent room. Remove lower
-      // priority rows before changing the title size; never reduce below 12sp.
-      fun estimatedHeight(): Float =
-        (titleSize + (if (date) 12f else 0f) +
-          (if (schedule) 12f else 0f) + (if (next != null) 12f else 0f) +
-          (if (alarm != null) 12f else 0f)) * scale * 1.2f + 8f
-      if (estimatedHeight() > height) alarm = null
-      if (estimatedHeight() > height) schedule = false
-      if (estimatedHeight() > height) titleSize = 12f
-      if (estimatedHeight() > height) date = false
+    // Match the XML's symmetric card padding, root inset and row margins.
+    // Center the entire measured group instead of stretching its middle row.
+    val verticalInsets = if (compact) 16f else 28f
+    fun estimatedHeight(): Float = verticalInsets +
+      titleSize * scale * LINE_HEIGHT_FACTOR +
+      (if (date) 12f * scale * LINE_HEIGHT_FACTOR + 6f else 0f) +
+      (if (schedule) DETAIL_SIZE_SP * scale * LINE_HEIGHT_FACTOR + 3f else 0f) +
+      (if (next != null) DETAIL_SIZE_SP * scale * LINE_HEIGHT_FACTOR + 4f else 0f) +
+      (if (alarm != null) DETAIL_SIZE_SP * scale * LINE_HEIGHT_FACTOR + 4f else 0f)
+    if (estimatedHeight() > height) alarm = null
+    if (estimatedHeight() > height) schedule = false
+    if (estimatedHeight() > height) date = false
+    if (estimatedHeight() > height) next = null
+    if (estimatedHeight() > height) {
+      titleSize = kotlin.math.floor((height - verticalInsets) / (scale * LINE_HEIGHT_FACTOR))
+        .coerceIn(12f, titleSize)
     }
-
-    val sectionLabels = !largeText && minWidthDp >= 280
-    val nextLines = if (compact && !sectionLabels) {
-      ((height - 12f) / (12f * scale * 1.2f)).toInt().coerceIn(1, 2)
-    } else 1
     return AlarmPyoWidgetPresentation(
       heightMode = mode,
       nextSection = next,
       alarmSection = alarm,
       showDate = date,
-      showStatus = !compact && !veryLargeText,
+      showStatus = date && !veryLargeText && minWidthDp >= 300,
       showSchedule = schedule,
-      showSectionLabels = sectionLabels,
       titleSizeSp = titleSize,
-      nextMaxLines = nextLines
+      estimatedHeightDp = estimatedHeight()
     )
   }
 

@@ -1,6 +1,8 @@
 # Google Play 휴대전화 스크린샷
 
-V1.22 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `manifest.json` 순서대로 새로 촬영합니다. 현재 manifest 상태는 `recapture-required`이며 최종 스크린샷은 아직 만들지 않았습니다. 첨부 경로가 사라진 파일, 웹 미리보기, 이전 버전 이미지나 저해상도 대체 이미지는 게시 자산으로 사용하지 않습니다.
+V1.23 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `manifest.json` 순서대로 새로 촬영합니다. 현재 manifest 상태는 `recapture-required`이며 최종 스크린샷은 아직 만들지 않았습니다. 첨부 경로가 사라진 파일, 웹 미리보기, 이전 버전 이미지나 저해상도 대체 이미지는 게시 자산으로 사용하지 않습니다.
+
+이번 V1.23 작업은 AAB 생성·검증까지만 포함합니다. Play 업로드와 설치는 아직 하지 않았으며, 아래 촬영·등록 절차는 별도 승인 후 진행합니다. V1.22 스크린샷과 실기기 기록을 V1.23 증거로 재사용하지 않습니다.
 
 확정 노출 순서와 재촬영 원본 이름은 다음과 같습니다.
 
@@ -12,7 +14,7 @@ V1.22 Play 설치본을 실제 Android 기기에 설치한 뒤 이 폴더의 `ma
 네 원본을 별도 폴더에 모은 다음 저장소 루트에서 다음 명령을 실행합니다.
 
 ```powershell
-npm run assets:play:screenshots:prepare -- --source-dir "<V1.22 WebP 원본 폴더>"
+npm run assets:play:screenshots:prepare -- --source-dir "<V1.23 WebP 원본 폴더>"
 ```
 
 변환기는 폭 1080px·높이 1920px 이상인 단일 프레임 WebP만 받습니다. 정확히 1080×1920인 원본은 픽셀 배치를 그대로 유지하고, 더 크거나 긴 원본은 자르거나 왜곡하지 않은 채 `contain`으로 축소해 `#101214` 배경의 1080×1920 캔버스에 배치합니다. 저해상도 원본은 확대하지 않습니다. 알파 없는 비인터레이스 RGB PNG로 결정적으로 변환한 뒤 `01-today.png`, `02-calendar.png`, `03-timer.png`, `04-settings.png`를 만들며, 네 파일 검증이 모두 끝나야 manifest 상태를 `ready`로 바꿉니다.

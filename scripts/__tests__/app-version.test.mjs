@@ -7,7 +7,7 @@ import {
   packageVersionMatchesApp,
 } from '../app-version.mjs';
 
-describe('V1.22 앱 버전 계약', () => {
+describe('V1.23 앱 버전 계약', () => {
   it('V14 이전 계보와 V15 이후 간결 버전을 구분해요', () => {
     expect(formatReleaseName('1.0.14')).toBe('V14');
     expect(formatReleaseName('1.15')).toBe('V15');
@@ -18,6 +18,7 @@ describe('V1.22 앱 버전 계약', () => {
     expect(formatReleaseName('1.20')).toBe('V20');
     expect(formatReleaseName('1.21')).toBe('V1.21');
     expect(formatReleaseName('1.22')).toBe('V1.22');
+    expect(formatReleaseName('1.23')).toBe('V1.23');
     expect(formatReleaseName('1.14')).toBe('V--');
   });
 
@@ -40,6 +41,14 @@ describe('V1.22 앱 버전 계약', () => {
     expect(isSupportedAppVersion('1.22')).toBe(true);
     expect(packageVersionMatchesApp('1.22.0', '1.22')).toBe(true);
     expect(packageVersionMatchesApp('1.21.0', '1.22')).toBe(false);
+  });
+
+  it('V1.23의 npm 버전과 표시 버전을 연결하고 V1.22와 혼용하지 않습니다', () => {
+    expect(isSupportedPackageVersion('1.23.0')).toBe(true);
+    expect(isSupportedAppVersion('1.23')).toBe(true);
+    expect(packageVersionMatchesApp('1.23.0', '1.23')).toBe(true);
+    expect(packageVersionMatchesApp('1.22.0', '1.23')).toBe(false);
+    expect(packageVersionMatchesApp('1.23.0', '1.22')).toBe(false);
   });
 
   it('기존 1.0.x 계보는 정확히 같은 값만 허용해요', () => {
