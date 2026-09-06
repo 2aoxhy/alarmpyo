@@ -3,12 +3,8 @@ import { Platform } from 'react-native';
 
 import type { AppData } from '../models/app-data';
 
-import {
-  exportAppDataToJson,
-  previewAppDataImport,
-  serializeAppData,
-  withoutAlarmRuntimeState,
-} from './app-data-service';
+import { withoutAlarmRuntimeState } from '../application/app-data-policy';
+import { exportAppDataToJson, previewAppDataImport, serializeAppData } from './app-data-service';
 import { getCheckedBackupContentsByteSize } from './backup-file-policy';
 import {
   selectNewestDeviceSafetyBackup,

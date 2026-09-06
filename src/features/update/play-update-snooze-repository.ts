@@ -1,4 +1,5 @@
-export const PLAY_UPDATE_PROMPT_STORAGE_KEY = 'alarmpyo:update-prompt:v1';
+import { PLAY_UPDATE_PROMPT_STORAGE_KEY } from '../../application/device-local-state';
+export { PLAY_UPDATE_PROMPT_STORAGE_KEY, clearPlayUpdatePromptSnooze } from '../../application/device-local-state';
 export const PLAY_UPDATE_SNOOZE_DURATION_MS = 24 * 60 * 60 * 1_000;
 
 export type PlayUpdatePromptSnooze = {
@@ -89,10 +90,4 @@ export async function writePlayUpdatePromptSnooze(
   } catch {
     return false;
   }
-}
-
-export async function clearPlayUpdatePromptSnooze(
-  storage: PlayUpdatePromptStorage,
-): Promise<void> {
-  await storage.removeItem(PLAY_UPDATE_PROMPT_STORAGE_KEY);
 }

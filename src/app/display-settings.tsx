@@ -6,9 +6,13 @@ import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { ToggleRow } from '@/design-system';
 import { useDisplaySettingsController } from '@/features/display-settings/display-settings-controller';
+import {
+  areDisplaySettingsDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { WidgetDisplayOptions } from '@/models/app-data';
-import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 
 const WIDGET_OPTIONS: readonly {
   key: keyof WidgetDisplayOptions;
@@ -21,8 +25,8 @@ const WIDGET_OPTIONS: readonly {
 
 export default function DisplaySettingsScreen() {
   const { showDialog } = useAppDialog();
-  const { data } = useAppStoreData();
-  const { toggleWidgetDisplayOption } = useAppStoreActions();
+  const data = useAppSelector(selectSettingsData, areDisplaySettingsDataEqual);
+  const { toggleWidgetDisplayOption } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const {
     androidWidgetSupported,
@@ -92,6 +96,12 @@ export default function DisplaySettingsScreen() {
             );
           })}
         </View>
+        {data.settings.widgetDisplayOptions.nextAlarm &&
+          (data.settings.widgetDisplayOptions.todayShift || data.settings.widgetDisplayOptions.nextShift) ? (
+            <AppText tone="secondary" variant="caption">
+              다음 알람은 4×2에서 함께 표시됩니다.
+            </AppText>
+          ) : null}
         <AppButton
           accessibilityHint={
             androidWidgetSupported

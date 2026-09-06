@@ -1,7 +1,7 @@
 import type { DayExceptionType, ShiftType } from '../models/app-data';
 import { DAY_EXCEPTION_TYPES } from '../utils/day-exception';
 import { addDays, isValidDateKey, toDateKey } from '../utils/date';
-import type { ResolveEffectiveDay } from './app-data-service';
+import type { ResolveEffectiveDay } from '../application/app-data-policy';
 
 export type MonthlyWorkSummary = {
   year: number;

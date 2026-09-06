@@ -41,6 +41,10 @@ import {
 import { ShiftTimingEditor } from '@/features/shift-settings/shift-timing-editor';
 import { WorkPatternOverview } from '@/features/shift-settings/work-pattern-overview';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import {
+  areShiftSettingsDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import type {
   ShiftType,
   PayrollSettings,
@@ -48,7 +52,7 @@ import type {
   WorkRoutineTiming,
 } from '@/models/app-data';
 import { isValidWorkRoutineTiming } from '@/services/work-routine-settings';
-import { useAppCommands, useAppStoreData } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import {
   calculateShiftDuration,
@@ -66,7 +70,7 @@ export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
-  const { data } = useAppStoreData();
+  const data = useAppSelector(selectSettingsData, areShiftSettingsDataEqual);
   const { createBackup, updateShiftSettings } = useAppCommands();
   const activeWorkShiftIds = getActiveWorkShiftIds(
     data.pattern.shiftTypeIds,

@@ -7,10 +7,7 @@ import type { AlarmPyoAlarmStatus } from './alarmpyo-alarm-service';
 import type { SleepReminderStatus } from './sleep-reminder-service';
 import type { AlarmAutoCheckStatus } from './alarm-sync-policy';
 import { resolveAlarmHealthState } from './alarm-access-summary';
-import {
-  getScheduleStartDate,
-  resolveDayExceptionFromAppData,
-} from './app-data-service';
+import { getScheduleStartDate, resolveDayExceptionFromAppData } from '../application/app-data-policy';
 import { buildSleepTimingGuidance } from './sleep-timing-planner';
 import { buildWorkRoutinePlan } from './work-routine-planner';
 import {

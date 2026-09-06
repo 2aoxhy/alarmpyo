@@ -29,7 +29,7 @@ internal enum class AlarmPyoWidgetPreviewUpdateResult {
 internal object AlarmPyoWidgetPreviewPolicy {
   const val MIN_SUPPORTED_API = 35
   const val RETRY_COOLDOWN_MILLIS = 30L * 60L * 1_000L
-  private const val RENDER_SCHEMA_VERSION = 1
+  private const val RENDER_SCHEMA_VERSION = 2
 
   fun decide(
     sdkInt: Int,
@@ -53,6 +53,12 @@ internal object AlarmPyoWidgetPreviewPolicy {
   }
 
   fun signature(state: AlarmPyoWidgetViewState, fontScale: Float): String {
+    val presentation = AlarmPyoWidgetPresentationPolicy.resolve(
+      state,
+      AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP,
+      AlarmPyoWidgetSizePolicy.DEFAULT_MIN_WIDTH_DP,
+      fontScale
+    )
     val fontBucket = when {
       fontScale >= 1.8f -> "very-large"
       fontScale >= 1.3f -> "large"
@@ -64,6 +70,7 @@ internal object AlarmPyoWidgetPreviewPolicy {
     val payload = listOf(
       RENDER_SCHEMA_VERSION,
       fontBucket,
+      presentation.nextMaxLines,
       state.dateText,
       state.titleText,
       state.scheduleText,

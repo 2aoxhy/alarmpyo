@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -13,18 +13,22 @@ import { TodayAlarmPermissionBanner } from '@/features/today/today-alarm-permiss
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
+import {
+  selectTodayData, selectTodayReady, selectTodayStatus,
+  areTodayDataEqual, areTodayStatusEqual,
+} from '@/features/today/today-store-selection';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { getSleepReminderScheduleSignature } from '@/services/sleep-reminder-planner';
+import { resolveShiftFromAppData } from '@/services/app-data-service';
 import {
   buildTodayAlarmPlanSummary,
   buildTodayViewModel,
 } from '@/services/today-view-model';
 import {
-  useAppStoreData,
-  useAppStoreStatus,
+  useAppSelector,
 } from '@/store/app-store';
 import { formatKoreanDate, parseDateKey, toDateKey } from '@/utils/date';
 
@@ -37,13 +41,15 @@ export default function TodayScreen() {
   const screenActive = useScreenActive();
   const now = useNow(screenActive);
   const today = toDateKey(now);
-  const { data, ready, getShiftForDate } = useAppStoreData();
+  const data = useAppSelector(selectTodayData, areTodayDataEqual);
+  const ready = useAppSelector(selectTodayReady);
+  const getShiftForDate = useCallback((dateKey: string) => resolveShiftFromAppData(data, dateKey), [data]);
   const {
     alarmAutoCheckState,
     alarmSyncStatus,
     sleepReminderSyncStatus,
     sleepReminderSyncRevision,
-  } = useAppStoreStatus();
+  } = useAppSelector(selectTodayStatus, areTodayStatusEqual);
   const {
     alarmPlatformSupported,
     permissionGuide,
@@ -110,6 +116,7 @@ export default function TodayScreen() {
         <AppText
           accessibilityLabel={`오늘, ${formatKoreanDate(today, true)}`}
           accessibilityRole="header"
+          aria-level={1}
           style={styles.headerDate}
           variant="label">
           {formatKoreanDate(today, true)}

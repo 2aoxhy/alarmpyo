@@ -2,10 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   AccessibilityInfo,
   findNodeHandle,
-  FlatList,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -90,7 +91,7 @@ export function QuickTimerDurationStepper({
     initialDuration,
     wheelLayout.itemHeight,
   );
-  const listRef = useRef<FlatList<QuickTimerDuration>>(null);
+  const listRef = useRef<ScrollView>(null);
   const adjustableRef = useRef<View | null>(null);
   const numericInputRef = useRef<TextInput | null>(null);
   const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,7 +185,7 @@ export function QuickTimerDurationStepper({
       ? { revision, targetOffset: offset }
       : null;
     momentumRevisionRef.current = animated ? revision : null;
-    listRef.current?.scrollToOffset({ animated, offset });
+    listRef.current?.scrollTo({ animated, y: offset });
   }, []);
 
   const publishDuration = useCallback((nextDuration: QuickTimerDuration) => {
@@ -351,7 +352,9 @@ export function QuickTimerDurationStepper({
     }
     if (wasVisibleRef.current) return;
     wasVisibleRef.current = true;
+    let initialized = false;
     const timeout = setTimeout(() => {
+      initialized = true;
       const nextDuration = resolveInitialDuration(initialDurationMinutes);
       durationRef.current = nextDuration;
       committedDurationRef.current = nextDuration;
@@ -360,13 +363,22 @@ export function QuickTimerDurationStepper({
       setNumericInputError(null);
       entryModeRef.current = 'wheel';
       setEntryMode('wheel');
-      listRef.current?.scrollToIndex({
+      listRef.current?.scrollTo({
         animated: false,
-        index: nextDuration - 1,
+        y: quickTimerDurationToOffset(nextDuration, wheelLayout.itemHeight),
       });
     }, 0);
-    return () => clearTimeout(timeout);
-  }, [clearFocusTimeout, clearSettleTimeout, initialDurationMinutes, visible]);
+    return () => {
+      clearTimeout(timeout);
+      if (!initialized) wasVisibleRef.current = false;
+    };
+  }, [
+    clearFocusTimeout,
+    clearSettleTimeout,
+    initialDurationMinutes,
+    visible,
+    wheelLayout.itemHeight,
+  ]);
 
   useEffect(() => {
     if (!visible) return;
@@ -382,7 +394,7 @@ export function QuickTimerDurationStepper({
         wheelLayout.itemHeight,
       );
       offsetRef.current = nextOffset;
-      listRef.current?.scrollToOffset({ animated: false, offset: nextOffset });
+      listRef.current?.scrollTo({ animated: false, y: nextOffset });
     }, 0);
     return () => clearTimeout(timeout);
   }, [clearSettleTimeout, visible, wheelLayout.itemHeight]);
@@ -595,7 +607,7 @@ export function QuickTimerDurationStepper({
         style={[styles.modalRoot, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerSide} />
-          <AppText style={styles.headerTitle} variant="title">
+          <AppText accessibilityRole="header" aria-level={1} style={styles.headerTitle} variant="title">
             타이머 직접 입력
           </AppText>
           <Pressable
@@ -622,10 +634,21 @@ export function QuickTimerDurationStepper({
           </Pressable>
         </View>
 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.body}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.body}>
         <View style={styles.content}>
-          <AppText tone="secondary" style={styles.centerText} variant="body">
-            1분부터 60분까지
-          </AppText>
+          <View testID="quick-timer-duration-range">
+            <AppText tone="secondary" style={styles.centerText} variant="body">
+              1분부터 60분까지
+            </AppText>
+          </View>
           <View
             ref={adjustableRef}
             accessible={entryMode === 'wheel'}
@@ -660,23 +683,16 @@ export function QuickTimerDurationStepper({
               },
             ]}
             testID="quick-timer-duration-adjustable">
-            <FlatList
+            <ScrollView
               ref={listRef}
               accessible={false}
               accessibilityElementsHidden
               bounces={false}
               contentContainerStyle={{ paddingVertical: selectionTop }}
               contentOffset={{ x: 0, y: initialOffset }}
-              data={QUICK_TIMER_DURATIONS}
               decelerationRate="normal"
-              extraData={`${durationMinutes}:${entryMode}`}
-              getItemLayout={(_, index) => ({
-                index,
-                length: wheelLayout.itemHeight,
-                offset: wheelLayout.itemHeight * index,
-              })}
               importantForAccessibility="no-hide-descendants"
-              keyExtractor={(item) => item.toString()}
+              nestedScrollEnabled
               onMomentumScrollBegin={handleMomentumBegin}
               onMomentumScrollEnd={handleMomentumEnd}
               onScroll={observeScroll}
@@ -684,7 +700,14 @@ export function QuickTimerDurationStepper({
               onScrollEndDrag={scheduleDragSettle}
               overScrollMode="never"
               pointerEvents={entryMode === 'numeric' ? 'none' : 'auto'}
-              renderItem={({ item }) => {
+              scrollEnabled={!busy && entryMode === 'wheel'}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={false}
+              snapToAlignment="start"
+              snapToInterval={wheelLayout.itemHeight}
+              style={styles.wheelList}
+              testID="quick-timer-duration-wheel">
+              {QUICK_TIMER_DURATIONS.map((item) => {
                 const selected = item === durationMinutes;
                 return (
                   <Pressable
@@ -692,6 +715,7 @@ export function QuickTimerDurationStepper({
                     accessibilityElementsHidden
                     disabled={busy || entryMode === 'numeric'}
                     importantForAccessibility="no-hide-descendants"
+                    key={item}
                     onPress={() => {
                       if (selected) {
                         beginNumericEntry();
@@ -750,15 +774,8 @@ export function QuickTimerDurationStepper({
                     )}
                   </Pressable>
                 );
-              }}
-              scrollEnabled={!busy && entryMode === 'wheel'}
-              scrollEventThrottle={16}
-              showsVerticalScrollIndicator={false}
-              snapToAlignment="start"
-              snapToInterval={wheelLayout.itemHeight}
-              style={styles.wheelList}
-              testID="quick-timer-duration-wheel"
-            />
+              })}
+            </ScrollView>
             {entryMode === 'numeric' ? (
               <View
                 style={[
@@ -837,15 +854,21 @@ export function QuickTimerDurationStepper({
           </View>
           <View
             accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}
-            style={styles.inputHintContainer}>
+            style={styles.inputHintContainer}
+            testID="quick-timer-duration-help">
             <AppText
               color={numericInputError ? colors.danger : colors.textMuted}
               style={styles.inputHint}
               variant="caption">
-              {numericInputError ?? '가운데 숫자를 누르면 직접 입력할 수 있습니다.'}
+              {numericInputError ?? (
+                entryMode === 'numeric'
+                  ? '입력한 시간으로 타이머를 시작합니다.'
+                  : '가운데 숫자를 누르면 직접 입력할 수 있습니다.'
+              )}
             </AppText>
           </View>
         </View>
+        </ScrollView>
 
         <View
           style={[
@@ -876,6 +899,7 @@ export function QuickTimerDurationStepper({
             testID="quick-timer-stepper-start"
           />
         </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -883,6 +907,7 @@ export function QuickTimerDurationStepper({
 
 const styles = StyleSheet.create({
   modalRoot: { flex: 1 },
+  body: { flex: 1 },
   header: {
     minHeight: 60,
     flexDirection: 'row',
@@ -890,6 +915,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    flexShrink: 0,
   },
   headerSide: { width: size.minimumTouchTarget },
   headerTitle: { flex: 1, textAlign: 'center' },
@@ -900,8 +926,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.full,
   },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
-    flex: 1,
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
@@ -920,6 +950,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    flexShrink: 0,
   },
   wheelList: { flex: 1 },
   wheelRow: {
@@ -1001,6 +1032,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   actions: {
+    flexShrink: 0,
     flexDirection: 'row',
     gap: space.sm,
     paddingHorizontal: space.lg,

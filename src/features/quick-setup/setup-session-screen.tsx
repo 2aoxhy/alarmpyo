@@ -30,8 +30,13 @@ import {
 } from '@/features/setup/work-pattern-draft';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import type { AppData } from '@/models/app-data';
+import {
+  areSetupDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import { clearSetupDraft, readSetupDraft } from '@/services/setup-draft-service';
-import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { addDays, formatKoreanDate, toDateKey } from '@/utils/date';
 import { calculatePatternPosition, isPatternScheduleDate } from '@/services/pattern-engine';
 import { formatTimeInput } from '@/utils/shift-time';
@@ -70,7 +75,7 @@ type SetupSessionScreenProps = { mode: SetupSessionMode };
 
 function projectWorkPatternDraft(
   session: SetupSessionDraftV2,
-  data: ReturnType<typeof useAppStoreData>['data'],
+  data: AppData,
   today: string,
 ): WorkPatternDraft {
   const base =
@@ -126,12 +131,12 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
   const stackActions = width <= 360 || fontScale >= 1.4;
   const stackTimeInputs = width <= 320 || fontScale >= 1.3;
   const compactProgress = width <= 320 || fontScale >= 1.4;
-  const { data } = useAppStoreData();
+  const data = useAppSelector(selectSettingsData, areSetupDataEqual);
   const {
     commitSetup,
     previewSharedWorkSettings,
     requestAlarmAccess,
-  } = useAppStoreActions();
+  } = useAppCommands();
   const [today] = useState(() => toDateKey(new Date()));
   const initialDataRef = useRef(data);
   const [draftSession] = useState(() => quickSetupDraftController.createSession());
@@ -647,7 +652,7 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
       safeAreaEdges={mode === 'reconfigure' ? ['left', 'right'] : undefined}>
       {mode === 'initial' ? (
         <View style={styles.title}>
-          <AppText accessibilityRole="header" variant="heading">
+          <AppText accessibilityRole="header" aria-level={1} variant="heading">
             근무표 설정
           </AppText>
         </View>

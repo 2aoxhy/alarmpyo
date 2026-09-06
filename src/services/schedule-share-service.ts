@@ -1,5 +1,5 @@
 import type { ShiftType } from '../models/app-data';
-import type { EffectiveDay } from './app-data-service';
+import type { EffectiveDay } from '../application/app-data-policy';
 import {
   differenceInCalendarDays,
   formatCompactTime,

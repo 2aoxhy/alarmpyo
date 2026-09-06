@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createDefaultAppData } from '../../services/app-data-service';
-// @ts-expect-error Vitest는 Store 경계 회귀를 소스 계약으로 확인해요.
-import providerSource from '../../store/app-store.tsx?raw';
+import { allCoordinatorSource as providerSource } from './store-coordinator-source';
 
 import {
   analyzeAppDataScheduleSafety,

@@ -16,11 +16,16 @@ import { PatternApplicationPreview } from '@/features/pattern-library/pattern-ap
 import {
   adaptPatternApplicationPreviewRows,
   buildPatternOverridePolicy,
+  createPatternApplicationPreview,
   formatPatternApplyActionLabel,
   type OverrideResolutionMode,
 } from '@/features/pattern-library/pattern-library-model';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppCommands, useAppStoreData } from '@/store/app-store';
+import {
+  arePatternPreviewDataEqual,
+  selectPatternLibraryData,
+} from '@/features/pattern-library/pattern-library-store-selection';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 
 const POLICY_OPTIONS: readonly {
@@ -48,8 +53,8 @@ const POLICY_OPTIONS: readonly {
 export default function PatternLibraryApplyScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { showDialog } = useAppDialog();
-  const { data } = useAppStoreData();
-  const { applyPatternFromVault, previewPatternApplication } = useAppCommands();
+  const data = useAppSelector(selectPatternLibraryData, arePatternPreviewDataEqual);
+  const { applyPatternFromVault } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const stacked = width <= 360 || fontScale >= 1.3;
@@ -67,13 +72,13 @@ export default function PatternLibraryApplyScreen() {
   const basePreviewResult = useMemo(
     () =>
       id
-        ? previewPatternApplication({
+        ? createPatternApplicationPreview(data, {
             patternId: id,
             effectiveDate,
             overridePolicy: { mode: 'preserve' },
           })
         : { status: 'failure' as const, reason: 'pattern-not-found' as const },
-    [effectiveDate, id, previewPatternApplication],
+    [data, effectiveDate, id],
   );
   const directOverrideDateKeys = useMemo(
     () =>
@@ -103,9 +108,9 @@ export default function PatternLibraryApplyScreen() {
       mode === 'preserve'
         ? basePreviewResult
         : id
-        ? previewPatternApplication({ patternId: id, effectiveDate, overridePolicy })
+        ? createPatternApplicationPreview(data, { patternId: id, effectiveDate, overridePolicy })
         : { status: 'failure' as const, reason: 'pattern-not-found' as const },
-    [basePreviewResult, effectiveDate, id, mode, overridePolicy, previewPatternApplication],
+    [basePreviewResult, data, effectiveDate, id, mode, overridePolicy],
   );
   const preview = previewResult.status === 'ready' ? previewResult.preview : null;
   const activePolicy = POLICY_OPTIONS.find((option) => option.mode === mode)!;

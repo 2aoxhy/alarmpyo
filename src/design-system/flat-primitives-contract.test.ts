@@ -21,10 +21,10 @@ describe('평면형 디자인 시스템 계약', () => {
     expect(contents).not.toContain('elevation:');
   });
 
-  it('버튼은 작은 panel radius와 불투명도 눌림만 사용해요', () => {
+  it('버튼은 control radius와 불투명도 눌림만 사용해요', () => {
     const contents = source('src/design-system/button.tsx');
 
-    expect(contents).toContain('borderRadius: shape.panel');
+    expect(contents).toContain('borderRadius: shape.control');
     expect(contents).toContain('opacity: interaction.emphasizedPressedOpacity');
     expect(contents).not.toContain('transform: [{ scale:');
   });

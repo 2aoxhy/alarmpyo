@@ -9,7 +9,7 @@ import { updateCopy } from '@/content/update-copy';
 import { useDirectAppUpdateController } from '@/features/update/direct-app-update-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStoreStatus } from '@/store/app-store';
+import { useAppSelector } from '@/store/app-store';
 
 export const DIRECT_APK_UPDATE_BUNDLE_SENTINEL = 'ALARMPYO_DIRECT_APK_UPDATE_V1';
 
@@ -17,7 +17,7 @@ export default function AppUpdateScreen() {
   const { showDialog } = useAppDialog();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const { saveStatus } = useAppStoreStatus();
+  const saveStatus = useAppSelector((store) => store.saveStatus);
   const {
     actionDisabled,
     apkProgress,

@@ -41,11 +41,12 @@ import { toDateKey } from '@/utils/date';
 export default function PatternLibraryEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { showDialog } = useAppDialog();
-  const data = useAppSelector((store) => store.data);
+  const editing = useAppSelector(
+    (store) => id ? store.data.patternVault.find((entry) => entry.id === id) : undefined,
+  );
   const { saveUserPattern } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const navigation = useNavigation();
-  const editing = id ? data.patternVault.find((entry) => entry.id === id) : undefined;
   const [initialDraft] = useState<PatternDraft>(() => {
     const created = createPatternDraft(editing);
     if (editing) {

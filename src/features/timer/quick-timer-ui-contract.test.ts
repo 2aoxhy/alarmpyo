@@ -128,7 +128,8 @@ describe('빠른 타이머 화면 계약', () => {
   it('직접 입력은 부드러운 1~60분 휠과 중앙 숫자 입력을 함께 제공해요', () => {
     expect(stepper).toContain('presentationStyle="fullScreen"');
     expect(stepper).toContain('onRequestClose={handleCancel}');
-    expect(stepper).toContain('<FlatList');
+    expect(stepper).toContain('QUICK_TIMER_DURATIONS.map');
+    expect(stepper).not.toContain('<FlatList');
     expect(stepper).toContain('snapToInterval={wheelLayout.itemHeight}');
     expect(stepper).toContain('decelerationRate="normal"');
     expect(stepper).not.toContain('disableIntervalMomentum');
@@ -167,7 +168,11 @@ describe('빠른 타이머 화면 계약', () => {
     expect(stepper).toContain("from 'react-native-safe-area-context'");
     expect(stepper).toContain('includeFontPadding: false');
     expect(stepper).toContain('wasVisibleRef');
-    expect(stepper).not.toContain('<ScrollView');
+    expect(stepper).toContain('<ScrollView');
+    expect(stepper).toContain('keyboardShouldPersistTaps="handled"');
+    expect(stepper).toContain('testID="quick-timer-duration-range"');
+    expect(stepper).toContain('testID="quick-timer-duration-help"');
+    expect(stepper).toContain('입력한 시간으로 타이머를 시작합니다.');
     expect(stepper).not.toContain('quick-timer-adjust-');
     expect(stepper).not.toContain('초');
     expect(stepper).not.toContain('00시');
@@ -184,11 +189,13 @@ describe('빠른 타이머 화면 계약', () => {
   });
 
   it('상태 관측 revision으로 오래된 조회가 새 작업 결과를 덮지 않아요', () => {
-    expect(timer).toContain('observationRevisionRef');
-    expect(timer).toContain('observationRevision !== observationRevisionRef.current');
-    expect(timer).toContain('actionRevisionRef');
+    expect(timer).toContain('createQuickTimerObservationSession');
+    expect(timer).toContain('observationSession.activate()');
+    expect(timer).toContain('observationSession.deactivate()');
+    expect(timer).toContain('observationSession.isCurrent(observationRevision)');
     expect(timer).toContain("claimTimerAction('schedule')");
     expect(timer).toContain('releaseTimerAction(observationRevision)');
-    expect(timer).toContain('actionRevisionRef.current !== null');
+    expect(timer).toContain('observationSession.hasPendingAction()');
+    expect(timer).toContain('visible={customDurationOpen && screenActive}');
   });
 });

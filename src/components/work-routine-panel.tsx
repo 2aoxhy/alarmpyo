@@ -99,7 +99,7 @@ export function WorkRoutinePanel({
       {expanded ? (
         <View style={[styles.details, compact && styles.detailsCompact]}>
           <View style={styles.detailsHeading}>
-            <AppText accessibilityRole="header" variant="label">
+            <AppText accessibilityRole="header" aria-level={3} variant="label">
               {plan.title}
             </AppText>
             <AppText tone="secondary" variant="caption">

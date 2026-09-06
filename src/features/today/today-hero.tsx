@@ -117,6 +117,7 @@ export function TodayHero({
       <View style={[styles.heroCopy, compact && styles.heroCopyCompact]}>
         <AppText
           accessibilityRole="header"
+          aria-level={2}
           color={palette.white}
           variant="display">
           {heroTitle}

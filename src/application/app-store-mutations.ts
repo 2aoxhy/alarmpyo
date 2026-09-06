@@ -10,12 +10,7 @@ import type {
   WidgetDisplayOptions,
   WorkRoutineProfiles,
 } from '../models/app-data';
-import {
-  applyDayAlarmOverride,
-  clearScheduleOverridesFrom,
-  pruneInvalidDayAlarmOverrides,
-  resolveBaseShiftFromAppData,
-} from '../services/app-data-service';
+import { applyDayAlarmOverride, clearScheduleOverridesFrom, pruneInvalidDayAlarmOverrides, resolveBaseShiftFromAppData } from './app-data-policy';
 import { canBuildWorkRoutinePlan } from '../services/work-routine-planner';
 
 import {

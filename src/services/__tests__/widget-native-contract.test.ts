@@ -141,6 +141,27 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     );
   });
 
+  it('공통 RemoteViews 바인딩에 쓰는 ID가 두 크기 레이아웃에 모두 존재해요', () => {
+    const provider = readSource(
+      'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoShiftWidgetProvider.kt',
+    );
+    const boundIds = new Set(
+      [...provider.matchAll(/R\.id\.(alarmpyo_widget_\w+)/g)]
+        .map((match) => match[1])
+        // 이 ID는 mediumHeight 분기 안에서만 바인딩합니다.
+        .filter((id) => id !== 'alarmpyo_widget_status'),
+    );
+    for (const name of ['compact', 'medium']) {
+      const layout = readSource(
+        `modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_${name}.xml`,
+      );
+      const viewIds = new Set(
+        [...layout.matchAll(/android:id="@\+id\/(\w+)"/g)].map((match) => match[1]),
+      );
+      expect([...boundIds].filter((id) => !viewIds.has(id))).toEqual([]);
+    }
+  });
+
   it('4×1과 4×2 위젯의 모든 글자는 12sp 이상이고 긴 보조 정보는 축약해요', () => {
     const widgetLayout = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_compact.xml',
@@ -165,31 +186,11 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       'AlarmPyoWidgetSectionKind.NEXT_ALARM -> "알람"',
     );
     expect(providerSource).toContain('context.resources.configuration.fontScale');
-    expect(providerSource).toContain('fontScale >= 1.3f');
-    expect(providerSource).toContain('fontScale >= 1.5f');
-    expect(providerSource).toContain('fontScale >= 1.8f');
-    expect(providerSource).toContain('minimumHeight && largeText');
-    expect(providerSource).toContain('mediumHeight && veryLargeText');
-    expect(providerSource).toContain('if (veryLargeText) View.GONE else View.VISIBLE');
-    expect(providerSource).toContain('mediumHeight && veryLargeText -> 14f');
-    expect(providerSource).toContain('denseLargeText -> 13f');
-    expect(providerSource).toContain('mediumHeight && largeText -> 16f');
-    expect(providerSource).toContain('views.setViewPadding(');
-    expect(providerSource).toContain('dpToPx(context, 2)');
-    expect(providerSource).not.toContain('dpToPx(context, 6)');
-    expect(providerSource).not.toMatch(/if \(hasTertiary\) (?:9|10|11)f/);
-
-    // includeFontPadding=false에서도 기본 글꼴 ascent/descent 여유를 1.2배로
-    // 잡아 4×2 확장 높이 안에 들어오는지 보수적으로 계산합니다.
-    const estimatedHeightAt149Percent =
-      (12 + 16 + 13 + 14) * 1.49 * 1.2 + 10;
-    const estimatedHeightAt179Percent =
-      (10 + 13 + 10 + 10) * 1.79 * 1.2 + 10;
-    const estimatedHeightAt200Percent =
-      (12 + 14 + 14) * 2 * 1.2 + 8;
-    expect(estimatedHeightAt149Percent).toBeLessThanOrEqual(110);
-    expect(estimatedHeightAt179Percent).toBeLessThanOrEqual(110);
-    expect(estimatedHeightAt200Percent).toBeLessThanOrEqual(110);
+    expect(providerSource).toContain('AlarmPyoWidgetPresentationPolicy.resolve(');
+    expect(providerSource).toContain('presentation.showSchedule');
+    expect(providerSource).toContain('presentation.showStatus');
+    expect(providerSource).toContain('presentation.titleSizeSp');
+    expect(providerSource).not.toMatch(/\b(?:9|10|11)f\b/);
   });
 
   it('4×2는 medium 계층을 쓰고 4×1로 줄이면 compact 계층을 즉시 복원해요', () => {
@@ -208,8 +209,9 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(providerSource).toContain('onAppWidgetOptionsChanged');
     expect(providerSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT');
     expect(providerSource).toContain('manager.getAppWidgetOptions(widgetId)');
-    expect(providerSource).toContain('minimumHeight && largeText');
-    expect(providerSource).toContain('mediumHeight && veryLargeText');
+    expect(providerSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH');
+    expect(providerSource).toContain('presentation.nextSection');
+    expect(providerSource).toContain('presentation.alarmSection');
     expect(providerSource).toContain('R.layout.alarmpyo_shift_widget_compact');
     expect(providerSource).toContain('R.layout.alarmpyo_shift_widget_medium');
     expect(providerSource).toContain('AlarmPyoWidgetHeightMode.MEDIUM');

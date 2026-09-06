@@ -4,8 +4,8 @@ import {
   type StoredSetupSessionDraft,
 } from './setup-session-model';
 
-export const QUICK_SETUP_DRAFT_KEY = 'alarmpyo:quick-setup-draft:v1';
-export const SETUP_SESSION_DRAFT_KEY = 'alarmpyo:setup-session-draft:v2';
+import { QUICK_SETUP_DRAFT_KEY, SETUP_SESSION_DRAFT_KEY } from '../../application/device-local-state';
+export { QUICK_SETUP_DRAFT_KEY, SETUP_SESSION_DRAFT_KEY, clearQuickSetupDraft } from '../../application/device-local-state';
 
 export type QuickSetupDraftStorage = {
   getItem(key: string): Promise<string | null>;
@@ -97,13 +97,6 @@ export async function writeQuickSetupDraft(
     draft.version === 2 ? SETUP_SESSION_DRAFT_KEY : QUICK_SETUP_DRAFT_KEY,
     JSON.stringify(draft),
   );
-}
-
-export async function clearQuickSetupDraft(
-  storage: QuickSetupDraftStorage,
-): Promise<void> {
-  await storage.removeItem(SETUP_SESSION_DRAFT_KEY);
-  await storage.removeItem(QUICK_SETUP_DRAFT_KEY);
 }
 
 export async function hasQuickSetupDraft(

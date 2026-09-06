@@ -143,12 +143,19 @@ internal object AlarmPyoShiftWidgetUpdater {
     val state = AlarmPyoWidgetFormatter.format(snapshot, nowMillis)
     val fontScale = context.resources.configuration.fontScale
     ids.forEach { widgetId ->
-      val minHeightDp = manager.getAppWidgetOptions(widgetId).getInt(
+      val options = manager.getAppWidgetOptions(widgetId)
+      val minHeightDp = options.getInt(
         AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
         AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP
       )
-      val heightMode = AlarmPyoWidgetSizePolicy.heightMode(minHeightDp)
-      val views = createRemoteViews(context, state, fontScale, heightMode)
+      val minWidthDp = options.getInt(
+        AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_WIDTH_DP
+      )
+      val presentation = AlarmPyoWidgetPresentationPolicy.resolve(
+        state, minHeightDp, minWidthDp, fontScale
+      )
+      val views = createRemoteViews(context, state, presentation)
       views.setOnClickPendingIntent(R.id.alarmpyo_widget_root, openAppIntent(context))
       manager.updateAppWidget(widgetId, views)
     }
@@ -209,8 +216,12 @@ internal object AlarmPyoShiftWidgetUpdater {
     val preview = createRemoteViews(
       applicationContext,
       previewState,
-      fontScale,
-      AlarmPyoWidgetHeightMode.MINIMUM
+      AlarmPyoWidgetPresentationPolicy.resolve(
+        previewState,
+        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP,
+        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_WIDTH_DP,
+        fontScale
+      )
     )
     val updated = setGeneratedPreview(applicationContext, preview)
     if (!updated) return AlarmPyoWidgetPreviewUpdateResult.RATE_LIMITED
@@ -234,15 +245,14 @@ internal object AlarmPyoShiftWidgetUpdater {
   private fun createRemoteViews(
     context: Context,
     state: AlarmPyoWidgetViewState,
-    fontScale: Float,
-    heightMode: AlarmPyoWidgetHeightMode
+    presentation: AlarmPyoWidgetPresentation
   ): RemoteViews {
-    val layout = when (heightMode) {
+    val layout = when (presentation.heightMode) {
       AlarmPyoWidgetHeightMode.MINIMUM -> R.layout.alarmpyo_shift_widget_compact
       AlarmPyoWidgetHeightMode.MEDIUM -> R.layout.alarmpyo_shift_widget_medium
     }
     return RemoteViews(context.packageName, layout).also { views ->
-      bindState(context, views, state, fontScale, heightMode)
+      bindState(context, views, state, presentation)
     }
   }
 
@@ -250,49 +260,15 @@ internal object AlarmPyoShiftWidgetUpdater {
     context: Context,
     views: RemoteViews,
     state: AlarmPyoWidgetViewState,
-    fontScale: Float,
-    heightMode: AlarmPyoWidgetHeightMode
+    presentation: AlarmPyoWidgetPresentation
   ) {
-    val minimumHeight = heightMode == AlarmPyoWidgetHeightMode.MINIMUM
-    val mediumHeight = heightMode == AlarmPyoWidgetHeightMode.MEDIUM
-    val largeText = fontScale >= 1.3f
-    val denseLargeText = mediumHeight && fontScale >= 1.5f && fontScale < 1.8f
-    val veryLargeText = fontScale >= 1.8f
-
-    if (mediumHeight && largeText) {
-      // Expanded launchers vary in their exact row height. Keep all 130–179%
-      // text, but remove vertical spacing so the rows are not clipped.
-      // At 180%+ the visibility rules below retain only date, title, and next
-      // information.
-      views.setViewPadding(
-        R.id.alarmpyo_widget_card,
-        dpToPx(context, 17),
-        dpToPx(context, 2),
-        dpToPx(context, 12),
-        dpToPx(context, 2)
-      )
-      views.setViewPadding(
-        R.id.alarmpyo_widget_primary_panel,
-        0,
-        0,
-        0,
-        0
-      )
-      views.setViewPadding(
-        R.id.alarmpyo_widget_secondary_panel,
-        0,
-        0,
-        0,
-        0
-      )
-    }
+    val mediumHeight = presentation.heightMode == AlarmPyoWidgetHeightMode.MEDIUM
+    val next = presentation.nextSection
+    val alarm = presentation.alarmSection
+    val showSectionLabels = presentation.showSectionLabels
     views.setTextViewText(
       R.id.alarmpyo_widget_date,
-      if (minimumHeight) {
-        "${compactDateText(state.dateText)} · ${state.statusText}"
-      } else {
-        compactDateText(state.dateText)
-      }
+      compactDateText(state.dateText)
     )
     views.setTextViewText(R.id.alarmpyo_widget_title, state.titleText)
     views.setTextViewText(R.id.alarmpyo_widget_schedule, state.scheduleText)
@@ -301,112 +277,94 @@ internal object AlarmPyoShiftWidgetUpdater {
       views.setTextViewTextSize(
         R.id.alarmpyo_widget_status,
         TypedValue.COMPLEX_UNIT_SP,
-        if (denseLargeText) 10f else 12f
+        12f
       )
       views.setViewVisibility(
         R.id.alarmpyo_widget_status,
-        if (veryLargeText) View.GONE else View.VISIBLE
+        if (presentation.showStatus) View.VISIBLE else View.GONE
       )
     }
-    val hasSecondary = state.bottomLabel.isNotBlank()
-    val hasTertiary =
-      !state.secondaryLabel.isNullOrBlank() && !state.secondaryText.isNullOrBlank()
-    val showSectionLabels = mediumHeight && !largeText
-    views.setTextViewText(R.id.alarmpyo_widget_bottom_label, state.bottomLabel)
+    views.setTextViewText(R.id.alarmpyo_widget_bottom_label, next?.label.orEmpty())
     views.setTextViewText(
       R.id.alarmpyo_widget_bottom_value,
-      if (!showSectionLabels) {
-        compactWidgetLine(state.bottomSectionKind, state.bottomLabel, state.bottomText)
+      if (next != null && !showSectionLabels) {
+        compactWidgetLine(next.kind, next.label, next.text)
       } else {
-        state.bottomText
+        next?.text.orEmpty()
       }
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_date,
-      if (minimumHeight && veryLargeText) View.GONE else View.VISIBLE
+      if (presentation.showDate) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_schedule,
-      if ((minimumHeight && largeText) || (mediumHeight && veryLargeText)) {
-        View.GONE
-      } else {
-        View.VISIBLE
-      }
+      if (presentation.showSchedule) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_secondary_panel,
-      if (hasSecondary && !(minimumHeight && veryLargeText)) View.VISIBLE else View.GONE
+      if (next != null) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_primary_divider,
-      if (hasSecondary && !(minimumHeight && veryLargeText)) View.VISIBLE else View.GONE
+      if (next != null) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_secondary_divider,
-      if (hasTertiary && !largeText) View.VISIBLE else View.GONE
+      View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_secondary_second,
-      if (hasTertiary && !largeText) View.VISIBLE else View.GONE
+      if (alarm != null) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_bottom_label,
-      if (showSectionLabels) View.VISIBLE else View.GONE
+      if (next != null && showSectionLabels) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_secondary_label,
-      if (hasTertiary && !largeText) View.VISIBLE else View.GONE
+      if (alarm != null && showSectionLabels) View.VISIBLE else View.GONE
     )
-    views.setTextViewText(R.id.alarmpyo_widget_secondary_label, state.secondaryLabel.orEmpty())
+    views.setTextViewText(R.id.alarmpyo_widget_secondary_label, alarm?.label.orEmpty())
     views.setTextViewText(
       R.id.alarmpyo_widget_secondary_value,
-      if (hasTertiary && !showSectionLabels) {
-        compactWidgetLine(
-          state.secondarySectionKind,
-          state.secondaryLabel.orEmpty(),
-          state.secondaryText.orEmpty()
-        )
+      if (alarm != null && !showSectionLabels) {
+        compactWidgetLine(alarm.kind, alarm.label, alarm.text)
       } else {
-        state.secondaryText.orEmpty()
+        alarm?.text.orEmpty()
       }
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_title,
       TypedValue.COMPLEX_UNIT_SP,
-      when {
-        mediumHeight && veryLargeText -> 14f
-        denseLargeText -> 13f
-        mediumHeight && largeText -> 16f
-        mediumHeight -> 20f
-        largeText -> 14f
-        else -> 16f
-      }
+      presentation.titleSizeSp
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_date,
       TypedValue.COMPLEX_UNIT_SP,
-      if (denseLargeText) 10f else 12f
+      12f
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_schedule,
       TypedValue.COMPLEX_UNIT_SP,
-      if (denseLargeText) 10f else if (mediumHeight) 13f else 12f
+      12f
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_bottom_label,
       TypedValue.COMPLEX_UNIT_SP,
-      if (denseLargeText) 10f else 12f
+      12f
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_bottom_value,
       TypedValue.COMPLEX_UNIT_SP,
-      if (denseLargeText) 10f else if (hasTertiary) 12f else 14f
+      12f
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_secondary_value,
       TypedValue.COMPLEX_UNIT_SP,
-      if (denseLargeText) 10f else 12f
+      12f
     )
+    views.setInt(R.id.alarmpyo_widget_bottom_value, "setMaxLines", presentation.nextMaxLines)
     views.setContentDescription(R.id.alarmpyo_widget_root, state.contentDescription)
 
     val assets = visualAssets(state.visual)
@@ -426,9 +384,6 @@ internal object AlarmPyoShiftWidgetUpdater {
       views.setTextColor(R.id.alarmpyo_widget_status, statusTextColor)
     }
   }
-
-  private fun dpToPx(context: Context, value: Int): Int =
-    (value * context.resources.displayMetrics.density + 0.5f).toInt()
 
   private fun compactDateText(dateText: String): String =
     dateText.substringAfter("년 ", dateText)

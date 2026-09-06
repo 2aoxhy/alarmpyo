@@ -5,10 +5,7 @@ import type {
 } from '../models/app-data';
 import { addDays, toDateKey } from '../utils/date';
 import { getDayExceptionLabel } from '../utils/day-exception';
-import {
-  getScheduleStartDate,
-  resolveEffectiveDayFromAppData,
-} from './app-data-service';
+import { getScheduleStartDate, resolveEffectiveDayFromAppData } from '../application/app-data-policy';
 import {
   buildAlarmPyoAlarmPlan,
   resolveAlarmPyoAlarmShift,

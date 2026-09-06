@@ -1,5 +1,5 @@
 import type { AppData, DayExceptionType } from '../models/app-data';
-import { isScheduleDate } from './app-data-service';
+import { isScheduleDate } from '../application/app-data-policy';
 import { isValidDateKey } from '../utils/date';
 import { DAY_EXCEPTION_TYPES } from '../utils/day-exception';
 

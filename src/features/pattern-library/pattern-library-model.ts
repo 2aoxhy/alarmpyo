@@ -5,9 +5,11 @@ import type {
 } from '../../models/app-data';
 import { PatternEngine } from '../../services/pattern-engine';
 import type {
+  PatternApplicationInput,
   PatternApplicationPreviewRow,
   PatternOverridePolicy,
 } from '../../services/pattern-vault-service';
+import { previewPatternApplication } from '../../services/pattern-vault-service';
 import {
   addDays,
   differenceInCalendarDays,
@@ -19,6 +21,11 @@ import {
 
 export const MAX_PATTERN_LENGTH = 42;
 export const PATTERN_PREVIEW_DAYS = 42;
+
+/** Preview inputs are explicit so a stable engine command cannot stale a memo. */
+export function createPatternApplicationPreview(data: AppData, input: PatternApplicationInput) {
+  return previewPatternApplication(data, input);
+}
 
 export const PATTERN_SHIFT_OPTIONS: readonly {
   code: PatternShiftCode;

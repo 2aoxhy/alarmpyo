@@ -48,7 +48,7 @@ export function PageHeader({
             align === 'center' && styles.copyCentered,
             stacked && styles.copyStacked,
           ]}>
-          <Heading align={align === 'center' ? 'center' : 'left'} level={2} style={styles.title}>
+          <Heading align={align === 'center' ? 'center' : 'left'} level={2} semanticLevel={1} style={styles.title}>
             {title}
           </Heading>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}

@@ -50,6 +50,10 @@ import {
 } from '@/features/timer/quick-timer-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
 import { QuickTimerDurationStepper } from '@/features/timer/quick-timer-duration-stepper';
+import {
+  createQuickTimerObservationSession,
+  type TimerObservationRevision,
+} from '@/features/timer/quick-timer-observation';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -93,10 +97,8 @@ export default function TimerScreen() {
   const [loadError, setLoadError] = useState(false);
   const directInputButtonRef = useRef<ElementRef<typeof Pressable>>(null);
   const shouldRestoreDirectInputFocusRef = useRef(false);
-  const mountedRef = useRef(true);
   const hasLoadedRef = useRef(false);
-  const observationRevisionRef = useRef(0);
-  const actionRevisionRef = useRef<number | null>(null);
+  const [observationSession] = useState(createQuickTimerObservationSession);
   const readWallClock = useCallback(() => Date.now(), []);
   const restoreDirectInputFocus = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -113,9 +115,9 @@ export default function TimerScreen() {
 
   const observeStatus = useCallback((
     nextStatus: QuickTimerStatus,
-    observationRevision: number,
+    observationRevision: TimerObservationRevision,
   ) => {
-    if (observationRevision !== observationRevisionRef.current) return null;
+    if (!observationSession.isCurrent(observationRevision)) return null;
     const nextClock = {
       monotonic: performance.now(),
       wall: Date.now(),
@@ -129,34 +131,46 @@ export default function TimerScreen() {
       current === null || current === nextObservationKey ? current : null,
     );
     return nextClock;
-  }, []);
+  }, [observationSession]);
 
   const claimTimerAction = useCallback((
     action: 'schedule' | 'pause' | 'resume' | 'reset' | 'refresh',
   ) => {
-    if (actionRevisionRef.current !== null) return null;
-    const revision = ++observationRevisionRef.current;
-    actionRevisionRef.current = revision;
+    const revision = observationSession.claimAction();
+    if (revision === null) return null;
     setBusyAction(action);
     return revision;
-  }, []);
+  }, [observationSession]);
 
-  const releaseTimerAction = useCallback((revision: number) => {
-    if (actionRevisionRef.current !== revision) return false;
-    actionRevisionRef.current = null;
-    if (mountedRef.current) setBusyAction(null);
+  const releaseTimerAction = useCallback((revision: TimerObservationRevision) => {
+    if (!observationSession.releaseAction(revision)) return false;
+    setBusyAction(null);
     return true;
-  }, []);
-
-  useEffect(
-    () => () => {
-      mountedRef.current = false;
-    },
-    [],
-  );
+  }, [observationSession]);
 
   useEffect(() => {
-    if (customDurationOpen || !shouldRestoreDirectInputFocusRef.current) {
+    if (!screenActive) {
+      observationSession.deactivate();
+      shouldRestoreDirectInputFocusRef.current = false;
+      const hideInput = setTimeout(() => setCustomDurationOpen(false), 0);
+      return () => clearTimeout(hideInput);
+    }
+    observationSession.activate();
+    // Commands accepted on an earlier visit still finish in the native queue;
+    // the returning screen gets their final state through a fresh observation.
+    const resetInactiveAction = setTimeout(() => {
+      if (observationSession.hasPendingAction()) return;
+      setBusyAction(null);
+      setSchedulingDuration(null);
+    }, 0);
+    return () => {
+      clearTimeout(resetInactiveAction);
+      observationSession.deactivate();
+    };
+  }, [observationSession, screenActive]);
+
+  useEffect(() => {
+    if (!screenActive || customDurationOpen || !shouldRestoreDirectInputFocusRef.current) {
       return;
     }
     shouldRestoreDirectInputFocusRef.current = false;
@@ -165,44 +179,26 @@ export default function TimerScreen() {
       Platform.OS === 'web' ? 0 : 180,
     );
     return () => clearTimeout(timeout);
-  }, [customDurationOpen, restoreDirectInputFocus]);
+  }, [customDurationOpen, restoreDirectInputFocus, screenActive]);
 
   const refreshStatus = useCallback(async (
     showLoading = false,
     announceFailure = false,
-    claimedRevision?: number,
+    claimedRevision?: TimerObservationRevision,
   ) => {
-    if (
-      claimedRevision === undefined &&
-      actionRevisionRef.current !== null
-    ) {
-      return null;
-    }
-    if (
-      claimedRevision !== undefined &&
-      actionRevisionRef.current !== claimedRevision
-    ) {
-      return null;
-    }
-    const observationRevision =
-      claimedRevision ?? ++observationRevisionRef.current;
+    const observationRevision = observationSession.beginObservation(claimedRevision);
+    if (observationRevision === null) return null;
     if (showLoading) setLoading(true);
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.getStatus();
-      if (
-        !mountedRef.current ||
-        observationRevision !== observationRevisionRef.current
-      ) {
+      if (!observationSession.isCurrent(observationRevision)) {
         return null;
       }
       observeStatus(nextStatus, observationRevision);
       return nextStatus;
     } catch {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         if (announceFailure) {
           void AccessibilityInfo.announceForAccessibility(
@@ -212,10 +208,7 @@ export default function TimerScreen() {
       }
       return null;
     } finally {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         hasLoadedRef.current = true;
         setLoading(false);
         if (claimedRevision !== undefined) {
@@ -225,7 +218,7 @@ export default function TimerScreen() {
         }
       }
     }
-  }, [observeStatus, releaseTimerAction]);
+  }, [observationSession, observeStatus, releaseTimerAction]);
 
   useEffect(() => {
     if (!screenActive) return;
@@ -299,10 +292,7 @@ export default function TimerScreen() {
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.schedule(durationMinutes);
-      if (
-        !mountedRef.current ||
-        observationRevision !== observationRevisionRef.current
-      ) {
+      if (!observationSession.isCurrent(observationRevision)) {
         return;
       }
       const observedClock = observeStatus(nextStatus, observationRevision);
@@ -323,15 +313,12 @@ export default function TimerScreen() {
         announce('타이머 설정 결과를 확인하지 못했습니다. 다시 시도해야 합니다.');
       }
     } catch {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 준비하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
-      if (releaseTimerAction(observationRevision) && mountedRef.current) {
+      if (releaseTimerAction(observationRevision)) {
         setSchedulingDuration(null);
       }
     }
@@ -366,18 +353,18 @@ export default function TimerScreen() {
   };
 
   const openCustomDuration = () => {
-    if (busyAction !== null || actionRevisionRef.current !== null) return;
+    if (busyAction !== null || observationSession.hasPendingAction()) return;
     setCustomDurationInitialMinutes(status?.durationMinutes ?? 15);
     setCustomDurationOpen(true);
   };
 
   const closeCustomDuration = (restoreFocus = true) => {
-    shouldRestoreDirectInputFocusRef.current = restoreFocus;
+    shouldRestoreDirectInputFocusRef.current = restoreFocus && screenActive;
     setCustomDurationOpen(false);
   };
 
   const submitCustomDuration = (durationMinutes: QuickTimerDuration) => {
-    if (busyAction !== null || actionRevisionRef.current !== null) return;
+    if (busyAction !== null || observationSession.hasPendingAction()) return;
     closeCustomDuration(false);
     selectDuration(durationMinutes, readWallClock());
   };
@@ -388,10 +375,7 @@ export default function TimerScreen() {
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.pause();
-      if (
-        !mountedRef.current ||
-        observationRevision !== observationRevisionRef.current
-      ) {
+      if (!observationSession.isCurrent(observationRevision)) {
         return;
       }
       observeStatus(nextStatus, observationRevision);
@@ -402,10 +386,7 @@ export default function TimerScreen() {
         announce('타이머를 일시정지했습니다.');
       }
     } catch {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 일시정지하지 못했습니다. 다시 확인해야 합니다.');
       }
@@ -420,10 +401,7 @@ export default function TimerScreen() {
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.resume();
-      if (
-        !mountedRef.current ||
-        observationRevision !== observationRevisionRef.current
-      ) {
+      if (!observationSession.isCurrent(observationRevision)) {
         return;
       }
       observeStatus(nextStatus, observationRevision);
@@ -434,10 +412,7 @@ export default function TimerScreen() {
         announce('타이머를 재개했습니다.');
       }
     } catch {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 재개하지 못했습니다. 다시 확인해야 합니다.');
       }
@@ -452,10 +427,7 @@ export default function TimerScreen() {
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.reset();
-      if (
-        !mountedRef.current ||
-        observationRevision !== observationRevisionRef.current
-      ) {
+      if (!observationSession.isCurrent(observationRevision)) {
         return;
       }
       observeStatus(nextStatus, observationRevision);
@@ -466,10 +438,7 @@ export default function TimerScreen() {
         announce('타이머를 초기화했습니다.');
       }
     } catch {
-      if (
-        mountedRef.current &&
-        observationRevision === observationRevisionRef.current
-      ) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 초기화하지 못했습니다. 다시 확인해야 합니다.');
       }
@@ -635,7 +604,7 @@ export default function TimerScreen() {
       ) : canShowIdleControls ? (
         <Surface style={styles.timerSurface}>
           <View style={styles.idleCopy}>
-            <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
+            <AppText accessibilityRole="header" aria-level={2} style={styles.centerText} variant="heading">
               시간 선택
             </AppText>
             <AppText tone="secondary" style={styles.centerText} variant="body">
@@ -686,7 +655,7 @@ export default function TimerScreen() {
       onCancel={() => closeCustomDuration()}
       onSubmit={submitCustomDuration}
       replacingTimer={hasTimer}
-      visible={customDurationOpen}
+      visible={customDurationOpen && screenActive}
     />
     </>
   );

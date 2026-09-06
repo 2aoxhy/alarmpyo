@@ -5,15 +5,7 @@ import {
 } from '../models/app-data';
 import { addDays, dateAtMinutes, isValidDateKey, toDateKey } from '../utils/date';
 import { ALARM_PLAN_HORIZON_DAYS, resolveAlarmPyoAlarmSourceShift } from './alarm-planner';
-import {
-  getDayAlarmOverrideLeadMinutes,
-  getDayAlarmOverrideWakeAt,
-  getScheduleStartDate,
-  isValidDayAlarmOverride,
-  resolveDayAlarmOverrideFromAppData,
-  resolveEffectiveDayFromAppData,
-  resolveShiftFromAppData,
-} from './app-data-service';
+import { getDayAlarmOverrideLeadMinutes, getDayAlarmOverrideWakeAt, getScheduleStartDate, isValidDayAlarmOverride, resolveDayAlarmOverrideFromAppData, resolveEffectiveDayFromAppData, resolveShiftFromAppData } from '../application/app-data-policy';
 
 export type ActualAppDataScheduleSafetyIssueCode =
   | 'invalid-pattern'

@@ -45,6 +45,10 @@ import {
 } from "@/features/alarm/alarm-settings-runtime-controller";
 import { SleepReminderToggle } from "@/features/alarm/sleep-reminder-toggle";
 import {
+  areAlarmSettingsDataEqual,
+  selectAlarmSettingsData,
+} from "@/features/alarm/alarm-store-selection";
+import {
   resolveAlarmScheduleEmptyCopy,
   resolveAlarmStatusBannerTone,
   resolveVisibleAlarmAutoCheckStatus,
@@ -62,8 +66,7 @@ import { getCachedFutureAlarmProjection } from "@/services/schedule-projection-c
 import { getSleepReminderScheduleSignature } from "@/services/sleep-reminder-planner";
 import {
   useAppCommands,
-  useAppStoreData,
-  useAppStoreStatus,
+  useAppSelector,
 } from "@/store/app-store";
 import { formatAlarmCountdown } from "@/utils/date";
 import { getDayExceptionAppearance } from "@/utils/day-exception-appearance";
@@ -192,13 +195,12 @@ export default function AlarmSettingsScreen() {
     target?: string | string[];
   }>();
   const { showDialog } = useAppDialog();
-  const { data, getShiftForDate } = useAppStoreData();
-  const {
-    alarmAutoCheckState,
-    alarmSyncStatus,
-    sleepReminderSyncStatus,
-    sleepReminderSyncRevision,
-  } = useAppStoreStatus();
+  const data = useAppSelector(selectAlarmSettingsData, areAlarmSettingsDataEqual);
+  const getShiftForDate = useAppSelector((store) => store.getShiftForDate);
+  const alarmAutoCheckState = useAppSelector((store) => store.alarmAutoCheckState);
+  const alarmSyncStatus = useAppSelector((store) => store.alarmSyncStatus);
+  const sleepReminderSyncStatus = useAppSelector((store) => store.sleepReminderSyncStatus);
+  const sleepReminderSyncRevision = useAppSelector((store) => store.sleepReminderSyncRevision);
   const {
     disableAlarms,
     enableAlarms,
@@ -1007,14 +1009,15 @@ function AlarmRow({
   alarm: AlarmPyoAlarmStatus["scheduledAlarms"][number];
 }) {
   const now = useAlarmNow();
-  const { data } = useAppStoreData();
+  const shiftTypes = useAppSelector((store) => store.data.shiftTypes);
+  const hasDateOverride = useAppSelector(
+    (store) => store.data.alarmOverrides[alarm.dateKey]?.mode === "wake-time",
+  );
+  const storedException = useAppSelector((store) => store.data.dayExceptions[alarm.dateKey]);
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const alarmShift = resolveAlarmPyoAlarmShift(data.shiftTypes, alarm);
-  const hasDateOverride =
-    data.alarmOverrides[alarm.dateKey]?.mode === "wake-time";
+  const alarmShift = resolveAlarmPyoAlarmShift(shiftTypes, alarm);
   const substituteAlarm = alarm.shiftTypeId === "substitute";
-  const storedException = data.dayExceptions[alarm.dateKey];
   const alarmException =
     alarm.shiftTypeId === "exception-training"
       ? "training"

@@ -211,9 +211,11 @@ function createStyles(colors: SemanticColors) {
     },
     title: {
       ...typeScale.label,
+      includeFontPadding: false,
     },
     message: {
       ...typeScale.body,
+      includeFontPadding: false,
     },
     action: {
       minWidth: size.minimumTouchTarget,

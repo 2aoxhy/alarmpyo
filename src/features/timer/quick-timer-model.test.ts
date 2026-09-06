@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  adjustQuickTimerDuration,
   clampQuickTimerDuration,
   createQuickTimerCountdownAnchor,
   formatQuickTimerCountdown,
@@ -84,33 +83,34 @@ describe('빠른 타이머 화면 모델', () => {
     expect(parseQuickTimerDurationInput('')).toMatchObject({ valid: false });
     expect(parseQuickTimerDurationInput('0')).toMatchObject({ valid: false });
     expect(parseQuickTimerDurationInput('61')).toMatchObject({ valid: false });
+    expect(parseQuickTimerDurationInput('001')).toMatchObject({ valid: false });
+    expect(parseQuickTimerDurationInput('99')).toMatchObject({ valid: false });
     expect(parseQuickTimerDurationInput('1.5')).toEqual({
       valid: false,
       error: '분 단위의 정수만 입력해야 합니다.',
     });
   });
 
-  it('직접 입력 보조 조절은 1~60분 안에서 10분·1분씩 이동해요', () => {
-    expect(adjustQuickTimerDuration(15, -10)).toBe(5);
-    expect(adjustQuickTimerDuration(5, -10)).toBe(1);
-    expect(adjustQuickTimerDuration(55, 10)).toBe(60);
-    expect(adjustQuickTimerDuration(60, 1)).toBe(60);
-    expect(adjustQuickTimerDuration(30, -1)).toBe(29);
-    expect(adjustQuickTimerDuration(30, 1)).toBe(31);
-    expect(adjustQuickTimerDuration(0, 1)).toBe(16);
+  it('직접 입력과 비순환 휠의 모든 1~60분 값이 일치합니다', () => {
+    for (let minutes = 1; minutes <= 60; minutes += 1) {
+      expect(parseQuickTimerDurationInput(String(minutes))).toEqual({
+        valid: true, durationMinutes: minutes,
+      });
+      for (const itemHeight of [64, 80, 104] as const) {
+        expect(quickTimerOffsetToDuration(
+          quickTimerDurationToOffset(minutes, itemHeight), itemHeight,
+        )).toBe(minutes);
+      }
+    }
   });
 
   it('직접 입력 조절기는 현재 분과 경계를 한 번에 설명해요', () => {
     expect(getQuickTimerDurationStepperPresentation(1)).toEqual({
       durationMinutes: 1,
-      canDecrease: false,
-      canIncrease: true,
       accessibilityLabel: '현재 1분, 최소 1분, 최대 60분',
     });
     expect(getQuickTimerDurationStepperPresentation(60)).toMatchObject({
       durationMinutes: 60,
-      canDecrease: true,
-      canIncrease: false,
     });
   });
 

@@ -11,10 +11,14 @@ import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
 import { PageHeader } from '@/design-system';
 import { formatSettingsWorkSummary } from '@/features/settings/settings-work-summary';
+import {
+  areSettingsHomeDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import { useGlobalPlayUpdate } from '@/features/update/global-play-update-controller';
 import { PlayUpdateStatusBadge } from '@/features/update/play-update-status-badge';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStoreData } from '@/store/app-store';
+import { useAppSelector } from '@/store/app-store';
 import {
   getWorkPatternDisplayName,
   getWorkPatternPreset,
@@ -22,7 +26,7 @@ import {
 } from '@/utils/work-pattern';
 
 export default function SettingsHome() {
-  const { data } = useAppStoreData();
+  const data = useAppSelector(selectSettingsData, areSettingsHomeDataEqual);
   const { badge: playUpdateBadge } = useGlobalPlayUpdate();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();

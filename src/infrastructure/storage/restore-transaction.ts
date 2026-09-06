@@ -19,7 +19,7 @@ import {
   APP_DATA_PENDING_RESTORE_BACKUP_KEY,
   CLEARED_PENDING_RESTORE_BACKUP,
 } from './app-data-storage-keys';
-import type { StorageAdapter, StorageWriter } from './serialized-storage';
+import type { StorageAdapter, StorageWriteOperations, StorageWriter } from './serialized-storage';
 
 // A pending document contains both a maximum backup and target snapshot.
 export const MAX_PENDING_RESTORE_DOCUMENT_BYTES =
@@ -67,7 +67,7 @@ export type PendingRestoreBackupRetryResult =
   | { status: 'confirmation-required' }
   | { status: 'failed' };
 
-type PendingRestoreJournalReadResult =
+export type PendingRestoreJournalReadResult =
   | { status: 'absent' }
   | { status: 'valid'; document: PendingRestoreBackupDocument }
   | { status: 'corrupt'; raw: string };
@@ -114,34 +114,42 @@ function parsePendingRestoreBackup(
   }
 }
 
-async function quarantineAndClearCorruptPendingRestoreBackup(
-  storage: StorageAdapter,
-  raw: string,
-): Promise<void> {
-  try {
-    await storage.setItem(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY, raw);
-  } catch {
-    // 별도 보존 공간이 부족해도 손상 저널이 이후 저장을 막게 두지 않아요.
+export class CorruptPendingRestoreBackupError extends Error {
+  constructor() {
+    super('복원 기록을 확인하지 못했습니다. 백업 복구에서 다시 시도할 수 있습니다.');
+    this.name = 'CorruptPendingRestoreBackupError';
   }
+}
 
+/** Reads never clear recovery evidence, including malformed documents. */
+export async function inspectPendingRestoreBackupJournal(
+  storage: StorageAdapter,
+): Promise<PendingRestoreJournalReadResult> {
+  return parsePendingRestoreBackup(await storage.getItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY));
+}
+
+/** Call under the application's mutation queue, shared by restore and reset. */
+export async function repairCorruptPendingRestoreBackup(
+  storage: StorageAdapter,
+  writer: StorageWriter,
+): Promise<boolean> {
   try {
-    if (storage.removeItem) {
-      await storage.removeItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
-    } else {
-      await storage.setItem(
-        APP_DATA_PENDING_RESTORE_BACKUP_KEY,
-        CLEARED_PENDING_RESTORE_BACKUP,
-      );
-    }
+    return await writer.runExclusive(async (transactionWriter) => {
+      const parsed = await inspectPendingRestoreBackupJournal(storage);
+      if (parsed.status !== 'corrupt') return true;
+      await transactionWriter.write(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY, parsed.raw);
+      if (await storage.getItem(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY) !== parsed.raw) {
+        return false;
+      }
+      // Do not clear a newer document, even if an external adapter replaced it.
+      const currentRaw = await storage.getItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+      if (currentRaw !== parsed.raw) return parsePendingRestoreBackup(currentRaw).status !== 'corrupt';
+      await clearPendingRestoreBackup(transactionWriter);
+      return true;
+    });
   } catch {
-    try {
-      await storage.setItem(
-        APP_DATA_PENDING_RESTORE_BACKUP_KEY,
-        CLEARED_PENDING_RESTORE_BACKUP,
-      );
-    } catch {
-      // 보존과 정리가 모두 실패해도 손상 입력은 absent처럼 취급해요.
-    }
+    // Without a verified quarantine copy the source remains protected.
+    return false;
   }
 }
 
@@ -163,7 +171,7 @@ function pendingRestoreBackupDocument(
 }
 
 export async function clearPendingRestoreBackup(
-  writer: StorageWriter,
+  writer: StorageWriteOperations,
 ): Promise<void> {
   try {
     await writer.remove(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
@@ -210,8 +218,7 @@ export async function readPendingRestoreBackup(
   const parsed = parsePendingRestoreBackup(pendingRaw);
   if (parsed.status === 'absent') return null;
   if (parsed.status === 'corrupt') {
-    await quarantineAndClearCorruptPendingRestoreBackup(storage, parsed.raw);
-    return null;
+    throw new CorruptPendingRestoreBackupError();
   }
   const pending = parsed.document;
 
@@ -243,8 +250,7 @@ export async function reconcilePendingRestoreBackup(
   const parsed = parsePendingRestoreBackup(raw);
   if (parsed.status === 'absent') return false;
   if (parsed.status === 'corrupt') {
-    await quarantineAndClearCorruptPendingRestoreBackup(storage, parsed.raw);
-    return false;
+    return !(await repairCorruptPendingRestoreBackup(storage, writer));
   }
   const pending = parsed.document;
 
@@ -318,6 +324,8 @@ export async function protectPendingRestoreBackupBeforeDataChange(
   const nextSnapshot = normalizedRestoreSnapshot(nextData);
   if (currentSnapshot === nextSnapshot) return true;
 
+  if (!(await repairCorruptPendingRestoreBackup(storage, writer))) return false;
+
   const pending = await readPendingRestoreBackup(storage, currentData);
   if (pending === null || pending.recoveryState === 'committed') return true;
 
@@ -371,6 +379,7 @@ export async function retryPendingRestoreBackupCommit(
   currentData: AppData,
   options?: { allowUnverified?: boolean },
 ): Promise<PendingRestoreBackupRetryResult> {
+  if (!(await repairCorruptPendingRestoreBackup(storage, writer))) return { status: 'failed' };
   const pending = await readPendingRestoreBackup(storage, currentData);
   if (pending === null) return { status: 'unavailable' };
   if (

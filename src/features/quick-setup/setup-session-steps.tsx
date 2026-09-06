@@ -84,7 +84,7 @@ export function SetupSourceStep({
   return (
     <View style={styles.section}>
       <View style={styles.heading}>
-        <AppText accessibilityLabel="근무 순서 선택" accessibilityRole="header" ref={headingRef} variant="heading">
+        <AppText accessibilityLabel="근무 순서 선택" accessibilityRole="header" aria-level={2} ref={headingRef} variant="heading">
           근무 방식
         </AppText>
         <AppText tone="secondary" variant="caption">
@@ -169,7 +169,7 @@ export function SetupSourceStep({
       </Surface>
       {showCustomEditor ? (
         <Surface style={styles.editorCard}>
-          <AppText accessibilityRole="header" variant="label">
+          <AppText accessibilityRole="header" aria-level={3} variant="label">
             반복 근무 순서
           </AppText>
           <PatternSequenceEditor
@@ -240,7 +240,7 @@ export function SetupAnchorStep({
   return (
     <View style={styles.section}>
       <View style={styles.heading}>
-        <AppText accessibilityLabel="오늘 근무와 시간" accessibilityRole="header" ref={headingRef} variant="heading">
+        <AppText accessibilityLabel="오늘 근무와 시간" accessibilityRole="header" aria-level={2} ref={headingRef} variant="heading">
           오늘 근무
         </AppText>
         <AppText tone="secondary" variant="caption">
@@ -304,7 +304,7 @@ export function SetupAnchorStep({
       )}
       {preview.length > 0 ? (
         <Surface style={styles.previewCard}>
-          <AppText accessibilityRole="header" variant="label">
+          <AppText accessibilityRole="header" aria-level={3} variant="label">
             근무 예시
           </AppText>
           <View style={styles.previewList}>
@@ -332,7 +332,7 @@ export function SetupAnchorStep({
       <Surface style={styles.timeCard}>
         <View style={styles.timeHeading}>
           <View style={styles.optionCopy}>
-            <AppText accessibilityRole="header" variant="label">
+            <AppText accessibilityRole="header" aria-level={3} variant="label">
               근무 시간
             </AppText>
             <AppText tone="secondary" variant="caption">
@@ -434,7 +434,7 @@ export function SetupAlarmStep({
   return (
     <View style={styles.section}>
       <View style={styles.heading}>
-        <AppText accessibilityLabel="알람 준비" accessibilityRole="header" ref={headingRef} variant="heading">
+        <AppText accessibilityLabel="알람 준비" accessibilityRole="header" aria-level={2} ref={headingRef} variant="heading">
           알람
         </AppText>
       </View>

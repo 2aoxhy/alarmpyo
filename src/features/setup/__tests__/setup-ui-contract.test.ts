@@ -70,14 +70,14 @@ describe('통합 근무표 설정 화면 계약', () => {
 
   it('최초·재설정은 store의 단일 setup commit을 사용해요', () => {
     const screen = setupSessionSource();
-    const store = source('src/store/app-store.tsx');
+    const store = source('src/application/runtime/store/commands-coordinator.ts');
 
     expect(screen).toContain('buildWorkPatternMutation(currentDraft, data.shiftTypes)');
     expect(screen).toContain('await commitSetup({');
     expect(screen).toContain("session.source === 'current'");
     expect(screen).toContain('pattern: data.pattern');
     expect(store).toContain("mode === 'reconfigure'");
-    expect(store).toContain('await writeAutomaticBackup(storageWriter, current)');
+    expect(store).toMatch(/await context\.storage\.writeAutomaticBackup\(\s*current\)/);
     expect(store).toContain('notificationsEnabled,');
     expect(store).toContain('primarySaved: result.primarySaved');
     expect(screen).not.toContain('await createBackup();');
@@ -122,7 +122,7 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(screen).not.toContain('AccessibilityInfo.announceForAccessibility');
     expect(screen).toContain('const stepHeadingRef = useRef<Text>(null)');
     const steps = source('src/features/quick-setup/setup-session-steps.tsx');
-    expect(steps).toContain('accessibilityRole="header" ref={headingRef}');
+    expect(steps.match(/accessibilityRole="header" aria-level=\{2\} ref=\{headingRef\}/g)).toHaveLength(3);
     expect(steps).not.toContain('accessible\n        accessibilityLabel="오늘 근무와 시간"');
     expect(screen).toContain('accessibilityRole="progressbar"');
     expect(screen).toContain('accessibilityValue={{ min: 1, max: 3, now: step }}');
@@ -180,11 +180,11 @@ describe('통합 근무표 설정 화면 계약', () => {
 
   it('근무표 상세 편집도 공용 mutation과 부분 실패 복구를 유지해요', () => {
     const pattern = source('src/app/pattern.tsx');
-    const store = source('src/store/app-store.tsx');
+    const store = source('src/application/runtime/store/commands-coordinator.ts');
 
     expect(pattern).toContain('buildWorkPatternMutation');
     expect(pattern).toContain("issue.issueCode === 'alarm-sync-failed'");
     expect(pattern).toContain('resyncAlarms(true)');
-    expect(store).toContain('saveOutcome: saveOutcomeRef.current');
+    expect(store).toContain('saveOutcome: context.saveOutcomeRef.current');
   });
 });

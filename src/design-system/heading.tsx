@@ -14,6 +14,7 @@ import {
 
 export type HeadingProps = PropsWithChildren<DesignSystemThemeProps & {
   level: 1 | 2 | 3 | 4 | 5 | 6;
+  semanticLevel?: 1 | 2 | 3 | 4 | 5 | 6;
   align?: 'left' | 'center' | 'right';
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
@@ -22,6 +23,7 @@ export type HeadingProps = PropsWithChildren<DesignSystemThemeProps & {
 export function Heading({
   children,
   level,
+  semanticLevel = level,
   align = 'left',
   style,
   numberOfLines,
@@ -38,7 +40,7 @@ export function Heading({
         : styles.level4;
   return (
     <Text
-      aria-level={level}
+      aria-level={semanticLevel}
       accessibilityRole="header"
       numberOfLines={numberOfLines}
       style={[levelStyle, { textAlign: align }, style]}>

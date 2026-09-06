@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
+import { selectSaveFailed, selectSaveSuccessRevision } from '@/components/save-feedback-selection';
 import {
   spacing,
   type AppPalette,
@@ -12,14 +13,15 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { shape } from '@/design-system';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStoreStatus } from '@/store/app-store';
+import { useAppSelector } from '@/store/app-store';
 
 const ENTER_DURATION = 250;
 const VISIBLE_DURATION = 1900;
 const EXIT_DURATION = 190;
 
 export function SaveToast() {
-  const { saveStatus, saveSuccessRevision } = useAppStoreStatus();
+  const saveFailed = useAppSelector(selectSaveFailed);
+  const saveSuccessRevision = useAppSelector(selectSaveSuccessRevision);
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -30,7 +32,7 @@ export function SaveToast() {
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
-    if (saveStatus !== 'error') return;
+    if (!saveFailed) return;
 
     progress.stopAnimation();
     const timer = setTimeout(() => {
@@ -39,7 +41,7 @@ export function SaveToast() {
       progress.setValue(0);
     }, 0);
     return () => clearTimeout(timer);
-  }, [progress, saveStatus]);
+  }, [progress, saveFailed]);
 
   useEffect(() => {
     if (saveSuccessRevision === 0) return;

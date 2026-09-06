@@ -41,7 +41,11 @@ import {
 import { createWorkPatternEditorController } from '@/features/setup/work-pattern-editor-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppCommands, useAppStoreData } from '@/store/app-store';
+import {
+  arePatternEditorDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
@@ -61,7 +65,7 @@ export default function PatternEditorScreen() {
   const stackOptions = width < 430 || fontScale >= 1.3;
   const compactPositions = width < 390 || fontScale >= 1.3;
   const stackFooter = width <= 320 || fontScale >= 1.3;
-  const { data } = useAppStoreData();
+  const data = useAppSelector(selectSettingsData, arePatternEditorDataEqual);
   const { createBackup, resyncAlarms, updatePatternDetailed } = useAppCommands();
   const navigation = useNavigation();
   const allowNavigation = useRef(false);

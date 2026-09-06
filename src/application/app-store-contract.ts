@@ -10,12 +10,12 @@ import type {
   WidgetDisplayOptions,
   WorkRoutineProfiles,
 } from '@/models/app-data';
-import type { AppDataImportPreview } from '@/services/app-data-service';
+import type { AppDataImportPreview } from './app-data-codec-port';
 import type {
   AppDataLoadFailureReason,
   PendingRestoreBackupRecoveryState,
   PendingRestoreBackupRetryResult,
-} from '@/services/app-storage-service';
+} from './runtime/store/storage-port';
 import type { AlarmPyoAlarmStatus } from '@/services/alarmpyo-alarm-service';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import type {

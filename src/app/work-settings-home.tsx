@@ -23,7 +23,11 @@ import {
 } from '@/features/shift-settings/shift-settings-model';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStoreData } from '@/store/app-store';
+import {
+  areWorkSettingsHomeDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
+import { useAppSelector } from '@/store/app-store';
 import {
   getWorkPatternDisplayName,
   getWorkPatternPreset,
@@ -34,7 +38,7 @@ export default function WorkSettingsHomeScreen() {
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
   const screenActive = useScreenActive();
-  const { data } = useAppStoreData();
+  const data = useAppSelector(selectSettingsData, areWorkSettingsHomeDataEqual);
   const [draftAvailable, setDraftAvailable] = useState(false);
   const [showAdditionalSettings, setShowAdditionalSettings] = useState(false);
   const { alarmPlatformSupported, runtimeStatus } =

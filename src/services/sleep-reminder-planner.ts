@@ -1,6 +1,6 @@
 import type { AppData, ShiftType } from '../models/app-data';
 import { addDays, dateAtMinutes, toDateKey } from '../utils/date';
-import { resolveEffectiveDayFromAppData } from './app-data-service';
+import { resolveEffectiveDayFromAppData } from '../application/app-data-policy';
 import {
   buildSleepTimingGuidance,
   type SleepTimingWindow,

@@ -117,6 +117,7 @@ export default function DataSettingsScreen() {
     useState<PendingRestoreBackupPreview | null>(null);
   const [backupLookupStatus, setBackupLookupStatus] =
     useState<BackupLookupStatus>('loading');
+  const [restoreJournalRepairRequired, setRestoreJournalRepairRequired] = useState(false);
   const [encryptedBackupRequest, setEncryptedBackupRequest] =
     useState<EncryptedBackupRequest | null>(null);
   const [advancedBackupExpanded, setAdvancedBackupExpanded] = useState(false);
@@ -137,8 +138,20 @@ export default function DataSettingsScreen() {
     setActiveOperation(null);
   }, []);
 
-  const refreshBackup = useCallback(async () => {
+  const refreshBackup = useCallback(async (repairJournal = false) => {
     setBackupLookupStatus('loading');
+    if (repairJournal) {
+      try {
+        const result = await retryPendingRestoreBackup();
+        if (result.status === 'failed') {
+          setBackupLookupStatus('error');
+          return;
+        }
+      } catch {
+        setBackupLookupStatus('error');
+        return;
+      }
+    }
     const [latestResult, pendingResult] = await Promise.allSettled([
       getLatestBackupPreview(),
       getPendingRestoreBackupPreview(),
@@ -149,12 +162,14 @@ export default function DataSettingsScreen() {
     if (pendingResult.status === 'fulfilled') {
       setPendingRestoreBackup(pendingResult.value);
     }
+    setRestoreJournalRepairRequired(pendingResult.status === 'rejected' &&
+      pendingResult.reason instanceof Error && pendingResult.reason.name === 'CorruptPendingRestoreBackupError');
     setBackupLookupStatus(
       latestResult.status === 'rejected' || pendingResult.status === 'rejected'
         ? 'error'
         : 'ready',
     );
-  }, [getLatestBackupPreview, getPendingRestoreBackupPreview]);
+  }, [getLatestBackupPreview, getPendingRestoreBackupPreview, retryPendingRestoreBackup]);
 
   const refreshBackupExportAttemptAt = useCallback(async () => {
     setLastBackupExportAttemptAt(
@@ -834,9 +849,9 @@ export default function DataSettingsScreen() {
                   <ListRow
                     disabled={busy}
                     icon="refresh-outline"
-                    onPress={() => void refreshBackup()}
-                    subtitle="자동 백업 다시 조회"
-                    title="백업 다시 확인"
+                    onPress={() => void refreshBackup(restoreJournalRepairRequired)}
+                    subtitle={restoreJournalRepairRequired ? '원본 보관 후 다시 확인' : '자동 백업 다시 조회'}
+                    title={restoreJournalRepairRequired ? '복원 기록 복구' : '백업 다시 확인'}
                   />
                 </>
               ) : null}

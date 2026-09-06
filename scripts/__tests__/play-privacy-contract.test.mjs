@@ -78,18 +78,21 @@ describe('Google Play 개인정보·건강 선언 계약', () => {
   });
 
   it('초기화가 내부 안전 백업을 남긴다는 삭제 범위를 숨기지 않아요', () => {
-    const store = source('src/store/app-store.tsx');
-    const resetStart = store.indexOf('const resetAllData');
-    const resetFlow = store.slice(resetStart, resetStart + 1_200);
+    const store = source('src/application/runtime/store/restore-coordinator.ts');
+    const resetStart = store.indexOf('operations.resetAllDataDetailed =');
+    expect(resetStart).toBeGreaterThan(-1);
+    const resetEnd = store.indexOf('operations.resetAllData =', resetStart);
+    expect(resetEnd).toBeGreaterThan(resetStart);
+    const resetFlow = store.slice(resetStart, resetEnd);
 
-    expect(resetFlow.indexOf('await createBackupInternal()')).toBeGreaterThan(
+    expect(resetFlow.indexOf('await operations.createBackupInternal()')).toBeGreaterThan(
       -1,
     );
     const replacementIndex = resetFlow.indexOf(
       'replaceDataAndPersistDetailedInternal',
     );
     expect(replacementIndex).toBeGreaterThan(-1);
-    expect(resetFlow.indexOf('await createBackupInternal()')).toBeLessThan(
+    expect(resetFlow.indexOf('await operations.createBackupInternal()')).toBeLessThan(
       replacementIndex,
     );
     for (const contents of [publicPolicy, inAppPolicy, dataSafety]) {

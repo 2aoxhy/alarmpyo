@@ -23,6 +23,10 @@ import {
   type ValidatedPatternDescriptor,
 } from '@/features/pattern-library/pattern-library-controller';
 import { PatternVaultCard } from '@/features/pattern-library/pattern-vault-card';
+import {
+  arePatternLibraryDataEqual,
+  selectPatternLibraryData,
+} from '@/features/pattern-library/pattern-library-store-selection';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { PatternVaultEntry } from '@/models/app-data';
 import {
@@ -47,7 +51,7 @@ function formatPatternAppliedAt(value: string): string {
 
 export default function PatternLibraryScreen() {
   const { showDialog } = useAppDialog();
-  const data = useAppSelector((store) => store.data);
+  const data = useAppSelector(selectPatternLibraryData, arePatternLibraryDataEqual);
   const {
     deletePattern,
     importValidatedPattern,

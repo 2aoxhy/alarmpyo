@@ -70,17 +70,17 @@ describe('핵심 화면 탐색 계약', () => {
     expect(quickSetup).toContain("hydrated && session.step === 'schedule-source'");
     expect(quickSetup).toContain('설정 불러오는 중');
     expect(quickSetup).toContain('requestAlarmAccess()');
-    expect(quickSetup).toContain('useAppStoreData()');
-    expect(quickSetup).toContain('useAppStoreActions()');
+    expect(quickSetup).toContain('useAppSelector(selectSettingsData, areSetupDataEqual)');
+    expect(quickSetup).toContain('useAppCommands()');
     expect(quickSetup).not.toContain('useAppStore();');
     expect(quickSetup).toContain('근무 시간');
     expect(quickSetup).toContain('<WorkTimeEditor');
   });
 
   it('공유 근무표 적용은 날짜별 개인 알람 원본을 삭제하지 않습니다', () => {
-    const store = source('src/store/app-store.tsx');
-    const start = store.indexOf('const applySharedWorkSettings = useCallback');
-    const end = store.indexOf('const importData = useCallback', start);
+    const store = source('src/application/runtime/store/restore-coordinator.ts');
+    const start = store.indexOf('operations.applySharedWorkSettings =');
+    const end = store.indexOf('operations.importData =', start);
     const applySharedWorkSettings = store.slice(start, end);
 
     expect(start).toBeGreaterThan(-1);

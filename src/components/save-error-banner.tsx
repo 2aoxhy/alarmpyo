@@ -18,6 +18,11 @@ import {
   shouldExpandSaveErrorBanner,
 } from '@/components/save-feedback';
 import {
+  selectAlarmSyncError,
+  selectAlarmSyncFailed,
+  selectSaveOutcome,
+} from '@/components/save-feedback-selection';
+import {
   executeSaveRetryAction,
   getSaveRetryActions,
   resolveVisibleSaveOutcome,
@@ -35,8 +40,8 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import {
-  useAppStoreActions,
-  useAppStoreStatus,
+  useAppCommands,
+  useAppSelector,
 } from '@/store/app-store';
 
 function getRetryCopy(action: SaveRetryAction) {
@@ -54,12 +59,10 @@ function getRetryCopy(action: SaveRetryAction) {
 }
 
 export function SaveErrorBanner() {
-  const { resyncAlarms, retrySave, retrySleepReminderSync } = useAppStoreActions();
-  const {
-    alarmSyncError,
-    alarmSyncStatus,
-    saveOutcome,
-  } = useAppStoreStatus();
+  const { resyncAlarms, retrySave, retrySleepReminderSync } = useAppCommands();
+  const alarmSyncError = useAppSelector(selectAlarmSyncError);
+  const alarmSyncFailed = useAppSelector(selectAlarmSyncFailed);
+  const saveOutcome = useAppSelector(selectSaveOutcome);
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const closeButtonFocus = useWebFocusVisible();
@@ -70,10 +73,10 @@ export function SaveErrorBanner() {
   const activeOutcome = useMemo(
     () => resolveVisibleSaveOutcome({
       alarmSyncError,
-      alarmSyncFailed: alarmSyncStatus === 'error',
+      alarmSyncFailed,
       saveOutcome,
     }),
-    [alarmSyncError, alarmSyncStatus, saveOutcome],
+    [alarmSyncError, alarmSyncFailed, saveOutcome],
   );
   const hasError = activeOutcome !== null;
   const [retrying, setRetrying] = useState<SaveRetryAction | null>(null);

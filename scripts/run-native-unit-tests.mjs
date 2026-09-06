@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, dirname, relative, resolve } from 'node:path';
+import { includeNativeTestSource } from './native-test-workspace.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const isWindows = process.platform === 'win32';
@@ -307,29 +308,13 @@ function validateReleaseOptimizationProperties(androidProjectRoot) {
 }
 
 function copyManagedProject(sourceRoot, destinationRoot) {
-  rmSync(destinationRoot, removeOptions);
   mkdirSync(destinationRoot, { recursive: true });
-
-  const excludedRootDirectories = new Set([
-    '.expo',
-    '.git',
-    'android',
-    'ios',
-    'node_modules',
-  ]);
 
   cpSync(sourceRoot, destinationRoot, {
     recursive: true,
     filter(sourcePath) {
       const sourceRelativePath = relative(sourceRoot, sourcePath);
-      if (!sourceRelativePath) return true;
-
-      const [rootSegment] = sourceRelativePath.split(/[\\/]/u);
-      if (excludedRootDirectories.has(rootSegment)) return false;
-      if (/^public[\\/]downloads(?:[\\/]|$)/u.test(sourceRelativePath)) {
-        return false;
-      }
-      return !sourcePath.toLowerCase().endsWith('.apk');
+      return includeNativeTestSource(sourceRelativePath);
     },
   });
 }

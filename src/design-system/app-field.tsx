@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { radius, size, space, typeScale } from './tokens';
+import { shape, size, space, typeScale } from './tokens';
 import {
   type DesignSystemThemeProps,
   useDesignSystemTheme,
@@ -110,7 +110,7 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       paddingVertical: space.md,
       borderWidth: 1.5,
       borderColor: colors.borderStrong,
-      borderRadius: radius.md,
+      borderRadius: shape.control,
       backgroundColor: colors.surface,
       color: colors.text,
       includeFontPadding: false,

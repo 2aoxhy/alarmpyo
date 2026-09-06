@@ -303,7 +303,7 @@ function CalendarMonthHeader({
         }
         accessibilityLabel={`${monthTitle}, ${monthWorkLabel}${startDateLabel ? `, ${startDateLabel}` : ''}`}
         style={styles.monthCopy}>
-        <AppText accessibilityRole="header" maxFontSizeMultiplier={2} variant="heading">
+        <AppText accessibilityRole="header" aria-level={2} maxFontSizeMultiplier={2} variant="heading">
           {monthTitle}
         </AppText>
         <View style={styles.monthSummaryPill}>

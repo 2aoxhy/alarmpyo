@@ -139,7 +139,7 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       gap: space.sm,
       paddingHorizontal: space.lg,
       paddingVertical: space.sm,
-      borderRadius: shape.panel,
+      borderRadius: shape.control,
       overflow: 'hidden',
     },
     content: {

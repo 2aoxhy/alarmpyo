@@ -1,5 +1,5 @@
 import type { AppData, ShiftType } from '../models/app-data';
-import { resolveShiftFromAppData } from '../services/app-data-service';
+import { resolveShiftFromAppData } from './app-data-policy';
 
 export function selectShiftForDate(
   data: AppData,

@@ -9,6 +9,7 @@ import {
   buildPatternOverridePolicy,
   buildPatternSevenDaySummary,
   compressPatternShiftCodes,
+  createPatternApplicationPreview,
   expandPatternComposerSegments,
   formatPatternApplyActionLabel,
   formatPatternCalendarShiftToken,
@@ -34,6 +35,30 @@ const pattern: PatternVaultEntry = {
   createdAt: '2026-08-20T00:00:00.000Z',
   updatedAt: '2026-08-20T00:00:00.000Z',
 };
+
+describe('명시적인 적용 비교 입력', () => {
+  it('직접 변경이 생기면 새 데이터를 비교하고 이전 snapshot은 유지합니다', () => {
+    const data = { ...createDefaultAppData('2026-08-02'), patternVault: [pattern] };
+    const input = {
+      patternId: pattern.id,
+      effectiveDate: '2026-08-02',
+      overridePolicy: { mode: 'preserve' as const },
+    };
+    const before = createPatternApplicationPreview(data, input);
+    const after = createPatternApplicationPreview({
+      ...data, overrides: { '2026-08-02': 'night' },
+    }, input);
+    expect(before.status).toBe('ready');
+    expect(after.status).toBe('ready');
+    if (before.status !== 'ready' || after.status !== 'ready') return;
+    expect(before.preview.directOverrideDateKeys).toEqual([]);
+    expect(after.preview.directOverrideDateKeys).toEqual(['2026-08-02']);
+    expect(after.preview.rows[0]).toMatchObject({
+      currentShiftTypeId: 'night', nextShiftTypeId: 'night', hasDirectOverride: true,
+    });
+    expect(data.overrides).toEqual({});
+  });
+});
 
 function previewRow(
   dateKey: string,

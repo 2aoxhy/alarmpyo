@@ -105,11 +105,16 @@ describe('전역 Play 업데이트 화면 계약', () => {
   });
 
   it('전체 초기화 저널이 AppData 밖의 24시간 미루기 상태도 정리합니다', () => {
-    const store = source('src/store/app-store.tsx');
-    expect(store).toContain('clearPlayUpdatePromptSnooze(runtime.dataRepository)');
-    expect(store).toContain(
-      'clearDeviceLocalData: clearDeviceLocalDataForResetCleanup',
+    const adapter = source('src/infrastructure/runtime/native-app-store-engine.ts');
+    const boot = source('src/application/runtime/store/boot-coordinator.ts');
+    const restore = source('src/application/runtime/store/restore-coordinator.ts');
+    expect(adapter).toContain('clearPlayUpdatePromptSnooze(runtime.dataRepository)');
+    expect(restore).toContain('context.platform.clearPlayUpdatePromptSnooze()');
+    expect(boot).toContain('clearDeviceLocalData: operations.clearDeviceLocalDataForResetCleanup');
+    expect(restore).toContain(
+      'clearDeviceLocalData: operations.clearDeviceLocalDataForResetCleanup',
     );
-    expect(store).toContain('clearQuickSetupDraft(runtime.dataRepository)');
+    expect(adapter).toContain('clearQuickSetupDraft(runtime.dataRepository)');
+    expect(restore).toContain('context.platform.clearQuickSetupDraft()');
   });
 });

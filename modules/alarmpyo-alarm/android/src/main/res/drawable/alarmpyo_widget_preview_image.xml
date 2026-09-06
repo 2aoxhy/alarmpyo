@@ -8,12 +8,12 @@
     android:viewportHeight="100">
     <path
         android:fillColor="@color/alarmpyo_widget_card_background"
-        android:pathData="M8,0H392A8,8 0,0 1,400 8V92A8,8 0,0 1,392 100H8A8,8 0,0 1,0 92V8A8,8 0,0 1,8 0Z"
+        android:pathData="M6,0H394A6,6 0,0 1,400 6V94A6,6 0,0 1,394 100H6A6,6 0,0 1,0 94V6A6,6 0,0 1,6 0Z"
         android:strokeColor="@color/alarmpyo_widget_card_border"
         android:strokeWidth="1" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M30,24H116M30,48H186M30,70H154M246,30H302M320,30H374M246,61H292M310,61H374"
+        android:pathData="M30,36H186M30,63H154M246,36H302M320,36H374M246,63H292M310,63H374"
         android:strokeColor="@color/alarmpyo_text_primary"
         android:strokeWidth="6" />
     <path

@@ -89,13 +89,20 @@ export function ToggleRow({
         </View>
       </View>
       <View
+        {...(Platform.OS === 'web' ? { inert: true } : {})}
         accessibilityElementsHidden
+        aria-hidden
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
         style={[styles.trailing, reflow && styles.trailingReflow]}>
         <Switch
+          accessible={false}
+          aria-hidden
           disabled={disabled}
+          focusable={false}
+          importantForAccessibility="no"
           onValueChange={onValueChange}
+          tabIndex={-1}
           thumbColor={disabled ? colors.textDisabled : value ? colors.onPositive : colors.surface}
           trackColor={{
             false: disabled ? colors.border : colors.borderStrong,

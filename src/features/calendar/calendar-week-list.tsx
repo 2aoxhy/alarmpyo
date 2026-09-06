@@ -86,6 +86,7 @@ export function CalendarWeekList({
         <View key={group.weekNumber} style={styles.weekGroup}>
           <AppText
             accessibilityRole="header"
+            aria-level={3}
             style={styles.weekHeader}
             variant="label">
             {group.label}

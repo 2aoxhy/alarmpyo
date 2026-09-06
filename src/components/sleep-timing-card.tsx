@@ -245,7 +245,7 @@ export function SleepTimingCard({
           <AppIcon accessible={false} color={palette.blue} name="shift-night" size={22} />
         </View>
         <View style={styles.headerCopy}>
-          <AppText accessibilityRole="header" variant="label">
+          <AppText accessibilityRole="header" aria-level={3} variant="label">
             수면 시간
           </AppText>
           <AppText variant="caption" tone="secondary">

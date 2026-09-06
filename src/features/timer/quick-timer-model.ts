@@ -30,12 +30,8 @@ export type QuickTimerDurationInputResult =
   | { valid: true; durationMinutes: QuickTimerDuration }
   | { valid: false; error: string };
 
-export type QuickTimerDurationAdjustment = -10 | -1 | 1 | 10;
-
 export type QuickTimerDurationStepperPresentation = {
   durationMinutes: QuickTimerDuration;
-  canDecrease: boolean;
-  canIncrease: boolean;
   accessibilityLabel: string;
 };
 
@@ -153,6 +149,9 @@ export function parseQuickTimerDurationInput(
       error: '분 단위의 정수만 입력해야 합니다.',
     };
   }
+  if (normalized.length > 2) {
+    return { valid: false, error: '숫자 두 자리까지 입력해야 합니다.' };
+  }
 
   const durationMinutes = Number(normalized);
   if (!isQuickTimerDuration(durationMinutes)) {
@@ -164,19 +163,6 @@ export function parseQuickTimerDurationInput(
   return { valid: true, durationMinutes };
 }
 
-export function adjustQuickTimerDuration(
-  currentDuration: number,
-  adjustment: QuickTimerDurationAdjustment,
-): QuickTimerDuration {
-  const safeCurrent = isQuickTimerDuration(currentDuration)
-    ? currentDuration
-    : QUICK_TIMER_CUSTOM_INITIAL_DURATION;
-  return Math.min(
-    QUICK_TIMER_MAX_DURATION_MINUTES,
-    Math.max(QUICK_TIMER_MIN_DURATION_MINUTES, safeCurrent + adjustment),
-  );
-}
-
 export function getQuickTimerDurationStepperPresentation(
   durationMinutes: number,
 ): QuickTimerDurationStepperPresentation {
@@ -185,8 +171,6 @@ export function getQuickTimerDurationStepperPresentation(
     : QUICK_TIMER_CUSTOM_INITIAL_DURATION;
   return {
     durationMinutes: safeDuration,
-    canDecrease: safeDuration > QUICK_TIMER_MIN_DURATION_MINUTES,
-    canIncrease: safeDuration < QUICK_TIMER_MAX_DURATION_MINUTES,
     accessibilityLabel: `현재 ${safeDuration}분, 최소 ${QUICK_TIMER_MIN_DURATION_MINUTES}분, 최대 ${QUICK_TIMER_MAX_DURATION_MINUTES}분`,
   };
 }

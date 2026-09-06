@@ -6,11 +6,7 @@ import {
   toDateKey,
 } from '../utils/date';
 import { getDayExceptionLabel } from '../utils/day-exception';
-import {
-  getDayAlarmOverrideWakeAt,
-  resolveDayAlarmOverrideFromAppData,
-  resolveEffectiveDayFromAppData,
-} from './app-data-service';
+import { getDayAlarmOverrideWakeAt, resolveDayAlarmOverrideFromAppData, resolveEffectiveDayFromAppData } from '../application/app-data-policy';
 import {
   resolveRoutineAlarmLeadMinutes,
   ROUTINE_ALARM_LEAD_MINUTES,

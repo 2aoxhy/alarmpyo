@@ -1,11 +1,11 @@
 import type { AppData } from '../models/app-data';
-import { withoutAlarmRuntimeState } from '../services/app-data-service';
+import { withoutAlarmRuntimeState } from './app-data-policy';
 import { getAlarmScheduleSignature } from '../services/alarm-schedule-signature';
 import { getSleepReminderScheduleSignature } from '../services/sleep-reminder-planner';
 import {
   getPersistedMutationOutcome,
   type PersistedMutationOutcome,
-} from '../services/app-storage-service';
+} from './persistence-outcomes';
 
 export type DataReplacementResult = {
   primarySaved: boolean;

@@ -97,7 +97,7 @@ describe('pattern accessibility and responsive contract', () => {
     expect(preview).toContain('적용 후 ${selectedRow.nextLabel}');
     expect(preview).toContain('label={`변경 ${changedDateCount}일`}');
     expect(preview).not.toContain('<Card density="compact" key={row.dateKey}');
-    expect(apply).toContain('previewPatternApplication');
+    expect(apply).toContain('createPatternApplicationPreview(data,');
     expect(apply).not.toContain('향후 42일');
     expect(apply).not.toContain('42일 비교');
   });
@@ -164,7 +164,7 @@ describe('pattern accessibility and responsive contract', () => {
     expect(controller).toContain('pickAndValidateShiftPatternFile');
     expect(controller).toContain('importValidatedPattern');
     expect(library).not.toContain('applyPatternFromVault');
-    expect(apply).toContain('previewPatternApplication');
+    expect(apply).toContain('createPatternApplicationPreview(data,');
     expect(apply).toContain('applyPatternFromVault');
     expect(apply).not.toContain('buildPatternDiffRows');
     expect(apply).not.toContain('pickAndValidateShiftPatternFile');

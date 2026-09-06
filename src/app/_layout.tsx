@@ -15,7 +15,6 @@ import {
 } from '@/components/launch-transition-overlay';
 import { SaveErrorBanner } from '@/components/save-error-banner';
 import { SaveToast } from '@/components/save-toast';
-import { AlarmPyoWidgetSyncBridge } from '@/components/alarmpyo-widget-sync-bridge';
 import type { AppPalette } from '@/constants/app-theme';
 import { shape } from '@/design-system';
 import { GlobalPlayUpdateProvider } from '@/features/update/global-play-update-controller';
@@ -29,7 +28,6 @@ import {
   AppStoreProvider,
   useAppCommands,
   useAppSelector,
-  useAppStoreStatus,
 } from '@/store/app-store';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -118,7 +116,7 @@ function AppBootstrap({
 }: {
   reduceMotion: boolean;
 }) {
-  const { loadError } = useAppStoreStatus();
+  const loadError = useAppSelector((store) => store.loadError);
   const ready = useAppSelector((store) => store.ready);
   const bootstrapReady = ready || Boolean(loadError);
   const [hasRevealed, setHasRevealed] = useState(false);
@@ -177,7 +175,9 @@ function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
   const setupCompleted = useAppSelector(
     (store) => store.data.settings.setupCompleted,
   );
-  const { corruptBackupKey, loadError, loadFailureReason } = useAppStoreStatus();
+  const corruptBackupKey = useAppSelector((store) => store.corruptBackupKey);
+  const loadError = useAppSelector((store) => store.loadError);
+  const loadFailureReason = useAppSelector((store) => store.loadFailureReason);
   const {
     getRecoveryBackupPreview,
     resyncAlarms,
@@ -360,7 +360,6 @@ function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
         setupCompleted &&
         Boolean(rootNavigationState?.key)
       }>
-      <AlarmPyoWidgetSyncBridge />
       <StatusBar animated style="light" />
       <Stack
         screenOptions={{

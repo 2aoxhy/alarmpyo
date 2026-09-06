@@ -39,7 +39,7 @@ import { type AppPalette } from '@/constants/app-theme';
 import {
   createSemanticColors,
   interaction,
-  radius,
+  shape,
   resolveTextTone,
   size as controlSize,
   space,
@@ -69,6 +69,7 @@ type AppTextProps = PropsWithChildren<{
   color?: string;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  'aria-level'?: 1 | 2 | 3 | 4 | 5 | 6;
 }> & Pick<
   TextProps,
   'accessibilityLabel' | 'accessibilityRole' | 'maxFontSizeMultiplier' | 'selectable'
@@ -85,6 +86,7 @@ export const AppText = forwardRef<Text, AppTextProps>(function AppText({
   selectable,
   accessibilityLabel,
   accessibilityRole,
+  'aria-level': ariaLevel,
 }, ref) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -93,6 +95,7 @@ export const AppText = forwardRef<Text, AppTextProps>(function AppText({
       ref={ref}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
+      aria-level={ariaLevel}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       numberOfLines={numberOfLines}
       selectable={selectable}
@@ -252,7 +255,7 @@ export function SectionHeader({
     if (!hasAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderCenteredOnly]}>
-          <Heading level={3} style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleFull}>
             {title}
           </Heading>
         </View>
@@ -262,7 +265,7 @@ export function SectionHeader({
     if (stackCenteredAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderStacked]}>
-          <Heading level={3} style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleFull}>
             {title}
           </Heading>
           <Pressable
@@ -285,7 +288,7 @@ export function SectionHeader({
     return (
       <View style={[styles.sectionHeader, styles.sectionHeaderCentered]}>
         <View style={styles.sectionHeaderSide} />
-        <Heading level={3} style={styles.sectionHeaderTitleCentered}>
+        <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleCentered}>
           {title}
         </Heading>
         <View style={styles.sectionHeaderSide}>
@@ -311,7 +314,7 @@ export function SectionHeader({
 
   return (
     <View style={styles.sectionHeader}>
-      <Heading level={3}>
+      <Heading level={3} semanticLevel={2}>
         {title}
       </Heading>
       {action && onAction ? (
@@ -483,6 +486,7 @@ export function MenuGroup({
     <View style={[styles.menuGroup, style]}>
       <AppText
         accessibilityRole="header"
+        aria-level={2}
         style={[styles.menuGroupTitle, centered && styles.menuGroupTitleCentered]}
         tone="secondary"
         variant="label">
@@ -582,7 +586,7 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   iconTile: {
     width: controlSize.minimumTouchTarget,
     height: controlSize.minimumTouchTarget,
-    borderRadius: radius.sm,
+    borderRadius: shape.control,
     alignItems: 'center',
     justifyContent: 'center',
   },

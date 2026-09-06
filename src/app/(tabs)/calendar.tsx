@@ -48,19 +48,19 @@ import {
   type CalendarImageShareSnapshot,
 } from '@/features/calendar/calendar-image-share-model';
 import { resolveCalendarSelectionCountViewModel } from '@/features/calendar/calendar-selection-presentation';
+import { selectCalendarStoreData, areCalendarStoreDataEqual } from '@/features/calendar/calendar-store-selection';
 import { usesSimplifiedCalendar } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import {
   buildCalendarMonthViewModel,
-  type CalendarProjectionData,
 } from '@/services/calendar-month-view-model';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import { buildScheduleShareText } from '@/services/schedule-share-service';
 import {
-  useAppStoreActions,
-  useAppStoreData,
+  useAppCommands,
+  useAppSelector,
 } from '@/store/app-store';
 import {
   formatKoreanDate,
@@ -146,30 +146,9 @@ export default function CalendarScreen() {
   const [imageShareController] = useState(() =>
     createCalendarImageShareController(),
   );
-  const { data } = useAppStoreData();
-  const { saveDays } = useAppStoreActions();
-  const calendarProjectionData = useMemo<CalendarProjectionData>(
-    () => ({
-      alarmOverrides: data.alarmOverrides,
-      dayExceptions: data.dayExceptions,
-      notes: data.notes,
-      overrides: data.overrides,
-      pattern: data.pattern,
-      payrollSettings: data.payrollSettings,
-      shiftTypes: data.shiftTypes,
-      timeOverrides: data.timeOverrides,
-    }),
-    [
-      data.alarmOverrides,
-      data.dayExceptions,
-      data.notes,
-      data.overrides,
-      data.pattern,
-      data.payrollSettings,
-      data.shiftTypes,
-      data.timeOverrides,
-    ],
-  );
+  const data = useAppSelector(selectCalendarStoreData, areCalendarStoreDataEqual);
+  const { saveDays } = useAppCommands();
+  const calendarProjectionData = data;
   const selectedDateKeySet = useMemo(() => new Set(selectedDateKeys), [selectedDateKeys]);
   const selectionMode = selectionArmed || selectedDateKeys.length > 0;
   const simplifiedCalendar = usesSimplifiedCalendar(fontScale);

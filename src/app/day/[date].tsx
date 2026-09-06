@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
@@ -26,6 +26,10 @@ import {
 import { DayAlarmSummary } from '@/features/day-editor/day-alarm-summary';
 import { getDaySaveActionLabel } from '@/features/day-editor/day-editor-presentation';
 import { DayScheduleComparison } from '@/features/day-editor/day-schedule-comparison';
+import {
+  createDayEditorDataEquality,
+  selectDayEditorData,
+} from '@/features/day-editor/day-editor-store-selection';
 import { type DaySelection } from '@/features/day-editor/day-editor-types';
 import { DayNoteEditor } from '@/features/day-editor/day-note-editor';
 import { ShiftSelectionSection } from '@/features/day-editor/shift-selection-section';
@@ -47,7 +51,7 @@ import { getPayrollCalendarEntriesForMonth } from '@/services/payroll-schedule';
 import {
   resolveShiftFromData,
   useAppCommands,
-  useAppStoreData,
+  useAppSelector,
 } from '@/store/app-store';
 import {
   formatKoreanDate,
@@ -76,7 +80,8 @@ export default function DayEditorScreen() {
   const allowNavigation = useRef(false);
   const dateIsValid = isValidDateKey(params.date ?? '');
   const dateKey = dateIsValid ? (params.date as string) : toDateKey(new Date());
-  const { data, getNoteForDate } = useAppStoreData();
+  const dayDataEqual = useMemo(() => createDayEditorDataEquality(dateKey), [dateKey]);
+  const data = useAppSelector(selectDayEditorData, dayDataEqual);
   const { saveDay } = useAppCommands();
   const holiday = getKoreanHoliday(dateKey);
   const calendarYear = Number(dateKey.slice(0, 4));
@@ -141,7 +146,7 @@ export default function DayEditorScreen() {
   const lastVisibleSelectionRef = useRef<Exclude<DaySelection, null>>(
     initialSelection === null ? 'pattern' : initialSelection,
   );
-  const [initialNote] = useState(() => getNoteForDate(dateKey));
+  const [initialNote] = useState(() => data.notes[dateKey] ?? '');
   const [note, setNote] = useState(initialNote);
   const [initialException] = useState<DayExceptionType | null>(
     () => storedDayException,
