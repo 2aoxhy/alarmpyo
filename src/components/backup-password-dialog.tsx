@@ -8,8 +8,8 @@ import {
 } from 'react-native';
 
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { ModalSurface } from '@/design-system';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { ModalSurface, shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -217,7 +217,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     input: {
       minHeight: 56,
       paddingHorizontal: spacing.large,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       backgroundColor: palette.surfaceSoft,
@@ -227,7 +227,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     error: {
       padding: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
       backgroundColor: palette.dangerSoft,
     },
     actions: {

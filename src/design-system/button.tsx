@@ -21,7 +21,7 @@ import { colorWithAlpha } from '@/constants/app-theme';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { shouldReflowControl } from './responsive';
-import { radius, size, space, typeScale } from './tokens';
+import { interaction, shape, size, space, typeScale } from './tokens';
 import {
   type DesignSystemThemeProps,
   useDesignSystemTheme,
@@ -139,7 +139,7 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       gap: space.sm,
       paddingHorizontal: space.lg,
       paddingVertical: space.sm,
-      borderRadius: radius.md,
+      borderRadius: shape.panel,
       overflow: 'hidden',
     },
     content: {
@@ -185,7 +185,7 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       backgroundColor: colors.surfaceDisabled,
     },
     pressed: {
-      transform: [{ scale: 0.985 }],
+      opacity: interaction.emphasizedPressedOpacity,
     },
     focusVisible:
       Platform.OS === 'web'

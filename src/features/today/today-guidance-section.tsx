@@ -161,6 +161,5 @@ const createStyles = (palette: AppPalette) =>
     },
     rowPressed: {
       opacity: 0.72,
-      transform: [{ scale: 0.985 }],
     },
   });

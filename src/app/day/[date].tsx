@@ -31,7 +31,7 @@ import { DayNoteEditor } from '@/features/day-editor/day-note-editor';
 import { ShiftSelectionSection } from '@/features/day-editor/shift-selection-section';
 import { ShiftTimeEditor } from '@/features/day-editor/shift-time-editor';
 import { SpecialScheduleSection } from '@/features/day-editor/special-schedule-section';
-import { DisclosureRow } from '@/design-system';
+import { DisclosureRow, shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
@@ -44,7 +44,11 @@ import {
   resolveEffectiveDayFromAppData,
 } from '@/services/app-data-service';
 import { getPayrollCalendarEntriesForMonth } from '@/services/payroll-schedule';
-import { resolveShiftFromData, useAppStore } from '@/store/app-store';
+import {
+  resolveShiftFromData,
+  useAppCommands,
+  useAppStoreData,
+} from '@/store/app-store';
 import {
   formatKoreanDate,
   isValidDateKey,
@@ -72,7 +76,8 @@ export default function DayEditorScreen() {
   const allowNavigation = useRef(false);
   const dateIsValid = isValidDateKey(params.date ?? '');
   const dateKey = dateIsValid ? (params.date as string) : toDateKey(new Date());
-  const { data, getNoteForDate, saveDay } = useAppStore();
+  const { data, getNoteForDate } = useAppStoreData();
+  const { saveDay } = useAppCommands();
   const holiday = getKoreanHoliday(dateKey);
   const calendarYear = Number(dateKey.slice(0, 4));
   const calendarMonth = Number(dateKey.slice(5, 7)) - 1;
@@ -713,10 +718,8 @@ function createStyles(palette: AppPalette) {
     invalidDateIcon: {
       width: 60,
       height: 60,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: palette.dangerSoft,
     },
     invalidDateText: { textAlign: 'center' },
     dateTitle: { width: '100%', textAlign: 'center' },
@@ -737,7 +740,7 @@ function createStyles(palette: AppPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       backgroundColor: palette.surfaceSoft,
       paddingHorizontal: spacing.small,
       paddingVertical: spacing.tiny,

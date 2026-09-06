@@ -5,13 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
 import {
-  colorWithAlpha,
-  radii,
-  shadow,
   spacing,
   type AppPalette,
 } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { shape } from '@/design-system';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useAppStoreStatus } from '@/store/app-store';
@@ -151,7 +149,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     left: spacing.medium,
     right: spacing.medium,
     zIndex: 1000,
-    elevation: 20,
     alignItems: 'center',
   },
   toast: {
@@ -160,23 +157,13 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     minHeight: 68,
     paddingHorizontal: spacing.large,
     paddingVertical: spacing.medium,
-    borderRadius: radii.large,
+    borderRadius: shape.panel,
     borderWidth: 1,
     borderColor: isDark ? palette.controlLine : palette.indigo,
     backgroundColor: isDark ? palette.surface : palette.indigoDark,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.medium,
-    ...(Platform.OS === 'web'
-      ? {
-          boxShadow: `0 10px 28px ${colorWithAlpha(
-            palette.shadowColor,
-            isDark ? 0.34 : 0.12,
-          )}`,
-        }
-      : isDark
-        ? { ...shadow, shadowColor: palette.shadowColor, shadowOpacity: 0.24 }
-        : shadow),
   },
   icon: {
     width: 36,

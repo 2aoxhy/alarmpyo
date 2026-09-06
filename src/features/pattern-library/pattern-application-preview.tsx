@@ -4,8 +4,8 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'reac
 import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { DisclosureRow, Surface } from '@/design-system';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { DisclosureRow, shape, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -653,7 +653,7 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: palette.controlLine,
-      borderRadius: radii.small,
+      borderRadius: shape.control,
       backgroundColor: palette.surface,
     },
     monthButtonDisabled: {
@@ -803,7 +803,7 @@ function createStyles(palette: AppPalette) {
       padding: spacing.medium,
       borderWidth: 1,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       backgroundColor: palette.surfaceSoft,
     },
     comparisonValueEmphasized: {
@@ -819,7 +819,7 @@ function createStyles(palette: AppPalette) {
       alignSelf: 'center',
     },
     overrideControl: { width: '100%' },
-    pressed: { transform: [{ scale: 0.985 }] },
+    pressed: { backgroundColor: palette.selectionSurface },
     focusVisible:
       Platform.OS === 'web'
         ? {

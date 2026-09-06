@@ -201,4 +201,14 @@ describe('pattern accessibility and responsive contract', () => {
     expect(editor).toContain('근무 순서만 저장');
     expect(apply).toContain('근무 순서만 적용 · 시간·알람·권한 유지');
   });
+
+  it('uses a flat active rail and a direct delete title', () => {
+    const library = appSource('pattern-library.tsx');
+    const vaultCard = source('pattern-vault-card.tsx');
+
+    expect(library).toContain("'패턴 삭제'");
+    expect(library).not.toContain('삭제하시겠습니까');
+    expect(vaultCard).toContain('borderLeftWidth: 3');
+    expect(vaultCard).not.toContain('borderWidth: 2');
+  });
 });

@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
 import { ShiftChip } from '@/components/shift-chip';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { useAppTheme } from '@/hooks/use-app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { AppData } from '@/models/app-data';
 import { formatKoreanDate } from '@/utils/date';
@@ -24,7 +22,6 @@ export function WorkPatternOverview({
   onEdit: () => void;
   today: string;
 }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const stacked = width < 360 || fontScale >= 1.45;
@@ -41,14 +38,6 @@ export function WorkPatternOverview({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.headerIcon}>
-          <AppIcon
-            accessible={false}
-            color={palette.indigoDark}
-            name={presetId === 'weekday' ? 'shift-day' : 'repeat'}
-            size={24}
-          />
-        </View>
         <View style={styles.headerCopy}>
           <AppText accessibilityRole="header" variant="heading">
             {overview.patternName}
@@ -124,15 +113,6 @@ function createStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: spacing.medium,
     },
-    headerIcon: {
-      width: 48,
-      height: 48,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 16,
-      backgroundColor: palette.indigoSoft,
-    },
     headerCopy: {
       minWidth: 0,
       flex: 1,
@@ -166,10 +146,8 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'space-between',
       gap: spacing.small,
       padding: spacing.small,
-      borderWidth: 1,
-      borderColor: palette.line,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
     },
     previewItemStacked: {
       width: '100%',

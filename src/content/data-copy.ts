@@ -7,7 +7,7 @@ export const dataCopy = defineCopyCatalog({
     'requirement',
     '근무 시간·순서 확인',
   ),
-  restoreQuestion: defineCopy('question', '이 백업을 복원하시겠습니까?'),
+  restoreQuestion: defineCopy('label', '백업 복원'),
   managementSummary: defineCopy('label', '근무표 공유 · 백업 · 복구'),
   backupSection: defineCopy('label', '백업·복구'),
   backup: defineCopy('action', '백업'),

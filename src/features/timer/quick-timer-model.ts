@@ -69,6 +69,7 @@ export function clampQuickTimerDuration(value: number): QuickTimerDuration {
 export function resolveQuickTimerWheelLayout(
   height: number,
   fontScale: number,
+  compact = false,
 ): QuickTimerWheelLayout {
   const safeHeight = Number.isFinite(height) ? Math.max(0, height) : 700;
   const safeFontScale = Number.isFinite(fontScale)
@@ -79,6 +80,13 @@ export function resolveQuickTimerWheelLayout(
     : safeFontScale >= 1.4
       ? 80
       : 64;
+  if (compact) {
+    return {
+      itemHeight,
+      visibleItemCount: 1,
+      viewportHeight: itemHeight,
+    };
+  }
   const visibleItemCount =
     safeFontScale >= 1.8 && safeHeight < 700
       ? 1

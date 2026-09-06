@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
 import {
   SelectionCard,
   SelectionIndicator,
@@ -227,17 +226,10 @@ export function ShiftTimingEditor({
       {showHeader ? (
         <View style={styles.header}>
           <View
-            style={[
-              styles.shiftIcon,
-              { backgroundColor: appearance.softColor },
-            ]}>
-            <AnimatedShiftIcon
-              active={focusedField !== null}
-              color={appearance.accentColor}
-              kind={getShiftIconKind(shift.id, shift.isOff)}
-              size={28}
-            />
-          </View>
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.shiftRail, { backgroundColor: appearance.accentColor }]}
+          />
           <View style={styles.flexCopy}>
             <AppText accessibilityRole="header" variant="heading">
               {isSubstituteShiftId(shift.id)
@@ -360,14 +352,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       gap: spacing.medium,
     },
-    shiftIcon: {
-      width: 50,
-      height: 50,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 18,
-    },
+    shiftRail: { width: 3, height: 42, flexShrink: 0, borderRadius: 2 },
     flexCopy: {
       minWidth: 0,
       flex: 1,

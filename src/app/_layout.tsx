@@ -17,6 +17,7 @@ import { SaveErrorBanner } from '@/components/save-error-banner';
 import { SaveToast } from '@/components/save-toast';
 import { AlarmPyoWidgetSyncBridge } from '@/components/alarmpyo-widget-sync-bridge';
 import type { AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { GlobalPlayUpdateProvider } from '@/features/update/global-play-update-controller';
 import { fontFamily } from '@/constants/typography';
 import { useAppLifecycle } from '@/hooks/use-app-active';
@@ -26,8 +27,8 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppThemeProvider } from '@/providers/app-theme-provider';
 import {
   AppStoreProvider,
-  useAppStore,
-  useAppStoreData,
+  useAppCommands,
+  useAppSelector,
   useAppStoreStatus,
 } from '@/store/app-store';
 
@@ -118,7 +119,7 @@ function AppBootstrap({
   reduceMotion: boolean;
 }) {
   const { loadError } = useAppStoreStatus();
-  const { ready } = useAppStoreData();
+  const ready = useAppSelector((store) => store.ready);
   const bootstrapReady = ready || Boolean(loadError);
   const [hasRevealed, setHasRevealed] = useState(false);
   const [launchSurfaceReady, setLaunchSurfaceReady] = useState(false);
@@ -172,18 +173,18 @@ function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
   const { showDialog } = useAppDialog();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const ready = useAppSelector((store) => store.ready);
+  const setupCompleted = useAppSelector(
+    (store) => store.data.settings.setupCompleted,
+  );
+  const { corruptBackupKey, loadError, loadFailureReason } = useAppStoreStatus();
   const {
-    corruptBackupKey,
-    data,
     getRecoveryBackupPreview,
-    loadError,
-    loadFailureReason,
-    ready,
     resyncAlarms,
     restoreRecoveryBackup,
     retryLoad,
     startFreshAfterLoadError,
-  } = useAppStore();
+  } = useAppCommands();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
   const appLifecycle = useAppLifecycle();
@@ -217,9 +218,9 @@ function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
   useEffect(() => {
     if (!ready || loadError || !rootNavigationState?.key) return;
     const onSetupScreen = segments[0] === 'setup';
-    if (!data.settings.setupCompleted && !onSetupScreen) router.replace('/setup');
-    if (data.settings.setupCompleted && onSetupScreen) router.replace('/');
-  }, [data.settings.setupCompleted, loadError, ready, rootNavigationState?.key, segments]);
+    if (!setupCompleted && !onSetupScreen) router.replace('/setup');
+    if (setupCompleted && onSetupScreen) router.replace('/');
+  }, [loadError, ready, rootNavigationState?.key, segments, setupCompleted]);
 
   useEffect(() => {
     if (!ready) {
@@ -356,7 +357,7 @@ function AppShell({ updateNoticeEnabled }: { updateNoticeEnabled: boolean }) {
     <GlobalPlayUpdateProvider
       enabled={
         updateNoticeEnabled &&
-        data.settings.setupCompleted &&
+        setupCompleted &&
         Boolean(rootNavigationState?.key)
       }>
       <AlarmPyoWidgetSyncBridge />
@@ -415,11 +416,11 @@ const bootstrapStyles = StyleSheet.create({
     marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: shape.control,
     backgroundColor: '#616A75',
     paddingHorizontal: 22,
   },
-  errorButtonPressed: { transform: [{ scale: 0.985 }] },
+  errorButtonPressed: { opacity: 0.76 },
   errorButtonLabel: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -441,7 +442,7 @@ function createStyles(palette: AppPalette) {
       maxWidth: 520,
       gap: 16,
       padding: 24,
-      borderRadius: 24,
+      borderRadius: shape.section,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: palette.line,
       backgroundColor: palette.surface,

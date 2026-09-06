@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { Heading } from './heading';
-import { radius, space } from './tokens';
+import { shape, space } from './tokens';
 import { useDesignSystemTheme } from './theme';
 
 type FocusTarget = React.ElementRef<typeof Pressable>;
@@ -238,13 +238,8 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: colors.borderStrong,
-      borderRadius: radius.lg,
+      borderRadius: shape.overlay,
       backgroundColor: colors.surface,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 18 },
-      shadowOpacity: 0.42,
-      shadowRadius: 34,
-      elevation: 48,
     },
     content: {
       gap: space.lg,

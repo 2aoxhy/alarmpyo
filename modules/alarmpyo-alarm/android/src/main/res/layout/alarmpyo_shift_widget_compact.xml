@@ -12,7 +12,7 @@
         android:id="@+id/alarmpyo_widget_card"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/alarmpyo_widget_day_background"
+        android:background="@drawable/alarmpyo_widget_background"
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:importantForAccessibility="noHideDescendants"
@@ -77,16 +77,24 @@
             </LinearLayout>
         </LinearLayout>
 
+        <FrameLayout
+            android:id="@+id/alarmpyo_widget_primary_divider"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:alpha="0.22"
+            android:background="@color/alarmpyo_text_primary"
+            android:importantForAccessibility="no" />
+
         <LinearLayout
             android:id="@+id/alarmpyo_widget_secondary_panel"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
             android:layout_weight="10"
-            android:background="@drawable/alarmpyo_widget_bottom_panel"
             android:gravity="center_vertical"
             android:orientation="vertical"
-            android:paddingStart="12dp"
+            android:paddingStart="10dp"
             android:paddingTop="2dp"
             android:paddingEnd="10dp"
             android:paddingBottom="2dp">

@@ -119,8 +119,8 @@ function createStyles(palette: AppPalette) {
       padding: spacing.large,
     },
     cardActive: {
-      borderWidth: 2,
-      borderColor: palette.selectionBorder,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.selectionBorder,
     },
     heading: {
       flexDirection: 'row',

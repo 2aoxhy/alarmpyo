@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
@@ -149,11 +150,11 @@ const createStyles = (palette: AppPalette) =>
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: palette.line,
-      borderRadius: radii.medium,
+      borderRadius: shape.section,
       backgroundColor: palette.surfaceSoft,
     },
     panelCompact: {
-      borderRadius: radii.small,
+      borderRadius: shape.section,
     },
     summaryButton: {
       minWidth: 0,
@@ -250,7 +251,7 @@ const createStyles = (palette: AppPalette) =>
     },
     stepCopyCurrent: {
       marginBottom: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
       backgroundColor: palette.blueSoft,
       padding: spacing.medium,
     },

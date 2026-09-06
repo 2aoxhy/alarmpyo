@@ -192,6 +192,19 @@ describe('빠른 타이머 화면 모델', () => {
     });
   });
 
+  it('숫자 직접 입력 중에는 키보드가 안내 문구를 가리지 않도록 휠을 1행으로 줄여요', () => {
+    expect(resolveQuickTimerWheelLayout(800, 1, true)).toEqual({
+      itemHeight: 64,
+      visibleItemCount: 1,
+      viewportHeight: 64,
+    });
+    expect(resolveQuickTimerWheelLayout(800, 2, true)).toEqual({
+      itemHeight: 104,
+      visibleItemCount: 1,
+      viewportHeight: 104,
+    });
+  });
+
   it('1분 이상은 올림한 분으로, 1분 미만은 초로 표시합니다', () => {
     expect(formatQuickTimerCountdown(30 * 60_000)).toBe('30분 남음');
     expect(formatQuickTimerCountdown(3_600_001)).toBe('61분 남음');

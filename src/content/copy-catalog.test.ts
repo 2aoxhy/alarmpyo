@@ -56,7 +56,7 @@ describe('사용자 문구 카탈로그', () => {
       saveComplete: 'sentence',
       saveFailed: 'sentence',
       invalidSchedule: 'requirement',
-      restoreQuestion: 'question',
+      restoreQuestion: 'label',
       managementSummary: 'label',
       backupSection: 'label',
       backup: 'action',

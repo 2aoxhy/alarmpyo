@@ -1,8 +1,5 @@
-import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { AppIcon } from '@/components/app-icon';
-import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
 import { SelectionCard } from '@/components/selection-controls';
 import { AppText, MenuGroup } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
@@ -47,19 +44,10 @@ export function ShiftSelectionSection({
           <CompactChoice
             accessibilityLabel={`기본 근무표 적용하기. 이날 적용되는 일정은 다음과 같습니다. ${patternShift?.name ?? '일정 없음'}.`}
             compact={compact}
-            icon={
-              <AppIcon
-                accessible={false}
-                color={palette.indigo}
-                name="repeat"
-                size={21}
-              />
-            }
             label="기본"
             onPress={() => onChoose('pattern')}
             selected={selection === 'pattern'}
             selectedColor={palette.indigo}
-            softColor={palette.indigoSoft}
           />
 
           {shiftTypes
@@ -77,19 +65,10 @@ export function ShiftSelectionSection({
                         }${formatMinutes(shift.endMinutes)}까지입니다.`
                   }`}
                   compact={compact}
-                  icon={
-                    <AnimatedShiftIcon
-                      animated={selection === shift.id}
-                      color={appearance.accentColor}
-                      kind={getShiftIconKind(shift.id, shift.isOff)}
-                      size={23}
-                    />
-                  }
                   label={shift.name}
                   onPress={() => onChoose(shift.id)}
                   selected={selection === shift.id}
                   selectedColor={appearance.accentColor}
-                  softColor={appearance.softColor}
                 />
               );
             })}
@@ -101,20 +80,11 @@ export function ShiftSelectionSection({
               <CompactChoice
                 accessibilityLabel={`${day ? '주간' : '야간'} 특근. ${shift.name} 일정을 적용합니다.`}
                 compact={compact}
-                icon={
-                  <AnimatedShiftIcon
-                    animated={selection === shift.id}
-                    color={appearance.accentColor}
-                    kind="substitute"
-                    size={23}
-                  />
-                }
                 key={shift.id}
                 label={`${day ? '주간' : '야간'} 특근`}
                 onPress={() => onChoose(shift.id)}
                 selected={selection === shift.id}
                 selectedColor={appearance.accentColor}
-                softColor={appearance.softColor}
               />
             );
           })}
@@ -127,23 +97,19 @@ export function ShiftSelectionSection({
 type CompactChoiceProps = {
   accessibilityLabel: string;
   compact: boolean;
-  icon: ReactNode;
   label: string;
   onPress: () => void;
   selected: boolean;
   selectedColor: string;
-  softColor: string;
 };
 
 function CompactChoice({
   accessibilityLabel,
   compact,
-  icon,
   label,
   onPress,
   selected,
   selectedColor,
-  softColor,
 }: CompactChoiceProps) {
   const styles = useThemedStyles(createStyles);
   return (
@@ -154,9 +120,6 @@ function CompactChoice({
       semanticColor={selectedColor}
       style={[styles.compactChoice, compact && styles.compactChoiceCompact]}
       contentStyle={styles.compactChoiceContent}>
-      <View style={[styles.compactChoiceIcon, { backgroundColor: softColor }]}>
-        {icon}
-      </View>
       <AppText numberOfLines={2} style={styles.compactChoiceLabel} variant="label">
         {label}
       </AppText>
@@ -187,14 +150,6 @@ function createStyles(palette: AppPalette) {
       paddingVertical: spacing.small,
     },
     compactChoiceCompact: { width: '100%' },
-    compactChoiceIcon: {
-      width: 32,
-      height: 32,
-      flexShrink: 0,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     compactChoiceLabel: { flex: 1, minWidth: 0 },
   });
 }

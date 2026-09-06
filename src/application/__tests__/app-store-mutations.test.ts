@@ -134,6 +134,24 @@ describe('app-store-mutations', () => {
     expect(applyPatternSettings(next, pattern, {})).toBe(next);
   });
 
+  it('같은 배열의 평일 고정을 기준일 회전으로 바꾸면 패턴 변경을 반영해요', () => {
+    const current = createDefaultAppData('2026-08-09');
+    const weekdayPattern = {
+      ...current.pattern,
+      kind: 'weekday' as const,
+      shiftTypeIds: ['off', 'day', 'day', 'day', 'day', 'day', 'off'],
+    };
+    const weekday = { ...current, pattern: weekdayPattern };
+    const rotationPattern = { ...weekdayPattern, kind: 'rotation' as const };
+
+    const next = applyPatternSettings(weekday, rotationPattern, {});
+
+    expect(next).not.toBe(weekday);
+    expect(next.pattern.kind).toBe('rotation');
+    expect(next.appliedPatternSource).toBe('legacy');
+    expect(next.appliedPatternId).toBeNull();
+  });
+
   it('근무 시간과 준비 루틴을 호환될 때만 반영해요', () => {
     const current = createDefaultAppData('2026-08-09');
     const profiles = {

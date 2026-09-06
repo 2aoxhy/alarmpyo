@@ -5,9 +5,9 @@ import org.junit.Test
 
 class AlarmPyoWidgetSizePolicyTest {
   @Test
-  fun `uses the medium layout at the declared 4 by 2 height`() {
+  fun `uses the compact layout at the declared 4 by 1 height`() {
     assertEquals(
-      AlarmPyoWidgetHeightMode.MEDIUM,
+      AlarmPyoWidgetHeightMode.MINIMUM,
       AlarmPyoWidgetSizePolicy.heightMode(AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP)
     )
   }

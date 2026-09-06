@@ -5,7 +5,7 @@ import { AppSheet } from '@/components/app-sheet';
 import { SelectionCard, SelectionPill } from '@/components/selection-controls';
 import { AppButton, AppText } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner, Surface, ToggleRow } from '@/design-system';
+import { shape, StatusBanner, Surface, ToggleRow } from '@/design-system';
 import {
   PatternSequenceEditor,
   WorkTimeEditor,
@@ -561,7 +561,11 @@ function createStyles(palette: AppPalette) {
     },
     roleSelection: { gap: spacing.small },
     positionOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
-    positionOption: { minWidth: 112, flexGrow: 1 },
+    positionOption: {
+      minWidth: 112,
+      flexGrow: 1,
+      borderRadius: shape.control,
+    },
     previewCard: { gap: spacing.medium },
     previewList: { gap: spacing.tiny },
     previewRow: {

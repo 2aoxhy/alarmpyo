@@ -5,7 +5,8 @@ import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -209,14 +210,14 @@ function createStyles(palette: AppPalette) {
       paddingHorizontal: spacing.medium,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       backgroundColor: palette.surfaceSoft,
     },
     pickerLabel: { flex: 1, minWidth: 0, textAlign: 'center' },
     todayButton: { minWidth: 76, minHeight: 48 },
     dateInput: {
       minHeight: 52,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       backgroundColor: palette.surfaceSoft,
@@ -231,6 +232,6 @@ function createStyles(palette: AppPalette) {
     },
     inputError: { borderColor: palette.danger },
     helpText: { textAlign: 'center' },
-    pressed: { opacity: 0.68, transform: [{ scale: 0.99 }] },
+    pressed: { opacity: 0.68 },
   });
 }

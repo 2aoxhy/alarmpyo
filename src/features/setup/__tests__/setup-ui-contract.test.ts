@@ -156,16 +156,17 @@ describe('통합 근무표 설정 화면 계약', () => {
     expect(screen).not.toContain('앱 삭제 시 근무표·메모·설정 삭제');
   });
 
-  it('최초 설정의 브랜드 배경과 저장 진행 상태를 유지해요', () => {
+  it('최초 설정은 장식 배경 없이 저장 진행 상태만 표시해요', () => {
     const screen = setupSessionSource();
     const onboarding = source(
       'src/features/setup/setup-onboarding-surface.tsx',
     );
 
-    expect(screen).toContain("mode === 'initial' ? <SetupBrandHaloBackdrop />");
+    expect(screen).not.toContain('SetupBrandHaloBackdrop');
     expect(screen).toContain('<SetupApplyingOverlay visible={busy} />');
-    expect(onboarding).toContain('export function SetupBrandHaloBackdrop()');
-    expect(onboarding).not.toContain('filter: [{ blur:');
+    expect(onboarding).not.toContain('LinearGradient');
+    expect(onboarding).not.toContain('brandHalo');
+    expect(onboarding).toContain('<ActivityIndicator');
   });
 
   it('기존 긴 근무 순서 편집은 가상화와 단일 선택 상태를 유지해요', () => {

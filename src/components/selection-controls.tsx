@@ -13,6 +13,7 @@ import {
 import { AppIcon, type AppIconName } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -302,7 +303,7 @@ function createStyles(palette: AppPalette) {
       position: 'relative',
       borderWidth: SELECTION_CONTROL_CONTRACT.borderWidth,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       backgroundColor: palette.surface,
     },
     cardContent: {
@@ -323,7 +324,7 @@ function createStyles(palette: AppPalette) {
       overflow: 'hidden',
       borderWidth: SELECTION_CONTROL_CONTRACT.borderWidth,
       borderColor: palette.controlLine,
-      borderRadius: radii.pill,
+      borderRadius: shape.control,
       backgroundColor: palette.surface,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
@@ -360,7 +361,7 @@ function createStyles(palette: AppPalette) {
       borderColor: palette.line,
       backgroundColor: palette.disabledSurface,
     },
-    pressed: { transform: [{ scale: 0.985 }] },
+    pressed: { opacity: 0.76 },
     focusVisible:
       Platform.OS === 'web'
         ? {

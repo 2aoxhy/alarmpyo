@@ -105,7 +105,7 @@ export default function PatternLibraryScreen() {
       '패턴 저장 실패',
       result.reason === 'vault-full'
         ? '보관함이 가득 찼습니다. 사용하지 않는 패턴 삭제 필요.'
-        : '저장 공간 부족 또는 일시 오류입니다. 잠시 후 재시도 가능.',
+        : '저장 공간 확인 후 다시 시도',
       undefined,
       { tone: 'danger' },
     );
@@ -176,7 +176,7 @@ export default function PatternLibraryScreen() {
 
   const confirmDeletePattern = (entry: PatternVaultEntry) => {
     showDialog(
-      '보관한 패턴을 삭제하시겠습니까?',
+      '패턴 삭제',
       `${entry.name} 삭제 · 현재 근무표는 유지`,
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -199,7 +199,7 @@ export default function PatternLibraryScreen() {
                       ? '패턴 삭제를 되돌렸습니다. 알람 상태 확인 필요.'
                       : result.reason === 'rollback-failed'
                         ? '삭제 상태를 확인할 수 없습니다. 현재 근무표·알람 상태 확인 필요.'
-                        : '저장 공간 부족 또는 일시 오류입니다. 잠시 후 재시도 가능.',
+                        : '저장 공간 확인 후 다시 시도',
                   undefined,
                   { tone: 'danger' },
                 );

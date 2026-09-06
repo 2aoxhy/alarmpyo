@@ -10,7 +10,7 @@ import { AppIcon } from '@/components/app-icon';
 import { AnimatedShiftIcon, getShiftIconKind } from '@/components/animated-shift-icon';
 import { AppText } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { Surface } from '@/design-system';
+import { shape, Surface } from '@/design-system';
 import type { ShiftType } from '@/models/app-data';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -693,7 +693,7 @@ function createStyles(palette: AppPalette) {
       backgroundColor: palette.surface,
     },
     guideCopy: { minWidth: 0, flex: 1, gap: 2 },
-    compactKeyPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+    compactKeyPressed: { opacity: 0.72 },
     compactKeyHeader: {
       minHeight: 28,
       flexDirection: 'row',
@@ -746,7 +746,7 @@ function createStyles(palette: AppPalette) {
       paddingVertical: spacing.small,
       borderWidth: 1,
       borderColor: palette.line,
-      borderRadius: radii.small,
+      borderRadius: shape.section,
       backgroundColor: palette.surfaceSoft,
     },
     legendRowGrid: {

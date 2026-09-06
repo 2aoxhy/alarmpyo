@@ -41,7 +41,7 @@ import {
 import { createWorkPatternEditorController } from '@/features/setup/work-pattern-editor-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppStoreData } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
@@ -61,7 +61,8 @@ export default function PatternEditorScreen() {
   const stackOptions = width < 430 || fontScale >= 1.3;
   const compactPositions = width < 390 || fontScale >= 1.3;
   const stackFooter = width <= 320 || fontScale >= 1.3;
-  const { createBackup, data, resyncAlarms, updatePatternDetailed } = useAppStore();
+  const { data } = useAppStoreData();
+  const { createBackup, resyncAlarms, updatePatternDetailed } = useAppCommands();
   const navigation = useNavigation();
   const allowNavigation = useRef(false);
   const [today] = useState(() => toDateKey(new Date()));

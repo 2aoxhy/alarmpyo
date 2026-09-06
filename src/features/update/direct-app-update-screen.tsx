@@ -118,11 +118,7 @@ export default function AppUpdateScreen() {
           safeAreaEdges={['left', 'right']}>
           <Card density="compact" style={styles.updateCard}>
             <View style={styles.summary}>
-              <View
-                style={[
-                  styles.iconTile,
-                  { backgroundColor: palette.indigoSoft },
-                ]}>
+              <View style={styles.iconTile}>
                 <AppIcon
                   accessible={false}
                   color={isDark ? palette.indigoDark : palette.indigo}
@@ -175,20 +171,7 @@ export default function AppUpdateScreen() {
             }
             accessible
             style={styles.summary}>
-            <View
-              style={[
-                styles.iconTile,
-                {
-                  backgroundColor:
-                    status === 'error'
-                      ? palette.dangerSoft
-                      : status === 'check-warning'
-                        ? palette.amberSoft
-                      : status === 'current'
-                        ? palette.mintSoft
-                        : palette.indigoSoft,
-                },
-              ]}>
+            <View style={styles.iconTile}>
               <AppIcon accessible={false} color={statusColor} name={statusIcon} size={25} />
             </View>
             <View style={styles.copy}>
@@ -240,7 +223,6 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 17,
     },
     copy: { flex: 1, minWidth: 0, gap: spacing.tiny },
     notesCard: { gap: spacing.small, borderColor: palette.indigoSoft },

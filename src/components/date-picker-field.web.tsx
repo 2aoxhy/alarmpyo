@@ -3,7 +3,8 @@ import { createElement, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -100,7 +101,7 @@ export function DatePickerField({
             minHeight: 52,
             flex: '1 1 220px',
             border: `1.5px solid ${valid ? palette.controlLine : palette.danger}`,
-            borderRadius: radii.medium,
+            borderRadius: shape.control,
             background: palette.canvas,
             padding: `0 ${spacing.medium}px`,
             color: palette.ink,
@@ -191,7 +192,7 @@ function createStyles(palette: AppPalette) {
     todayButton: { minWidth: 76, minHeight: 48 },
     dateInput: {
       minHeight: 52,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       backgroundColor: palette.surfaceSoft,

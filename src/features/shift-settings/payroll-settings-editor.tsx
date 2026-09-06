@@ -151,9 +151,10 @@ function createStyles(palette: AppPalette) {
     policy: { gap: spacing.small },
     preview: {
       gap: spacing.small,
-      borderRadius: 16,
-      backgroundColor: palette.surfaceSoft,
-      padding: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+      paddingVertical: spacing.medium,
     },
     previewRow: {
       minHeight: 48,

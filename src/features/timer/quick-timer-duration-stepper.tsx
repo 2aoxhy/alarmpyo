@@ -79,8 +79,13 @@ export function QuickTimerDurationStepper({
   const { colors } = useDesignSystemTheme();
   const { fontScale, height, width } = useWindowDimensions();
   const closeFocus = useWebFocusVisible();
-  const wheelLayout = resolveQuickTimerWheelLayout(height, fontScale);
   const initialDuration = resolveInitialDuration(initialDurationMinutes);
+  const [entryMode, setEntryMode] = useState<TimerEntryMode>('wheel');
+  const wheelLayout = resolveQuickTimerWheelLayout(
+    height,
+    fontScale,
+    entryMode === 'numeric',
+  );
   const initialOffset = quickTimerDurationToOffset(
     initialDuration,
     wheelLayout.itemHeight,
@@ -103,7 +108,6 @@ export function QuickTimerDurationStepper({
   const committedDurationRef = useRef<QuickTimerDuration>(initialDuration);
   const offsetRef = useRef(initialOffset);
   const [durationMinutes, setDurationMinutes] = useState(initialDuration);
-  const [entryMode, setEntryMode] = useState<TimerEntryMode>('wheel');
   const [numericInput, setNumericInput] = useState(String(initialDuration));
   const [numericInputError, setNumericInputError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -282,7 +286,7 @@ export function QuickTimerDurationStepper({
     setNumericInputError(null);
     entryModeRef.current = 'numeric';
     setEntryMode('numeric');
-  }, [busy, clearFocusTimeout, clearSettleTimeout]);
+  }, [busy, clearFocusTimeout, clearSettleTimeout, setEntryMode]);
 
   const commitNumericEntry = useCallback(() => {
     const result = parseQuickTimerDurationInput(numericInput);
@@ -313,6 +317,7 @@ export function QuickTimerDurationStepper({
     numericInput,
     publishDuration,
     reduceMotion,
+    setEntryMode,
     startProgrammaticScroll,
     wheelLayout.itemHeight,
   ]);
@@ -526,7 +531,7 @@ export function QuickTimerDurationStepper({
     entryModeRef.current = 'wheel';
     setEntryMode('wheel');
     onCancel();
-  }, [clearFocusTimeout, clearSettleTimeout, onCancel]);
+  }, [clearFocusTimeout, clearSettleTimeout, onCancel, setEntryMode]);
 
   const handleSubmit = useCallback(() => {
     if (busy) return;
@@ -831,7 +836,8 @@ export function QuickTimerDurationStepper({
             />
           </View>
           <View
-            accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}>
+            accessibilityLiveRegion={numericInputError ? 'assertive' : 'none'}
+            style={styles.inputHintContainer}>
             <AppText
               color={numericInputError ? colors.danger : colors.textMuted}
               style={styles.inputHint}
@@ -978,6 +984,14 @@ const styles = StyleSheet.create({
     minHeight: typeScale.caption.lineHeight,
     textAlign: 'center',
   },
+  inputHintContainer: {
+    width: '100%',
+    minHeight: typeScale.caption.lineHeight,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.xs,
+  },
   selectionFrame: {
     position: 'absolute',
     left: 0,
@@ -996,7 +1010,7 @@ const styles = StyleSheet.create({
   },
   actionsStacked: { flexDirection: 'column-reverse' },
   action: { flex: 1 },
-  pressed: { transform: [{ scale: 0.96 }], opacity: interaction.pressedOpacity },
+  pressed: { opacity: interaction.pressedOpacity },
   focusVisible:
     Platform.OS === 'web'
       ? {

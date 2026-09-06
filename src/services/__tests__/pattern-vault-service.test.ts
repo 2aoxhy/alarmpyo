@@ -552,6 +552,19 @@ describe('pattern-vault-service', () => {
     })).toEqual({ status: 'failure', reason: 'history-conflict' });
   });
 
+  it('종류가 없는 이전 사용자 순서는 rotation 이력과 같은 실행으로 복구합니다', () => {
+    const source = withUserPattern(createDefaultAppData(EFFECTIVE_DATE));
+    const applied = applyUserPattern(source, { mode: 'preserve' });
+    expect(applied.status).toBe('ready');
+    if (applied.status !== 'ready') return;
+    const { kind: _kind, ...legacyPattern } = applied.data.pattern;
+
+    expect(buildPatternRollbackMutation({
+      ...applied.data,
+      pattern: legacyPattern,
+    }).status).toBe('ready');
+  });
+
   it('v21 적용 이력의 복구 원본을 strict parser로 왕복 보존합니다', () => {
     const source = withUserPattern({
       ...createDefaultAppData(EFFECTIVE_DATE),

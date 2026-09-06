@@ -33,6 +33,35 @@ export const radius = {
   full: legacyRadii.pill,
 } as const;
 
+/**
+ * 새 화면과 공통 셸에서 사용하는 평면형 모양 계약입니다.
+ *
+ * `radius`는 아직 이관되지 않은 화면과 달력의 원형 의미 표식을 위한
+ * 호환 토큰으로 남겨 둡니다. 새 공통 컴포넌트는 임의의 큰 radius 대신
+ * 아래 역할을 사용해야 합니다.
+ */
+export const shape = {
+  section: 0,
+  control: 4,
+  panel: 6,
+  overlay: 8,
+  sheetTop: 10,
+} as const;
+
+/** 완전한 원형·pill을 허용하는 의미 역할의 명시적 목록입니다. */
+export const pillShape = {
+  radius: legacyRadii.pill,
+  allowedRoles: [
+    'status-badge',
+    'today-marker',
+    'radio-indicator',
+    'switch-track',
+    'icon-button',
+  ],
+} as const;
+
+export type PillShapeRole = (typeof pillShape.allowedRoles)[number];
+
 export const size = {
   minimumTouchTarget: 48,
   regularControl: 52,

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText, MenuGroup } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -58,7 +59,7 @@ function createStyles(palette: AppPalette) {
     noteInput: {
       minHeight: 88,
       padding: spacing.medium,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1,
       borderColor: palette.transparent,
       backgroundColor: palette.surfaceSoft,

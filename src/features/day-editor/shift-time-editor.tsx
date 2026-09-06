@@ -3,7 +3,8 @@ import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -53,14 +54,11 @@ export function ShiftTimeEditor({
   return (
     <View style={styles.timeCard}>
       {showHeader ? <View style={styles.timeHeader}>
-        <View style={[styles.timeIcon, { backgroundColor: appearance.softColor }]}>
-          <AppIcon
-            accessible={false}
-            color={appearance.accentColor}
-            name="time-outline"
-            size={23}
-          />
-        </View>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.timeRail, { backgroundColor: appearance.accentColor }]}
+        />
         <View style={styles.optionCopy}>
           <AppText accessibilityRole="header" variant="heading">
             근무 시간
@@ -196,14 +194,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       gap: spacing.medium,
     },
-    timeIcon: {
-      width: 46,
-      height: 46,
-      flexShrink: 0,
-      borderRadius: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    timeRail: { width: 3, height: 40, flexShrink: 0, borderRadius: 2 },
     resetTimeButton: { alignSelf: 'center' },
     timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.small },
     timeRowCompact: { flexDirection: 'column', alignItems: 'stretch' },
@@ -213,7 +204,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 52,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,

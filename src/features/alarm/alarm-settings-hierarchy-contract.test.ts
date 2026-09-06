@@ -124,6 +124,12 @@ describe('알람 설정 화면 정보 구조 계약', () => {
     expect(alarmSettings).toContain('hasDateOverride ? " · 이날만 설정" : ""');
   });
 
+  it('알람 행은 장식 그림 대신 근무 의미선과 텍스트를 사용해요', () => {
+    expect(alarmSettings).not.toContain('AnimatedShiftIcon');
+    expect(alarmSettings).not.toContain('alarmShiftIcon');
+    expect(alarmSettings).toContain('styles.alarmShiftRail');
+  });
+
   it('3교대는 실제 사용하는 오후 기상 시각까지 요약해요', () => {
     expect(alarmSettings).toContain(
       'const activeShiftIds = new Set(data.pattern.shiftTypeIds);',

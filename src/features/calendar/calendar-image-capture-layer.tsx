@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: '#353A42',
-    borderRadius: 12,
+    borderRadius: 6,
     backgroundColor: '#181B1F',
   },
 });

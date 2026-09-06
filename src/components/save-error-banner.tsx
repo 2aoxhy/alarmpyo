@@ -26,12 +26,10 @@ import type { SaveOutcome, SaveRetryAction } from '@/application/app-store-contr
 import { AppButton, AppText } from '@/components/ui-kit';
 import {
   colorWithAlpha,
-  radii,
-  shadow,
   spacing,
   type AppPalette,
 } from '@/constants/app-theme';
-import { createSemanticColors } from '@/design-system/tokens';
+import { createSemanticColors, shape } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -230,7 +228,7 @@ export function SaveErrorBanner() {
           <>
             <View style={styles.header}>
               <View style={styles.titleGroup}>
-                <View style={[styles.icon, { backgroundColor: toneSoft }]}>
+                <View style={styles.icon}>
                   <AppIcon color={toneColor} name="alert-circle-outline" size={23} />
                 </View>
                 <AppText variant="label" tone="primary" style={styles.title}>
@@ -289,7 +287,7 @@ export function SaveErrorBanner() {
                 pressed && styles.iconButtonPressed,
                 collapsedSummaryFocus.focusVisible && styles.webFocusVisible,
               ]}>
-              <View style={[styles.icon, styles.iconCollapsed, { backgroundColor: toneSoft }]}>
+              <View style={[styles.icon, styles.iconCollapsed]}>
                 <AppIcon color={toneColor} name="alert-circle-outline" size={21} />
               </View>
               <AppText
@@ -343,28 +341,17 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     left: spacing.medium,
     right: spacing.medium,
     zIndex: 1100,
-    elevation: 22,
     alignItems: 'center',
   },
   banner: {
     width: '100%',
     maxWidth: 560,
     padding: spacing.medium,
-    borderRadius: radii.large,
+    borderRadius: shape.overlay,
     borderWidth: 1,
     borderColor: colorWithAlpha(palette.danger, isDark ? 0.48 : 0.24),
     backgroundColor: palette.surface,
     gap: spacing.small,
-    ...(Platform.OS === 'web'
-      ? {
-          boxShadow: `0 10px 28px ${colorWithAlpha(
-            palette.shadowColor,
-            isDark ? 0.34 : 0.12,
-          )}`,
-        }
-      : isDark
-        ? { ...shadow, shadowColor: palette.shadowColor, shadowOpacity: 0.24 }
-        : shadow),
   },
   bannerCollapsed: {
     paddingHorizontal: spacing.small,
@@ -387,7 +374,6 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   icon: {
     width: 38,
     height: 38,
-    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -400,7 +386,7 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.medium,
+    borderRadius: shape.control,
   },
   iconButtonPressed: { opacity: 0.65 },
   collapsedRow: {
@@ -417,9 +403,9 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.small,
-    borderRadius: radii.medium,
+    borderRadius: shape.control,
   },
-  iconCollapsed: { width: 34, height: 34, borderRadius: 11 },
+  iconCollapsed: { width: 34, height: 34 },
   collapsedTitle: { minWidth: 0, flex: 1 },
   retryIconButton: {
     width: 48,
@@ -427,7 +413,7 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.medium,
+    borderRadius: shape.control,
   },
   webFocusVisible:
     Platform.OS === 'web'

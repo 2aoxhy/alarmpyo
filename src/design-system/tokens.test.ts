@@ -7,8 +7,10 @@ import {
   interaction,
   isDarkPalette,
   motion,
+  pillShape,
   resolveTextTone,
   resolveMotionDuration,
+  shape,
   size,
 } from './tokens';
 
@@ -53,5 +55,26 @@ describe('design-system tokens', () => {
   it('상호작용 상태는 글자를 읽을 수 있는 범위로 통일해요', () => {
     expect(interaction.pressedOpacity).toBeGreaterThanOrEqual(0.7);
     expect(interaction.loadingOpacity).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it('평면형 공통 셸은 역할별 작은 radius만 사용해요', () => {
+    expect(shape).toEqual({
+      section: 0,
+      control: 4,
+      panel: 6,
+      overlay: 8,
+      sheetTop: 10,
+    });
+  });
+
+  it('완전한 원형은 의미가 있는 작은 상태와 조작에만 허용해요', () => {
+    expect(pillShape.allowedRoles).toEqual([
+      'status-badge',
+      'today-marker',
+      'radio-indicator',
+      'switch-track',
+      'icon-button',
+    ]);
+    expect(pillShape.radius).toBeGreaterThan(shape.sheetTop);
   });
 });

@@ -6,7 +6,7 @@ internal enum class AlarmPyoWidgetHeightMode {
 }
 
 internal object AlarmPyoWidgetSizePolicy {
-  const val DEFAULT_MIN_HEIGHT_DP = 110
+  const val DEFAULT_MIN_HEIGHT_DP = 56
   internal const val MEDIUM_HEIGHT_MIN_DP = 96
 
   fun heightMode(minHeightDp: Int): AlarmPyoWidgetHeightMode =

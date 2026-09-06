@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -6,7 +5,6 @@ import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
 import {
   colorWithAlpha,
-  radii,
   spacing,
   type AppPalette,
 } from '@/constants/app-theme';
@@ -15,6 +13,7 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   resolveShiftHeroTheme,
   resolveShiftVisualRole,
+  shape,
   shouldStackHeroFooter,
 } from '@/design-system';
 import type { DayExceptionType, ShiftType } from '@/models/app-data';
@@ -91,14 +90,12 @@ export function TodayHero({
   );
 
   return (
-    <LinearGradient
-      colors={heroTheme.gradient}
-      end={{ x: 1, y: 1 }}
-      start={{ x: 0, y: 0 }}
+    <View
       style={[
         styles.hero,
         compact && styles.heroCompact,
         condensedLayout && styles.heroCondensed,
+        { backgroundColor: heroTheme.gradient[0] },
       ]}>
       <View
         pointerEvents="none"
@@ -152,7 +149,7 @@ export function TodayHero({
           {editButton}
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -161,7 +158,7 @@ const createStyles = (_palette: AppPalette) =>
     hero: {
       minHeight: 188,
       overflow: 'hidden',
-      borderRadius: radii.large,
+      borderRadius: shape.panel,
       padding: spacing.large,
       gap: spacing.small,
     },
@@ -240,7 +237,7 @@ const createStyles = (_palette: AppPalette) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      borderRadius: radii.small,
+      borderRadius: shape.control,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.48)',
       backgroundColor: 'transparent',
@@ -257,6 +254,5 @@ const createStyles = (_palette: AppPalette) =>
     },
     pressed: {
       opacity: 0.72,
-      transform: [{ scale: 0.96 }],
     },
   });

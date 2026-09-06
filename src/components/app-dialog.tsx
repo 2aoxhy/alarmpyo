@@ -39,7 +39,7 @@ import { colorWithAlpha, type AppPalette } from '@/constants/app-theme';
 import { commonCopy } from '@/content/common-copy';
 import {
   motion as motionToken,
-  radius,
+  shape,
   size,
   space,
 } from '@/design-system/tokens';
@@ -365,7 +365,7 @@ function AppDialogHost({
               keyboardShouldPersistTaps="handled"
               style={styles.contentScroll}>
               {!compactHeight && dialogTone !== 'neutral' ? (
-                <View style={[styles.icon, { backgroundColor: `${tone}1A` }]}>
+                <View style={styles.icon}>
                   <AppIcon
                     accessible={false}
                     color={tone}
@@ -429,15 +429,10 @@ function createStyles(palette: AppPalette) {
       maxHeight: '88%',
       gap: space.lg,
       padding: space.xl,
-      borderRadius: radius.xl,
+      borderRadius: shape.overlay,
       borderWidth: 1,
       borderColor: palette.line,
       backgroundColor: palette.surface,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 14 },
-      shadowOpacity: 0.3,
-      shadowRadius: 28,
-      elevation: 18,
     },
     dialogCompactHeight: {
       maxHeight: '94%',
@@ -449,7 +444,6 @@ function createStyles(palette: AppPalette) {
       height: size.minimumTouchTarget,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.md,
     },
     contentScroll: { width: '100%', minHeight: 0, flexShrink: 1 },
     content: { gap: space.lg },

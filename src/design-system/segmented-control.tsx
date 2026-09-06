@@ -12,7 +12,7 @@ import {
 
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
-import { interaction, radius, size, space, typeScale } from './tokens';
+import { interaction, shape, size, space, typeScale } from './tokens';
 import {
   type DesignSystemThemeProps,
   useDesignSystemTheme,
@@ -61,7 +61,7 @@ export function SegmentedControl<Value extends string>({
       accessibilityRole="radiogroup"
       style={[styles.container, stacked && styles.containerStacked, style]}
       testID={testID}>
-      {options.map((option) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
         const optionDisabled = disabled || Boolean(option.disabled);
         return (
@@ -70,6 +70,7 @@ export function SegmentedControl<Value extends string>({
             label={option.accessibilityLabel ?? option.label}
             optionLabel={option.label}
             optionDisabled={optionDisabled}
+            first={index === 0}
             onPress={() => onChange(option.value)}
             selected={selected}
             stacked={stacked}
@@ -85,6 +86,7 @@ function SegmentedOption({
   label,
   optionLabel,
   optionDisabled,
+  first,
   onPress,
   selected,
   stacked,
@@ -93,6 +95,7 @@ function SegmentedOption({
   label: string;
   optionLabel: string;
   optionDisabled: boolean;
+  first: boolean;
   onPress: () => void;
   selected: boolean;
   stacked: boolean;
@@ -112,7 +115,9 @@ function SegmentedOption({
       style={({ pressed }) => [
         styles.option,
         stacked && styles.optionStacked,
+        !first && (stacked ? styles.optionDividerStacked : styles.optionDivider),
         selected && styles.optionSelected,
+        selected && stacked && styles.optionSelectedStacked,
         pressed && !optionDisabled && styles.optionPressed,
         focus.focusVisible && !optionDisabled && styles.focusVisible,
         optionDisabled && styles.optionDisabled,
@@ -136,12 +141,11 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       width: '100%',
       minHeight: size.regularControl,
       flexDirection: 'row',
-      gap: space.xs,
-      padding: space.xs,
-      borderWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      borderRadius: radius.lg,
-      backgroundColor: colors.surfaceMuted,
+      borderRadius: shape.section,
+      backgroundColor: colors.surface,
     },
     containerStacked: {
       flexDirection: 'column',
@@ -154,22 +158,34 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       justifyContent: 'center',
       paddingHorizontal: space.md,
       paddingVertical: space.sm,
-      borderWidth: 1.5,
-      borderColor: colors.surfaceMuted,
-      borderRadius: radius.md,
+      borderRadius: shape.section,
     },
     optionStacked: {
       width: '100%',
     },
     optionSelected: {
-      borderColor: colors.focus,
+      borderBottomWidth: 3,
+      borderBottomColor: colors.focus,
       backgroundColor: colors.surfaceSelected,
+    },
+    optionSelectedStacked: {
+      borderBottomWidth: 0,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.focus,
+    },
+    optionDivider: {
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: colors.border,
+    },
+    optionDividerStacked: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      borderLeftWidth: 0,
     },
     optionPressed: {
       opacity: interaction.pressedOpacity,
     },
     optionDisabled: {
-      borderColor: colors.border,
       backgroundColor: colors.surfaceDisabled,
     },
     focusVisible:

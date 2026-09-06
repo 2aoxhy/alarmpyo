@@ -9,6 +9,7 @@ import {
   type CollapsedSleepAction,
 } from '@/components/sleep-timing-card-model';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
@@ -385,7 +386,7 @@ const createStyles = (palette: AppPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       backgroundColor: palette.amberSoft,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
@@ -412,7 +413,7 @@ const createStyles = (palette: AppPalette) =>
     window: {
       minWidth: 0,
       gap: 5,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       paddingHorizontal: spacing.large,
       paddingVertical: spacing.medium,
     },
@@ -491,8 +492,6 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 12,
-      backgroundColor: palette.surface,
     },
     transitionCopy: {
       minWidth: 0,

@@ -16,10 +16,7 @@ import { AppButton, AppText, Screen } from '@/components/ui-kit';
 import { spacing } from '@/constants/app-theme';
 import { StatusBanner } from '@/design-system';
 import { dataSettingsController } from '@/features/data-settings/data-settings-native-controller';
-import {
-  SetupApplyingOverlay,
-  SetupBrandHaloBackdrop,
-} from '@/features/setup/setup-onboarding-surface';
+import { SetupApplyingOverlay } from '@/features/setup/setup-onboarding-surface';
 import { getSuggestedWorkTimesForPreset } from '@/features/setup/setup-flow';
 import {
   activeShiftIds,
@@ -645,7 +642,6 @@ export function SetupSessionScreen({ mode }: SetupSessionScreenProps) {
   return (
     <Screen
       key={session.step}
-      background={mode === 'initial' ? <SetupBrandHaloBackdrop /> : undefined}
       contentStyle={styles.screen}
       footer={footer}
       safeAreaEdges={mode === 'reconfigure' ? ['left', 'right'] : undefined}>

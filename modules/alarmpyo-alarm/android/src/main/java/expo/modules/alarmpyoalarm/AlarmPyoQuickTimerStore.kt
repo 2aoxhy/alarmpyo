@@ -2,8 +2,6 @@ package expo.modules.alarmpyoalarm
 
 import android.content.Context
 import android.os.Build
-import java.security.MessageDigest
-import org.json.JSONObject
 
 internal enum class AlarmPyoQuickTimerStorageHealth(val wireValue: String) {
   NORMAL("normal"),
@@ -77,103 +75,6 @@ internal object AlarmPyoQuickTimerReplicaPolicy {
     return listOfNotNull(eligiblePrimary, eligibleRedundant)
       .maxByOrNull(AlarmPyoQuickTimerSnapshot::generation)
   }
-}
-
-internal object AlarmPyoQuickTimerCodec {
-  const val SCHEMA_VERSION = 2
-  private const val LEGACY_SCHEMA_VERSION = 1
-  private const val MAX_PAYLOAD_BYTES = 32 * 1024
-
-  fun encode(snapshot: AlarmPyoQuickTimerSnapshot): String {
-    val payload = JSONObject()
-      .put("state", snapshot.state.wireValue)
-      .put("durationMinutes", snapshot.durationMinutes ?: JSONObject.NULL)
-      .put("startedAt", snapshot.startedAt)
-      .put("startedAtElapsed", snapshot.startedAtElapsed)
-      .put("fireAtElapsed", snapshot.fireAtElapsed)
-      .put("bootCount", snapshot.bootCount)
-      .put("pausedRemainingMillis", snapshot.pausedRemainingMillis)
-      .put("plan", snapshot.plan?.toJson() ?: JSONObject.NULL)
-      .toString()
-    return JSONObject()
-      .put("schemaVersion", SCHEMA_VERSION)
-      .put("generation", snapshot.generation)
-      .put("payload", payload)
-      .put("checksum", checksum(SCHEMA_VERSION, snapshot.generation, payload))
-      .toString()
-  }
-
-  fun decode(raw: String?): AlarmPyoQuickTimerSnapshot? = runCatching {
-    if (raw.isNullOrBlank() || raw.toByteArray(Charsets.UTF_8).size > MAX_PAYLOAD_BYTES) {
-      return null
-    }
-    val envelope = JSONObject(raw)
-    val schemaVersion = envelope.getInt("schemaVersion")
-    if (schemaVersion != SCHEMA_VERSION && schemaVersion != LEGACY_SCHEMA_VERSION) return null
-    val generation = envelope.getLong("generation")
-    if (generation <= 0L) return null
-    val payload = envelope.getString("payload")
-    if (
-      payload.toByteArray(Charsets.UTF_8).size > MAX_PAYLOAD_BYTES ||
-      !checksum(schemaVersion, generation, payload)
-        .equals(envelope.getString("checksum"), ignoreCase = true)
-    ) return null
-
-    val json = JSONObject(payload)
-    val state = AlarmPyoQuickTimerSnapshotState.fromWireValue(json.getString("state"))
-      ?: return null
-    val plan = if (json.isNull("plan")) null else {
-      AlarmPyoAlarmPlan.fromJson(json.getJSONObject("plan")) ?: return null
-    }
-    val durationMinutes = if (json.isNull("durationMinutes")) null else {
-      json.getInt("durationMinutes").takeIf { duration ->
-        when (schemaVersion) {
-          LEGACY_SCHEMA_VERSION -> duration == 30 || duration == 60
-          else -> AlarmPyoQuickTimerPolicy.isSupportedDuration(duration)
-        }
-      }
-        ?: return null
-    }
-    val snapshot = AlarmPyoQuickTimerSnapshot(
-      plan = plan,
-      durationMinutes = durationMinutes,
-      startedAt = json.getLong("startedAt"),
-      startedAtElapsed = json.getLong("startedAtElapsed"),
-      fireAtElapsed = json.getLong("fireAtElapsed"),
-      bootCount = json.optInt("bootCount", -1),
-      state = state,
-      pausedRemainingMillis = json.optLong("pausedRemainingMillis", 0L),
-      generation = generation
-    )
-    if (snapshot.isActive()) {
-      if (
-        snapshot.durationMinutes == null ||
-        snapshot.startedAt <= 0L ||
-        snapshot.startedAtElapsed < 0L ||
-        snapshot.fireAtElapsed <= snapshot.startedAtElapsed ||
-        snapshot.pausedRemainingMillis != 0L ||
-        snapshot.plan?.shiftTypeId != "timer"
-      ) return null
-    } else if (snapshot.isPaused()) {
-      if (
-        snapshot.durationMinutes == null ||
-        snapshot.startedAt <= 0L ||
-        snapshot.fireAtElapsed != 0L ||
-        snapshot.pausedRemainingMillis <= 0L ||
-        snapshot.plan?.shiftTypeId != "timer"
-      ) return null
-    } else if (snapshot.plan != null) {
-      return null
-    } else if (snapshot.pausedRemainingMillis != 0L) {
-      return null
-    }
-    snapshot
-  }.getOrNull()
-
-  private fun checksum(schemaVersion: Int, generation: Long, payload: String): String =
-    MessageDigest.getInstance("SHA-256")
-      .digest("$schemaVersion\n$generation\n$payload".toByteArray(Charsets.UTF_8))
-      .joinToString("") { byte -> "%02x".format(byte) }
 }
 
 internal object AlarmPyoQuickTimerStore {

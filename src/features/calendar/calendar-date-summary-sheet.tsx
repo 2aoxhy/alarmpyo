@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/app-icon';
 import { AppSheet } from '@/components/app-sheet';
 import { AppButton, AppText, Card } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { DayAlarmOverride } from '@/models/app-data';
@@ -375,7 +376,7 @@ function createStyles(palette: AppPalette) {
       alignSelf: 'flex-start',
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-      borderRadius: radii.small,
+      borderRadius: shape.control,
       backgroundColor: palette.surfaceSoft,
     },
     timeText: { fontVariant: ['tabular-nums'] },
@@ -385,7 +386,7 @@ function createStyles(palette: AppPalette) {
       alignItems: 'flex-start',
       gap: spacing.small,
       padding: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
     },
     changeStatusBase: { backgroundColor: palette.mintSoft },
     changeStatusDirect: { backgroundColor: palette.amberSoft },
@@ -434,7 +435,7 @@ function createStyles(palette: AppPalette) {
       alignItems: 'flex-start',
       gap: spacing.small,
       padding: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
       backgroundColor: palette.surfaceSoft,
     },
   });

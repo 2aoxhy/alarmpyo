@@ -3,40 +3,25 @@
      contains no company-specific date or time, so it cannot become stale. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="400dp"
-    android:height="200dp"
+    android:height="100dp"
     android:viewportWidth="400"
-    android:viewportHeight="200">
+    android:viewportHeight="100">
     <path
         android:fillColor="@color/alarmpyo_widget_card_background"
-        android:pathData="M24,0H376A24,24 0,0 1,400 24V176A24,24 0,0 1,376 200H24A24,24 0,0 1,0 176V24A24,24 0,0 1,24 0Z"
-        android:strokeColor="@color/alarmpyo_widget_card_border"
-        android:strokeWidth="1" />
-    <path
-        android:fillColor="@color/alarmpyo_widget_card_background_soft"
-        android:pathData="M29,128H371A15,15 0,0 1,386 143V171A15,15 0,0 1,371 186H29A15,15 0,0 1,14 171V143A15,15 0,0 1,29 128Z"
+        android:pathData="M8,0H392A8,8 0,0 1,400 8V92A8,8 0,0 1,392 100H8A8,8 0,0 1,0 92V8A8,8 0,0 1,8 0Z"
         android:strokeColor="@color/alarmpyo_widget_card_border"
         android:strokeWidth="1" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M28,26H128M76,67H206M76,94H174M30,157H92M120,157H352"
+        android:pathData="M30,24H116M30,48H186M30,70H154M246,30H302M320,30H374M246,61H292M310,61H374"
         android:strokeColor="@color/alarmpyo_text_primary"
-        android:strokeLineCap="round"
-        android:strokeWidth="8" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M48,62A16,16 0,1 0,48 94A16,16 0,1 0,48 62M48,56V48M48,108V100M20,78H12M84,78H76M8,18V182"
-        android:strokeColor="@color/alarmpyo_widget_icon_day"
-        android:strokeLineCap="round"
-        android:strokeWidth="4" />
-    <path
-        android:fillColor="@color/alarmpyo_widget_card_background_soft"
-        android:pathData="M308,14H372A12,12 0,0 1,384 26V38A12,12 0,0 1,372 50H308A12,12 0,0 1,296 38V26A12,12 0,0 1,308 14Z"
-        android:strokeColor="@color/alarmpyo_widget_card_border"
-        android:strokeWidth="1" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M314,32H366"
-        android:strokeColor="@color/alarmpyo_widget_icon_day"
-        android:strokeLineCap="round"
         android:strokeWidth="6" />
+    <path
+        android:fillColor="@color/alarmpyo_widget_card_border"
+        android:pathData="M226,18H227V82H226Z" />
+    <path
+        android:fillColor="@color/alarmpyo_widget_icon_day"
+        android:pathData="M8,14H11V86H8Z"
+        android:strokeColor="@color/alarmpyo_widget_icon_day"
+        android:strokeWidth="1" />
 </vector>

@@ -15,7 +15,7 @@ import {
   type AppPalette,
 } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
-import { Surface } from '@/design-system';
+import { shape, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { AppData } from '@/models/app-data';
@@ -382,7 +382,7 @@ function createStyles(palette: AppPalette) {
     card: {
       padding: 0,
       overflow: 'hidden',
-      borderRadius: 20,
+      borderRadius: shape.section,
     },
     monthHeader: {
       flexDirection: 'row',
@@ -427,7 +427,7 @@ function createStyles(palette: AppPalette) {
     navButton: {
       width: 48,
       height: 48,
-      borderRadius: 14,
+      borderRadius: shape.control,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
@@ -464,6 +464,6 @@ function createStyles(palette: AppPalette) {
       borderBottomColor: palette.controlLine,
     },
     gridRowLast: { borderBottomWidth: 0 },
-    pressed: { opacity: 0.66, transform: [{ scale: 0.97 }] },
+    pressed: { opacity: 0.66 },
   });
 }

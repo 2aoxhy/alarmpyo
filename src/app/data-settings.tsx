@@ -208,7 +208,7 @@ export default function DataSettingsScreen() {
       '개인 알람·일정·메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
     ];
     showDialog(
-      '이 근무표와 시간을 적용하시겠습니까?',
+      '근무표와 시간 적용',
       lines.join('\n'),
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -231,8 +231,8 @@ export default function DataSettingsScreen() {
                 return;
               }
               const message = {
-                'not-ready': '근무표를 불러오는 중입니다. 잠시 후 다시 시도해야 합니다.',
-                'invalid-file': '파일 내용이 달라졌습니다. 파일을 다시 선택해야 합니다.',
+                'not-ready': '근무표 불러오는 중 · 다시 시도',
+                'invalid-file': '파일 내용 변경됨 · 파일 다시 선택',
                 'backup-failed': '안전 백업을 만들지 못해 아무것도 변경하지 않았습니다.',
                 'save-failed': '새 설정을 저장하지 못해 기존 설정을 유지했습니다.',
               }[result.reason];
@@ -272,7 +272,7 @@ export default function DataSettingsScreen() {
     } catch (error) {
       showDialog(
         '근무표와 시간 파일을 만들지 못했습니다',
-        error instanceof Error ? error.message : '잠시 후 다시 시도해야 합니다.',
+        error instanceof Error ? error.message : '다시 시도',
         undefined,
         { tone: 'danger' },
       );
@@ -312,7 +312,7 @@ export default function DataSettingsScreen() {
         '근무표와 시간 파일을 읽지 못했습니다',
         error instanceof Error
           ? error.message
-          : '알람표에서 만든 근무 설정 파일인지 확인해야 합니다.',
+          : '알람표 근무 설정 파일인지 확인',
         undefined,
         { tone: 'danger' },
       );
@@ -336,7 +336,7 @@ export default function DataSettingsScreen() {
     } catch (error) {
       showDialog(
         '백업 파일을 만들지 못했습니다',
-        error instanceof Error ? error.message : '잠시 후 다시 시도해야 합니다.',
+        error instanceof Error ? error.message : '다시 시도',
         undefined,
         { tone: 'danger' },
       );
@@ -347,8 +347,8 @@ export default function DataSettingsScreen() {
 
   const requestPlainBackup = () => {
     showDialog(
-      '암호화하지 않은 백업을 저장하시겠습니까?',
-      '근무표와 설정, 개인 메모가 비밀번호 보호 없이 파일에 그대로 저장됩니다. 다른 사람에게 노출되지 않는 위치에만 보관해야 합니다.',
+      '보호 없이 백업 저장',
+      '근무표·설정·개인 메모가 보호 없이 저장됩니다. 안전한 위치에만 보관',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
@@ -370,7 +370,7 @@ export default function DataSettingsScreen() {
     const operation: DataOperation =
       request.mode === 'create' ? 'export-encrypted-backup' : 'decrypt-backup';
     if (!beginOperation(operation)) {
-      throw new Error('진행 중인 작업이 끝난 뒤 다시 시도해야 합니다.');
+      throw new Error('진행 중인 작업 종료 후 다시 시도');
     }
 
     try {
@@ -470,7 +470,7 @@ export default function DataSettingsScreen() {
         '백업 파일을 읽지 못했습니다',
         error instanceof Error
           ? error.message
-          : '알람표에서 만든 백업 파일인지 확인해야 합니다.',
+          : '알람표 백업 파일인지 확인',
         undefined,
         { tone: 'danger' },
       );
@@ -494,7 +494,7 @@ export default function DataSettingsScreen() {
       if (result.status === 'confirmation-required') {
         showDialog(
           '원본 백업 확인이 필요합니다',
-          '현재 근무표만으로 복원 완료 여부를 확인할 수 없어 자동으로 덮어쓰지 않았습니다. 다시 눌러 원본 백업 보관을 확인해야 합니다.',
+          '복원 상태 확인 불가 · 원본 백업 보관 확인 필요',
           undefined,
           { tone: 'warning' },
         );
@@ -505,14 +505,14 @@ export default function DataSettingsScreen() {
         success ? '복원 전 백업을 저장했습니다' : '복원 전 백업을 저장하지 못했습니다',
         success
           ? '복원하기 전 근무표를 최근 안전 백업으로 보관했습니다.'
-          : '대기 중인 복원 전 백업은 지우지 않았습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+          : '복원 전 백업 유지 · 저장 공간 확인 후 다시 시도',
         undefined,
         { tone: success ? 'success' : 'danger' },
       );
     } catch {
       showDialog(
         '복원 전 백업을 저장하지 못했습니다',
-        '대기 중인 복원 전 백업은 유지했습니다. 잠시 후 다시 시도해야 합니다.',
+        '복원 전 백업 유지 · 다시 시도',
         undefined,
         { tone: 'danger' },
       );
@@ -532,7 +532,7 @@ export default function DataSettingsScreen() {
     }
 
     showDialog(
-      '보호 중인 원본 백업을 보관하시겠습니까?',
+      '원본 백업 보관',
       '현재 근무표만으로 이전 복원이 끝났는지 확인할 수 없습니다. 현재 자료로 오인하지 않고, 복원을 시도하기 전에 보관한 원본을 최근 안전 백업으로 저장합니다.',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -607,7 +607,7 @@ export default function DataSettingsScreen() {
               .catch(() => {
                 showDialog(
                   '백업을 복구하지 못했습니다',
-                  '예상하지 못한 오류가 발생했습니다. 현재 근무표와 대기 중인 복원 전 백업을 확인해야 합니다.',
+                  '처리 실패 · 현재 근무표와 복원 전 백업 확인',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -622,7 +622,7 @@ export default function DataSettingsScreen() {
 
   const reset = () => {
     showDialog(
-      '모든 데이터를 초기화하시겠습니까?',
+      '모든 데이터 초기화',
       '직접 변경한 날짜와 메모, 근무 시간 등 앱 데이터를 지우고 실행 중인 타이머를 취소한 뒤 처음 설정 화면으로 돌아갑니다. 휴대폰 밖에 저장한 백업 파일은 지우지 않으며, 초기화 전에 자동으로 안전 백업합니다.',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -638,14 +638,14 @@ export default function DataSettingsScreen() {
                 if (result.status === 'success') {
                   showDialog(
                     '앱 데이터를 초기화했습니다',
-                    '오늘 근무 위치부터 다시 설정해야 합니다.',
+                    '오늘 근무 위치부터 다시 설정',
                     undefined,
                     { tone: 'success' },
                   );
                 } else if (result.status === 'partial') {
                   showDialog(
                     '초기화 후 확인이 필요합니다',
-                    '앱 데이터는 초기화했지만 타이머·수면 알림을 포함한 알람 예약이나 안전 백업 후속 처리는 끝나지 않았습니다. 처음 설정을 마친 뒤 타이머와 알람 화면에서 상태를 확인해야 합니다.',
+                    '앱 데이터 초기화 완료 · 첫 설정 후 타이머·알람 상태 확인 필요',
                     undefined,
                     { tone: 'warning' },
                   );
@@ -654,7 +654,7 @@ export default function DataSettingsScreen() {
                     '초기화하지 못했습니다',
                     result.reason === 'backup-failed'
                       ? '안전 백업을 만들지 못해 현재 데이터를 유지했습니다.'
-                      : '안전 백업은 만들었지만 현재 데이터를 지우지 못했습니다. 다시 시도해야 합니다.',
+                      : '안전 백업 완료 · 데이터 삭제 실패 · 다시 시도',
                     undefined,
                     { tone: 'danger' },
                   );
@@ -664,7 +664,7 @@ export default function DataSettingsScreen() {
               .catch(() => {
                 showDialog(
                   '초기화 결과를 확인하지 못했습니다',
-                  '앱을 다시 연 뒤 데이터와 알람 상태를 확인해야 합니다.',
+                  '앱 재실행 후 데이터·알람 상태 확인',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -684,11 +684,11 @@ export default function DataSettingsScreen() {
     ? `${pendingRestoreBackup.summary.patternName} · 바꾼 날짜 ${pendingRestoreBackup.summary.changedDateCount}개 · 메모 ${pendingRestoreBackup.summary.noteCount}개`
     : undefined;
   const latestBackupSubtitle = pendingRestoreBackup
-    ? '보호 중인 백업을 먼저 보관해야 합니다.'
+    ? '보호 중인 백업 먼저 보관'
     : backupLookupStatus === 'loading'
       ? '자동 백업을 확인하고 있습니다.'
       : backupLookupStatus === 'error'
-        ? '자동 백업을 확인하지 못했습니다. 다시 확인해야 합니다.'
+        ? '자동 백업 확인 실패 · 다시 확인'
         : latestBackup
       ? `${latestBackup.summary.patternName} · 바꾼 날짜 ${latestBackup.summary.changedDateCount}개 · 메모 ${latestBackup.summary.noteCount}개`
       : '복구할 자동 백업이 아직 없습니다.';

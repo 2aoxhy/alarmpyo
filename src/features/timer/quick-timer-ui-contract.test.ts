@@ -158,6 +158,10 @@ describe('빠른 타이머 화면 계약', () => {
     expect(stepper).toContain('focusRevisionRef');
     expect(stepper).toContain('clearSettleTimeout();');
     expect(stepper).toContain('styles.selectedValueSide');
+    expect(stepper).toContain("entryMode === 'numeric',");
+    expect(stepper).toContain('style={styles.inputHintContainer}');
+    expect(stepper).toContain("flexShrink: 0");
+    expect(stepper).not.toContain('transform: [{ scale:');
     expect(stepper).toContain('quick-timer-stepper-start');
     expect(stepper).toContain('accessibilityViewIsModal');
     expect(stepper).toContain("from 'react-native-safe-area-context'");

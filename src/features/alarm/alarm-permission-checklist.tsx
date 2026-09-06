@@ -11,8 +11,8 @@ import {
 
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { StatusBanner } from '@/design-system';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape, StatusBanner } from '@/design-system';
 import { shouldReflowControl } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -369,7 +369,7 @@ function createStyles(palette: AppPalette) {
       gap: spacing.tiny,
     },
     list: {
-      borderRadius: radii.medium,
+      borderRadius: shape.section,
       backgroundColor: palette.surfaceSoft,
       // 웹 키보드 포커스의 2px 외곽선과 간격이 잘리지 않아야 합니다.
       overflow: Platform.OS === 'web' ? 'visible' : 'hidden',
@@ -408,7 +408,6 @@ function createStyles(palette: AppPalette) {
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radii.small,
     },
     copy: {
       minWidth: 0,

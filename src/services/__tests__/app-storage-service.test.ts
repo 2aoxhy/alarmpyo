@@ -25,6 +25,9 @@ import {
   restoreWithAutomaticBackupCommit,
   type StorageAdapter,
 } from '../app-storage-service';
+import {
+  APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY,
+} from '../../infrastructure/storage/app-data-storage-keys';
 
 class ControlledStorage implements StorageAdapter {
   readonly values = new Map<string, string>();
@@ -610,6 +613,33 @@ describe('최근 자동 백업 복원 순서', () => {
       retryPendingRestoreBackupCommit(storage, writer, current),
     ).resolves.toEqual({ status: 'unavailable' });
     expect(storage.values.get(APP_DATA_AUTOMATIC_BACKUP_KEY)).toBe(originalBackup);
+    expect(
+      storage.values.get(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY),
+    ).toBe('{"broken":');
+    expect(storage.values.has(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(false);
+  });
+
+  it('손상 pending의 격리와 정리가 실패해도 다음 저장을 막지 않아요', async () => {
+    const storage = new ControlledStorage();
+    const current = createDefaultAppData('2026-07-14');
+    const next = { ...current, notes: { '2026-07-14': '다음 저장' } };
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    storage.failedWriteKeys.add(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY);
+    storage.failedWriteKeys.add(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+    storage.failedRemoveKeys.add(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+    const writer = createSerializedStorageWriter(storage);
+
+    await expect(
+      protectPendingRestoreBackupBeforeDataChange(
+        storage,
+        writer,
+        current,
+        next,
+      ),
+    ).resolves.toBe(true);
+    expect(storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(
+      '{"broken":',
+    );
   });
 
   it('전용 상한을 넘는 pending 복원 입력은 JSON 파싱 전에 거절해요', async () => {

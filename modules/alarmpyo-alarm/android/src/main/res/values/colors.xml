@@ -24,12 +24,9 @@
     <color name="alarmpyo_surface_soft">#20FFFFFF</color>
     <color name="alarmpyo_surface_border">#30FFFFFF</color>
 
-    <!-- Widget chrome stays neutral dark. Shift meaning is limited to the small
-         glyph so the card remains consistent with the app's gray hierarchy. -->
+    <!-- Widget chrome stays neutral dark. Shift meaning is limited to the 3dp
+         rail so the card remains consistent with the app's gray hierarchy. -->
     <color name="alarmpyo_widget_card_background">#181B1F</color>
-    <color name="alarmpyo_widget_card_background_soft">#22262B</color>
-    <color name="alarmpyo_widget_panel_background">#22262B</color>
-    <color name="alarmpyo_widget_panel_border">#737D89</color>
     <color name="alarmpyo_widget_card_border">#737D89</color>
     <color name="alarmpyo_widget_icon_day">#7AE6D0</color>
     <color name="alarmpyo_widget_icon_evening">#F0C36A</color>

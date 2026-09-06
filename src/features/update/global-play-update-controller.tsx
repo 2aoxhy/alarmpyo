@@ -31,7 +31,7 @@ import {
 import { AppButton, AppText } from '@/components/ui-kit';
 import { type AppPalette } from '@/constants/app-theme';
 import { ModalSurface } from '@/design-system';
-import { radius, size, space } from '@/design-system/tokens';
+import { shape, size, space } from '@/design-system/tokens';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -617,8 +617,6 @@ function createStyles(palette: AppPalette) {
       alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.lg,
-      backgroundColor: palette.blueSoft,
     },
     modalMessage: { textAlign: 'center' },
     modalActions: { gap: space.sm },
@@ -640,12 +638,7 @@ function createStyles(palette: AppPalette) {
       paddingRight: space.sm,
       paddingVertical: space.sm,
       borderWidth: 1,
-      borderRadius: radius.md,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.24,
-      shadowRadius: 14,
-      elevation: 12,
+      borderRadius: shape.panel,
     },
     updateStatusBarStacked: {
       alignItems: 'stretch',
@@ -675,7 +668,7 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'center',
       paddingHorizontal: space.md,
       borderWidth: 1,
-      borderRadius: radius.sm,
+      borderRadius: shape.control,
     },
     updateStatusActionStacked: { width: '100%' },
     updateStatusActionPressed: { opacity: 0.76 },

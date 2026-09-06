@@ -108,11 +108,3 @@ export const spacing = {
   xlarge: 24,
   xxlarge: 32,
 } as const;
-
-export const shadow = {
-  shadowColor: '#171A2B',
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.08,
-  shadowRadius: 20,
-  elevation: 3,
-} as const;

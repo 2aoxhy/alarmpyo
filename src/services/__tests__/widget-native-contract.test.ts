@@ -38,18 +38,17 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     const mediumLayout = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_medium.xml',
     );
-    const previewLayout = readSource(
-      'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_preview.xml',
-    );
     const providerSource = readSource(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoShiftWidgetProvider.kt',
     );
-    [compactLayout, mediumLayout, previewLayout].forEach((layout) => {
+    [compactLayout, mediumLayout].forEach((layout) => {
       expect(layout).not.toContain('<ImageView');
       expect(layout).not.toContain('alarmpyo_widget_shift_icon');
       expect(layout).not.toContain('alarmpyo_widget_role_');
       expect(layout).not.toContain('alarmpyo_widget_status_background');
+      expect(layout).not.toContain('alarmpyo_widget_bottom_panel');
       expect(layout).toContain('android:importantForAccessibility="noHideDescendants"');
+      expect(layout).toContain('android:id="@+id/alarmpyo_widget_primary_divider"');
     });
     expect(providerSource).not.toContain('setImageViewResource');
     expect(providerSource).not.toContain('setColorFilter');
@@ -76,23 +75,23 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(providerSource).toContain('isRequestPinAppWidgetSupported');
   });
 
-  it('4×2를 기본으로 하고 기존 4×1 크기까지 세로 조절을 지원해요', () => {
+  it('4×1을 기본으로 하고 4×2까지 세로 확장을 지원해요', () => {
     const widgetInfo = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/xml/alarmpyo_shift_widget_info.xml',
     );
 
     expect(widgetInfo).toContain('android:targetCellWidth="4"');
-    expect(widgetInfo).toContain('android:targetCellHeight="2"');
+    expect(widgetInfo).toContain('android:targetCellHeight="1"');
     expect(widgetInfo).toContain(
-      'android:initialLayout="@layout/alarmpyo_shift_widget_medium"',
+      'android:initialLayout="@layout/alarmpyo_shift_widget_compact"',
     );
     expect(widgetInfo).toContain('android:minWidth="180dp"');
-    expect(widgetInfo).toContain('android:minHeight="110dp"');
+    expect(widgetInfo).toContain('android:minHeight="56dp"');
     expect(widgetInfo).toContain('android:minResizeHeight="56dp"');
     expect(widgetInfo).toContain('android:resizeMode="horizontal|vertical"');
     expect(widgetInfo).toContain('android:widgetCategory="home_screen"');
     expect(widgetInfo).toContain(
-      'android:previewLayout="@layout/alarmpyo_shift_widget_preview"',
+      'android:previewLayout="@layout/alarmpyo_shift_widget_compact"',
     );
     expect(widgetInfo).toContain(
       'android:previewImage="@drawable/alarmpyo_widget_preview_image"',
@@ -106,24 +105,19 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     const mediumLayout = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_medium.xml',
     );
-    const previewLayout = readSource(
-      'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_preview.xml',
-    );
     const previewImage = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/drawable/alarmpyo_widget_preview_image.xml',
     );
     const allPreviewSources = [
       runtimeLayout,
       mediumLayout,
-      previewLayout,
       previewImage,
     ].join('\n');
 
     expect(allPreviewSources).not.toMatch(/7월 13일|07:00|18:00|05:10/);
     expect(runtimeLayout).toContain('@string/alarmpyo_widget_preview_schedule');
     expect(mediumLayout).toContain('@string/alarmpyo_widget_preview_status');
-    expect(previewLayout).toContain('@string/alarmpyo_widget_preview_schedule');
-    expect(previewLayout).toContain('@string/alarmpyo_widget_preview_status');
+    expect(runtimeLayout).toContain('@string/alarmpyo_widget_preview_schedule');
     expect(previewImage).toContain('@color/alarmpyo_widget_card_background');
   });
 
@@ -134,11 +128,8 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     const mediumLayout = readSource(
       'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_medium.xml',
     );
-    const previewLayout = readSource(
-      'modules/alarmpyo-alarm/android/src/main/res/layout/alarmpyo_shift_widget_preview.xml',
-    );
 
-    [widgetLayout, mediumLayout, previewLayout].forEach((layout) => {
+    [widgetLayout, mediumLayout].forEach((layout) => {
       expect(layout).not.toMatch(/<View(?:\s|>)/);
       expect(layout).not.toMatch(/<Space(?:\s|>)/);
     });
@@ -189,7 +180,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(providerSource).not.toMatch(/if \(hasTertiary\) (?:9|10|11)f/);
 
     // includeFontPadding=false에서도 기본 글꼴 ascent/descent 여유를 1.2배로
-    // 잡아 110dp의 4×2 최소 높이 안에 들어오는지 보수적으로 계산합니다.
+    // 잡아 4×2 확장 높이 안에 들어오는지 보수적으로 계산합니다.
     const estimatedHeightAt149Percent =
       (12 + 16 + 13 + 14) * 1.49 * 1.2 + 10;
     const estimatedHeightAt179Percent =
@@ -212,7 +203,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetSizePolicy.kt',
     );
 
-    expect(widgetInfo).toContain('android:minHeight="110dp"');
+    expect(widgetInfo).toContain('android:minHeight="56dp"');
     expect(widgetInfo).toContain('android:minResizeHeight="56dp"');
     expect(providerSource).toContain('onAppWidgetOptionsChanged');
     expect(providerSource).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT');
@@ -223,7 +214,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     expect(providerSource).toContain('R.layout.alarmpyo_shift_widget_medium');
     expect(providerSource).toContain('AlarmPyoWidgetHeightMode.MEDIUM');
     expect(providerSource).toContain('R.id.alarmpyo_widget_status');
-    expect(sizePolicySource).toContain('DEFAULT_MIN_HEIGHT_DP = 110');
+    expect(sizePolicySource).toContain('DEFAULT_MIN_HEIGHT_DP = 56');
     expect(sizePolicySource).toContain('MEDIUM_HEIGHT_MIN_DP = 96');
   });
 
@@ -239,20 +230,16 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       if (match) colorMap.set(match[1], match[2]);
     });
     const background = colorMap.get('alarmpyo_widget_card_background');
-    const softBackground = colorMap.get('alarmpyo_widget_card_background_soft');
     const primary = colorMap.get('alarmpyo_text_primary');
     const secondary = colorMap.get('alarmpyo_text_secondary');
     const border = colorMap.get('alarmpyo_widget_card_border');
 
     expect(background).toBeDefined();
-    expect(softBackground).toBeDefined();
     expect(primary).toBeDefined();
     expect(secondary).toBeDefined();
     expect(border).toBeDefined();
-    [background!, softBackground!].forEach((surface) => {
-      expect(contrastRatio(primary!, surface)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(secondary!, surface)).toBeGreaterThanOrEqual(4.5);
-    });
+    expect(contrastRatio(primary!, background!)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(secondary!, background!)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(border!, background!)).toBeGreaterThanOrEqual(3);
   });
 
@@ -272,17 +259,13 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     const modelSource = readSource(
       'modules/alarmpyo-alarm/android/src/main/java/expo/modules/alarmpyoalarm/AlarmPyoWidgetModel.kt',
     );
-    const drawableNames = ['day', 'night', 'off', 'training', 'reserve', 'unknown'];
-
-    drawableNames.forEach((name) => {
-      const drawable = readSource(
-        `modules/alarmpyo-alarm/android/src/main/res/drawable/alarmpyo_widget_${name}_background.xml`,
-      );
-      expect(drawable).toContain(
-        '<solid android:color="@color/alarmpyo_widget_card_background" />',
-      );
-      expect(drawable).not.toContain('<gradient');
-    });
+    const widgetBackground = readSource(
+      'modules/alarmpyo-alarm/android/src/main/res/drawable/alarmpyo_widget_background.xml',
+    );
+    expect(widgetBackground).toContain(
+      '<solid android:color="@color/alarmpyo_widget_card_background" />',
+    );
+    expect(widgetBackground).not.toContain('<gradient');
     const colorMap = new Map<string, string>();
     colors.split(/\r?\n/).forEach((line: string) => {
       const match = line.match(
@@ -292,7 +275,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
     });
     const background = colorMap.get('alarmpyo_widget_card_background');
     expect(background).toBeDefined();
-    [...drawableNames, 'evening', 'custom'].forEach((name) => {
+    ['day', 'night', 'off', 'training', 'reserve', 'unknown', 'evening', 'custom'].forEach((name) => {
       const iconColor = colorMap.get(`alarmpyo_widget_icon_${name}`);
       expect(iconColor).toBeDefined();
       expect(contrastRatio(iconColor!, background!)).toBeGreaterThanOrEqual(3);
@@ -320,7 +303,7 @@ describe('안드로이드 홈 화면 위젯 등록', () => {
       'ContextCompat.getColor(context, R.color.alarmpyo_text_primary)',
     );
     expect(providerSource).toContain('setBackgroundColor');
-    expect(providerSource).toContain('contrastRatio(candidate, it) >= 3.0');
+    expect(providerSource).toContain('contrastRatio(candidate, background) >= 3.0');
   });
 
   it('Android 15 생성형 미리보기는 실제 바인더를 재사용하고 실패를 저장 실패로 전파하지 않아요', () => {

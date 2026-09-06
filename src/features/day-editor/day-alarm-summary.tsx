@@ -4,9 +4,9 @@ import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppText, MenuGroup } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
-import { SegmentedControl } from '@/design-system';
+import { SegmentedControl, shape } from '@/design-system';
 import {
   formatDayAlarmOverrideSummary,
   formatWakeDayLabel,
@@ -98,14 +98,11 @@ export function DayAlarmSummary({
           accessible
           accessibilityLabel={`현재 알람 설정. ${currentSummary}`}
           style={styles.summary}>
-          <View style={[styles.alarmIcon, { backgroundColor: appearance.softColor }]}>
-            <AppIcon
-              accessible={false}
-              color={appearance.accentColor}
-              name={alarmDraft.mode === 'disabled' ? 'notifications-off-outline' : 'alarm-outline'}
-              size={21}
-            />
-          </View>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.alarmRail, { backgroundColor: appearance.accentColor }]}
+          />
           <View style={styles.optionCopy}>
             <AppText variant="label">{currentSummary}</AppText>
             <AppText tone="secondary" variant="caption">
@@ -255,14 +252,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       gap: spacing.medium,
     },
-    alarmIcon: {
-      width: 46,
-      height: 46,
-      flexShrink: 0,
-      borderRadius: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    alarmRail: { width: 3, height: 40, flexShrink: 0, borderRadius: 2 },
     optionCopy: { flex: 1, minWidth: 0, gap: 3 },
     customTimeSection: {
       gap: spacing.small,
@@ -278,7 +268,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 52,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
       backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
@@ -296,7 +286,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       gap: spacing.small,
       padding: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       backgroundColor: palette.mintSoft,
     },
     validationError: { backgroundColor: palette.dangerSoft },

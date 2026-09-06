@@ -8,6 +8,7 @@ import type {
   RotationPattern,
 } from '../models/app-data';
 import { addDays, isValidDateKey } from '../utils/date';
+import { arePatternExecutionsEqual } from '../utils/pattern-execution';
 import {
   getWorkPatternDisplayName,
   getWorkPatternKind,
@@ -733,26 +734,14 @@ export function buildPatternApplicationMutation(
   };
 }
 
-function arePatternsEqual(left: RotationPattern, right: RotationPattern): boolean {
-  return (
-    (left.kind ?? getWorkPatternKind(left.shiftTypeIds)) ===
-      (right.kind ?? getWorkPatternKind(right.shiftTypeIds)) &&
-    arePatternNamesEquivalent(left, right) &&
-    left.anchorDate === right.anchorDate &&
-    (left.scheduleStartDate ?? left.anchorDate) ===
-      (right.scheduleStartDate ?? right.anchorDate) &&
-    left.shiftTypeIds.length === right.shiftTypeIds.length &&
-    left.shiftTypeIds.every((id, index) => id === right.shiftTypeIds[index])
-  );
-}
-
 export function buildPatternRollbackMutation(
   current: AppData,
 ): PatternRollbackMutationResult {
   const history = current.patternHistory[0];
   if (!history) return { status: 'nothing-to-rollback' };
   if (
-    !arePatternsEqual(current.pattern, history.nextPattern) ||
+    !arePatternNamesEquivalent(current.pattern, history.nextPattern) ||
+    !arePatternExecutionsEqual(current.pattern, history.nextPattern) ||
     current.appliedPatternSource !== history.source ||
     current.appliedPatternId !== history.patternId
   ) {

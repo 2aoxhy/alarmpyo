@@ -14,10 +14,6 @@ import { StyleSheet, View } from "react-native";
 import { useAppDialog } from "@/components/app-dialog";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
 import {
-  AnimatedShiftIcon,
-  getShiftIconKind,
-} from "@/components/animated-shift-icon";
-import {
   AppButton,
   AppText,
   ListRow,
@@ -25,7 +21,7 @@ import {
   MenuGroup,
   Screen,
 } from "@/components/ui-kit";
-import { radii, spacing, type AppPalette } from "@/constants/app-theme";
+import { spacing, type AppPalette } from "@/constants/app-theme";
 import { alarmCopy } from "@/content/alarm-copy";
 import { DisclosureRow, StatusBanner, ToggleRow } from "@/design-system";
 import {
@@ -97,24 +93,6 @@ function AlarmNowProvider({
 
 function useAlarmNow(): Date {
   return useContext(AlarmNowContext) ?? new Date();
-}
-
-function alarmHistoryIcon(type: AlarmPyoAlarmEventType): AppIconName {
-  switch (type) {
-    case "playback_confirmed":
-    case "dismissed":
-      return "checkmark-circle";
-    case "snoozed":
-    case "auto_repeat_scheduled":
-      return "time-outline";
-    case "auto_repeat_started":
-    case "retry_started":
-    case "retry_scheduled":
-      return "refresh-outline";
-    case "playback_failed":
-    case "retry_exhausted":
-      return "alert-circle-outline";
-  }
 }
 
 function alarmHistoryLabel(event: AlarmPyoAlarmHistoryEvent): string {
@@ -420,7 +398,7 @@ export default function AlarmSettingsScreen() {
     } catch {
       showDialog(
         "설정을 열지 못했습니다",
-        "휴대폰 설정에서 알람표의 알람 권한을 확인해야 합니다.",
+        "휴대폰 설정에서 알람 권한 확인",
         undefined,
         { tone: "danger" },
       );
@@ -446,22 +424,22 @@ export default function AlarmSettingsScreen() {
       permissionReturnTargetRef.current = null;
       const copy = target === "do-not-disturb"
         ? {
-            title: "방해 금지 설정을 열지 못했습니다",
-            message: "휴대폰 설정에서 방해 금지 중 알람 허용 여부를 확인해야 합니다.",
+            title: "방해 금지 설정 열기 실패",
+            message: "휴대폰 설정에서 방해 금지 중 알람 허용 확인",
           }
         : target === "battery-optimization"
           ? {
-              title: "배터리 설정을 열지 못했습니다",
-              message: "휴대폰 설정에서 알람표의 배터리 사용을 제한하지 않음으로 설정해야 합니다.",
+              title: "배터리 설정 열기 실패",
+              message: "휴대폰 설정에서 알람표 배터리 사용을 제한 없음으로 변경",
             }
           : target === "sleep-notifications"
             ? {
-                title: "수면 알림 설정을 열지 못했습니다",
-                message: "휴대폰 설정에서 알람표 알림 권한을 확인해야 합니다.",
+                title: "수면 알림 설정 열기 실패",
+                message: "휴대폰 설정에서 알람표 알림 권한 확인",
               }
             : {
-                title: "권한 설정을 열지 못했습니다",
-                message: "휴대폰의 앱 상세 설정에서 알람표 권한을 확인해야 합니다.",
+                title: "권한 설정 열기 실패",
+                message: "앱 상세 설정에서 알람표 권한 확인",
               };
       showDialog(copy.title, copy.message, undefined, { tone: "danger" });
     } finally {
@@ -503,7 +481,7 @@ export default function AlarmSettingsScreen() {
         if (!disabled) {
           showDialog(
             "알람을 끄지 못했습니다",
-            "예약된 알람을 취소하지 못했습니다. 잠시 후 다시 시도해야 합니다.",
+            "예약 취소 실패 · 다시 시도",
             undefined,
             { tone: "danger" },
           );
@@ -515,7 +493,7 @@ export default function AlarmSettingsScreen() {
     } catch {
       showDialog(
         enabled ? "알람을 켜지 못했습니다" : "알람을 끄지 못했습니다",
-        "잠시 후 다시 시도해야 합니다.",
+        "다시 시도",
         undefined,
         { tone: "danger" },
       );
@@ -571,7 +549,7 @@ export default function AlarmSettingsScreen() {
           if (!synced) {
             showDialog(
               "알람을 다시 예약하지 못했습니다",
-              "알람 권한을 확인한 뒤 다시 시도해야 합니다.",
+              "알람 권한 확인 후 다시 시도",
               [
                 {
                   text: '닫기',
@@ -619,7 +597,7 @@ export default function AlarmSettingsScreen() {
       } else {
         showDialog(
           "시험 알람을 예약하지 못했습니다",
-          "알람 권한을 확인한 뒤 다시 시험해야 합니다.",
+          "알람 권한 확인 후 다시 시험",
           [
             { text: "취소", actionId: "cancel", icon: "close", style: "cancel" },
             {
@@ -635,7 +613,7 @@ export default function AlarmSettingsScreen() {
     } catch {
       showDialog(
         "시험 알람을 예약하지 못했습니다",
-        "잠시 후 다시 시도해야 합니다.",
+        "다시 시도",
         undefined,
         { tone: "danger" },
       );
@@ -653,7 +631,7 @@ export default function AlarmSettingsScreen() {
       if (!saved) {
         showDialog(
           "수면 시작 알림을 저장하지 못했습니다",
-          "저장 공간을 확인한 뒤 다시 시도해야 합니다.",
+          "저장 공간 확인 후 다시 시도",
           undefined,
           { tone: "danger" },
         );
@@ -665,8 +643,8 @@ export default function AlarmSettingsScreen() {
               ? "수면 알림 계획을 아직 복구하지 못했습니다"
               : "설정은 껐지만 확인이 필요합니다",
             enabled
-              ? "기존 예약은 임의로 지우지 않았습니다. 현재 일정에 예정된 수면 알림이 생기면 복구를 다시 시도해야 합니다."
-              : "수면 시작 알림 설정은 껐지만 이전 예약을 안전하게 확인하거나 지우지 못했습니다. 알람 화면에서 복구를 다시 시도해야 합니다.",
+              ? "기존 예약 유지 · 다음 수면 일정에서 복구 재시도"
+              : "설정 꺼짐 · 알람 화면에서 이전 예약 복구 재시도",
             undefined,
             { tone: "warning" },
           );
@@ -686,7 +664,7 @@ export default function AlarmSettingsScreen() {
     } catch {
       showDialog(
         "수면 시작 알림을 저장하지 못했습니다",
-        "잠시 후 다시 시도해야 합니다.",
+        "다시 시도",
         undefined,
         { tone: "danger" },
       );
@@ -703,7 +681,7 @@ export default function AlarmSettingsScreen() {
       if (!saved) {
         showDialog(
           "복구 설정을 저장하지 못했습니다",
-          "저장 공간을 확인한 뒤 다시 시도해야 합니다.",
+          "저장 공간 확인 후 다시 시도",
           undefined,
           { tone: "danger" },
         );
@@ -714,14 +692,14 @@ export default function AlarmSettingsScreen() {
       if (!status?.supported) {
         showDialog(
           "복구 상태를 확인하지 못했습니다",
-          "앱을 다시 연 뒤 알람 화면에서 상태를 확인해야 합니다.",
+          "앱 재실행 후 알람 상태 확인",
           undefined,
           { tone: "danger" },
         );
       } else if (status.storageHealth === "corrupt") {
         showDialog(
           "아직 복구하지 못했습니다",
-          "현재 일정에 예정된 수면 알림이 없어 손상된 계획을 안전하게 변경하지 않았습니다. 다음 근무 일정이 생긴 뒤 다시 시도해야 합니다.",
+          "예정된 수면 알림 없음 · 다음 근무 일정에서 다시 시도",
           undefined,
           { tone: "warning" },
         );
@@ -735,8 +713,8 @@ export default function AlarmSettingsScreen() {
       }
     } catch {
       showDialog(
-        "수면 알림 계획을 복구하지 못했습니다",
-        "잠시 후 다시 시도해야 합니다.",
+        "수면 알림 계획 복구 실패",
+        "다시 시도",
         undefined,
         { tone: "danger" },
       );
@@ -1066,38 +1044,10 @@ function AlarmRow({
       style={styles.alarmRow}
     >
       <View
-        style={[
-          styles.alarmShiftIcon,
-          { backgroundColor: appearance.softColor },
-        ]}
-      >
-        {exceptionAppearance ? (
-          <AppIcon
-            accessible={false}
-            color={exceptionAppearance.accentColor}
-            name={exceptionAppearance.iconName}
-            size={19}
-          />
-        ) : alarmShift || substituteAlarm ? (
-          <AnimatedShiftIcon
-            animated={false}
-            color={appearance.accentColor}
-            kind={
-              alarmShift
-                ? getShiftIconKind(alarmShift.id, alarmShift.isOff)
-                : "substitute"
-            }
-            size={19}
-          />
-        ) : (
-          <AppIcon
-            accessible={false}
-            color={appearance.accentColor}
-            name="alarm-outline"
-            size={19}
-          />
-        )}
-      </View>
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[styles.alarmShiftRail, { backgroundColor: appearance.accentColor }]}
+      />
       <View style={styles.flexCopy}>
         <AppText variant="label">
           {alarm.shiftName}
@@ -1134,18 +1084,10 @@ function AlarmHistoryRow({
   return (
     <View style={[styles.historyRow, separated && styles.rowDivider]}>
       <View
-        style={[
-          styles.historyIcon,
-          { backgroundColor: warning ? palette.dangerSoft : palette.mintSoft },
-        ]}
-      >
-        <AppIcon
-          accessible={false}
-          color={color}
-          name={alarmHistoryIcon(event.type)}
-          size={18}
-        />
-      </View>
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[styles.historyRail, { backgroundColor: color }]}
+      />
       <View style={styles.flexCopy}>
         <View style={styles.historyTitleRow}>
           <AppText color={color} variant="label">
@@ -1246,12 +1188,11 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       gap: spacing.medium,
       paddingVertical: spacing.medium,
     },
-    alarmShiftIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.medium,
-      alignItems: "center",
-      justifyContent: "center",
+    alarmShiftRail: {
+      width: 3,
+      height: 40,
+      flexShrink: 0,
+      borderRadius: 2,
     },
     disclosureBody: {
       gap: 0,
@@ -1273,13 +1214,7 @@ function createStyles(palette: AppPalette, _isDark: boolean) {
       gap: spacing.medium,
       paddingVertical: spacing.medium,
     },
-    historyIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: radii.small,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+    historyRail: { width: 3, height: 36, flexShrink: 0, borderRadius: 2 },
     historyTitleRow: {
       flexDirection: "row",
       flexWrap: "wrap",

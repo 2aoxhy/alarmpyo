@@ -20,7 +20,7 @@ import {
   type OverrideResolutionMode,
 } from '@/features/pattern-library/pattern-library-model';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppStoreData } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 
 const POLICY_OPTIONS: readonly {
@@ -48,7 +48,8 @@ const POLICY_OPTIONS: readonly {
 export default function PatternLibraryApplyScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { showDialog } = useAppDialog();
-  const { applyPatternFromVault, data, previewPatternApplication } = useAppStore();
+  const { data } = useAppStoreData();
+  const { applyPatternFromVault, previewPatternApplication } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const { fontScale, width } = useWindowDimensions();
   const stacked = width <= 360 || fontScale >= 1.3;

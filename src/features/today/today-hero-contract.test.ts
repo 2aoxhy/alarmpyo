@@ -36,12 +36,27 @@ describe('오늘 텍스트 전용 히어로 계약', () => {
     expect(heroSource).not.toContain('resolveTodayHeroArtworkKind');
     expect(heroSource).not.toContain('<Image');
     expect(heroSource).not.toContain('heroArtwork');
+    expect(heroSource).not.toContain('LinearGradient');
+    expect(heroSource).not.toContain('transform: [{ scale:');
+    expect(heroSource).toContain('borderRadius: shape.panel');
     expect(heroSource).toContain("width: '100%'");
 
     const copyStart = heroSource.indexOf('styles.heroCopy');
     const footerStart = heroSource.indexOf('styles.heroFooterPanel');
     expect(copyStart).toBeGreaterThan(-1);
     expect(footerStart).toBeGreaterThan(copyStart);
+  });
+
+  it('다가오는 근무도 장식 그림 대신 의미선과 텍스트를 사용합니다', () => {
+    const upcomingSource = readFileSync(
+      resolve(process.cwd(), 'src/features/today/upcoming-work-section.tsx'),
+      'utf8',
+    );
+
+    expect(upcomingSource).not.toContain('AnimatedShiftIcon');
+    expect(upcomingSource).not.toContain('shiftIcon');
+    expect(upcomingSource).toContain('styles.semanticRail');
+    expect(upcomingSource).not.toContain('transform: [{ scale:');
   });
 
   it('제목·설명은 줄 수를 제한하지 않고 기능 아이콘은 유지합니다', () => {
