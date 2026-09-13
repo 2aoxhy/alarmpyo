@@ -212,7 +212,9 @@ export function resolveAlarmPermissionLaunchNotice(
 
   const message =
     result.requestedTarget === 'battery-optimization'
-      ? `${openedLabel}에서 알람표를 찾아 제한 없음으로 설정한 뒤 앱으로 돌아오면 상태를 다시 확인합니다. Samsung에서는 배터리의 백그라운드 사용 제한도 함께 확인해야 합니다.`
+      ? result.openedTarget === 'app-details'
+        ? `${openedLabel}의 배터리에서 제한 없음으로 설정한 뒤 앱으로 돌아오면 상태를 다시 확인합니다. Samsung에서는 배터리의 백그라운드 사용 제한도 함께 확인해야 합니다.`
+        : `${openedLabel}에서 알람표를 찾아 제한 없음으로 설정한 뒤 앱으로 돌아오면 상태를 다시 확인합니다. Samsung에서는 배터리의 백그라운드 사용 제한도 함께 확인해야 합니다.`
       : result.requestedTarget === 'do-not-disturb'
         ? `${openedLabel}에서 알람 소리가 허용되는지 확인한 뒤 앱으로 돌아오면 상태를 다시 확인합니다.`
         : `${openedLabel}에서 알람표를 허용한 뒤 앱으로 돌아오면 상태를 다시 확인합니다.`;

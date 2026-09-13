@@ -21,6 +21,21 @@ describe('떠 있는 하단 메뉴 배치', () => {
     expect(source).toContain("end: 'auto'");
     expect(source).not.toContain('end: tabBarGeometry.inset');
   });
+
+  it('하단 메뉴는 같은 라벨 컴포넌트를 사용하고 안전 영역을 중복 적용하지 않아요', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/(tabs)/_layout.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("tabBarLabelPosition: 'below-icon'");
+    expect(source).toContain('tabBarLabel: TabBarLabel');
+    expect(source).toContain('safeAreaInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}');
+    for (const label of ['오늘', '달력', '타이머', '설정']) {
+      expect(source).toContain(`title: '${label}'`);
+      expect(source).toContain(`tabBarAccessibilityLabel: '${label}'`);
+    }
+  });
+
   it('안전 영역과 메뉴 높이를 콘텐츠 여백에 모두 반영해요', () => {
     const layout = resolveFloatingTabBarLayout(1, 34);
 

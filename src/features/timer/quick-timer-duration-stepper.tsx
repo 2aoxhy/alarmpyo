@@ -125,10 +125,12 @@ export function QuickTimerDurationStepper({
   const offsetRef = useRef(initialOffset);
   const [durationMinutes, setDurationMinutes] = useState(initialDuration);
   const [numericInput, setNumericInput] = useState(String(initialDuration));
-  const [numericInputError, setNumericInputError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [androidKeyboardInset, setAndroidKeyboardInset] = useState(0);
   const numericInputResult = parseQuickTimerDurationInput(numericInput);
+  const numericInputError = entryMode === 'numeric' && !numericInputResult.valid
+    ? numericInputResult.error
+    : null;
   const presentedDuration =
     entryMode === 'numeric' && numericInputResult.valid
       ? numericInputResult.durationMinutes
@@ -363,7 +365,6 @@ export function QuickTimerDurationStepper({
     clearFocusTimeout();
     focusRevisionRef.current += 1;
     setNumericInput(String(durationRef.current));
-    setNumericInputError(null);
     entryModeRef.current = 'numeric';
     setEntryMode('numeric');
   }, [busy, clearFocusTimeout, clearSettleTimeout, setEntryMode]);
@@ -371,7 +372,6 @@ export function QuickTimerDurationStepper({
   const commitNumericEntry = useCallback(() => {
     const result = parseQuickTimerDurationInput(numericInput);
     if (!result.valid) {
-      setNumericInputError(result.error);
       return null;
     }
 
@@ -386,7 +386,6 @@ export function QuickTimerDurationStepper({
     publishDuration(result.durationMinutes);
     emitSelectionFeedback(result.durationMinutes);
     startProgrammaticScroll(nextOffset, !reduceMotion, revision);
-    setNumericInputError(null);
     restoreAdjustableFocusRef.current = true;
     entryModeRef.current = 'wheel';
     setEntryMode('wheel');
@@ -439,7 +438,6 @@ export function QuickTimerDurationStepper({
       committedDurationRef.current = nextDuration;
       setDurationMinutes(nextDuration);
       setNumericInput(String(nextDuration));
-      setNumericInputError(null);
       entryModeRef.current = 'wheel';
       setEntryMode('wheel');
       listRef.current?.scrollTo({
@@ -618,7 +616,6 @@ export function QuickTimerDurationStepper({
     clearFocusTimeout();
     focusRevisionRef.current += 1;
     restoreAdjustableFocusRef.current = false;
-    setNumericInputError(null);
     entryModeRef.current = 'wheel';
     setEntryMode('wheel');
     onCancel();
@@ -656,7 +653,6 @@ export function QuickTimerDurationStepper({
     if (entryMode === 'numeric') {
       const result = parseQuickTimerDurationInput(numericInput);
       if (!result.valid) {
-        setNumericInputError(result.error);
         return;
       }
       interactionRevisionRef.current += 1;
@@ -957,13 +953,7 @@ export function QuickTimerDurationStepper({
                             keyboardStateRef.current.hiddenAt = null;
                             keyboardStateRef.current.observed = false;
                           }}
-                          onChangeText={(value) => {
-                            setNumericInput(value);
-                            const result = parseQuickTimerDurationInput(value);
-                            setNumericInputError(
-                              result.valid ? null : result.error,
-                            );
-                          }}
+                          onChangeText={setNumericInput}
                           onSubmitEditing={commitNumericEntry}
                           returnKeyType="done"
                           selectTextOnFocus

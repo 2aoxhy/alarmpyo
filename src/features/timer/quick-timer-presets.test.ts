@@ -43,8 +43,32 @@ describe('타이머 프리셋 요소 트리', () => {
         expect(buttons.every((button) => button.disabled === (schedulingDuration !== null))).toBe(true);
         expect(buttons.filter((button) => button.loading)).toHaveLength(schedulingDuration === null ? 0 : 1);
         expect(buttons[3].loading).toBe(schedulingDuration === 23 || schedulingDuration === 60);
-        expect(buttons.every((button) => button.variant === (replacingTimer ? 'ghost' : 'primary'))).toBe(true);
+        expect(buttons.every((button) => button.variant === (replacingTimer ? 'secondary' : 'primary'))).toBe(true);
       }
+    }
+  });
+
+  it('실행·일시정지의 시간 변경 버튼은 네 개 모두 배경과 테두리가 있는 secondary로 표시합니다', () => {
+    for (const schedulingDuration of [null, 1, 15, 30, 45, 60]) {
+      const buttons = buttonProps(QuickTimerPresets({
+        columns: 2,
+        disabled: schedulingDuration !== null,
+        directInputButtonRef: { current: null },
+        onDirectInput: vi.fn(),
+        onSelectDuration: vi.fn(),
+        replacingTimer: true,
+        schedulingDuration,
+      }));
+
+      expect(buttons.map((button) => button.testID)).toEqual([
+        'quick-timer-preset-15',
+        'quick-timer-preset-30',
+        'quick-timer-preset-45',
+        'quick-timer-preset-custom',
+      ]);
+      expect(buttons.map((button) => button.variant)).toEqual([
+        'secondary', 'secondary', 'secondary', 'secondary',
+      ]);
     }
   });
 

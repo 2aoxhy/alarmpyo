@@ -1,17 +1,9 @@
 import { Tabs } from 'expo-router';
-import {
-  type ColorValue,
-  Platform,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { TabBarIcon, TabBarLabel } from '@/components/tab-bar-visuals';
 import { type AppPalette } from '@/constants/app-theme';
-import { fontFamily } from '@/constants/typography';
 import { shape } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -43,7 +35,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       detachInactiveScreens
-      safeAreaInsets={{ bottom: 0 }}
+      // Geometry already accounts for all safe insets; do not apply them again inside each tab.
+      safeAreaInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
       screenOptions={{
         headerShown: false,
         freezeOnBlur: true,
@@ -54,6 +47,7 @@ export default function TabsLayout() {
         tabBarHideOnKeyboard: true,
         tabBarInactiveTintColor: palette.inkSoft,
         tabBarIconStyle: styles.tabBarIcon,
+        tabBarLabelPosition: 'below-icon',
         tabBarItemStyle: [
           styles.tabBarItem,
           {
@@ -61,14 +55,7 @@ export default function TabsLayout() {
             paddingVertical: tabBarItemPadding,
           },
         ],
-        tabBarLabel: ({ children, color }) => (
-          <Text
-            maxFontSizeMultiplier={2}
-            numberOfLines={1}
-            style={[styles.tabBarLabel, { color }]}>
-            {children}
-          </Text>
-        ),
+        tabBarLabel: TabBarLabel,
         tabBarStyle: [
           styles.tabBar,
           {
@@ -86,13 +73,14 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: '오늘',
+          tabBarAccessibilityLabel: '오늘',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
+            <TabBarIcon
               activeName="today"
               color={color}
               focused={focused}
               inactiveName="today-outline"
-              palette={palette}
+              indicatorColor={palette.focus}
             />
           ),
         }}
@@ -101,13 +89,14 @@ export default function TabsLayout() {
         name="calendar"
         options={{
           title: '달력',
+          tabBarAccessibilityLabel: '달력',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
+            <TabBarIcon
               activeName="calendar"
               color={color}
               focused={focused}
               inactiveName="calendar-outline"
-              palette={palette}
+              indicatorColor={palette.focus}
             />
           ),
         }}
@@ -116,13 +105,14 @@ export default function TabsLayout() {
         name="timer"
         options={{
           title: '타이머',
+          tabBarAccessibilityLabel: '타이머',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
+            <TabBarIcon
               activeName="timer"
               color={color}
               focused={focused}
               inactiveName="timer-outline"
-              palette={palette}
+              indicatorColor={palette.focus}
             />
           ),
         }}
@@ -131,13 +121,14 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: '설정',
+          tabBarAccessibilityLabel: '설정',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon
+            <TabBarIcon
               activeName="settings"
               color={color}
               focused={focused}
               inactiveName="settings-outline"
-              palette={palette}
+              indicatorColor={palette.focus}
             />
           ),
         }}
@@ -145,48 +136,6 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
-function TabIcon({
-  activeName,
-  color,
-  focused,
-  inactiveName,
-  palette,
-}: {
-  activeName: AppIconName;
-  color: ColorValue;
-  focused: boolean;
-  inactiveName: AppIconName;
-  palette: AppPalette;
-}) {
-  return (
-    <View style={tabIconStyles.container}>
-      {focused ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[tabIconStyles.indicator, { backgroundColor: palette.focus }]}
-        />
-      ) : null}
-      <AppIcon color={color} name={focused ? activeName : inactiveName} size={22} />
-    </View>
-  );
-}
-
-const tabIconStyles = StyleSheet.create({
-  container: {
-    width: 32,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  indicator: {
-    position: 'absolute',
-    top: 0,
-    width: 24,
-    height: 3,
-  },
-});
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
@@ -208,12 +157,5 @@ function createStyles(palette: AppPalette) {
       overflow: 'hidden',
     },
     tabBarIcon: { marginTop: 1 },
-    tabBarLabel: {
-      marginTop: 0,
-      marginBottom: 1,
-      fontFamily: fontFamily.label,
-      fontSize: 12,
-      lineHeight: 17,
-    },
   });
 }

@@ -97,4 +97,19 @@ describe('알람 준비 표시 모델', () => {
     expect(notice.title).toBe('대체 설정 화면이 열렸습니다');
     expect(notice.message).toContain('알람 알림 설정');
   });
+
+  it('배터리 설정은 바로 열린 알람표 앱 정보의 배터리 항목을 안내해요', () => {
+    const notice = resolveAlarmPermissionLaunchNotice({
+      opened: true,
+      requestedTarget: 'battery-optimization',
+      openedTarget: 'app-details',
+      fallbackUsed: false,
+    });
+
+    expect(notice.tone).toBe('neutral');
+    expect(notice.title).toBe('알람표 앱 정보 안내');
+    expect(notice.message).toContain('알람표 앱 정보의 배터리에서 제한 없음');
+    expect(notice.message).not.toContain('알람표를 찾아');
+    expect(notice.message).not.toContain('앱 목록');
+  });
 });

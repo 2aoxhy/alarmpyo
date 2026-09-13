@@ -47,6 +47,27 @@ describe('빠른 타이머 화면 모델', () => {
     expect(getQuickTimerTargetAt(5_500, 100_000)).toBe(105_500);
   });
 
+  it('같은 카운트다운에서 시간을 변경해도 다음 tick 전부터 새 시간을 표시해요', () => {
+    const previousClock = 5_000;
+    for (const durationMinutes of [15, 30, 45, 23, 60, 1]) {
+      const anchor = createQuickTimerCountdownAnchor(
+        {
+          active: true,
+          remainingMillis: durationMinutes * 60_000,
+          state: 'scheduled',
+        },
+        previousClock + 500,
+      );
+
+      expect(formatQuickTimerCountdown(
+        getQuickTimerRemainingMillis(anchor, previousClock),
+      )).toBe(`${durationMinutes}분 남음`);
+      expect(formatQuickTimerCountdown(
+        getQuickTimerRemainingMillis(anchor, previousClock + 1_500),
+      )).toBe(durationMinutes === 1 ? '59초 남음' : `${durationMinutes}분 남음`);
+    }
+  });
+
   it('요청한 일반 타이머가 실제로 새로 예약된 경우만 성공으로 판정해요', () => {
     const scheduled = {
       active: true,

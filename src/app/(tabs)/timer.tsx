@@ -37,7 +37,6 @@ import {
   type QuickTimerStatus,
 } from '@/features/timer/quick-timer-controller';
 import {
-  createQuickTimerCountdownAnchor,
   formatQuickTimerTarget,
   getQuickTimerActionPresentation,
   getQuickTimerDisplayLabel,
@@ -46,8 +45,12 @@ import {
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   shouldStackQuickTimerActions,
-  type QuickTimerCountdownAnchor,
 } from '@/features/timer/quick-timer-model';
+import {
+  createQuickTimerDisplayObservation,
+  getQuickTimerObservationKey,
+  type QuickTimerDisplayObservation,
+} from '@/features/timer/quick-timer-display-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
 import { QuickTimerDurationStepper } from '@/features/timer/quick-timer-duration-stepper';
 import { QuickTimerPresets } from '@/features/timer/quick-timer-presets';
@@ -62,10 +65,6 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 const FIRE_SETTLE_POLL_INTERVAL_MS = 750;
 const FIRE_SETTLE_MAX_ATTEMPTS = 8;
 
-function getQuickTimerObservationKey(status: QuickTimerStatus): string {
-  return [status.startedAt, status.fireAt, status.isRepeat, status.state].join(':');
-}
-
 export default function TimerScreen() {
   const { showDialog } = useAppDialog();
   const { palette } = useAppTheme();
@@ -75,9 +74,9 @@ export default function TimerScreen() {
   const stackActions = shouldStackQuickTimerActions(width, fontScale);
   const presetColumns = resolveQuickTimerPresetColumns(width, fontScale);
   const countdownFontSize = resolveQuickTimerCountdownSize(width, fontScale);
-  const [status, setStatus] = useState<QuickTimerStatus | null>(null);
-  const [countdownAnchor, setCountdownAnchor] =
-    useState<QuickTimerCountdownAnchor | null>(null);
+  const [displayObservation, setDisplayObservation] =
+    useState<QuickTimerDisplayObservation | null>(null);
+  const status = displayObservation?.status ?? null;
   const [expiredObservationKey, setExpiredObservationKey] =
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,11 +116,9 @@ export default function TimerScreen() {
       monotonic: performance.now(),
       wall: Date.now(),
     };
-    setCountdownAnchor(
-      createQuickTimerCountdownAnchor(nextStatus, nextClock.monotonic),
-    );
-    setStatus(nextStatus);
-    const nextObservationKey = getQuickTimerObservationKey(nextStatus);
+    const nextObservation = createQuickTimerDisplayObservation(nextStatus, nextClock);
+    setDisplayObservation(nextObservation);
+    const nextObservationKey = nextObservation.key;
     setExpiredObservationKey((current) =>
       current === null || current === nextObservationKey ? current : null,
     );
@@ -220,9 +217,7 @@ export default function TimerScreen() {
     void refreshStatus(!hasLoadedRef.current);
   }, [refreshStatus, screenActive]);
 
-  const statusObservationKey = status
-    ? getQuickTimerObservationKey(status)
-    : null;
+  const statusObservationKey = displayObservation?.key ?? null;
   const statusActive = status?.active === true;
   const statusFireAt = status?.fireAt ?? 0;
 
@@ -515,14 +510,14 @@ export default function TimerScreen() {
               {paused ? '일시정지' : ringing ? '울림 중' : '실행 중'}
             </AppText>
           </View>
-          {countdownAnchor ? (
+          {displayObservation ? (
             <QuickTimerCountdown
               active={active}
-              anchor={countdownAnchor}
+              anchor={displayObservation.anchor}
               countdownFontSize={countdownFontSize}
-              key={statusObservationKey ?? undefined}
               label={activeTimerLabel}
               observationKey={statusObservationKey ?? ''}
+              observedClock={displayObservation.clock}
               onExpired={handleCountdownExpired}
               paused={paused}
               screenActive={screenActive}

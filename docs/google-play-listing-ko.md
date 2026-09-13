@@ -2,7 +2,7 @@
 
 이 문서는 스토어 입력용 초안입니다. 실제 AAB와 Play Console 선언이 확정된 뒤 문구·이미지·정책 답변이 서로 일치하는지 마지막으로 대조합니다.
 
-현재 V1.23(23)은 AAB 생성·검증만 진행하는 후보입니다. 이 문서를 갱신해도 Play 등록 정보는 변경되지 않으며, 업로드·Internal 출시·Alpha 승격은 별도 승인 후 진행합니다. 현재 Internal V1.22(22)와 Alpha V1.21(21)을 유지합니다.
+현재 V1.24(24)는 EAS production AAB 1회 생성, Internal 검증 후 동일 번들의 Alpha 승격까지 승인된 후보입니다. Production은 제외합니다. 문서 갱신만으로 Play 등록 정보는 변경되지 않습니다. 현재 Internal V1.23(23)와 Alpha V1.21(21)을 유지하며 V1.24의 업로드·출시·승격은 아직 완료하지 않았습니다. 사전 출시 보고서·16KB·백그라운드 CPU와 최종 스크린샷 검증은 미완료입니다.
 
 ## 기본 정보
 
@@ -47,7 +47,7 @@
 - 최종 512×512 아이콘: `assets/play-store/alarmpyo-icon-512.png`
 - 최종 1024×500 대표 그래픽: `assets/play-store/alarmpyo-feature-graphic.png`
 - 앱 아이콘 파생 자산: `assets/images/alarmpyo-*.png`
-- 휴대전화 스크린샷: `assets/play-store/phone-screenshots/manifest.json`에 기록한 V1.23 순서·대체 텍스트를 기준으로, 현재 릴리스 후보를 **Play 테스트 트랙으로 설치한 실제 Android 기기**에서 새로 촬영합니다. manifest가 `recapture-required`인 동안은 최종 이미지가 없는 상태입니다.
+- 휴대전화 스크린샷: `assets/play-store/phone-screenshots/manifest.json`에 기록한 V1.24 순서·대체 텍스트를 기준으로, 현재 릴리스 후보를 **Play 테스트 트랙으로 설치한 실제 Android 기기**에서 새로 촬영합니다. manifest가 `recapture-required`인 동안은 최종 이미지가 없는 상태입니다.
 
 Google Play의 현재 필수 형식은 다음과 같습니다.
 
@@ -82,7 +82,7 @@ npm run release:verify:play-store-assets
 실기기에서 `01-today.webp`, `02-calendar.webp`, `03-timer.webp`, `04-settings.webp`를 폭 1080px·높이 1920px 이상으로 다시 촬영한 뒤 다음 명령으로 무왜곡 RGB PNG를 만듭니다. 더 긴 화면은 `#101214` 배경의 1080×1920 캔버스에 비율을 유지해 배치하며, 첨부 경로가 사라진 파일이나 이전 버전 이미지를 대신 사용하지 않습니다.
 
 ```powershell
-npm run assets:play:screenshots:prepare -- --source-dir "<V1.23 WebP 원본 폴더>"
+npm run assets:play:screenshots:prepare -- --source-dir "<V1.24 WebP 원본 폴더>"
 ```
 
 Play Console에는 `manifest.json`의 순서와 한국어 대체 텍스트를 그대로 사용합니다. 변환이 끝나기 전 manifest의 `recapture-required` 상태와 빈 스크린샷 폴더는 의도된 출시 차단 상태입니다.
@@ -123,7 +123,7 @@ Google의 건강 앱 선언에는 `Sleep Management`가 별도 항목으로 있�
 
 - 수면 기능 분류 또는 개발자 계정 유형
 - 활성 개인정보처리방침 URL 또는 별도로 결정할 Play App Signing 인증서
-- 현재 V1.23 후보 `1.23(23)`가 Play Internal의 V1.22 `versionCode 22`와 Alpha의 V1.21 `versionCode 21`보다 높은 같은 package 계보인지 확인합니다. V19는 출시하지 않은 Internal 초안이며 V17은 Play에 업로드하지 않은 로컬 후보입니다. 기존 트랙 증거를 보존하고 V09는 사용하지 않았고 V11도 Play에 업로드하지 않았습니다.
+- 현재 V1.24 후보 `1.24(24)`가 Play Internal의 V1.23 `versionCode 23`와 Alpha의 V1.21 `versionCode 21`보다 높은 같은 package 계보인지 확인합니다. 2026-09-13 App Bundle 최고값은 23으로 확인했으며 업로드 직전에 모든 트랙·초안까지 다시 확인합니다. 24 이상이 있으면 자동 증분하지 않고 중단합니다. V19는 출시하지 않은 Internal 초안이며 V17은 Play에 업로드하지 않은 로컬 후보입니다. 기존 트랙 증거를 보존하고 V09는 사용하지 않았고 V11도 Play에 업로드하지 않았습니다.
 - 권한·FGS 선언 영상, 데이터 보안, 개인정보 처리방침
 - 실제 기기 스크린샷과 지원 연락처
 - Play 생성 APK 실기기 QA, 16KB 환경, 사전 출시 보고서

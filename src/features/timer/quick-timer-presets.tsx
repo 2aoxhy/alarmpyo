@@ -54,7 +54,7 @@ export function QuickTimerPresets({
               onPress={onDirectInput}
               style={styles.button}
               testID="quick-timer-preset-custom"
-              variant={replacingTimer ? 'ghost' : 'primary'}
+              variant={replacingTimer ? 'secondary' : 'primary'}
             />
           ) : (
             <Button
@@ -70,7 +70,7 @@ export function QuickTimerPresets({
               onPress={() => onSelectDuration(option)}
               style={styles.button}
               testID={`quick-timer-preset-${option}`}
-              variant={replacingTimer ? 'ghost' : 'primary'}
+              variant={replacingTimer ? 'secondary' : 'primary'}
             />
           ))}
         </View>

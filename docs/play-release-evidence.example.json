@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "com.personal.alarmpyo",
-  "versionName": "1.23",
-  "versionCode": 23,
+  "versionName": "1.24",
+  "versionCode": 24,
   "aabSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "easBuildId": "11111111-1111-4111-8111-111111111111",
@@ -11,20 +11,20 @@
     "sizeBytes": 1
   },
   "appSigningCertificateSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  "highestPreviouslyDistributedVersionCode": 22,
-  "highestExistingPlayVersionCode": 22,
+  "highestPreviouslyDistributedVersionCode": 23,
+  "highestExistingPlayVersionCode": 23,
   "track": "closed",
   "checkedAt": "2026-08-24T12:00:00.000Z",
   "physicalDeviceEvidence": {
-    "path": ".release/play/device-evidence/current-samsung.json",
+    "path": ".release/play/device-evidence/v124-current-samsung.json",
     "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
   "pageSize16KbEvidence": {
-    "path": ".release/play/device-evidence/page-size-16kb.json",
+    "path": ".release/play/device-evidence/v124-page-size-16kb.json",
     "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "preLaunchReportEvidence": {
-    "path": ".release/play/prelaunch-evidence/report.json",
+    "path": ".release/play/prelaunch-evidence/v124-report.json",
     "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   }
 }

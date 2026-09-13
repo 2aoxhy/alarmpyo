@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V1.23 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
+  it('V1.24 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V1.23',
+      release: 'V1.24',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V1.23',
+      release: 'V1.24',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -335,8 +335,8 @@ describe('Google Play 등록 이미지', () => {
     );
     expect(listing).toContain('npm run release:verify:play-store-assets');
     expect(listing).toContain('npm run assets:brand:check');
-    expect(screenshotReadme).toContain('V1.23 Play 설치본');
-    expect(screenshotReadme).toContain('<V1.23 WebP 원본 폴더>');
+    expect(screenshotReadme).toContain('V1.24 Play 설치본');
+    expect(screenshotReadme).toContain('<V1.24 WebP 원본 폴더>');
     expect(screenshotReadme).not.toContain('V18 Play 설치본');
     expect(listing).toContain(
       'https://support.google.com/googleplay/android-developer/answer/9866151?hl=ko',

@@ -324,7 +324,7 @@ describe('Play AAB 하드닝', () => {
     expect(validator).toContain("'.release/play/verified-release-evidence.json'");
   });
 
-  it('V1.23은 V1.22 뒤의 AAB 후보이며 업로드·승격을 별도 승인으로 남깁니다', () => {
+  it('V1.24는 Internal 검증 후 같은 번들로 Alpha 승격하고 미완료 게이트를 유지합니다', () => {
     const app = JSON.parse(source('app.json')).expo;
     const pkg = JSON.parse(source('package.json'));
     const runbook = source('docs/google-play-release-runbook-ko.md');
@@ -337,45 +337,79 @@ describe('Play AAB 하드닝', () => {
       source('assets/play-store/phone-screenshots/manifest.json'),
     );
 
-    expect(pkg.version).toBe('1.23.0');
+    expect(pkg.version).toBe('1.24.0');
     expect(app).toMatchObject({
-      version: '1.23',
-      android: { versionCode: 23 },
-      ios: { buildNumber: '23' },
+      version: '1.24',
+      android: { versionCode: 24 },
+      ios: { buildNumber: '24' },
     });
     expect(evidenceExample).toMatchObject({
-      versionName: '1.23',
-      versionCode: 23,
-      highestPreviouslyDistributedVersionCode: 22,
-      highestExistingPlayVersionCode: 22,
+      versionName: '1.24',
+      versionCode: 24,
+      highestPreviouslyDistributedVersionCode: 23,
+      highestExistingPlayVersionCode: 23,
     });
     expect(screenshotManifest).toMatchObject({
-      release: 'V1.23',
+      release: 'V1.24',
       status: 'recapture-required',
     });
 
     expect(runbook).toContain(
-      '현재 Play Internal은 V1.22의 `versionCode: 22`, Alpha는 V1.21의 `versionCode: 21`이 활성 상태입니다.',
+      '현재 Play Internal은 V1.23의 `versionCode: 23`, Alpha는 V1.21의 `versionCode: 21`이 활성 상태입니다.',
     );
     expect(runbook).toContain(
-      '확인한 최고값이 `23` 이상이면 생성·업로드를 중단하며 자동 증분하지 않습니다.',
+      '확인한 최고값이 `24` 이상이면 생성·업로드를 중단하며 자동 증분하지 않습니다.',
     );
     expect(runbook).toContain(
-      'Play Console 번들 라이브러리에서 **같은 versionCode 23 번들**을 Alpha로 승격합니다.',
+      'Play Console 번들 라이브러리에서 **같은 versionCode 24 번들**을 Alpha로 승격합니다.',
     );
     expect(runbook).toContain('AAB를 다시 업로드하지 않습니다.');
-    expect(runbook).toContain('--output .release/play/v123-verified-release-evidence.json');
+    expect(runbook).toContain('--output .release/play/v124-verified-release-evidence.json');
     expect(releaseNotes).toContain(
-      'V1.23은 `versionCode 23` AAB 생성·검증까지만 승인된 후보입니다.',
+      'V1.24는 `versionCode 24` AAB를 EAS production 프로필로 한 번 생성하고 Internal에서 검증한 뒤 같은 번들을 Alpha로 승격할 후보입니다.',
     );
     expect(releaseNotes).toContain(
-      'Play 업로드·Internal 출시·Alpha 승격은 하지 않았으며 별도 승인이 필요합니다.',
+      'V1.24 업로드·출시·승격은 아직 완료하지 않았습니다.',
     );
     expect(runbook).toContain(
-      '현재 V1.23(23)의 승인 범위는 **AAB 생성·검증까지만**입니다.',
+      '현재 V1.24(24)의 승인 범위는 **EAS production AAB 1회 생성, Internal 검증 후 동일 번들 Alpha 승격**입니다.',
     );
     expect(lineage).toContain(
-      '현재 소스의 후속 후보는 `V1.23 · 1.23(23)`입니다.',
+      '현재 소스의 후속 후보는 `V1.24 · 1.24(24)`입니다.',
     );
+  });
+
+  it('V1.24 예제와 미완료 검증을 실제 출고 증거로 승격하지 않습니다', () => {
+    const runbook = source('docs/google-play-release-runbook-ko.md');
+    const examples = [
+      'docs/play-release-evidence.example.json',
+      'docs/play-physical-device-evidence.example.json',
+      'docs/play-16kb-device-evidence.example.json',
+      'docs/play-prelaunch-evidence.example.json',
+    ].map((path) => JSON.parse(source(path)));
+
+    for (const example of examples) {
+      expect(example).toMatchObject({
+        packageName: 'com.personal.alarmpyo',
+        versionName: '1.24',
+        versionCode: 24,
+        aabSha256: 'a'.repeat(64),
+        sourceCommit: 'b'.repeat(40),
+      });
+    }
+    expect(Object.values(examples[1].checks).every((value) => value === false)).toBe(true);
+    expect(Object.values(examples[2].checks).every((value) => value === false)).toBe(true);
+    expect(examples[2].delivery).toMatchObject({
+      zipalign16Kb: false,
+      elfLoadSegments16Kb: false,
+    });
+    expect(examples[0].physicalDeviceEvidence.path).toContain('v124-current-samsung');
+    expect(examples[0].pageSize16KbEvidence.path).toContain('v124-page-size-16kb');
+    expect(examples[0].preLaunchReportEvidence.path).toContain('v124-report');
+    expect(runbook).toContain('백그라운드 CPU 재측정은 미완료 필수 게이트입니다.');
+    expect(runbook).toContain('만료된 보안 예외를 연장하거나 감사·검증 조건을 완화해 통과시키지 않습니다.');
+    expect(runbook).toContain('이번 V1.24에서는 `submit:alpha`를 실행하지 않습니다.');
+    expect(runbook).toContain('`completed`·0건은 형식 설명용이며 실제 검사 통과나 V1.24 배포 완료를 나타내지 않습니다.');
+    expect(runbook).toContain('Production은 제외합니다.');
   });
 });

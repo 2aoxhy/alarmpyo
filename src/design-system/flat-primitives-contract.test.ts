@@ -55,13 +55,14 @@ describe('평면형 디자인 시스템 계약', () => {
   it('sticky footer와 하단 내비게이션은 장식 그림자 없이 한 표면을 사용해요', () => {
     const footer = source('src/design-system/sticky-action-bar.tsx');
     const tabs = source('src/app/(tabs)/_layout.tsx');
+    const tabVisuals = source('src/components/tab-bar-visuals.tsx');
 
     expect(footer).toContain('borderTopWidth: StyleSheet.hairlineWidth');
     expect(footer).not.toContain('shadowOpacity');
     expect(footer).not.toContain('elevation:');
     expect(tabs).toContain('borderRadius: shape.panel');
     expect(tabs).toContain('borderRadius: shape.section');
-    expect(tabs).toContain('height: 3');
+    expect(tabVisuals).toContain('height: 3');
     expect(tabs).toContain('left: tabBarGeometry.inset');
     expect(tabs).not.toContain('floatingTabShadow');
   });
