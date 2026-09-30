@@ -13,7 +13,7 @@
     "@noble/ciphers": "2.2.0",
     "@noble/curves": "2.3.0",
     "@noble/hashes": "2.2.0",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "alarmpyo-alarm": "file:modules/alarmpyo-alarm",
     "decode-uri-component": "file:./tooling/uri-decoder-compat",
     "decode-uri-component-patched": "npm:decode-uri-component@0.5.0",
