@@ -1,6 +1,36 @@
 name: Weekly security audit
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/security-audit.yml'
+      - '.node-version'
+      - '.npmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'dependency-security-policy.json'
+      - 'docs/dependency-security-exceptions.md'
+      - 'scripts/audit-dependencies.mjs'
+      - 'scripts/__tests__/audit-dependencies.test.mjs'
+      - 'scripts/__tests__/security-audit-workflow.test.mjs'
+      - 'scripts/__tests__/*security.test.mjs'
+      - 'tooling/uri-decoder-compat/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/security-audit.yml'
+      - '.node-version'
+      - '.npmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'dependency-security-policy.json'
+      - 'docs/dependency-security-exceptions.md'
+      - 'scripts/audit-dependencies.mjs'
+      - 'scripts/__tests__/audit-dependencies.test.mjs'
+      - 'scripts/__tests__/security-audit-workflow.test.mjs'
+      - 'scripts/__tests__/*security.test.mjs'
+      - 'tooling/uri-decoder-compat/**'
   schedule:
     - cron: '17 18 * * 1'
   workflow_dispatch:
@@ -25,6 +55,14 @@ jobs:
         run: |
           test "$(node --version)" = "v24.16.0"
           test "$(npm --version)" = "11.13.0"
-      - run: npm ci
-      - run: npm run audit:dependencies
-      - run: npm run audit:tooling
+      - name: Install locked dependencies
+        id: install
+        run: npm ci
+      - name: Verify audit policy and dependency compatibility
+        run: npm run test -- scripts/__tests__/audit-dependencies.test.mjs scripts/__tests__/security-audit-workflow.test.mjs scripts/__tests__/uri-decoder-security.test.mjs scripts/__tests__/metro-image-security.test.mjs
+      - name: Audit production dependencies
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run audit:dependencies
+      - name: Audit development tooling
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run audit:tooling
