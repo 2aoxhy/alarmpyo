@@ -10,12 +10,12 @@ import type {
   WidgetDisplayOptions,
   WorkRoutineProfiles,
 } from '@/models/app-data';
-import type { AppDataImportPreview } from '@/services/app-data-service';
+import type { AppDataImportPreview } from './app-data-codec-port';
 import type {
   AppDataLoadFailureReason,
   PendingRestoreBackupRecoveryState,
   PendingRestoreBackupRetryResult,
-} from '@/services/app-storage-service';
+} from './runtime/store/storage-port';
 import type { AlarmPyoAlarmStatus } from '@/services/alarmpyo-alarm-service';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import type {
@@ -108,6 +108,17 @@ export type InitialSetupInput = {
   shiftTypePatches: Record<string, Partial<ShiftType>>;
 };
 
+export type SetupCommitInput = InitialSetupInput & {
+  mode: 'initial' | 'reconfigure';
+};
+
+export type SetupCommitResult = {
+  /** The canonical AppData snapshot reached primary storage. */
+  primarySaved: boolean;
+  /** Native alarm/backup follow-up may be retried without losing user intent. */
+  followUpSucceeded: boolean;
+};
+
 export type UpdatePatternOptions = {
   clearFutureScheduleOverridesFrom?: string;
 };
@@ -165,6 +176,11 @@ export type AppStore = {
     patches: Record<string, Partial<ShiftType>>,
     workRoutineProfiles?: WorkRoutineProfiles,
   ) => Promise<boolean>;
+  updateShiftSettings: (
+    patches: Record<string, Partial<ShiftType>>,
+    workRoutineProfiles: WorkRoutineProfiles,
+    payrollSettings: PayrollSettings,
+  ) => Promise<boolean>;
   updatePayrollSettings: (settings: PayrollSettings) => Promise<boolean>;
   dismissPlayUpdate: (versionCode: number) => Promise<boolean>;
   setThemeMode: (themeMode: ThemeMode) => void;
@@ -173,6 +189,7 @@ export type AppStore = {
   ) => Promise<boolean>;
   completeSetup: (pattern?: RotationPattern) => Promise<boolean>;
   completeInitialSetup: (input: InitialSetupInput) => Promise<boolean>;
+  commitSetup: (input: SetupCommitInput) => Promise<SetupCommitResult>;
   getAlarmStatus: () => Promise<AlarmPyoAlarmStatus>;
   requestAlarmAccess: () => Promise<boolean>;
   resyncAlarms: (force?: boolean) => Promise<boolean>;

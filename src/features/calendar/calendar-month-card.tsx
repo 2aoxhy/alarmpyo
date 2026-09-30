@@ -15,7 +15,7 @@ import {
   type AppPalette,
 } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
-import { Surface } from '@/design-system';
+import { shape, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { AppData } from '@/models/app-data';
@@ -23,7 +23,7 @@ import type { EffectiveDay } from '@/services/app-data-service';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import type { CalendarLayout } from '@/utils/calendar-layout';
 import type { CalendarCell } from '@/utils/date';
-import { formatMonthTitle } from '@/utils/date';
+import { formatMonthTitle, parseDateKey } from '@/utils/date';
 import type { KoreanHolidayInfo } from '@/utils/korean-holiday';
 import {
   CalendarDayCell,
@@ -34,6 +34,8 @@ import { CalendarWeekList } from './calendar-week-list';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 type Props = {
+  alarmOverrides: AppData['alarmOverrides'];
+  automaticScheduleHiddenDateKeySet: ReadonlySet<string>;
   canGoNextMonth?: boolean;
   canGoPreviousMonth?: boolean;
   calendarLayout: CalendarLayout;
@@ -56,6 +58,7 @@ type Props = {
   payrollEntries: Readonly<Record<string, PayrollCalendarEntry>>;
   selectedDateKeySet: ReadonlySet<string>;
   selectionMode: boolean;
+  scheduleStartDateInMonth?: string | null;
   simplified: boolean;
   summaryDateKey?: string | null;
   summaryTriggerRef?: Ref<React.ElementRef<typeof Pressable>>;
@@ -67,6 +70,8 @@ type Props = {
 };
 
 export const CalendarMonthCard = memo(function CalendarMonthCard({
+  alarmOverrides,
+  automaticScheduleHiddenDateKeySet,
   canGoNextMonth = true,
   canGoPreviousMonth = true,
   calendarLayout,
@@ -89,6 +94,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
   payrollEntries,
   selectedDateKeySet,
   selectionMode,
+  scheduleStartDateInMonth = null,
   simplified,
   summaryDateKey = null,
   summaryTriggerRef,
@@ -150,6 +156,8 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
 
               return (
                 <CalendarDayCell
+                  alarmOverride={alarmOverrides[cell.dateKey] ?? null}
+                  automaticScheduleHidden={automaticScheduleHiddenDateKeySet.has(cell.dateKey)}
                   key={cell.dateKey}
                   calendarLayout={calendarLayout}
                   cell={cell}
@@ -198,6 +206,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
             palette={palette}
             supportsSwipeGesture
             styles={styles}
+            scheduleStartDateInMonth={scheduleStartDateInMonth}
             visibleMonth={visibleMonth}
           />
         </View>
@@ -205,6 +214,8 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
           calendarGrid
         ) : (
           <CalendarWeekList
+            alarmOverrides={alarmOverrides}
+            automaticScheduleHiddenDateKeySet={automaticScheduleHiddenDateKeySet}
             cellRows={cellRows}
             effectiveDays={effectiveDays}
             fontScale={fontScale}
@@ -239,6 +250,7 @@ function CalendarMonthHeader({
   onChangeMonth,
   palette,
   supportsSwipeGesture,
+  scheduleStartDateInMonth,
   styles,
   visibleMonth,
 }: {
@@ -249,10 +261,18 @@ function CalendarMonthHeader({
   onChangeMonth: (amount: number) => void;
   palette: AppPalette;
   supportsSwipeGesture: boolean;
+  scheduleStartDateInMonth: string | null;
   styles: CalendarStyles;
   visibleMonth: { year: number; month: number };
 }) {
   const monthTitle = formatMonthTitle(visibleMonth.year, visibleMonth.month);
+  const startDate = scheduleStartDateInMonth
+    ? parseDateKey(scheduleStartDateInMonth)
+    : null;
+  const startDateLabel = startDate
+    ? `${startDate.getMonth() + 1}월 ${startDate.getDate()}일부터 적용`
+    : null;
+  const monthWorkLabel = `${monthlyWorkdayCount}일 근무`;
 
   return (
     <View style={[styles.monthHeader, { minHeight }]}>
@@ -281,9 +301,9 @@ function CalendarMonthHeader({
             ? '달력을 왼쪽이나 오른쪽으로 밀어 월을 이동할 수 있습니다.'
             : '화살표로 이전 달이나 다음 달로 이동할 수 있습니다.'
         }
-        accessibilityLabel={`${monthTitle}, ${monthlyWorkdayCount}일 근무`}
+        accessibilityLabel={`${monthTitle}, ${monthWorkLabel}${startDateLabel ? `, ${startDateLabel}` : ''}`}
         style={styles.monthCopy}>
-        <AppText accessibilityRole="header" maxFontSizeMultiplier={2} variant="heading">
+        <AppText accessibilityRole="header" aria-level={2} maxFontSizeMultiplier={2} variant="heading">
           {monthTitle}
         </AppText>
         <View style={styles.monthSummaryPill}>
@@ -293,9 +313,18 @@ function CalendarMonthHeader({
             maxFontSizeMultiplier={1.6}
             style={styles.monthSummaryText}
             variant="caption">
-            {monthlyWorkdayCount}일 근무
+            {monthWorkLabel}
           </AppText>
         </View>
+        {startDateLabel ? (
+          <AppText
+            color={palette.inkMuted}
+            maxFontSizeMultiplier={1.6}
+            style={styles.scheduleStartText}
+            variant="caption">
+            {startDateLabel}
+          </AppText>
+        ) : null}
       </View>
       <Pressable
         accessibilityLabel="다음 달 보기"
@@ -353,7 +382,7 @@ function createStyles(palette: AppPalette) {
     card: {
       padding: 0,
       overflow: 'hidden',
-      borderRadius: 20,
+      borderRadius: shape.section,
     },
     monthHeader: {
       flexDirection: 'row',
@@ -390,10 +419,15 @@ function createStyles(palette: AppPalette) {
       fontSize: 11.5,
       lineHeight: 16,
     },
+    scheduleStartText: {
+      fontSize: 11.5,
+      lineHeight: 16,
+      textAlign: 'center',
+    },
     navButton: {
       width: 48,
       height: 48,
-      borderRadius: 14,
+      borderRadius: shape.control,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
@@ -430,6 +464,6 @@ function createStyles(palette: AppPalette) {
       borderBottomColor: palette.controlLine,
     },
     gridRowLast: { borderBottomWidth: 0 },
-    pressed: { opacity: 0.66, transform: [{ scale: 0.97 }] },
+    pressed: { opacity: 0.66 },
   });
 }

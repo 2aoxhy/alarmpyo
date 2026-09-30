@@ -21,7 +21,7 @@ export function CalendarScreenHeader({
 
   return (
     <View style={[styles.header, stackHeader && styles.headerStacked]}>
-      <AppText accessibilityRole="header" variant="title">
+      <AppText accessibilityRole="header" aria-level={1} variant="title">
         달력
       </AppText>
       <View style={[styles.actions, stackHeader && styles.actionsStacked]}>

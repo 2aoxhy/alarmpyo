@@ -8,16 +8,11 @@ import {
   View,
 } from 'react-native';
 
-import { AppIcon } from '@/components/app-icon';
 import { SelectionCard, SelectionPill } from '@/components/selection-controls';
-import {
-  AnimatedShiftIcon,
-  getShiftIconKind,
-} from '@/components/animated-shift-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
-import { Surface } from '@/design-system';
+import { shape, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { ShiftType } from '@/models/app-data';
@@ -46,14 +41,10 @@ import {
 } from './setup-flow';
 
 export function SetupHero({ step }: { step: SetupScreenStep }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.hero}>
-      <View style={styles.logoMark}>
-        <AppIcon accessible={false} color={palette.ink} name="calendar" size={22} />
-      </View>
       <View style={styles.heroCopy}>
         <AppText accessibilityRole="header" variant="heading">
           처음 설정 · {step}/3
@@ -121,7 +112,6 @@ export function WorkModeStep({
   onSelectCategory: (categoryId: WorkPatternCategoryId) => void;
   onSelect: (presetId: WorkPatternPresetId) => void;
 }) {
-  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -140,9 +130,6 @@ export function WorkModeStep({
         {WORK_PATTERN_CATEGORIES.map((category) => (
           <ModeOption
             description={category.description}
-            icon={category.id === 'weekday' ? 'shift-day' : 'repeat'}
-            iconColor={category.id === 'weekday' ? palette.mintDark : palette.inkMuted}
-            iconBackground={category.id === 'weekday' ? palette.mintSoft : palette.surfaceSoft}
             horizontal
             key={category.id}
             label={category.name}
@@ -182,9 +169,6 @@ export function WorkModeStep({
 
 function ModeOption({
   description,
-  icon,
-  iconBackground,
-  iconColor,
   horizontal,
   label,
   onPress,
@@ -192,9 +176,6 @@ function ModeOption({
   style,
 }: {
   description: string;
-  icon: 'repeat' | 'shift-day';
-  iconBackground: string;
-  iconColor: string;
   horizontal: boolean;
   label: string;
   onPress: () => void;
@@ -210,9 +191,6 @@ function ModeOption({
       selected={selected}
       contentStyle={styles.modeOptionContent}
       style={[styles.modeOption, style]}>
-      <View style={[styles.modeIcon, { backgroundColor: iconBackground }]}>
-        <AppIcon accessible={false} color={iconColor} name={icon} size={24} />
-      </View>
       <View style={[styles.modeCopy, !horizontal && styles.modeCopyCentered]}>
         <AppText variant="label" style={!horizontal && styles.centerText}>
           {label}
@@ -262,14 +240,6 @@ export function RotationPositionPicker({
               styles.positionOption,
               compact && styles.positionOptionCompact,
             ]}>
-            {shift ? (
-              <AnimatedShiftIcon
-                animated={selected}
-                color={appearance?.accentColor ?? shift.color}
-                kind={getShiftIconKind(shift.id, shift.isOff)}
-                size={21}
-              />
-            ) : null}
             <View style={styles.positionCopy}>
               <AppText variant="label" color={palette.ink}>
                 {option.shortName}
@@ -477,7 +447,6 @@ export function WorkTimeEditor({
           onChangeEnd={onChangeDayEnd}
           onChangeStart={onChangeDayStart}
           revealErrors={revealErrors}
-          shiftId="day"
           shouldFocus={focusShiftTypeId === 'day'}
           stackInputs={stackTimeInputs}
           start={dayStart}
@@ -495,7 +464,6 @@ export function WorkTimeEditor({
             onChangeEnd={onChangeEveningEnd}
             onChangeStart={onChangeEveningStart}
             revealErrors={revealErrors}
-            shiftId="evening"
             shouldFocus={focusShiftTypeId === 'evening'}
             stackInputs={stackTimeInputs}
             start={eveningStart}
@@ -514,7 +482,6 @@ export function WorkTimeEditor({
             onChangeEnd={onChangeNightEnd}
             onChangeStart={onChangeNightStart}
             revealErrors={revealErrors}
-            shiftId="night"
             shouldFocus={focusShiftTypeId === 'night'}
             stackInputs={stackTimeInputs}
             start={nightStart}
@@ -534,7 +501,6 @@ function TimeInputRow({
   onChangeEnd,
   onChangeStart,
   revealErrors,
-  shiftId,
   shouldFocus,
   stackInputs,
   start,
@@ -547,7 +513,6 @@ function TimeInputRow({
   onChangeEnd: (value: string) => void;
   onChangeStart: (value: string) => void;
   revealErrors: boolean;
-  shiftId: 'day' | 'evening' | 'night';
   shouldFocus: boolean;
   stackInputs: boolean;
   start: string;
@@ -588,11 +553,10 @@ function TimeInputRow({
     <View style={styles.timeRow}>
       <View style={styles.timeHeading}>
         <View style={styles.timeLabel}>
-          <AnimatedShiftIcon
-            active={focusedField !== null}
-            color={color}
-            kind={shiftId}
-            size={20}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.timeMeaningLine, { backgroundColor: color }]}
           />
           <AppText variant="label">{label}</AppText>
         </View>
@@ -677,14 +641,12 @@ export function WeekdaySchedule({
       <ScheduleRow
         color={palette.mintDark}
         description={`${dayStart}~${dayEnd} 주간 근무`}
-        kind="day"
         title="월요일~금요일"
       />
       <View style={styles.divider} />
       <ScheduleRow
         color={palette.inkMuted}
         description="고정 휴무"
-        kind="off"
         title="토요일·일요일"
       />
     </View>
@@ -694,20 +656,20 @@ export function WeekdaySchedule({
 function ScheduleRow({
   color,
   description,
-  kind,
   title,
 }: {
   color: string;
   description: string;
-  kind: 'day' | 'off';
   title: string;
 }) {
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.scheduleRow}>
-      <View style={styles.scheduleIcon}>
-        <AnimatedShiftIcon animated={false} color={color} kind={kind} size={22} />
-      </View>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[styles.scheduleRail, { backgroundColor: color }]}
+      />
       <View style={styles.scheduleCopy}>
         <AppText variant="label">{title}</AppText>
         <AppText variant="caption" tone="secondary">
@@ -755,16 +717,11 @@ export function SetupPreview({
               <View
                 style={[
                   styles.previewChip,
-                  { backgroundColor: appearance?.softColor ?? palette.surfaceSoft },
+                  {
+                    backgroundColor: appearance?.softColor ?? palette.surfaceSoft,
+                    borderLeftColor: appearance?.accentColor ?? palette.inkSoft,
+                  },
                 ]}>
-                {shift ? (
-                  <AnimatedShiftIcon
-                    animated={false}
-                    color={appearance?.accentColor ?? shift.color}
-                    kind={getShiftIconKind(shift.id, shift.isOff)}
-                    size={17}
-                  />
-                ) : null}
                 <AppText
                   variant="label"
                   color={appearance?.accentColor ?? palette.ink}>
@@ -786,19 +743,12 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.medium,
-      borderRadius: radii.large,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
       backgroundColor: palette.surface,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-    },
-    logoMark: {
-      width: 44,
-      height: 44,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 15,
-      backgroundColor: palette.surfaceSoft,
     },
     heroCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
     progress: { position: 'relative', flexDirection: 'row', gap: spacing.small },
@@ -821,6 +771,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 72,
       flexBasis: '46%',
       flexGrow: 1,
+      borderRadius: shape.control,
     },
     modeOptionContent: {
       flexDirection: 'row',
@@ -835,27 +786,21 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flexDirection: 'row',
       justifyContent: 'flex-start',
     },
-    modeIcon: {
-      width: 44,
-      height: 44,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 15,
-    },
     modeCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
     modeCopyCentered: { alignItems: 'center' },
     teamChoiceSection: {
       gap: spacing.small,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surface,
-      padding: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+      paddingVertical: spacing.medium,
     },
     teamChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     teamChoice: {
       minWidth: 88,
       minHeight: 48,
       flexGrow: 1,
+      borderRadius: shape.control,
     },
     pressed: { opacity: 0.72 },
     positionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
@@ -864,6 +809,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minHeight: 72,
       flexBasis: '30%',
       flexGrow: 1,
+      borderRadius: shape.control,
     },
     positionOptionContent: {
       flexDirection: 'row',
@@ -882,6 +828,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       minWidth: 76,
       minHeight: 56,
       flexGrow: 1,
+      borderRadius: shape.control,
     },
     selectedDayEditor: {
       gap: spacing.medium,
@@ -892,7 +839,11 @@ function createStyles(palette: AppPalette, isDark: boolean) {
     },
     selectedDayOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     selectedDayOptionsStacked: { flexDirection: 'column', flexWrap: 'nowrap' },
-    selectedDayOption: { minWidth: 72, flex: 1 },
+    selectedDayOption: {
+      minWidth: 72,
+      flex: 1,
+      borderRadius: shape.control,
+    },
     selectedDayOptionStacked: { width: '100%' },
     sequenceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
     workTimes: { gap: spacing.medium },
@@ -905,6 +856,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       gap: spacing.small,
     },
     timeLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
+    timeMeaningLine: { width: 3, height: 22, flexShrink: 0, borderRadius: 2 },
     durationText: { flexShrink: 1, textAlign: 'right' },
     timeControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.small },
     timeControlsStacked: { flexDirection: 'column', alignItems: 'stretch' },
@@ -914,7 +866,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       flex: 1,
       borderWidth: 1.5,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       backgroundColor: isDark ? palette.surfaceSoft : palette.canvas,
       color: palette.ink,
       fontFamily: fontFamily.label,
@@ -934,15 +886,7 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       gap: spacing.medium,
       paddingVertical: spacing.tiny,
     },
-    scheduleIcon: {
-      width: 44,
-      height: 44,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 15,
-      backgroundColor: palette.surfaceSoft,
-    },
+    scheduleRail: { width: 3, height: 36, flexShrink: 0, borderRadius: 2 },
     scheduleCopy: { minWidth: 0, flex: 1, gap: spacing.tiny },
     previewCard: { gap: spacing.medium, paddingHorizontal: spacing.medium },
     previewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
@@ -961,7 +905,8 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.tiny,
-      borderRadius: radii.pill,
+      borderLeftWidth: 3,
+      borderRadius: shape.control,
       paddingHorizontal: spacing.small,
     },
   });

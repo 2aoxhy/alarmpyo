@@ -17,6 +17,12 @@ export type ShiftHeroTheme = {
   foreground: '#FFFFFF';
 };
 
+export type ShiftVisualSpec = ShiftHeroTheme & {
+  softBackground: string;
+  icon: 'shift-day' | 'shift-night' | 'shift-off' | 'shift-substitute' | 'time-outline';
+  meaningRail: string | null;
+};
+
 const WHITE = '#FFFFFF' as const;
 const CUSTOM_ACCENT_FALLBACK = '#C8CED6';
 
@@ -65,6 +71,47 @@ const SHIFT_HERO_THEMES: Record<
     accent: '#F0C36A',
     artwork: 'neutral',
     foreground: WHITE,
+  },
+};
+
+const SHIFT_VISUAL_DETAILS: Record<
+  Exclude<ShiftVisualRole, 'custom'>,
+  Pick<ShiftVisualSpec, 'softBackground' | 'icon' | 'meaningRail'>
+> = {
+  day: {
+    softBackground: '#123D36',
+    icon: 'shift-day',
+    meaningRail: null,
+  },
+  evening: {
+    softBackground: '#3E311A',
+    icon: 'time-outline',
+    meaningRail: null,
+  },
+  night: {
+    softBackground: '#173650',
+    icon: 'shift-night',
+    meaningRail: null,
+  },
+  off: {
+    softBackground: '#22262B',
+    icon: 'shift-off',
+    meaningRail: null,
+  },
+  'substitute-day': {
+    softBackground: '#123D36',
+    icon: 'shift-substitute',
+    meaningRail: '#F0C36A',
+  },
+  'substitute-night': {
+    softBackground: '#173650',
+    icon: 'shift-substitute',
+    meaningRail: '#F0C36A',
+  },
+  special: {
+    softBackground: '#3E311A',
+    icon: 'time-outline',
+    meaningRail: '#F0C36A',
   },
 };
 
@@ -129,4 +176,21 @@ export function resolveShiftHeroTheme(
     artwork: 'neutral',
     foreground: WHITE,
   };
+}
+
+/** 모든 화면이 같은 근무 의미색·아이콘·대체근무 강조선을 사용하도록 묶습니다. */
+export function resolveShiftVisualSpec(
+  role: ShiftVisualRole,
+  customAccent?: string | null,
+): ShiftVisualSpec {
+  const hero = resolveShiftHeroTheme(role, customAccent);
+  if (role === 'custom') {
+    return {
+      ...hero,
+      softBackground: '#22262B',
+      icon: 'time-outline',
+      meaningRail: hero.accent,
+    };
+  }
+  return { ...hero, ...SHIFT_VISUAL_DETAILS[role] };
 }

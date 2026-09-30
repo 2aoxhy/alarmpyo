@@ -21,6 +21,17 @@ export type AlarmAccessAction =
   | 'retry';
 export type AlarmAccessTone = 'neutral' | 'ready' | 'warning';
 
+export type AlarmRequiredPermissionTarget =
+  | 'exact-alarm'
+  | 'alarm-notifications'
+  | 'full-screen';
+
+export type AlarmPermissionReadiness = {
+  nextRequiredTarget: AlarmRequiredPermissionTarget | null;
+  readyRequiredCount: number;
+  requiredTotal: 3;
+};
+
 export type AlarmAccessSummary = {
   action: AlarmAccessAction;
   actionLabel?: string;
@@ -70,6 +81,36 @@ export type AlarmHealthStateInput = {
   platformSupported: boolean;
 };
 
+const REQUIRED_PERMISSION_ORDER: readonly AlarmRequiredPermissionTarget[] = [
+  'exact-alarm',
+  'alarm-notifications',
+  'full-screen',
+];
+
+/**
+ * 화면과 네이티브 설정 이동이 같은 필수 권한 순서를 공유하도록 계산합니다.
+ * 권장 안정성 항목은 알람 사용 자체를 막지 않으므로 준비 개수에 포함하지 않습니다.
+ */
+export function resolveAlarmPermissionReadiness(
+  alarmStatus: AlarmPyoAlarmStatus | null,
+): AlarmPermissionReadiness {
+  const readyByTarget: Record<AlarmRequiredPermissionTarget, boolean> = {
+    'exact-alarm': alarmStatus?.exactAlarmAllowed === true,
+    'alarm-notifications': alarmStatus?.notificationsAllowed === true,
+    'full-screen': alarmStatus?.fullScreenAllowed === true,
+  };
+  const readyRequiredCount = REQUIRED_PERMISSION_ORDER.filter(
+    (target) => readyByTarget[target],
+  ).length;
+
+  return {
+    nextRequiredTarget:
+      REQUIRED_PERMISSION_ORDER.find((target) => !readyByTarget[target]) ?? null,
+    readyRequiredCount,
+    requiredTotal: 3,
+  };
+}
+
 function persistedSafetyNote({
   actualScheduledCount,
   alarmStatus,
@@ -106,7 +147,7 @@ function persistedSafetyNote({
     labels.push('알람 음량');
   }
   return labels.length > 0
-    ? ` 최근 안전 점검에서 ${labels.join('·')}도 함께 확인이 필요했습니다.`
+    ? ` 최근 안전 점검: ${labels.join('·')} 확인 필요.`
     : '';
 }
 
@@ -142,8 +183,8 @@ export function resolveAlarmHealthState({
       issueCode: 'platform-unsupported',
       action: 'none',
       canTest: false,
-      description: '근무 알람은 Android 휴대폰에서 사용할 수 있습니다.',
-      title: 'Android 전용 기능입니다',
+      description: '근무 알람은 Android에서 사용',
+      title: 'Android 전용',
       tone: 'neutral',
     };
   }
@@ -154,8 +195,8 @@ export function resolveAlarmHealthState({
       issueCode: 'notifications-disabled',
       action: 'none',
       canTest: false,
-      description: '스위치를 켜면 다음 근무에 맞춰 알람을 자동으로 예약합니다.',
-      title: '알람을 사용하지 않습니다',
+      description: '켜면 다음 근무 알람 자동 예약',
+      title: '근무 알람 꺼짐',
       tone: 'neutral',
     };
   }
@@ -165,10 +206,10 @@ export function resolveAlarmHealthState({
       status: 'error',
       issueCode: 'status-unavailable',
       action: 'retry',
-      actionLabel: '다시 확인하기',
+      actionLabel: '다시 확인',
       canTest: false,
-      description: '저장된 근무표는 그대로 있습니다. 알람 상태만 다시 확인해야 합니다.',
-      title: '상태를 확인하지 못했습니다',
+      description: '근무표 유지 · 알람 상태만 다시 확인',
+      title: '상태 확인 실패',
       tone: 'warning',
     };
   }
@@ -179,8 +220,8 @@ export function resolveAlarmHealthState({
       issueCode: null,
       action: 'none',
       canTest: false,
-      description: '휴대폰의 알람 권한을 확인하고 있습니다.',
-      title: '알람 상태를 확인하고 있습니다',
+      description: '권한과 예약 상태 확인 중',
+      title: '알람 확인 중',
       tone: 'neutral',
     };
   }
@@ -191,8 +232,8 @@ export function resolveAlarmHealthState({
       issueCode: 'status-unavailable',
       action: 'none',
       canTest: false,
-      description: '이 휴대폰에서는 알람표 알람을 사용할 수 없습니다.',
-      title: '알람을 지원하지 않습니다',
+      description: '이 기기는 근무 알람을 지원하지 않음',
+      title: '알람 미지원',
       tone: 'warning',
     };
   }
@@ -202,10 +243,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-storage',
       action: 'resync',
-      actionLabel: '알람 저장 정보 복구하기',
+      actionLabel: '알람 정보 복구',
       canTest: false,
-      description: '기기 안의 알람 예약 정보가 손상되었습니다. 저장된 근무표로 안전하게 다시 만듭니다.',
-      title: '알람 저장 정보를 복구해야 합니다',
+      description: '기기 예약 정보 손상 · 저장된 근무표로 다시 생성',
+      title: '알람 정보 복구 필요',
       tone: 'warning',
     };
   }
@@ -215,10 +256,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-permissions',
       action: 'open-exact-alarm-settings',
-      actionLabel: '정확한 알람 설정 열기',
+      actionLabel: '정확한 알람 설정',
       canTest: false,
-      description: '근무 시각에 맞춰 울리도록 알람 및 리마인더 권한을 허용해야 합니다.',
-      title: '정확한 알람을 허용해야 합니다',
+      description: '근무 시각 알람에 알람 및 리마인더 권한 필요',
+      title: '정확한 알람 권한 필요',
       tone: 'warning',
     };
   }
@@ -237,12 +278,12 @@ export function resolveAlarmHealthState({
       canTest: false,
       description:
         alarmStatus.triggerState === 'delivery-blocked'
-          ? `예정된 알람은 유지 중입니다. 알람 화면과 소리가 전달되도록 알람표 알림 권한을 허용해야 합니다.${safetyNote}`
-          : `알람 화면과 소리가 전달되도록 알람표 알림 권한을 허용해야 합니다.${safetyNote}`,
+          ? `예약 유지 · 화면과 소리 전달에 알림 권한 필요.${safetyNote}`
+          : `알람 화면과 소리 전달에 알림 권한 필요.${safetyNote}`,
       title:
         alarmStatus.triggerState === 'delivery-blocked'
-          ? '예약은 유지되고 알림 전달만 차단되었습니다'
-          : '알람 알림을 허용해야 합니다',
+          ? '예약 유지 · 알림 차단'
+          : '알림 권한 필요',
       tone: 'warning',
     };
   }
@@ -252,11 +293,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-permissions',
       action: 'open-full-screen-settings',
-      actionLabel: '전체 화면 알람 설정하기',
+      actionLabel: '전체 화면 설정',
       canTest: false,
-      description:
-        '잠금 화면과 시험 알람을 사용하려면 전체 화면 알람을 허용해야 합니다.',
-      title: '전체 화면 알람을 허용해야 합니다',
+      description: '잠금 화면과 시험 알람에 전체 화면 권한 필요',
+      title: '전체 화면 권한 필요',
       tone: 'warning',
     };
   }
@@ -268,10 +308,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-schedule',
       action: 'resync',
-      actionLabel: '다시 예약하기',
+      actionLabel: '다시 예약',
       canTest: canTestAlarm,
-      description: '변경 내용은 저장되었습니다. 알람 예약만 근무표에 맞춰 다시 시도해야 합니다.',
-      title: '알람을 다시 예약해야 합니다',
+      description: '변경 내용 저장 완료 · 알람만 다시 예약',
+      title: '알람 재예약 필요',
       tone: 'warning',
     };
   }
@@ -284,10 +324,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-plan-expiry',
       action: 'resync',
-      actionLabel: '다음 알람 다시 예약하기',
+      actionLabel: '다음 알람 다시 예약',
       canTest: canTestAlarm,
-      description: '저장된 알람 계획의 유효 기간이 끝났습니다. 근무표로 다시 예약해야 합니다.',
-      title: '알람 계획이 만료되었습니다',
+      description: '알람 계획 만료 · 근무표로 다시 예약',
+      title: '알람 계획 만료',
       tone: 'warning',
     };
   }
@@ -300,10 +340,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-plan-expiry',
       action: 'resync',
-      actionLabel: '다음 알람 이어서 예약하기',
+      actionLabel: '다음 알람 이어서 예약',
       canTest: canTestAlarm,
-      description: '저장된 근무표로 다음 366일 알람 계획을 안전하게 이어서 예약합니다.',
-      title: '알람 계획을 갱신할 시기입니다',
+      description: '저장된 근무표로 다음 366일 예약',
+      title: '알람 계획 갱신',
       tone: 'warning',
     };
   }
@@ -329,13 +369,13 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-schedule',
       action: 'resync',
-      actionLabel: '근무표에 맞춰 다시 예약하기',
+      actionLabel: '다시 예약',
       canTest: canTestAlarm,
       description:
         expectedScheduledCount === 0
-          ? `예정된 근무는 없지만 알람 ${actualScheduledCount}개가 남아 있습니다. 다시 예약해야 합니다.`
-          : `다음 알람 ${expectedScheduledCount}개 중 ${actualScheduledCount}개가 예약되었습니다. 근무표에 맞춰 다시 예약해야 합니다.`,
-      title: '알람 예약이 근무표와 맞지 않습니다',
+          ? `예정 근무 없음 · 남은 알람 ${actualScheduledCount}개 제거 필요`
+          : `다음 알람 ${expectedScheduledCount}개 중 ${actualScheduledCount}개 예약 · 다시 예약 필요`,
+      title: '알람 예약 불일치',
       tone: 'warning',
     };
   }
@@ -345,10 +385,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'alarm-schedule',
       action: 'resync',
-      actionLabel: '다시 점검하기',
+      actionLabel: '다시 점검',
       canTest: true,
-      description: '저장된 근무표는 그대로 있습니다. 알람 예약만 다시 점검해야 합니다.',
-      title: '자동 점검을 마치지 못했습니다',
+      description: '근무표 유지 · 알람 예약만 다시 점검',
+      title: '자동 점검 실패',
       tone: 'warning',
     };
   }
@@ -360,8 +400,8 @@ export function resolveAlarmHealthState({
         issueCode: 'sleep-reminder-status',
         action: 'none',
         canTest: true,
-        description: '현재 설치본에서는 수면 시작 알림 상태를 확인할 수 없습니다.',
-        title: '수면 알림을 지원하지 않습니다',
+        description: '이 설치본에서 수면 알림 상태 확인 불가',
+        title: '수면 알림 미지원',
         tone: 'warning',
       };
     }
@@ -370,10 +410,10 @@ export function resolveAlarmHealthState({
         status: 'action-required',
         issueCode: 'sleep-reminder-status',
         action: 'retry-sleep-reminders',
-        actionLabel: '수면 알림 다시 확인하기',
+        actionLabel: '수면 알림 다시 확인',
         canTest: true,
-        description: '근무 알람 예약은 그대로 있습니다. 수면 알림 상태만 다시 확인해야 합니다.',
-        title: '수면 알림 상태를 확인하지 못했습니다',
+        description: '근무 알람 유지 · 수면 알림만 다시 확인',
+        title: '수면 알림 확인 실패',
         tone: 'warning',
       };
     }
@@ -383,8 +423,8 @@ export function resolveAlarmHealthState({
         issueCode: null,
         action: 'none',
         canTest: true,
-        description: '근무 알람에 이어 수면 시작 알림 상태를 확인하고 있습니다.',
-        title: '수면 알림을 확인하고 있습니다',
+        description: '수면 알림 상태 확인 중',
+        title: '수면 알림 확인 중',
         tone: 'neutral',
       };
     }
@@ -394,8 +434,8 @@ export function resolveAlarmHealthState({
         issueCode: 'sleep-reminder-status',
         action: 'none',
         canTest: true,
-        description: '현재 설치본에서는 수면 시작 알림 상태를 확인할 수 없습니다.',
-        title: '수면 알림을 지원하지 않습니다',
+        description: '이 설치본에서 수면 알림 상태 확인 불가',
+        title: '수면 알림 미지원',
         tone: 'warning',
       };
     }
@@ -404,10 +444,10 @@ export function resolveAlarmHealthState({
         status: 'action-required',
         issueCode: 'sleep-reminder-storage',
         action: 'retry-sleep-reminders',
-        actionLabel: '수면 알림 계획 복구하기',
+        actionLabel: '수면 알림 복구',
         canTest: true,
-        description: '기존 예약은 임의로 지우지 않았습니다. 현재 일정으로 복구를 다시 시도해야 합니다.',
-        title: '수면 알림 계획을 복구해야 합니다',
+        description: '기존 예약 유지 · 현재 일정으로 복구 재시도',
+        title: '수면 알림 복구 필요',
         tone: 'warning',
       };
     }
@@ -416,10 +456,10 @@ export function resolveAlarmHealthState({
         status: 'action-required',
         issueCode: 'sleep-reminder-permissions',
         action: 'open-sleep-settings',
-        actionLabel: '수면 알림 권한 설정하기',
+        actionLabel: '수면 알림 권한 설정',
         canTest: true,
-        description: '참고 취침 시각에 알림을 받도록 일반 알림 권한을 허용해야 합니다.',
-        title: '수면 알림 권한을 허용해야 합니다',
+        description: '취침 시각 알림에 일반 알림 권한 필요',
+        title: '수면 알림 권한 필요',
         tone: 'warning',
       };
     }
@@ -428,10 +468,10 @@ export function resolveAlarmHealthState({
         status: 'action-required',
         issueCode: 'sleep-reminder-schedule',
         action: 'retry-sleep-reminders',
-        actionLabel: '수면 알림 다시 갱신하기',
+        actionLabel: '수면 알림 다시 갱신',
         canTest: true,
-        description: '수면 알림 계획만 현재 일정에 맞춰 다시 갱신해야 합니다.',
-        title: '수면 알림을 다시 갱신해야 합니다',
+        description: '현재 일정으로 수면 알림만 다시 갱신',
+        title: '수면 알림 갱신 필요',
         tone: 'warning',
       };
     }
@@ -441,8 +481,8 @@ export function resolveAlarmHealthState({
         issueCode: null,
         action: 'none',
         canTest: true,
-        description: '현재 근무표에 맞춰 수면 알림 계획을 갱신하고 있습니다.',
-        title: '수면 알림을 갱신하고 있습니다',
+        description: '현재 근무표로 갱신 중',
+        title: '수면 알림 갱신 중',
         tone: 'neutral',
       };
     }
@@ -453,11 +493,10 @@ export function resolveAlarmHealthState({
       status: 'action-required',
       issueCode: 'do-not-disturb',
       action: 'open-dnd-settings',
-      actionLabel: '방해 금지 설정 확인하기',
+      actionLabel: '방해 금지 설정',
       canTest: canTestAlarm,
-      description:
-        '현재 방해 금지 설정에서는 알람 소리가 차단될 수 있습니다. 알람 허용 여부를 확인해야 합니다.',
-      title: '방해 금지에서 알람을 확인해야 합니다',
+      description: '방해 금지로 알람 소리가 막힐 수 있음 · 알람 허용 여부 확인',
+      title: '방해 금지 확인',
       tone: 'warning',
     };
   }
@@ -469,9 +508,8 @@ export function resolveAlarmHealthState({
       action: 'open-battery-settings',
       actionLabel: '배터리 설정 열기',
       canTest: true,
-      description:
-        '배터리 최적화 앱 목록에서 알람표를 찾아 제한 없음으로 설정해야 합니다.',
-      title: '배터리 사용 제한을 확인해야 합니다',
+      description: '배터리 최적화에서 알람표를 제한 없음으로 설정',
+      title: '배터리 제한 확인',
       tone: 'warning',
     };
   }
@@ -482,8 +520,8 @@ export function resolveAlarmHealthState({
       issueCode: 'alarm-volume',
       action: 'none',
       canTest: true,
-      description: '권한은 준비되었습니다. 휴대폰의 알람 음량만 높여야 합니다.',
-      title: '알람 음량이 0입니다',
+      description: '필수 권한 허용됨 · 휴대폰 알람 음량 조정 필요',
+      title: '알람 음량 0',
       tone: 'warning',
     };
   }
@@ -494,8 +532,8 @@ export function resolveAlarmHealthState({
       issueCode: null,
       action: 'none',
       canTest: true,
-      description: '가까운 알람과 근무표가 일치하는지 확인하고 있습니다.',
-      title: '알람 예약을 점검하고 있습니다',
+      description: '가까운 알람과 근무표 비교 중',
+      title: '예약 확인 중',
       tone: 'neutral',
     };
   }
@@ -506,8 +544,8 @@ export function resolveAlarmHealthState({
       issueCode: null,
       action: 'none',
       canTest: true,
-      description: '자동 점검에서 누락된 예약을 찾아 근무표에 맞춰 다시 등록했습니다.',
-      title: '누락된 알람을 복구했습니다',
+      description: '누락된 예약을 근무표에 맞춰 재등록',
+      title: '누락 알람 복구 완료',
       tone: 'ready',
     };
   }
@@ -519,12 +557,12 @@ export function resolveAlarmHealthState({
     canTest: true,
     description:
       alarmAutoCheckStatus === 'ready'
-        ? '근무표와 가까운 알람이 일치합니다. 누락되면 앱을 열 때 자동으로 복구합니다.'
-        : '전체 화면으로 울리고, 끄지 않으면 5분 뒤 한 번 더 울립니다.',
+        ? '근무표와 예약 일치 · 누락 시 앱 실행 때 자동 복구'
+        : '전체 화면 알람 · 미해제 시 5분 뒤 재알림',
     title:
       alarmAutoCheckStatus === 'ready'
         ? '자동 점검 완료'
-        : '알람이 준비되었습니다',
+        : '알람 사용 가능',
     tone: 'ready',
   };
 }

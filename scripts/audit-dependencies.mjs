@@ -1,254 +1,251 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = resolve(import.meta.dirname, '..');
 const policyPath = resolve(root, 'dependency-security-policy.json');
+const severities = ['info', 'low', 'moderate', 'high', 'critical'];
 const blockingSeverities = new Set(['high', 'critical']);
 
-export const approvedExceptions = new Map([
-  [
-    'GHSA-W3RX-R6R6-PGPR',
-    {
-      package: 'image-size',
-      severity: 'high',
-      expiresOn: '2026-09-09',
-    },
-  ],
-  [
-    'GHSA-5P2G-FCMC-QVQQ',
-    {
-      package: 'image-size',
-      severity: 'high',
-      expiresOn: '2026-09-09',
-    },
-  ],
-]);
+// Former image-size exceptions are resolved. New exceptions require review of
+// both this approval list and the machine-readable policy.
+export const approvedExceptions = new Map();
+
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+const packagePattern = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/iu;
 
 function dateInTimeZone(date, timeZone) {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(date);
   const value = (type) => parts.find((part) => part.type === type)?.value;
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
 function advisoryId(via) {
-  const match = String(via?.url ?? '').match(/GHSA-[a-z0-9-]+/iu);
-  return match?.[0]?.toUpperCase();
+  return String(via?.url ?? '').match(/GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}/iu)?.[0]?.toUpperCase();
+}
+
+function failed(violations, findings = []) {
+  return { ok: false, violations, findings, allowed: [] };
 }
 
 function validatePolicy(policy) {
   const errors = [];
-  if (policy?.schemaVersion !== 1) {
-    errors.push('보안 예외 정책의 schemaVersion은 1이어야 해요.');
-  }
-  if (policy?.timeZone !== 'Asia/Seoul') {
-    errors.push('보안 예외 정책의 시간대는 Asia/Seoul이어야 해요.');
-  }
+  if (policy?.schemaVersion !== 1) errors.push('보안 정책 schemaVersion은 1이어야 합니다.');
+  if (policy?.timeZone !== 'Asia/Seoul') errors.push('보안 정책 시간대는 Asia/Seoul이어야 합니다.');
   if (!Array.isArray(policy?.exceptions)) {
-    errors.push('보안 예외 정책의 exceptions가 배열이 아니에요.');
-    return errors;
-  }
-
-  const seen = new Set();
-  for (const exception of policy.exceptions) {
-    const id = String(exception?.advisory ?? '').toUpperCase();
-    if (!id || seen.has(id)) {
-      errors.push(`중복되거나 비어 있는 보안 예외가 있어요: ${id || '(없음)'}`);
-      continue;
-    }
-    seen.add(id);
-
-    const approved = approvedExceptions.get(id);
-    if (!approved) {
-      errors.push(`승인되지 않은 보안 예외가 정책에 추가됐어요: ${id}`);
-      continue;
-    }
-    for (const field of ['package', 'severity', 'expiresOn']) {
-      if (exception[field] !== approved[field]) {
-        errors.push(`${id}의 ${field} 값이 승인된 정책과 달라요.`);
-      }
-    }
-  }
-
-  for (const id of approvedExceptions.keys()) {
-    if (!seen.has(id)) errors.push(`필수 보안 예외가 정책에서 빠졌어요: ${id}`);
-  }
-  if (seen.size !== approvedExceptions.size) {
-    errors.push('보안 예외 정책에는 승인된 두 항목만 있어야 해요.');
+    errors.push('보안 정책 exceptions 배열이 없습니다.');
+  } else if (policy.exceptions.length !== 0 || approvedExceptions.size !== 0) {
+    errors.push('승인된 활성 보안 예외가 없습니다. 높은 등급·치명적 취약점은 모두 차단합니다.');
   }
   return errors;
 }
 
-function collectRootAdvisories(packageName, vulnerabilities, visited = new Set()) {
-  if (visited.has(packageName)) return [];
-  visited.add(packageName);
-
-  const vulnerability = vulnerabilities[packageName];
-  if (!vulnerability || !Array.isArray(vulnerability.via)) return [];
-
-  const roots = [];
-  for (const via of vulnerability.via) {
-    if (typeof via === 'string') {
-      roots.push(...collectRootAdvisories(via, vulnerabilities, visited));
-    } else if (via && typeof via === 'object') {
-      roots.push({ owner: packageName, advisory: via });
-    }
-  }
-  return roots;
+function isDependencyPath(value) {
+  return typeof value === 'string' && value.startsWith('node_modules/') &&
+    !/[\s<>|`:\\]/u.test(value) && !value.split('/').includes('..');
 }
 
-function uniqueRoots(roots) {
-  const unique = new Map();
-  for (const rootAdvisory of roots) {
-    const id = advisoryId(rootAdvisory.advisory) ?? `source:${rootAdvisory.advisory?.source}`;
-    unique.set(`${rootAdvisory.owner}:${id}`, rootAdvisory);
+// A successful process with {} or a truncated report is not a successful
+// audit. Validate every package and compare npm's summary with its findings.
+function validateReport(report) {
+  if (!isRecord(report) || report.auditReportVersion !== 2 ||
+      !isRecord(report.vulnerabilities) || !isRecord(report.metadata?.vulnerabilities) ||
+      !isRecord(report.metadata?.dependencies)) {
+    return ['npm 감사 보고서가 불완전하거나 지원하지 않는 형식입니다.'];
   }
-  return [...unique.values()];
+  const summary = report.metadata.vulnerabilities;
+  const dependencies = report.metadata.dependencies;
+  if (![...severities, 'total'].every((key) => isCount(summary[key])) ||
+      !['prod', 'dev', 'optional', 'peer', 'total'].every((key) => isCount(dependencies[key])) ||
+      (dependencies.peerOptional !== undefined && !isCount(dependencies.peerOptional))) {
+    return ['npm 감사 보고서의 취약점·의존성 집계가 불완전합니다.'];
+  }
+  const errors = [];
+  const counts = Object.fromEntries(severities.map((severity) => [severity, 0]));
+  for (const [name, vulnerability] of Object.entries(report.vulnerabilities)) {
+    if (!packagePattern.test(name) || !isRecord(vulnerability) || vulnerability.name !== name ||
+        !severities.includes(vulnerability.severity) || !Array.isArray(vulnerability.via) ||
+        vulnerability.via.length === 0 || !Array.isArray(vulnerability.nodes) ||
+        vulnerability.nodes.length === 0 || !vulnerability.nodes.every(isDependencyPath)) {
+      errors.push('npm 감사 보고서에 불완전한 패키지 항목이 있습니다.');
+      continue;
+    }
+    counts[vulnerability.severity] += 1;
+    for (const via of vulnerability.via) {
+      if (typeof via === 'string') {
+        if (!Object.hasOwn(report.vulnerabilities, via)) {
+          errors.push('npm 감사 보고서에 연결되지 않은 전이 취약점이 있습니다.');
+        }
+      } else if (!isRecord(via) || !Number.isSafeInteger(via.source) || via.source <= 0 ||
+                 via.name !== name || !severities.includes(via.severity) ||
+                 typeof via.url !== 'string' || !via.url.startsWith('https://')) {
+        errors.push('npm 감사 보고서에 불완전한 보안 권고가 있습니다.');
+      }
+    }
+  }
+  if (severities.some((severity) => counts[severity] !== summary[severity]) ||
+      summary.total !== Object.keys(report.vulnerabilities).length ||
+      summary.total !== severities.reduce((total, severity) => total + summary[severity], 0)) {
+    errors.push('npm 감사 보고서의 취약점 목록과 집계가 일치하지 않습니다.');
+  }
+  return [...new Set(errors)];
+}
+
+function collectRootAdvisories(packageName, vulnerabilities, path = []) {
+  if (path.includes(packageName)) return [];
+  const nextPath = [...path, packageName];
+  return vulnerabilities[packageName].via.flatMap((via) =>
+    typeof via === 'string'
+      ? collectRootAdvisories(via, vulnerabilities, nextPath)
+      : [{ advisory: via, path: nextPath }],
+  );
 }
 
 export function evaluateAuditReport(report, policy, now = new Date()) {
   const policyErrors = validatePolicy(policy);
-  if (policyErrors.length > 0) {
-    return { ok: false, violations: policyErrors, allowed: [] };
+  if (policyErrors.length > 0) return failed(policyErrors);
+  if (isRecord(report) && Object.hasOwn(report, 'error')) {
+    // Do not copy registry error messages/URLs, credentials or stderr to CI.
+    return failed(['npm 감사 조회 실패: 레지스트리 오류 응답.']);
   }
+  const reportErrors = validateReport(report);
+  if (reportErrors.length > 0) return failed(reportErrors);
 
-  if (report?.error) {
-    const detail = report.error.summary ?? report.error.message ?? '알 수 없는 npm 오류';
-    return {
-      ok: false,
-      violations: [`npm 보안 감사를 완료하지 못했어요: ${detail}`],
-      allowed: [],
-    };
-  }
-
-  const vulnerabilities = report?.vulnerabilities ?? {};
-  const policyById = new Map(
-    policy.exceptions.map((exception) => [exception.advisory.toUpperCase(), exception]),
-  );
-  const today = dateInTimeZone(now, policy.timeZone);
+  const findings = [];
   const violations = [];
-  const allowed = [];
-
-  for (const [packageName, vulnerability] of Object.entries(vulnerabilities)) {
-    if (!blockingSeverities.has(vulnerability?.severity)) continue;
-    if (vulnerability.severity === 'critical') {
-      violations.push(`${packageName}: 치명적 취약점은 예외 없이 차단해요.`);
-      continue;
-    }
-
-    const roots = uniqueRoots(
-      collectRootAdvisories(packageName, vulnerabilities, new Set()),
-    );
+  for (const [packageName, vulnerability] of Object.entries(report.vulnerabilities)) {
+    const roots = collectRootAdvisories(packageName, report.vulnerabilities);
+    const unique = new Map(roots.map((item) => [
+      `${item.advisory.source}:${item.path.join('>')}`, item,
+    ]));
     if (roots.length === 0) {
-      violations.push(`${packageName}: 원인이 확인되지 않은 ${vulnerability.severity} 취약점이에요.`);
+      violations.push(`${packageName}: 원인이 확인되지 않은 취약점입니다.`);
+      findings.push({ packageName, severity: vulnerability.severity, advisory: '확인 불가',
+        dependencyPath: vulnerability.nodes[0], reason: '원인 권고 확인 실패' });
       continue;
     }
-
-    const rootViolations = [];
-    const rootIds = [];
-    for (const { owner, advisory } of roots) {
-      const id = advisoryId(advisory);
-      rootIds.push(id ?? `source:${advisory?.source ?? 'unknown'}`);
-      const exception = id ? policyById.get(id) : undefined;
-      if (!exception) {
-        rootViolations.push(`${id ?? advisory?.source ?? '알 수 없는 권고'}는 허용되지 않았어요.`);
-        continue;
-      }
-      if (owner !== exception.package || advisory?.name !== exception.package) {
-        rootViolations.push(`${id}가 허용된 패키지와 다른 경로에서 발견됐어요.`);
-      }
-      if (advisory?.severity !== exception.severity) {
-        rootViolations.push(`${id}의 보안 등급이 승인된 정책과 달라요.`);
-      }
-      if (today > exception.expiresOn) {
-        rootViolations.push(`${id} 예외가 ${exception.expiresOn}에 만료됐어요.`);
-      }
-    }
-
-    if (rootViolations.length > 0) {
-      violations.push(`${packageName}: ${rootViolations.join(' ')}`);
-    } else {
-      allowed.push({ packageName, severity: vulnerability.severity, advisories: rootIds });
+    for (const { advisory, path } of unique.values()) {
+      const blocking = blockingSeverities.has(vulnerability.severity) || blockingSeverities.has(advisory.severity);
+      const id = advisoryId(advisory) ?? `source:${advisory.source}`;
+      const severity = severities.indexOf(advisory.severity) > severities.indexOf(vulnerability.severity)
+        ? advisory.severity : vulnerability.severity;
+      const reason = blocking ? '높은 등급·치명적 취약점 차단' : '차단 기준 미만';
+      const dependencyPath = `${vulnerability.nodes.join(', ')} → ${path.join(' → ')}`;
+      findings.push({ packageName, severity, advisory: id, dependencyPath, reason });
+      if (blocking) violations.push(`${packageName}: ${id} (${severity}), ${dependencyPath}: ${reason}.`);
     }
   }
-
-  return { ok: violations.length === 0, violations, allowed, today };
+  return { ok: violations.length === 0, violations, findings, allowed: [],
+    today: dateInTimeZone(now, policy.timeZone), counts: report.metadata.vulnerabilities };
 }
 
-function parseAuditReport(output) {
-  const start = output.indexOf('{');
-  const end = output.lastIndexOf('}');
-  if (start < 0 || end < start) {
-    throw new Error('npm 감사 결과에서 JSON을 찾지 못했어요.');
+export function parseAuditReport(output) {
+  // npm --json emits JSON on stdout. Searching for a JSON fragment could accept
+  // a partial response embedded in arbitrary output or a second error object.
+  try {
+    return JSON.parse(output.trim());
+  } catch {
+    throw new Error('npm 감사 결과를 JSON으로 읽지 못했습니다.');
   }
-  return JSON.parse(output.slice(start, end + 1));
+}
+
+export function evaluateAuditCommandResult(result, policy, now = new Date()) {
+  if (result.error || result.signal || ![0, 1].includes(result.status)) {
+    return failed(['npm 감사 실행 실패: 프로세스 오류·중단 또는 비정상 종료.']);
+  }
+  let report;
+  try {
+    report = parseAuditReport(result.stdout ?? '');
+  } catch (error) {
+    return failed([error.message]);
+  }
+  const evaluation = evaluateAuditReport(report, policy, now);
+  if (evaluation.ok && result.status === 1 && report.metadata.vulnerabilities.total === 0) {
+    return failed(['npm 감사 실행 실패: 종료 코드와 빈 취약점 보고서가 일치하지 않습니다.']);
+  }
+  // npm exits 1 for valid vulnerability reports, including moderate findings.
+  // High/critical policy comes from the validated report, not its exit code.
+  return evaluation;
+}
+
+function summaryText(value) {
+  return String(value ?? '').replace(/[\r\n\t]/gu, ' ').slice(0, 500)
+    .replace(/&/gu, '&amp;').replace(/</gu, '&lt;').replace(/>/gu, '&gt;')
+    .replace(/\|/gu, '&#124;').replace(/`/gu, '&#96;');
+}
+
+export function formatAuditSummary(evaluation, context) {
+  const commit = /^[a-f0-9]{40}$/iu.test(context.commit ?? '') ? context.commit : '확인 불가';
+  const lines = [
+    `### 의존성 보안 감사 · ${context.includeDev ? 'Production + tooling' : 'Production'}`,
+    '',
+    `- 결과: ${evaluation.ok ? '통과' : '실패'}`,
+    `- 검사 커밋: ${commit}`,
+    `- 앱: ${summaryText(context.packageName)} ${summaryText(context.packageVersion)}`,
+    '',
+  ];
+  if (evaluation.counts) {
+    lines.push(`높음 ${evaluation.counts.high} · 치명적 ${evaluation.counts.critical} · 전체 ${evaluation.counts.total}`, '');
+  }
+  if (evaluation.findings.length > 0) {
+    lines.push('| 패키지 | 등급 | 권고 | 의존 경로 | 결과 이유 |', '| --- | --- | --- | --- | --- |');
+    for (const item of evaluation.findings.slice(0, 200)) {
+      lines.push(`| ${[item.packageName, item.severity, item.advisory, item.dependencyPath, item.reason].map(summaryText).join(' | ')} |`);
+    }
+    if (evaluation.findings.length > 200) lines.push('', '표는 처음 200개 경로만 표시합니다. 모든 항목을 차단 검사했습니다.');
+  } else if (!evaluation.ok) {
+    lines.push(...evaluation.violations.map((reason) => `- ${summaryText(reason)}`));
+  } else {
+    lines.push('높은 등급·치명적 취약점 없음. 활성 예외 없음.');
+  }
+  return `${lines.join('\n')}\n\n`;
 }
 
 function run() {
-  const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
-  const includeDevelopmentDependencies = process.argv.includes('--include-dev');
-  const isWindows = process.platform === 'win32';
-  const bundledNpmCli = resolve(
-    dirname(process.execPath),
-    'node_modules',
-    'npm',
-    'bin',
-    'npm-cli.js',
-  );
-  // 일반 Node 설치는 실행 파일 옆에 npm CLI를 두지만, Codex처럼 Node와
-  // npm을 분리해 제공하는 런타임도 있어요. `npm run`이 전달한 실제 CLI를
-  // 우선 재사용하면 Windows에서 셸이나 PATH의 npm.cmd에 의존하지 않아요.
-  const inheritedNpmCli = process.env.npm_execpath;
-  const npmCli = existsSync(bundledNpmCli)
-    ? bundledNpmCli
-    : typeof inheritedNpmCli === 'string' && existsSync(inheritedNpmCli)
-      ? inheritedNpmCli
-      : null;
-  const command = isWindows && npmCli ? process.execPath : 'npm';
-  const args = [
-    ...(command === process.execPath && npmCli ? [npmCli] : []),
-    'audit',
-    includeDevelopmentDependencies ? '--include=dev' : '--omit=dev',
-    '--json',
-  ];
-  const result = spawnSync(command, args, {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 16 * 1024 * 1024,
-  });
-  if (result.error) throw result.error;
-
-  let report;
+  const includeDev = process.argv.includes('--include-dev');
+  let evaluation;
   try {
-    report = parseAuditReport(`${result.stdout ?? ''}\n${result.stderr ?? ''}`);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
+    const bundledNpmCli = resolve(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    const inheritedNpmCli = process.env.npm_execpath;
+    const npmCli = existsSync(bundledNpmCli) ? bundledNpmCli
+      : typeof inheritedNpmCli === 'string' && existsSync(inheritedNpmCli) ? inheritedNpmCli : null;
+    const command = process.platform === 'win32' && npmCli ? process.execPath : 'npm';
+    const args = [
+      ...(command === process.execPath && npmCli ? [npmCli] : []),
+      'audit', includeDev ? '--include=dev' : '--omit=dev', '--json',
+    ];
+    evaluation = evaluateAuditCommandResult(spawnSync(command, args, {
+      cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 120_000,
+    }), policy);
+  } catch {
+    evaluation = failed(['보안 정책 읽기 또는 감사 실행 실패.']);
   }
-
-  const evaluation = evaluateAuditReport(report, policy);
+  const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+  const localCommit = process.env.GITHUB_SHA ?? spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root, encoding: 'utf8', timeout: 5_000,
+  }).stdout?.trim();
+  const context = {
+    includeDev, packageName: pkg.name, packageVersion: pkg.version, commit: localCommit,
+  };
+  let summary = formatAuditSummary(evaluation, context);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary, 'utf8');
+    } catch {
+      evaluation = failed([...evaluation.violations, 'GitHub 감사 요약 저장 실패.'], evaluation.findings);
+      summary = formatAuditSummary(evaluation, context);
+    }
+  }
+  console.log(summary.trim());
   if (!evaluation.ok) {
-    console.error('의존성 보안 감사에 실패했어요.');
-    for (const violation of evaluation.violations) console.error(`- ${violation}`);
-    process.exit(1);
+    for (const violation of evaluation.violations.slice(0, 200)) console.error(`- ${violation}`);
+    process.exitCode = 1;
   }
-
-  const uniqueAdvisories = [
-    ...new Set(evaluation.allowed.flatMap((item) => item.advisories)),
-  ];
-  if (uniqueAdvisories.length > 0) {
-    console.log(
-      `검토된 image-size 보안 예외 ${uniqueAdvisories.length}개만 임시 허용했어요. ` +
-        `만료일은 2026-09-09예요.`,
-    );
-  }
-  console.log('신규 또는 만료된 높은 등급·치명적 의존성 취약점이 없어요.');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) run();

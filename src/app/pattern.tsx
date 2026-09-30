@@ -29,7 +29,6 @@ import { validateSetupInput } from '@/features/setup/setup-flow';
 import {
   buildWorkPatternMutation,
   createExistingWorkPatternDraft,
-  createWorkPatternSummarySignature,
   getFirstWorkPatternIssueTarget,
   getNewlyActiveShiftIds,
   getUnresolvedLegacyShiftIds,
@@ -42,7 +41,11 @@ import {
 import { createWorkPatternEditorController } from '@/features/setup/work-pattern-editor-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStore } from '@/store/app-store';
+import {
+  arePatternEditorDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import { getShiftAppearance } from '@/utils/shift-appearance';
 import {
@@ -62,7 +65,8 @@ export default function PatternEditorScreen() {
   const stackOptions = width < 430 || fontScale >= 1.3;
   const compactPositions = width < 390 || fontScale >= 1.3;
   const stackFooter = width <= 320 || fontScale >= 1.3;
-  const { createBackup, data, resyncAlarms, updatePatternDetailed } = useAppStore();
+  const data = useAppSelector(selectSettingsData, arePatternEditorDataEqual);
+  const { createBackup, resyncAlarms, updatePatternDetailed } = useAppCommands();
   const navigation = useNavigation();
   const allowNavigation = useRef(false);
   const [today] = useState(() => toDateKey(new Date()));
@@ -132,8 +136,6 @@ export default function PatternEditorScreen() {
     [data.overrides, data.timeOverrides, today],
   );
   const unresolvedLegacyIds = getUnresolvedLegacyShiftIds(draft);
-  const summaryConfirmed =
-    draft.summaryConfirmation === createWorkPatternSummarySignature(draft);
   const summaryBlockingIssues = validation.issues.filter(
     (issue) =>
       issue.code !== 'summary-unconfirmed' &&
@@ -173,7 +175,7 @@ export default function PatternEditorScreen() {
         event.preventDefault();
         showDialog(
           '저장하지 않고 나가시겠습니까?',
-          '변경한 근무 방식과 시간이 저장되지 않습니다.',
+          '근무 순서와 시간 변경이 사라집니다.',
           [
             {
               text: '계속 설정',
@@ -257,7 +259,7 @@ export default function PatternEditorScreen() {
     const checked = validateWorkPatternDraft(draft, data.shiftTypes);
     if (!checked.canSave) {
       focusFirstIssue(checked);
-      showDialog('근무표를 확인해야 합니다', '표시된 순서와 시간 문제를 수정해야 합니다.');
+      showDialog('근무표 확인', '표시된 순서와 시간 오류를 수정');
       return;
     }
     let backupCreated = false;
@@ -285,14 +287,14 @@ export default function PatternEditorScreen() {
         valid: true,
       });
       if (outcome.issue === 'storage-failure') {
-        showDialog('근무표를 저장하지 못했습니다', '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.');
+        showDialog('저장 실패', '저장 공간을 확인한 뒤 다시 시도');
         return;
       }
       if (outcome.issue === 'alarm-sync-partial') {
         void triggerNotificationFeedback('warning');
         showDialog(
-          '근무표는 저장되었습니다',
-          '알람을 근무표에 맞춰 다시 예약하지 못했습니다. 알람만 다시 예약할 수 있습니다.',
+          '근무표 저장 완료',
+          '알람 재예약 실패 · 근무표는 저장됨',
           [
             {
               text: '나중에',
@@ -312,8 +314,8 @@ export default function PatternEditorScreen() {
                 void resyncAlarms(true).then((synced) => {
                   if (!synced) {
                     showDialog(
-                      '알람을 다시 예약하지 못했습니다',
-                      '알람 화면에서 권한을 확인한 뒤 다시 시도해야 합니다.',
+                      '알람 재예약 실패',
+                      '알람 화면에서 권한 확인 후 다시 시도',
                     );
                     return;
                   }
@@ -341,11 +343,11 @@ export default function PatternEditorScreen() {
       });
       showDialog(
         outcome.issue === 'backup-failure'
-          ? '안전 백업을 만들지 못했습니다'
-          : '근무표를 저장하지 못했습니다',
+          ? '백업 실패'
+          : '저장 실패',
         outcome.issue === 'backup-failure'
-          ? '기존 자료를 보호하기 위해 변경 사항을 적용하지 않았습니다.'
-          : '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+          ? '변경 사항 미적용 · 기존 근무표 유지'
+          : '저장 공간을 확인한 뒤 다시 시도',
       );
     } finally {
       setSaving(false);
@@ -355,15 +357,15 @@ export default function PatternEditorScreen() {
   const requestSave = () => {
     if (!validation.canSave) {
       focusFirstIssue();
-      showDialog('근무표를 확인해야 합니다', '표시된 순서, 시간, 적용일을 확인해야 합니다.');
+      showDialog('근무표 확인', '순서·시간·적용일 오류를 수정');
       return;
     }
     const run = () => void persist(patternIdentityChanged);
     const confirmScheduleImpact = () => {
       if (patternIdentityChanged && futureScheduleOverrideCount > 0) {
         showDialog(
-          '새 근무 방식을 적용하시겠습니까?',
-          `오늘 이후 직접 변경한 근무와 시간 ${futureScheduleOverrideCount}개를 정리합니다. 메모와 연차·교육·예비군 일정은 유지합니다.`,
+          '새 근무표를 적용하시겠습니까?',
+          `오늘 이후 직접 변경 ${futureScheduleOverrideCount}개 제거 · 메모와 특별 일정 유지`,
           [
             {
               text: '계속 설정',
@@ -386,8 +388,8 @@ export default function PatternEditorScreen() {
     };
     if (draft.alarmsWanted && !validation.canEnableAlarms) {
       showDialog(
-        '근무 알람을 끄고 저장하시겠습니까?',
-        '일정은 저장할 수 있지만 현재 순서에서는 이전 근무 중 알람이 울릴 수 있어 근무 알람을 꺼야 합니다.',
+        '근무 알람을 끄시겠습니까?',
+        '근무 시간 겹침 · 알람 예약 불가',
         [
           {
             text: '계속 설정',
@@ -412,12 +414,12 @@ export default function PatternEditorScreen() {
   if (data.appliedPatternSource !== 'legacy') {
     return (
       <Screen contentStyle={styles.screen} safeAreaEdges={['left', 'right']}>
-        <PageHeader title="근무 방식 설정" />
+        <PageHeader title="근무표 설정" />
         <StatusBanner
-          actionLabel="패턴 보관함 열기"
-          message="보관함에서 적용한 패턴은 주대·야대를 포함할 수 있어 기본 근무 방식 편집기에서 변경하지 않습니다. 보관함에서 패턴을 편집하거나 다른 패턴의 달력 비교를 확인해야 합니다. 현재 근무표는 변경하지 않았습니다."
+          actionLabel="보관함 열기"
+          message="편집 위치: 패턴 보관함 · 현재 근무표 유지"
           onAction={() => router.replace('/pattern-library' as never)}
-          title="보관함 패턴 사용 중"
+          title="보관함 패턴"
           tone="info"
         />
       </Screen>
@@ -440,7 +442,7 @@ export default function PatternEditorScreen() {
           saving ||
           (step === 1 ? draft.presetId === null : step === 2 ? false : !validation.canSave || !hasUnsavedChanges)
         }
-        label={step === 1 ? '순서와 시간 확인' : step === 2 ? '이대로 사용' : '저장'}
+        label={step === 1 ? '다음' : step === 2 ? '적용일 선택' : '저장'}
         loading={saving}
         onPress={
           step === 1
@@ -466,8 +468,7 @@ export default function PatternEditorScreen() {
   return (
     <Screen contentStyle={styles.screen} footer={footer} safeAreaEdges={['left', 'right']}>
       <PageHeader
-        subtitle="회사 순서와 시간을 필요한 만큼만 수정합니다."
-        title="근무 방식 설정"
+        title="근무표 설정"
         trailing={
           <AppButton
             label="보관함"
@@ -504,17 +505,17 @@ export default function PatternEditorScreen() {
             ref={issueHeadingRef}
             style={styles.heading}>
             <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              회사 순서와 시간을 확인합니다
+              순서와 시간
             </AppText>
             <AppText style={styles.centerText} tone="secondary" variant="body">
-              저장된 시간은 유지되며 필요한 항목만 수정할 수 있습니다.
+              필요한 항목만 수정
             </AppText>
           </View>
 
           <Surface style={styles.card}>
             <View style={styles.summaryHeading}>
               <View style={styles.summaryCopy}>
-                <AppText variant="label">회사 근무 순서</AppText>
+                <AppText variant="label">근무 순서</AppText>
                 <AppText tone="secondary" variant="caption">
                   {draft.presetId === 'weekday'
                     ? '월~금 주간 · 토~일 휴무'
@@ -588,7 +589,7 @@ export default function PatternEditorScreen() {
             <View style={styles.legacySection}>
               <StatusBanner
                 icon="alert-circle-outline"
-                message="이전 버전의 오후 근무가 포함되어 있습니다. 새 순서로 바꾸려면 기존 오후 근무를 현재 오후 근무에 명시적으로 연결해야 합니다."
+                message="저장 전 이전 오후 근무 연결"
                 tone="warning"
               />
               <AppButton
@@ -602,20 +603,20 @@ export default function PatternEditorScreen() {
           {!validation.safety.canSave ? (
             <StatusBanner
               icon="alert-circle-outline"
-              message="이전 근무가 끝나기 전에 다음 근무가 시작합니다. 겹치는 시간을 수정해야 합니다."
+              message="근무 시간 겹침 · 시작·종료 시간 수정"
               tone="warning"
             />
           ) : getNewlyActiveShiftIds(draft).some((id) => !draft.reviewedShiftIds.includes(id)) ? (
             <StatusBanner
               icon="alarm-outline"
-              message="새로 사용하는 오후 근무 시간을 확인한 뒤 ‘이대로 사용’을 눌러야 합니다."
+              message="새로 추가한 근무 시간 확인 필요"
               tone="info"
             />
           ) : null}
           {draft.presetId !== 'weekday' && validation.effectivePresetId === 'weekday' ? (
             <StatusBanner
               icon="calendar-outline"
-              message="이 순서는 주간 고정과 같으므로 월~금 근무·토·일 휴무로 저장됩니다."
+              message="주간 고정으로 저장 · 월~금 주간, 토·일 휴무"
               tone="info"
             />
           ) : null}
@@ -631,10 +632,10 @@ export default function PatternEditorScreen() {
             ref={issueHeadingRef}
             style={styles.heading}>
             <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              적용할 날짜를 선택합니다
+              적용일과 시작 근무
             </AppText>
             <AppText style={styles.centerText} tone="secondary" variant="body">
-              선택한 날짜의 실제 근무를 맞추면 이후 일정이 자동으로 이어집니다.
+              선택한 근무부터 순서 반복
             </AppText>
           </View>
           <Surface style={styles.card}>
@@ -664,22 +665,15 @@ export default function PatternEditorScreen() {
           {patternIdentityChanged && futureScheduleOverrideCount > 0 ? (
             <StatusBanner
               icon="alert-circle-outline"
-              message={`저장하면 오늘 이후 직접 변경한 근무와 시간 ${futureScheduleOverrideCount}개를 정리합니다. 메모와 특별 일정은 유지합니다.`}
+              message={`오늘 이후 직접 변경 ${futureScheduleOverrideCount}개 제거 · 메모와 특별 일정 유지`}
               tone="warning"
             />
           ) : null}
           {!validation.canEnableAlarms && validation.safety.canSave ? (
             <StatusBanner
               icon="alarm-outline"
-              message="일정은 저장할 수 있지만 이전 근무 중 알람이 울릴 수 있어 저장 시 근무 알람을 꺼야 합니다."
+              message="근무 시간 겹침 · 저장 시 근무 알람 꺼짐"
               tone="warning"
-            />
-          ) : null}
-          {summaryConfirmed ? (
-            <StatusBanner
-              icon="checkmark-circle"
-              message="근무 순서와 시간을 확인했습니다."
-              tone="info"
             />
           ) : null}
         </View>

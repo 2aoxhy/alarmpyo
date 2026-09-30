@@ -62,11 +62,11 @@ function jpegWithStructureButNoDecodableTables() {
 }
 
 describe('Google Play 등록 이미지', () => {
-  it('V15 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
+  it('V1.24 재촬영 순서와 대체 텍스트를 manifest에 고정합니다', async () => {
     const manifest = await readPhoneScreenshotManifest(root);
 
     expect(manifest).toMatchObject({
-      release: 'V15',
+      release: 'V1.24',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -84,14 +84,14 @@ describe('Google Play 등록 이미지', () => {
       })),
     ).toEqual([
       {
-        captureId: 'launch-brand',
-        sourceFile: '01-brand.webp',
-        outputFile: '01-brand.png',
+        captureId: 'today-overview',
+        sourceFile: '01-today.webp',
+        outputFile: '01-today.png',
       },
       {
-        captureId: 'today-ready',
-        sourceFile: '02-today.webp',
-        outputFile: '02-today.png',
+        captureId: 'calendar-month',
+        sourceFile: '02-calendar.webp',
+        outputFile: '02-calendar.png',
       },
       {
         captureId: 'timer-running',
@@ -113,7 +113,7 @@ describe('Google Play 등록 이미지', () => {
   it('manifest에서 경로·중복·긴 대체 텍스트를 허용하지 않아요', () => {
     const valid = {
       version: 1,
-      release: 'V15',
+      release: 'V1.24',
       status: 'recapture-required',
       target: {
         width: 1080,
@@ -131,6 +131,9 @@ describe('Google Play 등록 이미지', () => {
       })),
     };
     expect(validatePhoneScreenshotManifest(valid)).toBe(valid);
+    expect(() =>
+      validatePhoneScreenshotManifest({ ...valid, release: 'V1.20' }),
+    ).toThrow('V00 또는 V1.21 이후');
     expect(() =>
       validatePhoneScreenshotManifest({
         ...valid,
@@ -316,6 +319,10 @@ describe('Google Play 등록 이미지', () => {
       resolve(root, 'docs/google-play-listing-ko.md'),
       'utf8',
     );
+    const screenshotReadme = readFileSync(
+      resolve(root, 'assets/play-store/phone-screenshots/README.md'),
+      'utf8',
+    );
 
     expect(packageJson.scripts['release:verify:play-store-assets']).toBe(
       'node scripts/validate-play-store-assets.mjs',
@@ -328,6 +335,9 @@ describe('Google Play 등록 이미지', () => {
     );
     expect(listing).toContain('npm run release:verify:play-store-assets');
     expect(listing).toContain('npm run assets:brand:check');
+    expect(screenshotReadme).toContain('V1.24 Play 설치본');
+    expect(screenshotReadme).toContain('<V1.24 WebP 원본 폴더>');
+    expect(screenshotReadme).not.toContain('V18 Play 설치본');
     expect(listing).toContain(
       'https://support.google.com/googleplay/android-developer/answer/9866151?hl=ko',
     );
@@ -351,10 +361,10 @@ describe('Google Play 등록 이미지', () => {
     );
     for (const phrase of [
       '공식 서명 패턴과 1~42일 사용자 반복 순서',
-      '근무 기상 알람과 15분·30분·45분·60분 소리·진동 타이머',
+      '주간·야간에 동일하게 적용하는 근무 기상 알람과 15분·30분·45분·1~60분 소리·진동 타이머',
       '수면 준비 알림',
       '홈 화면 위젯',
-      '근무 패턴 적용 전 달력에서 변경 전·후 확인',
+      '근무 패턴 적용 전 앞으로 7일의 변경 전·후 확인',
       '파일 공유·적용 이력 복구',
       '근무표, 메모와 설정은 기기에 저장합니다',
     ]) {

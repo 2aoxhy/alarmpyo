@@ -93,13 +93,13 @@ describe('오늘 화면 계산 모델', () => {
     });
 
     expect(model.homeState).toBe('before');
-    expect(model.heroTitle).toBe('오늘은 주간 근무');
+    expect(model.heroTitle).toBe('주간 근무');
     expect(model.footerLabel).toBe('근무 시작까지');
     expect(model.upcomingWorkDays).toHaveLength(3);
-    expect(model.alarmStateLabel).toBe('근무 알람을 사용하지 않습니다');
+    expect(model.alarmStateLabel).toBe('근무 알람 꺼짐');
     expect(model.alarmSummary).toEqual({
-      title: '알람을 사용하지 않습니다',
-      description: '스위치를 켜면 다음 근무에 맞춰 알람을 자동으로 예약합니다.',
+      title: '근무 알람 꺼짐',
+      description: '켜면 다음 근무 알람 자동 예약',
     });
   });
 
@@ -136,6 +136,44 @@ describe('오늘 화면 계산 모델', () => {
     }
 
     expect(resolveCount).toBeLessThan(30);
+  });
+
+  it('휴무일은 다음 근무를 카드 하단에 표시합니다', () => {
+    const model = buildTodayViewModel({
+      data,
+      now: new Date(2026, 6, 31, 12, 0),
+      resolveShift: (dateKey) =>
+        dateKey === '2026-07-31' ? offShift : dayShift,
+      alarmPlanSummary: { plannedAlarmCount: 0 },
+      alarmStatus: null,
+      alarmStatusError: false,
+      alarmPlatformSupported: true,
+      compactHome: true,
+    });
+
+    expect(model.homeState).toBe('off');
+    expect(model.heroTitle).toBe('휴무');
+    expect(model.heroDetail).toBe('근무 없음');
+    expect(model.footerLabel).toBe('다음 근무: 주간');
+    expect(model.footerValue).toBe('8월 1일 · 07:00');
+  });
+
+  it('조회 범위 안에 다음 근무가 없는 휴무일은 짧은 빈 상태를 표시합니다', () => {
+    const model = buildTodayViewModel({
+      data,
+      now: new Date(2026, 6, 31, 12, 0),
+      resolveShift: (dateKey) =>
+        dateKey === '2026-07-31' ? offShift : null,
+      alarmPlanSummary: { plannedAlarmCount: 0 },
+      alarmStatus: null,
+      alarmStatusError: false,
+      alarmPlatformSupported: true,
+      compactHome: false,
+    });
+
+    expect(model.homeState).toBe('off');
+    expect(model.footerLabel).toBe('다음 근무');
+    expect(model.footerValue).toBe('예정된 근무 없음');
   });
 
   it('수면 알림 손상이 있으면 예약 수가 맞아도 준비됨과 동시에 표시하지 않아요', () => {
@@ -193,7 +231,7 @@ describe('오늘 화면 계산 모델', () => {
     });
     expect(model.alarmsReady).toBe(false);
     expect(model.alarmSummary).toMatchObject({
-      title: '수면 알림 계획을 복구해야 합니다',
+      title: '수면 알림 복구 필요',
     });
     expect(model.alarmSummary.description).toBeTruthy();
   });

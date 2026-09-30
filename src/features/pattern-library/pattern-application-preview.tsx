@@ -4,8 +4,8 @@ import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'reac
 import { AppIcon } from '@/components/app-icon';
 import { SelectionPill } from '@/components/selection-controls';
 import { AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
-import { Surface } from '@/design-system';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { DisclosureRow, shape, Surface } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -13,12 +13,14 @@ import { buildCalendarGrid, formatKoreanDate } from '@/utils/date';
 
 import {
   buildPatternPreviewMonths,
+  buildPatternSevenDaySummary,
   formatPatternCalendarShiftToken,
   getPatternPreviewMonthKey,
   isPatternDiffRowChanged,
   resolvePatternPreviewRow,
   type OverrideResolutionMode,
   type PatternDiffRow,
+  type PatternSevenDaySummary,
 } from './pattern-library-model';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
@@ -51,6 +53,11 @@ export function PatternApplicationPreview({
   const [requestedDateKey, setRequestedDateKey] = useState<string | null>(null);
   const [requestedMonthKey, setRequestedMonthKey] = useState<string | null>(null);
   const [changesOnly, setChangesOnly] = useState(false);
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const sevenDaySummary = useMemo(
+    () => buildPatternSevenDaySummary({ mode, rows, selectedDateKeys }),
+    [mode, rows, selectedDateKeys],
+  );
   const effectiveChangesOnly = changesOnly && changedDateCount > 0;
   const navigableMonths = useMemo(
     () =>
@@ -142,20 +149,28 @@ export function PatternApplicationPreview({
     (mode === 'preserve' ||
       (mode === 'select' && selectedDateKeys.has(selectedRow.dateKey)));
   const selectedStatus = selectedRow.changed
-    ? '근무가 변경됩니다.'
+    ? '근무 변경'
     : selectedRow.scheduledShiftChanged
-      ? '예외 일정 아래의 근무 순서가 변경됩니다.'
-      : '근무가 유지됩니다.';
+      ? '특별 일정 아래 근무 변경'
+      : '변경 없음';
 
   return (
-    <View accessibilityLabel="적용 전 달력 비교" style={styles.container}>
-      <View style={styles.filterSection}>
+    <View accessibilityLabel="적용 전 일정 비교" style={styles.container}>
+      <PatternSevenDaySummaryView stacked={stacked} summary={sevenDaySummary} />
+      <DisclosureRow
+        expanded={calendarExpanded}
+        icon="calendar-outline"
+        onPress={() => setCalendarExpanded((current) => !current)}
+        subtitle="날짜별 근무와 직접 수정"
+        title="42일 전체 보기"
+      />
+
+      {calendarExpanded ? (
+        <View style={styles.fullComparison}>
+          <View style={styles.filterSection}>
         <View style={styles.filterHeading}>
           <AppText accessibilityRole="header" variant="heading">
-            달력에서 비교
-          </AppText>
-          <AppText tone="secondary" variant="caption">
-            적용일부터 다음 달력 범위까지 확인할 수 있습니다.
+            달력 비교
           </AppText>
         </View>
         <View
@@ -176,9 +191,9 @@ export function PatternApplicationPreview({
             style={styles.filter}
           />
         </View>
-      </View>
+          </View>
 
-      <Surface style={styles.calendarCard}>
+          <Surface style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <MonthNavigationButton
             disabled={visibleMonthIndex <= 0}
@@ -266,9 +281,9 @@ export function PatternApplicationPreview({
             <AppText tone="secondary" variant="caption">선택한 날짜</AppText>
           </View>
         </View>
-      </Surface>
+          </Surface>
 
-      <Surface style={styles.detailCard} tone="muted">
+          <Surface style={styles.detailCard} tone="muted">
         <View style={styles.detailHeading}>
           <AppText accessibilityRole="header" variant="heading">
             {selectedRow.dateLabel}
@@ -277,7 +292,7 @@ export function PatternApplicationPreview({
             tone={isPatternDiffRowChanged(selectedRow) ? 'secondary' : 'tertiary'}
             variant="caption">
             {selectedStatus}
-            {selectedRow.hasDirectOverride ? ' 직접 수정이 있습니다.' : ''}
+            {selectedRow.hasDirectOverride ? ' · 직접 수정' : ''}
           </AppText>
         </View>
 
@@ -310,7 +325,7 @@ export function PatternApplicationPreview({
 
         {mode === 'select' && selectedRow.hasDirectOverride ? (
           <SelectionPill
-            accessibilityHint="선택하면 이 날짜의 직접 수정을 유지합니다."
+            accessibilityHint="선택하면 직접 수정을 유지합니다."
             accessibilityRole="checkbox"
             label="이 날짜의 직접 수정 유지"
             onPress={() => onTogglePreservedDate(selectedRow.dateKey)}
@@ -320,12 +335,75 @@ export function PatternApplicationPreview({
         ) : selectedRow.hasDirectOverride ? (
           <AppText tone={preservesOverride ? 'secondary' : 'tertiary'} variant="body">
             {preservesOverride
-              ? '이 날짜의 직접 수정을 유지합니다.'
-              : '이 날짜의 직접 수정을 제거합니다.'}
+              ? '직접 수정 유지'
+              : '직접 수정 제거'}
           </AppText>
         ) : null}
-      </Surface>
+          </Surface>
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function PatternSevenDaySummaryView({
+  stacked,
+  summary,
+}: {
+  stacked: boolean;
+  summary: PatternSevenDaySummary;
+}) {
+  const { palette } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <Surface style={styles.summaryCard}>
+      <View style={styles.summaryHeading}>
+        <AppText accessibilityRole="header" variant="heading">
+          적용 후 7일
+        </AppText>
+        <AppText tone="secondary" variant="caption">
+          변경 {summary.changedDateCount}일
+          {summary.preservedOverrideDateCount > 0
+            ? ` · 직접 수정 유지 ${summary.preservedOverrideDateCount}일`
+            : ''}
+          {summary.removedOverrideDateCount > 0
+            ? ` · 직접 수정 제거 ${summary.removedOverrideDateCount}일`
+            : ''}
+        </AppText>
+      </View>
+      <View>
+        {summary.rows.map((row) => (
+          <View
+            accessible
+            accessibilityLabel={`${row.dateLabel}. 현재 ${row.currentLabel}${row.currentTimeLabel ? ` ${row.currentTimeLabel}` : ''}. 적용 후 ${row.nextLabel}${row.nextTimeLabel ? ` ${row.nextTimeLabel}` : ''}.${row.directOverrideResolution === 'preserve' ? ' 직접 수정 유지.' : row.directOverrideResolution === 'remove' ? ' 직접 수정 제거.' : ''}`}
+            key={row.dateKey}
+            style={[styles.summaryRow, stacked && styles.summaryRowStacked]}>
+            <View style={styles.summaryDate}>
+              <AppText variant="label">{row.dateLabel}</AppText>
+              {row.directOverrideResolution ? (
+                <AppText tone="secondary" variant="caption">
+                  {row.directOverrideResolution === 'preserve'
+                    ? '직접 수정 유지'
+                    : '직접 수정 제거'}
+                </AppText>
+              ) : null}
+            </View>
+            <View style={[styles.summaryShift, stacked && styles.summaryShiftStacked]}>
+              <AppText tone="secondary" variant="body">
+                {row.currentLabel}
+              </AppText>
+              <AppIcon
+                accessible={false}
+                color={palette.inkSoft}
+                name={stacked ? 'chevron-down' : 'chevron-forward'}
+                size={18}
+              />
+              <AppText variant="label">{row.nextLabel}</AppText>
+            </View>
+          </View>
+        ))}
+      </View>
+    </Surface>
   );
 }
 
@@ -434,7 +512,7 @@ function PatternCalendarDayCell({
 
   return (
     <Pressable
-      accessibilityHint="선택하면 이 날짜의 변경 내용을 아래에서 확인합니다."
+      accessibilityHint="날짜별 비교를 엽니다."
       accessibilityLabel={`${formatKoreanDate(row.dateKey, true)}. 현재 ${row.currentLabel}${row.currentTimeLabel ? ` ${row.currentTimeLabel}` : ''}. 적용 후 ${row.nextLabel}${row.nextTimeLabel ? ` ${row.nextTimeLabel}` : ''}. ${changeLabel}${row.hasDirectOverride ? '. 직접 수정 있음' : ''}`}
       accessibilityRole="button"
       accessibilityState={{ selected }}
@@ -518,6 +596,36 @@ function ComparisonValue({
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
     container: { gap: spacing.large },
+    summaryCard: { overflow: 'hidden', gap: 0, padding: 0 },
+    summaryHeading: {
+      gap: spacing.tiny,
+      padding: spacing.large,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.line,
+      backgroundColor: palette.surfaceSoft,
+    },
+    summaryRow: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.medium,
+      paddingHorizontal: spacing.large,
+      paddingVertical: spacing.medium,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.line,
+    },
+    summaryRowStacked: { alignItems: 'stretch', flexDirection: 'column' },
+    summaryDate: { minWidth: 0, flex: 1, gap: spacing.tiny },
+    summaryShift: {
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: spacing.small,
+    },
+    summaryShiftStacked: { alignItems: 'flex-start', flexDirection: 'column' },
+    fullComparison: { gap: spacing.large },
     filterSection: { gap: spacing.medium },
     filterHeading: { gap: spacing.tiny },
     filters: { flexDirection: 'row', gap: spacing.small },
@@ -545,7 +653,7 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: palette.controlLine,
-      borderRadius: radii.small,
+      borderRadius: shape.control,
       backgroundColor: palette.surface,
     },
     monthButtonDisabled: {
@@ -695,7 +803,7 @@ function createStyles(palette: AppPalette) {
       padding: spacing.medium,
       borderWidth: 1,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       backgroundColor: palette.surfaceSoft,
     },
     comparisonValueEmphasized: {
@@ -711,7 +819,7 @@ function createStyles(palette: AppPalette) {
       alignSelf: 'center',
     },
     overrideControl: { width: '100%' },
-    pressed: { transform: [{ scale: 0.985 }] },
+    pressed: { backgroundColor: palette.selectionSurface },
     focusVisible:
       Platform.OS === 'web'
         ? {

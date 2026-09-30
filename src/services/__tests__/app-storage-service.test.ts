@@ -13,6 +13,7 @@ import {
   APP_DATA_PENDING_RESTORE_BACKUP_KEY,
   APP_DATA_STORAGE_KEY,
   MAX_PENDING_RESTORE_DOCUMENT_BYTES,
+  CorruptPendingRestoreBackupError,
   createLatestStorageValueCoordinator,
   createSerializedStorageWriter,
   findMatchingLastKnownGoodSnapshot,
@@ -21,10 +22,14 @@ import {
   protectPendingRestoreBackupBeforeDataChange,
   readPendingRestoreBackup,
   reconcilePendingRestoreBackup,
+  repairCorruptPendingRestoreBackup,
   retryPendingRestoreBackupCommit,
   restoreWithAutomaticBackupCommit,
   type StorageAdapter,
 } from '../app-storage-service';
+import {
+  APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY,
+} from '../../infrastructure/storage/app-data-storage-keys';
 
 class ControlledStorage implements StorageAdapter {
   readonly values = new Map<string, string>();
@@ -610,6 +615,102 @@ describe('최근 자동 백업 복원 순서', () => {
       retryPendingRestoreBackupCommit(storage, writer, current),
     ).resolves.toEqual({ status: 'unavailable' });
     expect(storage.values.get(APP_DATA_AUTOMATIC_BACKUP_KEY)).toBe(originalBackup);
+    expect(
+      storage.values.get(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY),
+    ).toBe('{"broken":');
+    expect(storage.values.has(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(false);
+  });
+
+  it('손상 pending을 보존하지 못하면 다음 변경을 차단하고 원본을 유지해요', async () => {
+    const storage = new ControlledStorage();
+    const current = createDefaultAppData('2026-07-14');
+    const next = { ...current, notes: { '2026-07-14': '다음 저장' } };
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    storage.failedWriteKeys.add(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY);
+    storage.failedWriteKeys.add(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+    storage.failedRemoveKeys.add(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+    const writer = createSerializedStorageWriter(storage);
+
+    await expect(
+      protectPendingRestoreBackupBeforeDataChange(
+        storage,
+        writer,
+        current,
+        next,
+      ),
+    ).resolves.toBe(false);
+    expect(storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(
+      '{"broken":',
+    );
+    expect(storage.removals).toEqual([]);
+  });
+
+  it('손상 기록 조회는 격리하거나 삭제하지 않아요', async () => {
+    const storage = new ControlledStorage();
+    const current = createDefaultAppData('2026-07-14');
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    await expect(readPendingRestoreBackup(storage, current)).rejects.toBeInstanceOf(
+      CorruptPendingRestoreBackupError,
+    );
+    expect(storage.writes).toEqual([]);
+    expect(storage.removals).toEqual([]);
+  });
+
+  it('격리 도중 시작한 새 저널 쓰기는 정리 완료 뒤 실행되어 유지돼요', async () => {
+    const storage = new ControlledStorage();
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    const writer = createSerializedStorageWriter(storage);
+    let finishQuarantine!: () => void;
+    let quarantineStarted!: () => void;
+    const started = new Promise<void>((resolve) => { quarantineStarted = resolve; });
+    const release = new Promise<void>((resolve) => { finishQuarantine = resolve; });
+    const originalSet = storage.setItem.bind(storage);
+    vi.spyOn(storage, 'setItem').mockImplementation(async (key, value) => {
+      if (key === APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY) {
+        quarantineStarted();
+        await release;
+      }
+      await originalSet(key, value);
+    });
+    const repair = repairCorruptPendingRestoreBackup(storage, writer);
+    await started;
+    const replacement = writer.write(APP_DATA_PENDING_RESTORE_BACKUP_KEY, 'new-journal');
+    finishQuarantine();
+    await expect(repair).resolves.toBe(true);
+    await replacement;
+    expect(storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe('new-journal');
+  });
+
+  it('격리 중 외부에서 교체된 유효 저널은 삭제하지 않아요', async () => {
+    const storage = new ControlledStorage();
+    const current = createDefaultAppData('2026-07-14');
+    const replacement = JSON.stringify({
+      format: 'alarmpyo-pending-restore-backup', version: 1, phase: 'prepared',
+      createdAt: now.toISOString(), backup: exportAppDataToJson(current, now),
+      targetSnapshot: serializeAppData(current),
+    });
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    const originalSet = storage.setItem.bind(storage);
+    vi.spyOn(storage, 'setItem').mockImplementation(async (key, value) => {
+      await originalSet(key, value);
+      if (key === APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY) {
+        storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, replacement);
+      }
+    });
+    await expect(repairCorruptPendingRestoreBackup(storage, createSerializedStorageWriter(storage)))
+      .resolves.toBe(true);
+    expect(storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe(replacement);
+    expect(storage.removals).toEqual([]);
+  });
+
+  it('격리 사본의 저장 검증에 실패하면 원본을 지우지 않아요', async () => {
+    const storage = new ControlledStorage();
+    storage.values.set(APP_DATA_PENDING_RESTORE_BACKUP_KEY, '{"broken":');
+    vi.spyOn(storage, 'setItem').mockResolvedValue(undefined);
+    await expect(repairCorruptPendingRestoreBackup(storage, createSerializedStorageWriter(storage)))
+      .resolves.toBe(false);
+    expect(storage.values.get(APP_DATA_PENDING_RESTORE_BACKUP_KEY)).toBe('{"broken":');
+    expect(storage.removals).toEqual([]);
   });
 
   it('전용 상한을 넘는 pending 복원 입력은 JSON 파싱 전에 거절해요', async () => {
@@ -622,7 +723,7 @@ describe('최근 자동 백업 복원 순서', () => {
 
     const parseSpy = vi.spyOn(JSON, 'parse');
     try {
-      await expect(readPendingRestoreBackup(storage, current)).resolves.toBeNull();
+      await expect(readPendingRestoreBackup(storage, current)).rejects.toBeInstanceOf(CorruptPendingRestoreBackupError);
       expect(parseSpy).not.toHaveBeenCalled();
     } finally {
       parseSpy.mockRestore();
@@ -652,7 +753,7 @@ describe('최근 자동 백업 복원 순서', () => {
 
       const parseSpy = vi.spyOn(JSON, 'parse');
       try {
-        await expect(readPendingRestoreBackup(storage, current)).resolves.toBeNull();
+        await expect(readPendingRestoreBackup(storage, current)).rejects.toBeInstanceOf(CorruptPendingRestoreBackupError);
         // 바깥 pending 문서만 파싱하고, 크기를 넘은 내부 JSON은 파싱하지 않아요.
         expect(parseSpy).toHaveBeenCalledTimes(1);
       } finally {

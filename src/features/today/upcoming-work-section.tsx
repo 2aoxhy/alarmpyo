@@ -2,10 +2,6 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
-import {
-  AnimatedShiftIcon,
-  getShiftIconKind,
-} from '@/components/animated-shift-icon';
 import { AppText, Card, SectionHeader } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -92,6 +88,14 @@ export function UpcomingWorkSection({
                   index === upcomingWorkDays.length - 1 && styles.upcomingRowLast,
                   pressed && styles.rowPressed,
                 ]}>
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={[
+                    styles.semanticRail,
+                    { backgroundColor: appearance.accentColor },
+                  ]}
+                />
                 <View style={styles.dateColumn}>
                   <AppText
                     color={isToday ? palette.mintDark : palette.ink}
@@ -102,35 +106,6 @@ export function UpcomingWorkSection({
                   <AppText tone="secondary" variant="caption">
                     {shortWeekday(dateKey)}요일
                   </AppText>
-                </View>
-
-                <View
-                  style={[
-                    styles.shiftIcon,
-                    {
-                      backgroundColor: shift.id.startsWith('substitute-')
-                        ? palette.surfaceSoft
-                        : appearance.softColor,
-                      borderColor: shift.id.startsWith('substitute-')
-                        ? appearance.accentColor
-                        : palette.transparent,
-                    },
-                  ]}>
-                  {exceptionAppearance ? (
-                    <AppIcon
-                      accessible={false}
-                      color={exceptionAppearance.accentColor}
-                      name={exceptionAppearance.iconName}
-                      size={19}
-                    />
-                  ) : (
-                    <AnimatedShiftIcon
-                      animated={false}
-                      color={shiftAppearance.accentColor}
-                      kind={getShiftIconKind(shift.id, shift.isOff)}
-                      size={19}
-                    />
-                  )}
                 </View>
 
                 <View style={styles.upcomingMain}>
@@ -163,14 +138,6 @@ export function UpcomingWorkSection({
         </Card>
       ) : (
         <Card style={styles.emptyUpcoming}>
-          <View style={styles.emptyUpcomingIcon}>
-            <AppIcon
-              accessible={false}
-              color={palette.inkSoft}
-              name="calendar-outline"
-              size={22}
-            />
-          </View>
           <View style={styles.emptyUpcomingCopy}>
             <AppText variant="label">예정된 근무가 없습니다.</AppText>
             <AppText tone="secondary" variant="caption">
@@ -190,7 +157,6 @@ const createStyles = (palette: AppPalette) =>
     },
     upcomingList: {
       overflow: 'hidden',
-      borderRadius: 22,
       paddingVertical: 0,
     },
     upcomingRow: {
@@ -202,6 +168,12 @@ const createStyles = (palette: AppPalette) =>
       borderBottomColor: palette.line,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.medium,
+    },
+    semanticRail: {
+      width: 3,
+      height: 36,
+      flexShrink: 0,
+      borderRadius: 2,
     },
     upcomingRowLargeText: {
       alignItems: 'flex-start',
@@ -218,15 +190,6 @@ const createStyles = (palette: AppPalette) =>
       fontSize: 16,
       lineHeight: 21,
     },
-    shiftIcon: {
-      width: 40,
-      height: 40,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderRadius: 13,
-    },
     upcomingMain: {
       flex: 1,
       minWidth: 0,
@@ -242,15 +205,6 @@ const createStyles = (palette: AppPalette) =>
       alignItems: 'center',
       gap: spacing.medium,
     },
-    emptyUpcomingIcon: {
-      width: 42,
-      height: 42,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 14,
-      backgroundColor: palette.surfaceSoft,
-    },
     emptyUpcomingCopy: {
       flex: 1,
       minWidth: 0,
@@ -258,6 +212,5 @@ const createStyles = (palette: AppPalette) =>
     },
     rowPressed: {
       opacity: 0.72,
-      transform: [{ scale: 0.985 }],
     },
   });

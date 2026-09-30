@@ -7,13 +7,17 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const BRAND_BACKGROUND = Object.freeze({ red: 16, green: 18, blue: 20 });
 
 export const BRAND_ASSET_PATHS = Object.freeze({
+  compactMaster: 'assets/brand/alarmpyo-mark-compact-master.png',
   master: 'assets/brand/alarmpyo-mark-master.png',
+  texturedMaster: 'assets/brand/alarmpyo-mark-textured-master.png',
   wordmarkFont: 'assets/fonts/WantedSans-ExtraBold.ttf',
   appIcon: 'assets/images/alarmpyo-icon.png',
   adaptiveForeground: 'assets/images/alarmpyo-adaptive-foreground.png',
   adaptiveMonochrome: 'assets/images/alarmpyo-adaptive-monochrome.png',
   favicon: 'assets/images/favicon.png',
   splash: 'assets/images/splash-transparent.png',
+  launchArrows: 'assets/images/alarmpyo-launch-arrows.png',
+  launchHands: 'assets/images/alarmpyo-launch-hands.png',
   playIcon: 'assets/play-store/alarmpyo-icon-512.png',
   featureGraphic: 'assets/play-store/alarmpyo-feature-graphic.png',
 });
@@ -61,8 +65,17 @@ function paethPredictor(left, up, upperLeft) {
   return upDistance <= upperLeftDistance ? up : upperLeft;
 }
 
-export function decodeBrandMaster(bytes) {
-  ensure(bytes.subarray(0, 8).equals(PNG_SIGNATURE), '브랜드 마스터는 PNG여야 해요.');
+export function decodeBrandMaster(bytes, { profile = 'flat' } = {}) {
+  ensure(
+    ['compact', 'flat', 'textured'].includes(profile),
+    `알 수 없는 브랜드 마스터 프로필이에요: ${profile}`,
+  );
+  const masterLabel = profile === 'textured'
+    ? '질감 브랜드 마스터'
+    : profile === 'compact'
+      ? '소형 브랜드 마스터'
+      : '평면 브랜드 마스터';
+  ensure(bytes.subarray(0, 8).equals(PNG_SIGNATURE), `${masterLabel}는 PNG여야 해요.`);
 
   let width = 0;
   let height = 0;
@@ -75,11 +88,11 @@ export function decodeBrandMaster(bytes) {
     const typeStart = offset + 4;
     const dataStart = offset + 8;
     const dataEnd = dataStart + length;
-    ensure(dataEnd + 4 <= bytes.length, '브랜드 마스터 PNG가 잘렸어요.');
+    ensure(dataEnd + 4 <= bytes.length, `${masterLabel} PNG가 잘렸어요.`);
     const type = bytes.toString('ascii', typeStart, dataStart);
     ensure(
       crc32(bytes.subarray(typeStart, dataEnd)) === bytes.readUInt32BE(dataEnd),
-      `브랜드 마스터 PNG의 ${type} CRC가 손상됐어요.`,
+      `${masterLabel} PNG의 ${type} CRC가 손상됐어요.`,
     );
     if (type === 'IHDR') {
       width = bytes.readUInt32BE(dataStart);
@@ -95,21 +108,25 @@ export function decodeBrandMaster(bytes) {
     offset = dataEnd + 4;
   }
 
-  ensure(width === 1024 && height === 1024, '브랜드 마스터는 1024×1024px여야 해요.');
-  ensure(bitDepth === 8 && colorType === 6, '브랜드 마스터는 8비트 RGBA PNG여야 해요.');
-  ensure(interlace === 0, '브랜드 마스터는 비인터레이스 PNG여야 해요.');
-  ensure(compressedParts.length > 0, '브랜드 마스터 PNG에 픽셀 데이터가 없어요.');
+  const expectedSize = profile === 'compact' ? 48 : 1024;
+  ensure(
+    width === expectedSize && height === expectedSize,
+    `${masterLabel}는 ${expectedSize}×${expectedSize}px여야 해요.`,
+  );
+  ensure(bitDepth === 8 && colorType === 6, `${masterLabel}는 8비트 RGBA PNG여야 해요.`);
+  ensure(interlace === 0, `${masterLabel}는 비인터레이스 PNG여야 해요.`);
+  ensure(compressedParts.length > 0, `${masterLabel} PNG에 픽셀 데이터가 없어요.`);
 
   const inflated = inflateSync(Buffer.concat(compressedParts));
   const bytesPerPixel = 4;
   const rowLength = width * bytesPerPixel;
-  ensure(inflated.length === (rowLength + 1) * height, '브랜드 마스터 픽셀 길이가 잘못됐어요.');
+  ensure(inflated.length === (rowLength + 1) * height, `${masterLabel} 픽셀 길이가 잘못됐어요.`);
   const pixels = new Uint8Array(rowLength * height);
   let sourceOffset = 0;
   for (let y = 0; y < height; y += 1) {
     const filter = inflated[sourceOffset];
     sourceOffset += 1;
-    ensure(filter <= 4, '브랜드 마스터 PNG 필터가 잘못됐어요.');
+    ensure(filter <= 4, `${masterLabel} PNG 필터가 잘못됐어요.`);
     const rowOffset = y * rowLength;
     for (let x = 0; x < rowLength; x += 1) {
       const raw = inflated[sourceOffset];
@@ -133,6 +150,7 @@ export function decodeBrandMaster(bytes) {
   }
 
   let visiblePixels = 0;
+  let opaquePixels = 0;
   let minX = width;
   let minY = height;
   let maxX = -1;
@@ -142,21 +160,71 @@ export function decodeBrandMaster(bytes) {
     if (alpha === 0) continue;
     ensure(
       pixels[offset] === 255 && pixels[offset + 1] === 255 && pixels[offset + 2] === 255,
-      '브랜드 마스터의 보이는 픽셀은 순백색이어야 해요.',
+      `${masterLabel}의 보이는 픽셀은 순백색이어야 해요.`,
     );
     const index = offset / 4;
     const x = index % width;
     const y = Math.floor(index / width);
     visiblePixels += 1;
+    if (alpha === 255) opaquePixels += 1;
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
   }
-  ensure(visiblePixels > 0, '브랜드 마스터 마크가 비어 있어요.');
-  ensure(minX >= 199 && minY >= 199 && maxX < 825 && maxY < 825, '브랜드 마스터가 적응형 아이콘 안전 영역을 벗어났어요.');
+  ensure(visiblePixels > 0, `${masterLabel} 마크가 비어 있어요.`);
+  if (profile !== 'textured') {
+    const minimumOpaqueRatio = profile === 'compact' ? 0.2 : 0.75;
+    ensure(
+      opaquePixels / visiblePixels >= minimumOpaqueRatio,
+      `${masterLabel}는 면을 순백 불투명 픽셀로 채우고 테두리에만 안티앨리어싱을 사용해야 해요.`,
+    );
+  }
+  if (profile === 'flat') {
+    ensure(
+      minX >= 199 && minY >= 199 && maxX < 825 && maxY < 825,
+      '평면 브랜드 마스터가 적응형 아이콘 안전 영역을 벗어났어요.',
+    );
+  } else {
+    const visibleWidth = maxX - minX + 1;
+    const visibleHeight = maxY - minY + 1;
+    const minimumExtent = Math.ceil(width * 0.72);
+    const maximumExtent = Math.floor(width * 0.76);
+    const minimumMargin = Math.ceil(width * 0.12);
+    const maximumCenterOffset = width * 0.005;
+    const centerX = minX + visibleWidth / 2;
+    const centerY = minY + visibleHeight / 2;
+    ensure(
+      visibleWidth >= minimumExtent
+        && visibleWidth <= maximumExtent
+        && visibleHeight >= minimumExtent
+        && visibleHeight <= maximumExtent,
+      `${masterLabel}의 유효 외곽은 캔버스의 72~76%여야 해요.`,
+    );
+    ensure(
+      minX >= minimumMargin
+        && minY >= minimumMargin
+        && width - maxX - 1 >= minimumMargin
+        && height - maxY - 1 >= minimumMargin,
+      `${masterLabel}는 사방에 12% 이상의 여백이 있어야 해요.`,
+    );
+    ensure(
+      Math.abs(centerX - width / 2) <= maximumCenterOffset
+        && Math.abs(centerY - height / 2) <= maximumCenterOffset,
+      `${masterLabel}의 중심 오차는 0.5% 이하여야 해요.`,
+    );
+    ensure(
+      visibleWidth / visibleHeight >= 0.98 && visibleWidth / visibleHeight <= 1.02,
+      `${masterLabel}의 외곽 가로·세로 비율은 0.98~1.02여야 해요.`,
+    );
+  }
 
-  return { height, pixels, width };
+  return {
+    bounds: { maxX, maxY, minX, minY },
+    height,
+    pixels,
+    width,
+  };
 }
 
 function encodePng({ colorType, height, pixels, width }) {
@@ -385,38 +453,113 @@ export function composeBrandFeatureGraphic(master, wordmarkFontBytes) {
   );
 }
 
-function placeTransparentMark(mark, width, height, x, y) {
-  const pixels = new Uint8Array(width * height * 4);
-  for (let offset = 0; offset < pixels.length; offset += 4) {
-    pixels[offset] = 255;
-    pixels[offset + 1] = 255;
-    pixels[offset + 2] = 255;
-  }
-  for (let markY = 0; markY < mark.height; markY += 1) {
-    for (let markX = 0; markX < mark.width; markX += 1) {
-      const sourceOffset = (markY * mark.width + markX) * 4;
-      const targetOffset = ((y + markY) * width + x + markX) * 4;
-      pixels[targetOffset + 3] = mark.pixels[sourceOffset + 3];
+export function splitLaunchLogoLayers(master) {
+  ensure(
+    master?.width === 1024
+      && master?.height === 1024
+      && master.pixels?.length === 1024 * 1024 * 4,
+    '시작 화면 레이어는 1024×1024 RGBA 마스터에서 생성해야 해요.',
+  );
+
+  const pixelCount = master.width * master.height;
+  const seen = new Uint8Array(pixelCount);
+  const queue = new Int32Array(pixelCount);
+  const components = [];
+  const isVisible = (index) => master.pixels[index * 4 + 3] > 0;
+
+  for (let seed = 0; seed < pixelCount; seed += 1) {
+    if (seen[seed] || !isVisible(seed)) continue;
+    let head = 0;
+    let tail = 0;
+    const indexes = [];
+    queue[tail] = seed;
+    tail += 1;
+    seen[seed] = 1;
+
+    while (head < tail) {
+      const index = queue[head];
+      head += 1;
+      indexes.push(index);
+      const y = Math.floor(index / master.width);
+      const x = index - y * master.width;
+      for (const neighbor of [
+        index - 1,
+        index + 1,
+        index - master.width,
+        index + master.width,
+      ]) {
+        if (
+          neighbor < 0
+          || neighbor >= pixelCount
+          || seen[neighbor]
+          || !isVisible(neighbor)
+        ) {
+          continue;
+        }
+        const neighborY = Math.floor(neighbor / master.width);
+        const neighborX = neighbor - neighborY * master.width;
+        if (Math.abs(neighborX - x) + Math.abs(neighborY - y) !== 1) continue;
+        seen[neighbor] = 1;
+        queue[tail] = neighbor;
+        tail += 1;
+      }
     }
+    components.push(indexes);
   }
-  return { colorType: 6, height, pixels, width };
+
+  components.sort((left, right) => right.length - left.length);
+  ensure(
+    components.length === 3
+      && components[0].length === components[1].length
+      && components[2].length < components[0].length,
+    '시작 화면 로고는 대칭 화살표 2개와 시곗바늘 1개로 분리되어야 해요.',
+  );
+
+  const createLayer = (selectedComponents) => {
+    const pixels = new Uint8Array(master.pixels.length);
+    for (const component of selectedComponents) {
+      for (const index of component) {
+        const offset = index * 4;
+        pixels[offset] = master.pixels[offset];
+        pixels[offset + 1] = master.pixels[offset + 1];
+        pixels[offset + 2] = master.pixels[offset + 2];
+        pixels[offset + 3] = master.pixels[offset + 3];
+      }
+    }
+    return { height: master.height, pixels, width: master.width };
+  };
+
+  return {
+    arrows: createLayer(components.slice(0, 2)),
+    hands: createLayer(components.slice(2)),
+  };
 }
 
-export function buildBrandAssets(masterBytes, wordmarkFontBytes) {
-  const master = decodeBrandMaster(masterBytes);
-  const normalizedMark = encodePng({ colorType: 6, ...master });
-  const adaptiveMark = encodePng(
-    placeTransparentMark(resizeWhiteMark(master, 788, 788), 1024, 1024, 118, 118),
-  );
-  const faviconMark = resizeWhiteMark(master, 48, 48);
-  const playMark = resizeWhiteMark(master, 512, 512);
-  const featureGraphic = composeBrandFeatureGraphic(master, wordmarkFontBytes);
+export function buildBrandAssets(
+  flatMasterBytes,
+  wordmarkFontBytes,
+  texturedMasterBytes,
+  compactMasterBytes,
+) {
+  ensure(texturedMasterBytes?.length > 0, '질감 브랜드 마스터 파일이 필요해요.');
+  ensure(compactMasterBytes?.length > 0, '소형 브랜드 마스터 파일이 필요해요.');
+  const flatMaster = decodeBrandMaster(flatMasterBytes, { profile: 'flat' });
+  const texturedMaster = decodeBrandMaster(texturedMasterBytes, { profile: 'textured' });
+  const compactMaster = decodeBrandMaster(compactMasterBytes, { profile: 'compact' });
+  const launchLayers = splitLaunchLogoLayers(texturedMaster);
+  const normalizedTexturedMark = encodePng({ colorType: 6, ...texturedMaster });
+  const adaptiveMark = encodePng({ colorType: 6, ...flatMaster });
+  const faviconMark = compactMaster;
+  const playMark = resizeWhiteMark(flatMaster, 512, 512);
+  const featureGraphic = composeBrandFeatureGraphic(texturedMaster, wordmarkFontBytes);
   return new Map([
-    [BRAND_ASSET_PATHS.appIcon, encodePng(compositeMark(master, 1024, 1024))],
+    [BRAND_ASSET_PATHS.appIcon, encodePng(compositeMark(flatMaster, 1024, 1024))],
     [BRAND_ASSET_PATHS.adaptiveForeground, adaptiveMark],
     [BRAND_ASSET_PATHS.adaptiveMonochrome, adaptiveMark],
     [BRAND_ASSET_PATHS.favicon, encodePng(compositeMark(faviconMark, 48, 48))],
-    [BRAND_ASSET_PATHS.splash, normalizedMark],
+    [BRAND_ASSET_PATHS.splash, normalizedTexturedMark],
+    [BRAND_ASSET_PATHS.launchArrows, encodePng({ colorType: 6, ...launchLayers.arrows })],
+    [BRAND_ASSET_PATHS.launchHands, encodePng({ colorType: 6, ...launchLayers.hands })],
     [BRAND_ASSET_PATHS.playIcon, encodePng(compositeMark(playMark, 512, 512))],
     [
       BRAND_ASSET_PATHS.featureGraphic,

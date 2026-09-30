@@ -1,6 +1,11 @@
 import { router, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppButton, AppText, Screen } from '@/components/ui-kit';
@@ -15,12 +20,15 @@ import {
 } from '@/features/shift-settings/routine-timing-editor';
 import { PayrollSettingsEditor } from '@/features/shift-settings/payroll-settings-editor';
 import { formatPayrollSettingsSummary } from '@/features/shift-settings/payroll-settings-model';
+import { SharedWakeSettingsEditor } from '@/features/shift-settings/shared-wake-settings-editor';
 import {
+  applySharedWakePatch,
   cloneWorkRoutineProfiles,
   createShiftDrafts,
   createShiftSettingsSnapshot,
   formatDraftWakeTimeSummary,
   formatShiftTimeSummary,
+  getActiveWorkShiftIds,
   getEditorSectionForDraftId,
   hasInvalidDraftForSection,
   isShiftDraftValid,
@@ -33,13 +41,18 @@ import {
 import { ShiftTimingEditor } from '@/features/shift-settings/shift-timing-editor';
 import { WorkPatternOverview } from '@/features/shift-settings/work-pattern-overview';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import {
+  areShiftSettingsDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import type {
   ShiftType,
+  PayrollSettings,
   WorkRoutineProfiles,
   WorkRoutineTiming,
 } from '@/models/app-data';
 import { isValidWorkRoutineTiming } from '@/services/work-routine-settings';
-import { useAppStore } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 import { toDateKey } from '@/utils/date';
 import {
   calculateShiftDuration,
@@ -57,14 +70,10 @@ export default function ShiftSettingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
-  const {
-    createBackup,
-    data,
-    updatePayrollSettings,
-    updateShiftTypes,
-  } = useAppStore();
-  const activeWorkShiftIds = (['day', 'evening', 'night'] as const).filter(
-    (id) => data.pattern.shiftTypeIds.includes(id),
+  const data = useAppSelector(selectSettingsData, areShiftSettingsDataEqual);
+  const { createBackup, updateShiftSettings } = useAppCommands();
+  const activeWorkShiftIds = getActiveWorkShiftIds(
+    data.pattern.shiftTypeIds,
   );
   const navigation = useNavigation();
   const { fontScale, width } = useWindowDimensions();
@@ -83,12 +92,33 @@ export default function ShiftSettingsScreen() {
       data.settings.workRoutineProfiles,
     ),
   );
+  const [payrollDraft, setPayrollDraft] = useState<PayrollSettings>(() => ({
+    ...data.payrollSettings,
+  }));
+  const [payrollDraftValid, setPayrollDraftValid] = useState(true);
+  const [savedPayrollSnapshot, setSavedPayrollSnapshot] = useState(() =>
+    JSON.stringify(data.payrollSettings),
+  );
   const [substituteMode, setSubstituteMode] = useState<'day' | 'night'>('day');
   const [editorSection, setEditorSection] = useState<EditorSection>(
     activeWorkShiftIds[0] ?? 'day',
   );
-  const focusedPanel: Extract<SettingsPanel, 'time' | 'routine'> | null =
-    focus === 'wake' ? 'routine' : focus === 'time' ? 'time' : null;
+  const [expandedRoutineKind, setExpandedRoutineKind] = useState<
+    keyof WorkRoutineProfiles | null
+  >(null);
+  const sharedWakeDisplayShiftIds: readonly (keyof WorkRoutineProfiles)[] =
+    activeWorkShiftIds;
+  const sharedWakeTargetDraftIds = (['day', 'evening', 'night'] as const).filter(
+    (id) => drafts.some((draft) => draft.id === id),
+  );
+  const focusedPanel: Exclude<SettingsPanel, 'pattern'> | null =
+    focus === 'wake'
+      ? 'routine'
+      : focus === 'time'
+        ? 'time'
+        : focus === 'payroll'
+          ? 'payroll'
+          : null;
   const [showAllSettings, setShowAllSettings] = useState(focusedPanel === null);
   const [activePanel, setActivePanel] = useState<SettingsPanel | null>(() =>
     focusedPanel,
@@ -97,9 +127,11 @@ export default function ShiftSettingsScreen() {
   const screenTitle = showAllSettings
     ? '근무표 설정'
     : focus === 'wake'
-      ? '기상 시간'
+      ? '근무 시작 전 알림'
       : focus === 'time'
         ? '근무 시간'
+        : focus === 'payroll'
+          ? '급여일'
         : '근무표 설정';
 
   const weekdayFixed =
@@ -111,7 +143,9 @@ export default function ShiftSettingsScreen() {
     value: EditorSection;
   }[] = [
     ...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value })),
-    { label: '특근', value: 'substitute' as const },
+    ...(showAllSettings
+      ? [{ label: '특근', value: 'substitute' as const }]
+      : []),
   ];
   const selectedShift = data.shiftTypes.find(
     (shift) => shift.id === editorSection,
@@ -162,17 +196,21 @@ export default function ShiftSettingsScreen() {
   const invalidRoutineSection = invalidRoutineIssue
     ? getEditorSectionForDraftId(invalidRoutineIssue.draftId)
     : undefined;
+  const payrollSnapshot = JSON.stringify(payrollDraft);
+  const hasPayrollChanges = payrollSnapshot !== savedPayrollSnapshot;
   const hasUnsavedChanges =
     createShiftSettingsSnapshot(drafts, workRoutineProfiles) !== savedSnapshot ||
-    inferredDayChanges;
+    inferredDayChanges ||
+    hasPayrollChanges;
   const hasInvalidDrafts =
     drafts.some((draft) => !isShiftDraftValid(draft)) ||
-    invalidRoutineSection !== undefined;
+    invalidRoutineSection !== undefined ||
+    !payrollDraftValid;
   const saveDisabled = saving || (!hasUnsavedChanges && !hasInvalidDrafts);
   const saveLabel = saving
     ? '저장 중'
     : hasInvalidDrafts
-      ? '시간 확인하기'
+      ? '설정 확인'
       : hasUnsavedChanges
         ? '저장하기'
         : '변경 내용 없음';
@@ -249,6 +287,9 @@ export default function ShiftSettingsScreen() {
     const section = getEditorSectionForDraftId(draftId);
     setActivePanel(targetPanel);
     setEditorSection(section);
+    if (targetPanel === 'routine' && section !== 'substitute') {
+      setExpandedRoutineKind(section);
+    }
     if (section === 'substitute') {
       setSubstituteMode(
         draftId === SUBSTITUTE_NIGHT_ID ? 'night' : 'day',
@@ -267,16 +308,27 @@ export default function ShiftSettingsScreen() {
       );
       focusDraft(firstInvalidDraft.id);
       showDialog(
-        '시간을 확인해야 합니다',
-        `${invalidShift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
+        '근무 시간 입력 오류',
+        `${invalidShift?.name ?? '근무'} · 06:45 형식만 사용할 수 있습니다.`,
       );
       return;
     }
     if (invalidRoutineIssue) {
       focusDraft(invalidRoutineIssue.draftId, 'routine');
       showDialog(
-        '출근 루틴을 확인해야 합니다',
-        '기상 알람, 출발, 도착, 교대 완료 순서가 맞도록 5분 단위로 설정해야 합니다.',
+        '출근 루틴 입력 오류',
+        '기상 알람 → 출발 → 도착 → 교대 완료 순서로 5분 단위만 사용할 수 있습니다.',
+      );
+      return;
+    }
+    if (!payrollDraftValid) {
+      setActivePanel('payroll');
+      void AccessibilityInfo.announceForAccessibility(
+        '급여일 입력 오류.',
+      );
+      showDialog(
+        '급여일 입력 오류',
+        '1부터 31 사이의 숫자만 사용할 수 있습니다.',
       );
       return;
     }
@@ -294,8 +346,8 @@ export default function ShiftSettingsScreen() {
       if (!shift || startMinutes === null || endMinutes === null) {
         focusDraft(draft.id);
         showDialog(
-          '시간을 확인해야 합니다',
-          `${shift?.name ?? '근무'} 시간을 06:45 형식으로 정확히 입력해야 합니다.`,
+          '근무 시간 입력 오류',
+          `${shift?.name ?? '근무'} · 06:45 형식만 사용할 수 있습니다.`,
         );
         return;
       }
@@ -303,8 +355,8 @@ export default function ShiftSettingsScreen() {
       if (!duration) {
         focusDraft(draft.id);
         showDialog(
-          `${shift.name} 시간을 확인해야 합니다`,
-          '시작과 종료 시간을 다르게 입력해야 합니다.',
+          `${shift.name} 시간 입력 오류`,
+          '시작과 종료 시간은 달라야 합니다.',
         );
         return;
       }
@@ -343,14 +395,15 @@ export default function ShiftSettingsScreen() {
             ];
           }),
         );
-      const saved = await updateShiftTypes(
+      const saved = await updateShiftSettings(
         shiftTypePatches,
         workRoutineProfiles,
+        payrollDraft,
       );
       if (!saved) {
         showDialog(
           '근무 설정을 저장하지 못했습니다',
-          '휴대폰 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+          '기존 설정을 유지했습니다. 저장 공간 확인 후 다시 저장합니다.',
         );
         return;
       }
@@ -362,6 +415,10 @@ export default function ShiftSettingsScreen() {
       setDrafts(normalizedDrafts);
       setSavedSnapshot(
         createShiftSettingsSnapshot(normalizedDrafts, workRoutineProfiles),
+      );
+      setSavedPayrollSnapshot(payrollSnapshot);
+      void AccessibilityInfo.announceForAccessibility(
+        '근무표 설정을 저장했습니다.',
       );
       void triggerNotificationFeedback('success');
     } finally {
@@ -398,10 +455,9 @@ export default function ShiftSettingsScreen() {
     activeWorkShiftIds.includes('evening'),
     activeWorkShiftIds.includes('day'),
   );
-  const payrollSummary = formatPayrollSettingsSummary(data.payrollSettings);
-  const routineSectionOptions = sectionOptions.filter(
-    (option) => option.value !== 'substitute',
-  );
+  const payrollSummary = payrollDraftValid
+    ? formatPayrollSettingsSummary(payrollDraft)
+    : '날짜 확인 필요';
   const togglePanel = (panel: SettingsPanel) => {
     void triggerSelectionFeedback();
     if (panel === 'routine' && editorSection === 'substitute') {
@@ -415,7 +471,16 @@ export default function ShiftSettingsScreen() {
       return;
     }
     const invalidDraft = drafts.find((draft) => !isShiftDraftValid(draft));
-    if (invalidDraft) focusDraft(invalidDraft.id, 'time');
+    if (invalidDraft) {
+      focusDraft(invalidDraft.id, 'time');
+      return;
+    }
+    if (!payrollDraftValid) {
+      setActivePanel('payroll');
+      void AccessibilityInfo.announceForAccessibility(
+        '급여일 입력 오류.',
+      );
+    }
   };
   const timeEditor = (
     <View style={styles.editorBody}>
@@ -474,47 +539,66 @@ export default function ShiftSettingsScreen() {
   );
   const routineEditor = (
     <View style={styles.editorBody}>
-      <SegmentedControl
-        label="근무 종류"
-        onChange={(section) => {
-          void triggerSelectionFeedback();
-          setEditorSection(section);
-        }}
-        options={routineSectionOptions}
-        value={editorSection}
+      <SharedWakeSettingsEditor
+        compact={compactEditor}
+        drafts={drafts}
+        onChange={(draftIds, patch) =>
+          setDrafts((current) =>
+            applySharedWakePatch(current, draftIds, patch),
+          )
+        }
+        shifts={sharedWakeDisplayShiftIds
+          .map((id) => data.shiftTypes.find((shift) => shift.id === id))
+          .filter((shift): shift is ShiftType => shift !== undefined)}
+        targetDraftIds={sharedWakeTargetDraftIds}
       />
 
-      {editorSection !== 'substitute' && selectedDraft ? (
-        <>
-          {selectedShift ? (
-            <ShiftTimingEditor
-              compact={compactEditor}
-              draft={selectedDraft}
-              onChange={(patch) => updateDraft(selectedShift.id, patch)}
-              shift={selectedShift}
-              showHeader={showAllSettings}
-              visibleSection="wake"
-            />
-          ) : null}
+      <View style={styles.routineDetails}>
+        <View style={styles.routineDetailsCopy}>
+          <AppText accessibilityRole="header" variant="label">
+            출근 루틴 세부 설정
+          </AppText>
+          <AppText tone="secondary" variant="caption">
+            출발·도착 시각은 필요한 근무만 열어 조정합니다.
+          </AppText>
+        </View>
+        {activeWorkShiftIds.map((kind) => {
+          const draft = drafts.find((item) => item.id === kind);
+          if (!draft) return null;
+          return (
           <RoutineTimingEditor
-            alarmMinutesBefore={selectedDraft.alarmMinutesBefore}
+            alarmMinutesBefore={draft.alarmMinutesBefore}
             compact={compactEditor}
-            expanded
-            kind={editorSection}
+            expanded={expandedRoutineKind === kind}
+            key={kind}
+            kind={kind}
             onChange={(profile) =>
-              updateRoutineProfile(editorSection, profile)
+              updateRoutineProfile(kind, profile)
             }
-            onExpandedChange={() => undefined}
-            profile={workRoutineProfiles[editorSection]}
-            showDisclosure={false}
-            startMinutes={parseTimeInput(selectedDraft.start)}
+            onExpandedChange={(expanded) =>
+              setExpandedRoutineKind(expanded ? kind : null)
+            }
+            profile={workRoutineProfiles[kind]}
+            startMinutes={parseTimeInput(draft.start)}
           />
-        </>
-      ) : null}
+          );
+        })}
+      </View>
 
       <AppText tone="secondary" variant="caption">
         주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.
       </AppText>
+    </View>
+  );
+  const payrollEditor = (
+    <View style={styles.editorBody}>
+      <PayrollSettingsEditor
+        onChange={(next) => {
+          setPayrollDraftValid(next !== null);
+          if (next) setPayrollDraft(next);
+        }}
+        value={payrollDraft}
+      />
     </View>
   );
 
@@ -533,17 +617,10 @@ export default function ShiftSettingsScreen() {
             onPress={() => void saveAll()}
           />
         }>
-        {showAllSettings ? (
-          <View style={styles.intro}>
-            <AppText tone="secondary" style={styles.centerText} variant="body">
-              필요한 항목만 열어 수정합니다.
-            </AppText>
-          </View>
-        ) : null}
-
         <View style={styles.section}>
           {!showAllSettings && focusedPanel === 'time' ? timeEditor : null}
           {!showAllSettings && focusedPanel === 'routine' ? routineEditor : null}
+          {!showAllSettings && focusedPanel === 'payroll' ? payrollEditor : null}
           {!showAllSettings && focusedPanel ? (
             <AppButton
               accessibilityHint="근무 방식, 근무 시간, 기상·출근 루틴과 급여일 설정을 모두 표시합니다."
@@ -562,7 +639,7 @@ export default function ShiftSettingsScreen() {
             onPress={() => togglePanel('pattern')}
             style={styles.disclosure}
             subtitle={patternSummary}
-            title="근무 방식"
+            title="근무 순서"
           />
           {activePanel === 'pattern' ? (
             <View style={styles.editorBody}>
@@ -605,22 +682,17 @@ export default function ShiftSettingsScreen() {
             title="급여일"
           />
           {activePanel === 'payroll' ? (
-            <View style={styles.editorBody}>
-              <PayrollSettingsEditor
-                onSave={updatePayrollSettings}
-                value={data.payrollSettings}
-              />
-            </View>
+            payrollEditor
           ) : null}
             </>
           ) : null}
 
           {hasInvalidDrafts ? (
             <StatusBanner
-              actionLabel="확인하기"
-              message="근무 시간 또는 출근 루틴을 확인해야 합니다."
+              actionLabel="오류 보기"
+              message="근무 시간·출근 루틴·급여일 중 오류가 있습니다."
               onAction={openFirstInvalidSetting}
-              title="설정 확인 필요"
+              title="입력 오류"
               tone="danger"
             />
           ) : null}
@@ -636,17 +708,6 @@ function createStyles(palette: AppPalette) {
       gap: spacing.large,
       paddingTop: spacing.small,
     },
-    intro: {
-      alignItems: 'flex-start',
-      gap: spacing.small,
-      paddingHorizontal: spacing.medium,
-      paddingVertical: spacing.small,
-      borderLeftWidth: 3,
-      borderLeftColor: palette.mint,
-    },
-    centerText: {
-      textAlign: 'left',
-    },
     section: {
       gap: spacing.medium,
     },
@@ -659,5 +720,12 @@ function createStyles(palette: AppPalette) {
       paddingHorizontal: spacing.small,
       paddingBottom: spacing.small,
     },
+    routineDetails: {
+      gap: spacing.small,
+      paddingTop: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
+    },
+    routineDetailsCopy: { gap: spacing.tiny },
   });
 }

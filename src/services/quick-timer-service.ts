@@ -1,8 +1,19 @@
 import { getAlarmPyoNativeModule } from '../infrastructure/alarmpyo-native-module';
+import {
+  isQuickTimerDuration,
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
+  type QuickTimerDuration,
+} from '../models/quick-timer';
 
-export const QUICK_TIMER_DURATIONS = [15, 30, 45, 60] as const;
-
-export type QuickTimerDuration = (typeof QUICK_TIMER_DURATIONS)[number];
+export const QUICK_TIMER_DURATIONS = QUICK_TIMER_PRESET_DURATIONS;
+export {
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
+};
+export type { QuickTimerDuration };
 export type QuickTimerState =
   | 'idle'
   | 'scheduled'
@@ -74,10 +85,6 @@ function normalizeTimestamp(value: unknown): number {
     : 0;
 }
 
-function isQuickTimerDuration(value: unknown): value is QuickTimerDuration {
-  return QUICK_TIMER_DURATIONS.some((duration) => duration === value);
-}
-
 export function normalizeQuickTimerStatus(value: unknown): QuickTimerStatus {
   if (!isRecord(value) || value.supported !== true) return unsupportedStatus();
 
@@ -134,7 +141,7 @@ export function normalizeQuickTimerStatus(value: unknown): QuickTimerStatus {
 }
 
 const nativeModule = getAlarmPyoNativeModule();
-let mutationTail: Promise<void> = Promise.resolve();
+let operationTail: Promise<void> = Promise.resolve();
 
 function nativeTimerSupported(): boolean {
   return Boolean(
@@ -144,9 +151,9 @@ function nativeTimerSupported(): boolean {
   );
 }
 
-function enqueueMutation<T>(mutation: () => Promise<T>): Promise<T> {
-  const task = mutationTail.then(mutation);
-  mutationTail = task.then(
+function enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const task = operationTail.then(operation);
+  operationTail = task.then(
     () => undefined,
     () => undefined,
   );
@@ -155,8 +162,10 @@ function enqueueMutation<T>(mutation: () => Promise<T>): Promise<T> {
 
 export async function getQuickTimerStatus(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return normalizeQuickTimerStatus(
-    await nativeModule!.getQuickTimerStatusAsync!(),
+  return enqueueOperation(async () =>
+    normalizeQuickTimerStatus(
+      await nativeModule!.getQuickTimerStatusAsync!(),
+    ),
   );
 }
 
@@ -165,11 +174,11 @@ export async function scheduleQuickTimer(
 ): Promise<QuickTimerStatus> {
   if (!isQuickTimerDuration(durationMinutes)) {
     throw new RangeError(
-      '빠른 타이머는 15분, 30분, 45분 또는 60분만 설정할 수 있습니다.',
+      `빠른 타이머는 ${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 분 단위 정수로 설정할 수 있습니다.`,
     );
   }
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(
       await nativeModule!.scheduleQuickTimerAsync!(durationMinutes),
     ),
@@ -180,7 +189,7 @@ export async function pauseQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported() || !nativeModule?.pauseQuickTimerAsync) {
     return unsupportedStatus();
   }
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule.pauseQuickTimerAsync!()),
   );
 }
@@ -189,14 +198,14 @@ export async function resumeQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported() || !nativeModule?.resumeQuickTimerAsync) {
     return unsupportedStatus();
   }
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule.resumeQuickTimerAsync!()),
   );
 }
 
 export async function resetQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(
       nativeModule?.resetQuickTimerAsync
         ? await nativeModule.resetQuickTimerAsync()
@@ -207,7 +216,7 @@ export async function resetQuickTimer(): Promise<QuickTimerStatus> {
 
 export async function cancelQuickTimer(): Promise<QuickTimerStatus> {
   if (!nativeTimerSupported()) return unsupportedStatus();
-  return enqueueMutation(async () =>
+  return enqueueOperation(async () =>
     normalizeQuickTimerStatus(await nativeModule!.cancelQuickTimerAsync!()),
   );
 }

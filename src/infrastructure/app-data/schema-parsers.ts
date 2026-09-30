@@ -1,3 +1,4 @@
+import { DEFAULT_WIDGET_DISPLAY_OPTIONS } from '../../application/app-data-defaults';
 import {
   DEFAULT_ALARM_MINUTES_BEFORE,
   LEGACY_MAX_ALARM_MINUTES_BEFORE,
@@ -50,11 +51,7 @@ const MAX_DATED_ITEMS = 20_000;
 const MAX_PATTERN_VAULT_ITEMS = 100;
 const MAX_PATTERN_HISTORY_ITEMS = 10;
 
-export const DEFAULT_WIDGET_DISPLAY_OPTIONS: Readonly<WidgetDisplayOptions> = {
-  todayShift: true,
-  nextShift: true,
-  nextAlarm: false,
-};
+export { DEFAULT_WIDGET_DISPLAY_OPTIONS };
 
 function parseShiftType(
   value: unknown,

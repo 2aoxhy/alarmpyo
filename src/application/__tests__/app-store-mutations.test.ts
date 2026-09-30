@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultAppData } from '../../services/app-data-service';
 
 import {
+  applyCombinedShiftSettings,
   applyDismissedUpdateVersionCode,
   applyDayEditValues,
   applyInitialSetupValues,
@@ -133,6 +134,24 @@ describe('app-store-mutations', () => {
     expect(applyPatternSettings(next, pattern, {})).toBe(next);
   });
 
+  it('같은 배열의 평일 고정을 기준일 회전으로 바꾸면 패턴 변경을 반영해요', () => {
+    const current = createDefaultAppData('2026-08-09');
+    const weekdayPattern = {
+      ...current.pattern,
+      kind: 'weekday' as const,
+      shiftTypeIds: ['off', 'day', 'day', 'day', 'day', 'day', 'off'],
+    };
+    const weekday = { ...current, pattern: weekdayPattern };
+    const rotationPattern = { ...weekdayPattern, kind: 'rotation' as const };
+
+    const next = applyPatternSettings(weekday, rotationPattern, {});
+
+    expect(next).not.toBe(weekday);
+    expect(next.pattern.kind).toBe('rotation');
+    expect(next.appliedPatternSource).toBe('legacy');
+    expect(next.appliedPatternId).toBeNull();
+  });
+
   it('근무 시간과 준비 루틴을 호환될 때만 반영해요', () => {
     const current = createDefaultAppData('2026-08-09');
     const profiles = {
@@ -225,6 +244,39 @@ describe('app-store-mutations', () => {
         adjustment: 'fixed-date',
       }),
     ).toEqual({ data: current, valid: false });
+  });
+
+  it('근무 시간·준비 루틴·급여일을 하나의 후보로만 반영해요', () => {
+    const current = createDefaultAppData('2026-08-15');
+    const profiles = {
+      day: { ...current.settings.workRoutineProfiles.day },
+      evening: { ...current.settings.workRoutineProfiles.evening },
+      night: { ...current.settings.workRoutineProfiles.night },
+    };
+    const changed = applyCombinedShiftSettings(
+      current,
+      { day: { alarmMinutesBefore: 90 } },
+      profiles,
+      { day: 25, adjustment: 'fixed-date' },
+    );
+    expect(changed).toMatchObject({ compatible: true, payrollValid: true });
+    expect(changed.data.payrollSettings.day).toBe(25);
+    expect(
+      changed.data.shiftTypes.find((shift) => shift.id === 'day')
+        ?.alarmMinutesBefore,
+    ).toBe(90);
+
+    const rejected = applyCombinedShiftSettings(
+      current,
+      { day: { alarmMinutesBefore: 90 } },
+      profiles,
+      { day: 0, adjustment: 'fixed-date' },
+    );
+    expect(rejected).toEqual({
+      data: current,
+      compatible: true,
+      payrollValid: false,
+    });
   });
 
   it('닫은 업데이트 버전은 유효한 증가 값만 보존해요', () => {

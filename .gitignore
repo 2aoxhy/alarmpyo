@@ -60,3 +60,4 @@ yarn-error.*
 /android
 **/android/build/
 .codex-remote-attachments/
+.artifacts/

@@ -8,24 +8,22 @@
     android:viewportHeight="100">
     <path
         android:fillColor="@color/alarmpyo_widget_card_background"
-        android:pathData="M24,0H376A24,24 0,0 1,400 24V76A24,24 0,0 1,376 100H24A24,24 0,0 1,0 76V24A24,24 0,0 1,24 0Z"
-        android:strokeColor="@color/alarmpyo_widget_card_border"
-        android:strokeWidth="1" />
-    <path
-        android:fillColor="@color/alarmpyo_widget_card_background_soft"
-        android:pathData="M234,10H376A14,14 0,0 1,390 24V76A14,14 0,0 1,376 90H234A14,14 0,0 1,220 76V24A14,14 0,0 1,234 10Z"
+        android:pathData="M6,0H394A6,6 0,0 1,400 6V94A6,6 0,0 1,394 100H6A6,6 0,0 1,0 94V6A6,6 0,0 1,6 0Z"
         android:strokeColor="@color/alarmpyo_widget_card_border"
         android:strokeWidth="1" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M31,26H115M58,49H180M58,70H147M244,34H315M244,58H354"
+        android:pathData="M126,32H274"
         android:strokeColor="@color/alarmpyo_text_primary"
-        android:strokeLineCap="round"
-        android:strokeWidth="8" />
+        android:strokeWidth="12" />
     <path
         android:fillColor="@android:color/transparent"
-        android:pathData="M35,42A15,15 0,1 0,35 72A15,15 0,1 0,35 42M35,36V29M35,85V78M14,57H7M63,57H56"
+        android:pathData="M130,56H270M102,76H298"
+        android:strokeColor="@color/alarmpyo_text_secondary"
+        android:strokeWidth="6" />
+    <path
+        android:fillColor="@color/alarmpyo_widget_icon_day"
+        android:pathData="M8,14H11V86H8Z"
         android:strokeColor="@color/alarmpyo_widget_icon_day"
-        android:strokeLineCap="round"
-        android:strokeWidth="4" />
+        android:strokeWidth="1" />
 </vector>

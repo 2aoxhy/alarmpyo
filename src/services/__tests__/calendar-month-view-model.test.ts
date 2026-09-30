@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AppData } from '../../models/app-data';
 import {
   buildCalendarMonthViewModel,
+  resolveCalendarAutomaticScheduleDisplayWindow,
   selectCalendarProjectionData,
 } from '../calendar-month-view-model';
 import { createDefaultWorkRoutineProfiles } from '../work-routine-settings';
@@ -74,6 +75,7 @@ const data: AppData = {
 describe('달력 월 화면 계산 모델', () => {
   it('현재 달만 완전한 주 단위로 구성해요', () => {
     const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
       data,
       year: 2026,
       month: 6,
@@ -119,6 +121,7 @@ describe('달력 월 화면 계산 모델', () => {
 
   it('기본 근무와 실제 근무·시간, 직접 변경, 전체 메모를 함께 제공합니다', () => {
     const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
       data: {
         ...data,
         timeOverrides: {
@@ -165,6 +168,7 @@ describe('달력 월 화면 계산 모델', () => {
     const projection = selectCalendarProjectionData(data);
 
     expect(Object.keys(projection).sort()).toEqual([
+      'alarmOverrides',
       'dayExceptions',
       'notes',
       'overrides',
@@ -173,13 +177,13 @@ describe('달력 월 화면 계산 모델', () => {
       'shiftTypes',
       'timeOverrides',
     ]);
-    expect(projection).not.toHaveProperty('alarmOverrides');
     expect(projection).not.toHaveProperty('patternVault');
     expect(projection).not.toHaveProperty('settings');
   });
 
   it('저장된 급여일과 조정 정책을 달력 표시에 반영합니다', () => {
     const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
       data: {
         ...data,
         payrollSettings: { day: 31, adjustment: 'fixed-date' },
@@ -198,6 +202,7 @@ describe('달력 월 화면 계산 모델', () => {
 
   it('다음 달 급여일이 직전 영업일로 앞당겨지면 현재 달 표식에 포함합니다', () => {
     const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
       data: {
         ...data,
         payrollSettings: { day: 1, adjustment: 'previous-business-day' },
@@ -214,5 +219,135 @@ describe('달력 월 화면 계산 모델', () => {
       salaryMonth: 7,
       adjusted: true,
     });
+  });
+
+  it('오늘이 속한 달 기준 앞뒤 3개월까지만 자동 근무를 표시합니다', () => {
+    expect(
+      resolveCalendarAutomaticScheduleDisplayWindow('2026-08-24'),
+    ).toEqual({
+      startDate: '2026-05-01',
+      endDate: '2026-11-30',
+    });
+
+    const beforeWindow = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
+      data: {
+        ...data,
+        pattern: {
+          ...data.pattern,
+          anchorDate: '2020-01-01',
+          scheduleStartDate: '2020-01-01',
+        },
+      },
+      year: 2026,
+      month: 3,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+    const insideWindow = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
+      data,
+      year: 2026,
+      month: 4,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+    const afterWindow = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
+      data,
+      year: 2026,
+      month: 11,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(beforeWindow.automaticScheduleVisible).toBe(false);
+    expect(beforeWindow.daysByDate.get('2026-04-02')).toMatchObject({
+      automaticScheduleHidden: true,
+      effectiveDay: { scheduleActive: true, shift: null },
+    });
+    expect(insideWindow.automaticScheduleVisible).toBe(true);
+    expect(insideWindow.daysByDate.get('2026-05-01')).toMatchObject({
+      automaticScheduleHidden: false,
+    });
+    expect(afterWindow.automaticScheduleVisible).toBe(false);
+    expect(afterWindow.daysByDate.get('2026-12-01')).toMatchObject({
+      automaticScheduleHidden: true,
+      effectiveDay: { scheduleActive: true, shift: null },
+    });
+    expect(afterWindow.monthlySummary.workdayCount).toBe(0);
+  });
+
+  it('표시 범위 밖에서도 직접 변경·특별 일정·메모·날짜별 알람을 보존해 표시합니다', () => {
+    const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
+      data: {
+        ...data,
+        overrides: { '2027-09-01': 'off' },
+        timeOverrides: {
+          '2027-09-02': {
+            shiftTypeId: 'day',
+            startMinutes: 480,
+            endMinutes: 1020,
+            endsNextDay: false,
+          },
+        },
+        dayExceptions: { '2027-09-03': 'training' },
+        notes: { '2027-09-04': '범위 밖 메모' },
+        alarmOverrides: {
+          '2027-09-05': { mode: 'wake-time', wakeMinutes: 300, wakeDayOffset: 0 },
+        },
+      },
+      year: 2027,
+      month: 8,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(model.daysByDate.get('2027-09-01')).toMatchObject({
+      automaticScheduleHidden: false,
+      hasShiftOverride: true,
+      effectiveDay: { scheduleActive: true, shift: { id: 'off' } },
+    });
+    expect(model.daysByDate.get('2027-09-02')).toMatchObject({
+      automaticScheduleHidden: false,
+      hasTimeOverride: true,
+      effectiveDay: { shift: { startMinutes: 480 } },
+    });
+    expect(model.daysByDate.get('2027-09-03')).toMatchObject({
+      automaticScheduleHidden: false,
+      effectiveDay: { dayException: 'training' },
+    });
+    expect(model.daysByDate.get('2027-09-04')).toMatchObject({
+      automaticScheduleHidden: true,
+      hasNote: true,
+      note: '범위 밖 메모',
+      effectiveDay: { shift: null },
+    });
+    expect(model.daysByDate.get('2027-09-05')).toMatchObject({
+      alarmOverride: { mode: 'wake-time', wakeMinutes: 300 },
+      automaticScheduleHidden: true,
+      hasAlarmOverride: true,
+      effectiveDay: { shift: null },
+    });
+  });
+
+  it('근무표 시작 월에는 적용 시작일을 제공합니다', () => {
+    const model = buildCalendarMonthViewModel({
+      automaticScheduleReferenceDateKey: '2026-08-24',
+      data: {
+        ...data,
+        pattern: {
+          ...data.pattern,
+          scheduleStartDate: '2026-08-20',
+        },
+      },
+      year: 2026,
+      month: 7,
+      windowWidth: 390,
+      fontScale: 1,
+    });
+
+    expect(model.scheduleStartDateInMonth).toBe('2026-08-20');
   });
 });

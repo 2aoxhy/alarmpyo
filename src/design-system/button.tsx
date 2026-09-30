@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ElementRef, type Ref } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -7,6 +7,7 @@ import {
   Text,
   type StyleProp,
   useWindowDimensions,
+  View,
   type ViewStyle,
 } from 'react-native';
 
@@ -20,7 +21,7 @@ import { colorWithAlpha } from '@/constants/app-theme';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import { shouldReflowControl } from './responsive';
-import { radius, size, space, typeScale } from './tokens';
+import { interaction, shape, size, space, typeScale } from './tokens';
 import {
   type DesignSystemThemeProps,
   useDesignSystemTheme,
@@ -39,6 +40,7 @@ export type ButtonProps = DesignSystemThemeProps & {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   testID?: string;
+  elementRef?: Ref<ElementRef<typeof Pressable>>;
 };
 
 export function Button({
@@ -54,6 +56,7 @@ export function Button({
   accessibilityLabel,
   accessibilityHint,
   testID,
+  elementRef,
   theme,
 }: ButtonProps) {
   const { colors } = useDesignSystemTheme(theme);
@@ -74,6 +77,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={elementRef}
       accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel ?? visibleLabel}
       accessibilityRole="button"
@@ -96,18 +100,30 @@ export function Button({
         style,
       ]}
       testID={testID}>
-      {loading ? (
-        <ActivityIndicator color={foreground} size="small" />
-      ) : visibleIcon ? (
-        <AppIcon accessible={false} color={foreground} name={visibleIcon} size={19} />
-      ) : null}
-      <Text
+      <View
         accessibilityElementsHidden
         importantForAccessibility="no"
-        numberOfLines={reflow ? undefined : 2}
-        style={[styles.label, { color: foreground }]}>
-        {visibleLabel}
-      </Text>
+        style={styles.content}>
+        {loading || visibleIcon ? (
+          <View style={styles.iconSlot}>
+            {loading ? (
+              <ActivityIndicator color={foreground} size="small" />
+            ) : visibleIcon ? (
+              <AppIcon
+                accessible={false}
+                color={foreground}
+                name={visibleIcon}
+                size={19}
+              />
+            ) : null}
+          </View>
+        ) : null}
+        <Text
+          numberOfLines={reflow ? undefined : 2}
+          style={[styles.label, { color: foreground }]}>
+          {visibleLabel}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -123,8 +139,22 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       gap: space.sm,
       paddingHorizontal: space.lg,
       paddingVertical: space.sm,
-      borderRadius: radius.md,
+      borderRadius: shape.control,
       overflow: 'hidden',
+    },
+    content: {
+      maxWidth: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.sm,
+    },
+    iconSlot: {
+      width: 22,
+      height: 22,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     compact: {
       minWidth: 88,
@@ -155,7 +185,7 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       backgroundColor: colors.surfaceDisabled,
     },
     pressed: {
-      transform: [{ scale: 0.985 }],
+      opacity: interaction.emphasizedPressedOpacity,
     },
     focusVisible:
       Platform.OS === 'web'
@@ -168,7 +198,6 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
         : {},
     label: {
       ...typeScale.label,
-      minWidth: size.regularControl,
       flexShrink: 1,
       includeFontPadding: false,
       fontSize: 16,

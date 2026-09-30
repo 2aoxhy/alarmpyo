@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton, AppText } from '@/components/ui-kit';
 import { colorWithAlpha, type AppPalette } from '@/constants/app-theme';
-import { createSemanticColors, radius, space } from '@/design-system/tokens';
+import { createSemanticColors, shape, space } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
@@ -167,7 +167,6 @@ export function AppSheet({
             wide && styles.sheetWide,
             compactHeight && styles.sheetCompact,
           ]}>
-          <View style={styles.handle} />
           <ScrollView
             bounces={false}
             contentContainerStyle={styles.content}
@@ -211,28 +210,19 @@ function createStyles(palette: AppPalette, isDark: boolean) {
       padding: space.lg,
       borderWidth: 1,
       borderColor: palette.line,
-      borderRadius: radius.xl,
+      borderTopLeftRadius: shape.sheetTop,
+      borderTopRightRadius: shape.sheetTop,
+      borderBottomLeftRadius: shape.section,
+      borderBottomRightRadius: shape.section,
       backgroundColor: palette.surface,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 14 },
-      shadowOpacity: 0.3,
-      shadowRadius: 28,
-      elevation: 18,
     },
     sheetWide: { marginBottom: '10%' },
     sheetCompact: { maxHeight: '94%' },
-    handle: {
-      width: 38,
-      height: 4,
-      alignSelf: 'center',
-      borderRadius: radius.full,
-      backgroundColor: palette.line,
-    },
     content: { gap: space.md, paddingBottom: space.sm },
     title: { textAlign: 'center' },
     titleFocusTarget: {
       alignSelf: 'stretch',
-      borderRadius: radius.sm,
+      borderRadius: shape.control,
     },
     webFocusVisible:
       Platform.OS === 'web'

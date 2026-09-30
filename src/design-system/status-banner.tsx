@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,10 +11,10 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
 import {
   interaction,
-  radius,
   size,
   space,
   type SemanticColors,
@@ -35,6 +36,8 @@ export type StatusBannerProps = DesignSystemThemeProps & {
   onAction?: () => void;
   /** 처음 표시할 때는 조용히 두고, 같은 배너의 내용이 바뀔 때만 읽어요. */
   announceChanges?: boolean;
+  /** 권한·오류처럼 즉시 알아야 하는 배너는 처음 표시할 때도 한 번 읽어요. */
+  announceOnMount?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -47,6 +50,7 @@ export function StatusBanner({
   actionLabel,
   onAction,
   announceChanges = true,
+  announceOnMount = false,
   style,
   theme,
   testID,
@@ -54,18 +58,23 @@ export function StatusBanner({
   const { colors } = useDesignSystemTheme(theme);
   const { fontScale, width } = useWindowDimensions();
   const stackAction = fontScale >= 1.35 || width < 360;
+  const firstLineHeight =
+    (title ? typeScale.label.lineHeight : typeScale.body.lineHeight) *
+    Math.min(Math.max(fontScale, 1), 2);
   const toneColors = resolveToneColors(colors, tone);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedIcon = icon ?? resolveToneIcon(tone);
   const actionAvailable = Boolean(actionLabel && onAction);
+  const actionFocus = useWebFocusVisible();
   const announcementKey = `${tone}\u0000${title ?? ''}\u0000${message}\u0000${actionLabel ?? ''}`;
-  const previousAnnouncementKeyRef = useRef(announcementKey);
+  const previousAnnouncementKeyRef = useRef<string | null>(null);
   const [liveRegion, setLiveRegion] = useState<'none' | 'polite' | 'assertive'>('none');
 
   useEffect(() => {
-    const changed = previousAnnouncementKeyRef.current !== announcementKey;
+    const firstAppearance = previousAnnouncementKeyRef.current === null;
+    const changed = !firstAppearance && previousAnnouncementKeyRef.current !== announcementKey;
     previousAnnouncementKeyRef.current = announcementKey;
-    if (!announceChanges || !changed) {
+    if ((!announceOnMount || !firstAppearance) && (!announceChanges || !changed)) {
       setLiveRegion('none');
       return;
     }
@@ -73,25 +82,28 @@ export function StatusBanner({
     setLiveRegion(tone === 'danger' ? 'assertive' : 'polite');
     const timeout = setTimeout(() => setLiveRegion('none'), 1_000);
     return () => clearTimeout(timeout);
-  }, [announceChanges, announcementKey, tone]);
+  }, [announceChanges, announceOnMount, announcementKey, tone]);
 
   return (
     <View
       accessibilityLiveRegion={liveRegion}
       style={[
         styles.banner,
-        { backgroundColor: toneColors.background },
+        {
+          backgroundColor: toneColors.background,
+          borderLeftColor: toneColors.foreground,
+        },
         stackAction && styles.bannerStacked,
         style,
       ]}
       testID={testID}>
       <View style={styles.contentRow}>
-        <View style={[styles.iconTile, { backgroundColor: toneColors.iconBackground }]}>
+        <View style={[styles.icon, { height: firstLineHeight }]}>
           <AppIcon
             accessible={false}
             color={toneColors.foreground}
             name={resolvedIcon}
-            size={size.iconMedium}
+            size={size.iconSmall}
           />
         </View>
         <View style={styles.textContainer}>
@@ -103,11 +115,14 @@ export function StatusBanner({
         <Pressable
           accessibilityLabel={actionLabel}
           accessibilityRole="button"
+          onBlur={actionFocus.onBlur}
+          onFocus={actionFocus.onFocus}
           onPress={onAction}
           style={({ pressed }) => [
             styles.action,
             stackAction && styles.actionStacked,
             pressed && styles.actionPressed,
+            actionFocus.focusVisible && styles.focusVisible,
           ]}>
           <Text style={[styles.actionLabel, { color: toneColors.foreground }]}>{actionLabel}</Text>
         </Pressable>
@@ -133,30 +148,26 @@ function resolveToneIcon(tone: StatusBannerTone): AppIconName {
 function resolveToneColors(colors: SemanticColors, tone: StatusBannerTone) {
   switch (tone) {
     case 'info':
-      return { background: colors.infoSoft, foreground: colors.info, iconBackground: colors.surface };
+      return { background: colors.infoSoft, foreground: colors.info };
     case 'success':
       return {
         background: colors.positiveSoft,
         foreground: colors.positive,
-        iconBackground: colors.surface,
       };
     case 'warning':
       return {
         background: colors.warningSoft,
         foreground: colors.warning,
-        iconBackground: colors.surface,
       };
     case 'danger':
       return {
         background: colors.dangerSoft,
         foreground: colors.danger,
-        iconBackground: colors.surface,
       };
     default:
       return {
         background: colors.surfaceMuted,
         foreground: colors.textMuted,
-        iconBackground: colors.surface,
       };
   }
 }
@@ -165,14 +176,16 @@ function createStyles(colors: SemanticColors) {
   return StyleSheet.create({
     banner: {
       width: '100%',
-      minHeight: 72,
+      minHeight: 64,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.md,
-      padding: space.lg,
-      borderWidth: 1,
+      gap: space.sm,
+      paddingHorizontal: space.md,
+      paddingVertical: space.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderLeftWidth: 3,
       borderColor: colors.border,
-      borderRadius: radius.lg,
     },
     bannerStacked: {
       alignItems: 'stretch',
@@ -183,14 +196,13 @@ function createStyles(colors: SemanticColors) {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: space.md,
+      gap: space.sm,
     },
-    iconTile: {
-      width: size.minimumTouchTarget,
-      height: size.minimumTouchTarget,
+    icon: {
+      width: size.iconMedium,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.sm,
     },
     textContainer: {
       minWidth: 0,
@@ -199,25 +211,35 @@ function createStyles(colors: SemanticColors) {
     },
     title: {
       ...typeScale.label,
+      includeFontPadding: false,
     },
     message: {
       ...typeScale.body,
+      includeFontPadding: false,
     },
     action: {
       minWidth: size.minimumTouchTarget,
       minHeight: size.minimumTouchTarget,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: space.md,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
+      paddingHorizontal: space.sm,
     },
     actionStacked: {
       width: '100%',
+      alignItems: 'flex-start',
     },
     actionPressed: {
       opacity: interaction.pressedOpacity,
     },
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
     actionLabel: {
       ...typeScale.label,
       textAlign: 'center',

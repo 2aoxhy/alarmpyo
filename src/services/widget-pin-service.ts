@@ -1,6 +1,6 @@
 import type { AppData, ShiftType } from '../models/app-data';
 
-import { resolveShiftFromAppData } from './app-data-service';
+import { resolveShiftFromAppData } from '../application/app-data-policy';
 import {
   requestAlarmPyoWidgetPin,
   syncAlarmPyoWidget,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -9,21 +9,26 @@ import {
 import { AppText, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { TodayGuidanceSection } from '@/features/today/today-guidance-section';
+import { TodayAlarmPermissionBanner } from '@/features/today/today-alarm-permission-banner';
 import { TodayHero } from '@/features/today/today-hero';
 import { UpcomingWorkSection } from '@/features/today/upcoming-work-section';
 import { useTodayRuntimeController } from '@/features/today/use-today-runtime-controller';
+import {
+  selectTodayData, selectTodayReady, selectTodayStatus,
+  areTodayDataEqual, areTodayStatusEqual,
+} from '@/features/today/today-store-selection';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNow } from '@/hooks/use-now';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { getSleepReminderScheduleSignature } from '@/services/sleep-reminder-planner';
+import { resolveShiftFromAppData } from '@/services/app-data-service';
 import {
   buildTodayAlarmPlanSummary,
   buildTodayViewModel,
 } from '@/services/today-view-model';
 import {
-  useAppStoreData,
-  useAppStoreStatus,
+  useAppSelector,
 } from '@/store/app-store';
 import { formatKoreanDate, parseDateKey, toDateKey } from '@/utils/date';
 
@@ -36,18 +41,22 @@ export default function TodayScreen() {
   const screenActive = useScreenActive();
   const now = useNow(screenActive);
   const today = toDateKey(now);
-  const { data, ready, getShiftForDate } = useAppStoreData();
+  const data = useAppSelector(selectTodayData, areTodayDataEqual);
+  const ready = useAppSelector(selectTodayReady);
+  const getShiftForDate = useCallback((dateKey: string) => resolveShiftFromAppData(data, dateKey), [data]);
   const {
     alarmAutoCheckState,
     alarmSyncStatus,
     sleepReminderSyncStatus,
     sleepReminderSyncRevision,
-  } = useAppStoreStatus();
+  } = useAppSelector(selectTodayStatus, areTodayStatusEqual);
   const {
     alarmPlatformSupported,
+    permissionGuide,
     runtimeStatus,
     sleepReminderSupported,
   } = useTodayRuntimeController({
+    alarmEnabled: data.settings.notificationsEnabled,
     enabled: ready && screenActive,
     sleepReminderEnabled: data.settings.sleepReminderEnabled,
     runtimeRevisionKey: [
@@ -107,6 +116,7 @@ export default function TodayScreen() {
         <AppText
           accessibilityLabel={`오늘, ${formatKoreanDate(today, true)}`}
           accessibilityRole="header"
+          aria-level={1}
           style={styles.headerDate}
           variant="label">
           {formatKoreanDate(today, true)}
@@ -121,11 +131,18 @@ export default function TodayScreen() {
         footerValue={viewModel.footerValue}
         heroDetail={viewModel.heroDetail}
         heroTitle={viewModel.heroTitle}
+        homeState={viewModel.homeState}
         largeText={largeText}
-        now={now}
-        screenActive={screenActive}
         shift={viewModel.current?.shift ?? viewModel.todayShift}
         statusLabel={viewModel.statusLabel}
+      />
+
+      <TodayAlarmPermissionBanner
+        busy={permissionGuide.busy}
+        completionRevision={permissionGuide.completionRevision}
+        launchError={permissionGuide.launchError}
+        onOpenSettings={() => void permissionGuide.openNextPermission()}
+        viewModel={permissionGuide.viewModel}
       />
 
       <TodayGuidanceSection
@@ -137,6 +154,7 @@ export default function TodayScreen() {
         alarmSummary={viewModel.alarmSummary}
         alarmHealthState={viewModel.alarmHealthState}
         compact={compactHome}
+        hideAlarmRow={Boolean(permissionGuide.viewModel)}
         largeText={largeText}
         now={now}
         routinePlan={viewModel.workRoutinePlan}

@@ -11,8 +11,7 @@ export type FloatingTabBarHorizontalLayout = {
 };
 
 export type FloatingTabBarGeometry = {
-  left: number;
-  right: number;
+  inset: number;
   sideGuard: number;
   width: number;
 };
@@ -45,11 +44,10 @@ export function resolveFloatingTabBarGeometry(
   );
   const availableWidth = Math.max(safeWindowWidth - sideGuard * 2, 0);
   const width = Math.min(availableWidth, finiteNonNegative(maxWidth));
-  const symmetricInset = (safeWindowWidth - width) / 2;
+  const inset = (safeWindowWidth - width) / 2;
 
   return {
-    left: symmetricInset,
-    right: symmetricInset,
+    inset,
     sideGuard,
     width,
   };

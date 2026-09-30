@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "V15",
+  "release": "V1.24",
   "status": "recapture-required",
   "target": {
     "width": 1080,
@@ -12,31 +12,31 @@
   "screenshots": [
     {
       "order": 1,
-      "captureId": "launch-brand",
-      "sourceFile": "01-brand.webp",
-      "outputFile": "01-brand.png",
-      "altText": "다크 배경에 흰색 알람시계와 달력 마크, 알람표 이름이 표시된 시작 화면"
+      "captureId": "today-overview",
+      "sourceFile": "01-today.webp",
+      "outputFile": "01-today.png",
+      "altText": "현재 근무와 다음 근무, 준비된 알람을 보여주는 오늘 화면"
     },
     {
       "order": 2,
-      "captureId": "today-ready",
-      "sourceFile": "02-today.webp",
-      "outputFile": "02-today.png",
-      "altText": "현재 근무와 남은 시간, 준비된 알람을 보여주는 오늘 화면"
+      "captureId": "calendar-month",
+      "sourceFile": "02-calendar.webp",
+      "outputFile": "02-calendar.png",
+      "altText": "한 달의 주간·야간·휴무와 공휴일을 함께 보여주는 달력 화면"
     },
     {
       "order": 3,
       "captureId": "timer-running",
       "sourceFile": "03-timer.webp",
       "outputFile": "03-timer.png",
-      "altText": "15·30·45·60분 중 실행 중인 타이머의 남은 시간과 종료 시각을 보여주는 화면"
+      "altText": "15·30·45분 또는 직접 입력으로 실행한 타이머의 남은 시간과 종료 시각을 보여주는 화면"
     },
     {
       "order": 4,
       "captureId": "settings-home",
       "sourceFile": "04-settings.webp",
       "outputFile": "04-settings.png",
-      "altText": "근무표, 알람, 홈 화면 위젯, 데이터와 앱 정보로 이동하는 설정 화면"
+      "altText": "근무표와 알람 간편 설정 및 세부 설정으로 이동하는 설정 화면"
     }
   ]
 }

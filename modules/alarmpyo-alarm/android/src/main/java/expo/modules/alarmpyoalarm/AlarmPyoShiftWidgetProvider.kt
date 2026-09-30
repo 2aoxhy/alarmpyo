@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 
 class AlarmPyoShiftWidgetProvider : AppWidgetProvider() {
   override fun onEnabled(context: Context) {
@@ -142,12 +143,12 @@ internal object AlarmPyoShiftWidgetUpdater {
     val state = AlarmPyoWidgetFormatter.format(snapshot, nowMillis)
     val fontScale = context.resources.configuration.fontScale
     ids.forEach { widgetId ->
-      val minHeightDp = manager.getAppWidgetOptions(widgetId).getInt(
-        AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP
+      val options = manager.getAppWidgetOptions(widgetId)
+      val geometry = AlarmPyoWidgetOptions.geometry(options)
+      val presentation = AlarmPyoWidgetPresentationPolicy.resolve(
+        state, geometry, fontScale
       )
-      val heightMode = AlarmPyoWidgetSizePolicy.heightMode(minHeightDp)
-      val views = createRemoteViews(context, state, fontScale, heightMode)
+      val views = createRemoteViews(context, state, presentation)
       views.setOnClickPendingIntent(R.id.alarmpyo_widget_root, openAppIntent(context))
       manager.updateAppWidget(widgetId, views)
     }
@@ -208,8 +209,12 @@ internal object AlarmPyoShiftWidgetUpdater {
     val preview = createRemoteViews(
       applicationContext,
       previewState,
-      fontScale,
-      AlarmPyoWidgetHeightMode.REGULAR
+      AlarmPyoWidgetPresentationPolicy.resolve(
+        previewState,
+        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_HEIGHT_DP,
+        AlarmPyoWidgetSizePolicy.DEFAULT_MIN_WIDTH_DP,
+        fontScale
+      )
     )
     val updated = setGeneratedPreview(applicationContext, preview)
     if (!updated) return AlarmPyoWidgetPreviewUpdateResult.RATE_LIMITED
@@ -233,109 +238,115 @@ internal object AlarmPyoShiftWidgetUpdater {
   private fun createRemoteViews(
     context: Context,
     state: AlarmPyoWidgetViewState,
-    fontScale: Float,
-    heightMode: AlarmPyoWidgetHeightMode
-  ): RemoteViews = RemoteViews(
-    context.packageName,
-    R.layout.alarmpyo_shift_widget_compact
-  ).also { views ->
-    bindState(context, views, state, fontScale, heightMode)
+    presentation: AlarmPyoWidgetPresentation
+  ): RemoteViews {
+    val layout = when (presentation.heightMode) {
+      AlarmPyoWidgetHeightMode.MINIMUM -> R.layout.alarmpyo_shift_widget_compact
+      AlarmPyoWidgetHeightMode.MEDIUM -> R.layout.alarmpyo_shift_widget_medium
+    }
+    return RemoteViews(context.packageName, layout).also { views ->
+      bindState(context, views, state, presentation)
+    }
   }
 
   private fun bindState(
     context: Context,
     views: RemoteViews,
     state: AlarmPyoWidgetViewState,
-    fontScale: Float,
-    heightMode: AlarmPyoWidgetHeightMode
+    presentation: AlarmPyoWidgetPresentation
   ) {
-    val minimumHeight = heightMode == AlarmPyoWidgetHeightMode.MINIMUM
-    val largeText = fontScale >= 1.3f
-    val veryLargeText = fontScale >= 1.8f
-    views.setTextViewText(R.id.alarmpyo_widget_date, compactDateText(state.dateText))
+    val mediumHeight = presentation.heightMode == AlarmPyoWidgetHeightMode.MEDIUM
+    val next = presentation.nextSection
+    val alarm = presentation.alarmSection
+    views.setTextViewText(
+      R.id.alarmpyo_widget_date,
+      compactDateText(state.dateText)
+    )
     views.setTextViewText(R.id.alarmpyo_widget_title, state.titleText)
     views.setTextViewText(R.id.alarmpyo_widget_schedule, state.scheduleText)
-    val hasSecondary = state.bottomLabel.isNotBlank()
-    val hasTertiary =
-      !state.secondaryLabel.isNullOrBlank() && !state.secondaryText.isNullOrBlank()
-    views.setTextViewText(R.id.alarmpyo_widget_bottom_label, state.bottomLabel)
+    if (mediumHeight) {
+      views.setViewVisibility(
+        R.id.alarmpyo_widget_header,
+        if (presentation.showDate) View.VISIBLE else View.GONE
+      )
+      views.setTextViewText(R.id.alarmpyo_widget_status, state.statusText)
+      views.setTextViewTextSize(
+        R.id.alarmpyo_widget_status,
+        TypedValue.COMPLEX_UNIT_SP,
+        12f
+      )
+      views.setViewVisibility(
+        R.id.alarmpyo_widget_status,
+        if (presentation.showStatus) View.VISIBLE else View.GONE
+      )
+    }
     views.setTextViewText(
       R.id.alarmpyo_widget_bottom_value,
-      if (minimumHeight || (hasTertiary && !largeText)) {
-        compactWidgetLine(state.bottomSectionKind, state.bottomLabel, state.bottomText)
-      } else {
-        state.bottomText
-      }
+      next?.let { compactWidgetLine(it.kind, it.label, it.text) }.orEmpty()
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_date,
-      if (minimumHeight || largeText) View.GONE else View.VISIBLE
+      if (presentation.showDate) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
       R.id.alarmpyo_widget_schedule,
-      if (minimumHeight || veryLargeText) View.GONE else View.VISIBLE
+      if (presentation.showSchedule) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
-      R.id.alarmpyo_widget_secondary_panel,
-      if (hasSecondary) View.VISIBLE else View.GONE
+      R.id.alarmpyo_widget_bottom_value,
+      if (next != null) View.VISIBLE else View.GONE
     )
     views.setViewVisibility(
-      R.id.alarmpyo_widget_secondary_divider,
-      if (!minimumHeight && hasTertiary && !largeText) View.VISIBLE else View.GONE
+      R.id.alarmpyo_widget_secondary_value,
+      if (alarm != null) View.VISIBLE else View.GONE
     )
-    views.setViewVisibility(
-      R.id.alarmpyo_widget_secondary_second,
-      if (!minimumHeight && hasTertiary && !largeText) View.VISIBLE else View.GONE
-    )
-    views.setViewVisibility(
-      R.id.alarmpyo_widget_bottom_label,
-      if (minimumHeight || hasTertiary || largeText) View.GONE else View.VISIBLE
-    )
-    views.setViewVisibility(
-      R.id.alarmpyo_widget_secondary_label,
-      View.GONE
-    )
-    views.setTextViewText(R.id.alarmpyo_widget_secondary_label, state.secondaryLabel.orEmpty())
     views.setTextViewText(
       R.id.alarmpyo_widget_secondary_value,
-      if (hasTertiary) {
-        compactWidgetLine(
-          state.secondarySectionKind,
-          state.secondaryLabel.orEmpty(),
-          state.secondaryText.orEmpty()
-        )
-      } else {
-        state.secondaryText.orEmpty()
-      }
+      alarm?.let { compactWidgetLine(it.kind, it.label, it.text) }.orEmpty()
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_title,
       TypedValue.COMPLEX_UNIT_SP,
-      if (largeText) 14f else 16f
+      presentation.titleSizeSp
     )
     views.setTextViewTextSize(
-      R.id.alarmpyo_widget_bottom_label,
+      R.id.alarmpyo_widget_date,
       TypedValue.COMPLEX_UNIT_SP,
       12f
+    )
+    views.setTextViewTextSize(
+      R.id.alarmpyo_widget_schedule,
+      TypedValue.COMPLEX_UNIT_SP,
+      AlarmPyoWidgetPresentationPolicy.DETAIL_SIZE_SP
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_bottom_value,
       TypedValue.COMPLEX_UNIT_SP,
-      if (hasTertiary) 12f else 14f
+      AlarmPyoWidgetPresentationPolicy.DETAIL_SIZE_SP
     )
     views.setTextViewTextSize(
       R.id.alarmpyo_widget_secondary_value,
       TypedValue.COMPLEX_UNIT_SP,
-      12f
+      AlarmPyoWidgetPresentationPolicy.DETAIL_SIZE_SP
     )
     views.setContentDescription(R.id.alarmpyo_widget_root, state.contentDescription)
 
     val assets = visualAssets(state.visual)
     val meaningAccent = meaningAccent(context, state, assets)
-    views.setInt(R.id.alarmpyo_widget_card, "setBackgroundResource", assets.background)
-    views.setImageViewResource(R.id.alarmpyo_widget_shift_icon, assets.icon)
-    views.setInt(R.id.alarmpyo_widget_shift_icon, "setColorFilter", meaningAccent)
+    views.setInt(
+      R.id.alarmpyo_widget_card,
+      "setBackgroundResource",
+      R.drawable.alarmpyo_widget_background
+    )
     views.setInt(R.id.alarmpyo_widget_meaning_line, "setBackgroundColor", meaningAccent)
+    if (mediumHeight) {
+      val statusTextColor = if (state.visual == AlarmPyoWidgetVisual.CUSTOM) {
+        ContextCompat.getColor(context, R.color.alarmpyo_text_primary)
+      } else {
+        meaningAccent
+      }
+      views.setTextColor(R.id.alarmpyo_widget_status, statusTextColor)
+    }
   }
 
   private fun compactDateText(dateText: String): String =
@@ -355,46 +366,16 @@ internal object AlarmPyoShiftWidgetUpdater {
   }
 
   private fun visualAssets(visual: AlarmPyoWidgetVisual): WidgetVisualAssets = when (visual) {
-    AlarmPyoWidgetVisual.DAY -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_day_background,
-      R.drawable.alarmpyo_widget_ic_sun,
-      R.color.alarmpyo_widget_icon_day
-    )
-    AlarmPyoWidgetVisual.EVENING -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_day_background,
-      R.drawable.alarmpyo_widget_ic_evening,
-      R.color.alarmpyo_widget_icon_evening
-    )
-    AlarmPyoWidgetVisual.NIGHT -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_night_background,
-      R.drawable.alarmpyo_widget_ic_moon,
-      R.color.alarmpyo_widget_icon_night
-    )
-    AlarmPyoWidgetVisual.CUSTOM -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_unknown_background,
-      R.drawable.alarmpyo_widget_ic_custom,
-      R.color.alarmpyo_widget_icon_custom
-    )
-    AlarmPyoWidgetVisual.TRAINING -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_training_background,
-      R.drawable.alarmpyo_widget_ic_training,
-      R.color.alarmpyo_widget_icon_training
-    )
-    AlarmPyoWidgetVisual.RESERVE -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_reserve_background,
-      R.drawable.alarmpyo_widget_ic_reserve,
-      R.color.alarmpyo_widget_icon_reserve
-    )
-    AlarmPyoWidgetVisual.OFF -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_off_background,
-      R.drawable.alarmpyo_widget_ic_off,
-      R.color.alarmpyo_widget_icon_off
-    )
-    AlarmPyoWidgetVisual.UNKNOWN -> WidgetVisualAssets(
-      R.drawable.alarmpyo_widget_unknown_background,
-      R.drawable.alarmpyo_widget_ic_unknown,
-      R.color.alarmpyo_widget_icon_unknown
-    )
+    AlarmPyoWidgetVisual.DAY -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_day)
+    AlarmPyoWidgetVisual.EVENING -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_evening)
+    AlarmPyoWidgetVisual.NIGHT -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_night)
+    AlarmPyoWidgetVisual.SUBSTITUTE_DAY -> WidgetVisualAssets(R.color.alarmpyo_substitute_accent)
+    AlarmPyoWidgetVisual.SUBSTITUTE_NIGHT -> WidgetVisualAssets(R.color.alarmpyo_substitute_accent)
+    AlarmPyoWidgetVisual.CUSTOM -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_custom)
+    AlarmPyoWidgetVisual.TRAINING -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_training)
+    AlarmPyoWidgetVisual.RESERVE -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_reserve)
+    AlarmPyoWidgetVisual.OFF -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_off)
+    AlarmPyoWidgetVisual.UNKNOWN -> WidgetVisualAssets(R.color.alarmpyo_widget_icon_unknown)
   }
 
   private fun meaningAccent(
@@ -407,11 +388,8 @@ internal object AlarmPyoShiftWidgetUpdater {
       ?.takeIf { CUSTOM_ACCENT_REGEX.matches(it) }
       ?.let { runCatching { Color.parseColor(it) }.getOrNull() }
     if (candidate != null) {
-      val backgrounds = intArrayOf(
-        context.getColor(R.color.alarmpyo_widget_card_background),
-        context.getColor(R.color.alarmpyo_widget_card_background_soft)
-      )
-      if (backgrounds.all { contrastRatio(candidate, it) >= 3.0 }) return candidate
+      val background = context.getColor(R.color.alarmpyo_widget_card_background)
+      if (contrastRatio(candidate, background) >= 3.0) return candidate
     }
     return context.getColor(R.color.alarmpyo_widget_icon_custom)
   }
@@ -494,11 +472,7 @@ internal object AlarmPyoShiftWidgetUpdater {
   private fun immutableFlag(): Int =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
-  private data class WidgetVisualAssets(
-    val background: Int,
-    val icon: Int,
-    val accent: Int
-  )
+  private data class WidgetVisualAssets(val accent: Int)
 
   private val CUSTOM_ACCENT_REGEX = Regex("^#[0-9A-Fa-f]{6}$")
 }

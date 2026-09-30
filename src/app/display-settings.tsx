@@ -6,9 +6,13 @@ import { AppButton, AppText, Card, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { ToggleRow } from '@/design-system';
 import { useDisplaySettingsController } from '@/features/display-settings/display-settings-controller';
+import {
+  areDisplaySettingsDataEqual,
+  selectSettingsData,
+} from '@/features/settings/settings-store-selection';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { WidgetDisplayOptions } from '@/models/app-data';
-import { useAppStoreActions, useAppStoreData } from '@/store/app-store';
+import { useAppCommands, useAppSelector } from '@/store/app-store';
 
 const WIDGET_OPTIONS: readonly {
   key: keyof WidgetDisplayOptions;
@@ -21,8 +25,8 @@ const WIDGET_OPTIONS: readonly {
 
 export default function DisplaySettingsScreen() {
   const { showDialog } = useAppDialog();
-  const { data } = useAppStoreData();
-  const { toggleWidgetDisplayOption } = useAppStoreActions();
+  const data = useAppSelector(selectSettingsData, areDisplaySettingsDataEqual);
+  const { toggleWidgetDisplayOption } = useAppCommands();
   const styles = useThemedStyles(createStyles);
   const {
     androidWidgetSupported,
@@ -34,19 +38,19 @@ export default function DisplaySettingsScreen() {
     const result = await requestWidget();
     if (result.status === 'requested' || result.status === 'ignored') return;
     if (result.status === 'installed') {
-        showDialog('이미 추가되어 있습니다', '홈 화면에서 알람표 위젯을 확인해야 합니다.');
+        showDialog('위젯 추가됨', '홈 화면에서 확인할 수 있습니다.');
         return;
     }
     if (result.status === 'manual') {
       showDialog(
-        '홈 화면에서 직접 추가해야 합니다',
-        '홈 화면을 길게 누른 뒤 위젯 목록에서 알람표를 선택해야 합니다.',
+        '위젯 직접 추가',
+        '홈 화면 길게 누르기 → 위젯 목록 → 알람표 선택',
       );
       return;
     }
     showDialog(
-      '위젯 추가 요청을 열지 못했습니다',
-      '잠시 후 다시 시도하거나 홈 화면의 위젯 목록에서 알람표를 선택해야 합니다.',
+      '위젯 추가 실패',
+      '다시 시도하거나 홈 화면 위젯 목록에서 알람표 선택',
     );
   };
 
@@ -55,7 +59,7 @@ export default function DisplaySettingsScreen() {
       <Stack.Screen options={{ title: '홈 화면 위젯' }} />
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText tone="secondary">4×1 위젯에 표시할 정보를 선택합니다.</AppText>
+          <AppText tone="secondary">4×1·4×2 위젯 표시 정보</AppText>
         </View>
         {!androidWidgetSupported ? (
           <View accessible style={styles.platformNotice}>
@@ -74,30 +78,30 @@ export default function DisplaySettingsScreen() {
             return (
               <ToggleRow
                 disabled={!androidWidgetSupported || required}
-                icon={
-                  option.key === 'todayShift'
-                    ? 'calendar-outline'
-                    : option.key === 'nextShift'
-                      ? 'arrow-forward'
-                      : 'alarm-outline'
-                }
                 key={option.key}
                 onValueChange={() => void toggleWidgetDisplayOption(option.key)}
                 subtitle={
                   !androidWidgetSupported
-                    ? '안드로이드에서만 설정할 수 있습니다.'
+                    ? '안드로이드 전용'
                     : required
-                      ? '위젯에는 한 가지 이상의 정보를 표시해야 합니다.'
+                      ? '하나 이상 필요'
                     : selected
-                      ? '위젯에 표시 중입니다.'
-                      : '위젯에서 숨겨져 있습니다.'
+                      ? '표시 중'
+                      : '숨김'
                 }
+                style={styles.widgetOption}
                 title={option.label}
                 value={selected}
               />
             );
           })}
         </View>
+        {data.settings.widgetDisplayOptions.nextAlarm &&
+          (data.settings.widgetDisplayOptions.todayShift || data.settings.widgetDisplayOptions.nextShift) ? (
+            <AppText tone="secondary" variant="caption">
+              다음 알람은 4×2에서 함께 표시됩니다.
+            </AppText>
+          ) : null}
         <AppButton
           accessibilityHint={
             androidWidgetSupported
@@ -122,16 +126,22 @@ const createStyles = (_palette: AppPalette) =>
       gap: spacing.large,
     },
     section: { gap: spacing.large },
-    sectionHeader: { alignItems: 'center', gap: spacing.tiny },
+    sectionHeader: { gap: spacing.tiny },
     widgetOptions: {
-      gap: spacing.small,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: _palette.line,
+    },
+    widgetOption: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: _palette.line,
     },
     platformNotice: {
       minHeight: 40,
       justifyContent: 'center',
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-      borderRadius: 12,
-      backgroundColor: _palette.surfaceSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: _palette.line,
     },
   });

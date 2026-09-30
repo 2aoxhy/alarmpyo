@@ -1,3 +1,11 @@
+import {
+  isQuickTimerDuration,
+  QUICK_TIMER_MAX_DURATION_MINUTES,
+  QUICK_TIMER_MIN_DURATION_MINUTES,
+  QUICK_TIMER_PRESET_DURATIONS,
+  type QuickTimerDuration,
+} from '../../models/quick-timer';
+
 import type { QuickTimerStatus } from './quick-timer-controller';
 
 type QuickTimerRequiredAction = QuickTimerStatus['requiredAction'];
@@ -18,6 +26,167 @@ export type QuickTimerCountdownAnchor = {
 };
 
 export type QuickTimerPresetColumns = 1 | 2 | 4;
+export type QuickTimerPreset = (typeof QUICK_TIMER_PRESET_DURATIONS)[number] | 'custom';
+
+export function getQuickTimerPresetRows(
+  columns: QuickTimerPresetColumns,
+): readonly (readonly QuickTimerPreset[])[] {
+  const options: QuickTimerPreset[] = [...QUICK_TIMER_PRESET_DURATIONS, 'custom'];
+  const rows: QuickTimerPreset[][] = [];
+  for (let index = 0; index < options.length; index += columns) {
+    rows.push(options.slice(index, index + columns));
+  }
+  return rows;
+}
+
+export type QuickTimerDurationInputResult =
+  | { valid: true; durationMinutes: QuickTimerDuration }
+  | { valid: false; error: string };
+
+export type QuickTimerDurationStepperPresentation = {
+  durationMinutes: QuickTimerDuration;
+  accessibilityLabel: string;
+};
+
+export type QuickTimerWheelLayout = {
+  itemHeight: 64 | 80 | 104;
+  visibleItemCount: 1 | 3 | 5;
+  viewportHeight: number;
+};
+
+export type QuickTimerWheelEventGuard = {
+  actualOffset: number;
+  currentRevision: number;
+  eventRevision: number | null;
+  expectedOffset?: number | null;
+  visible: boolean;
+  wheelActive: boolean;
+};
+
+export const QUICK_TIMER_CUSTOM_INITIAL_DURATION = 15;
+
+export function clampQuickTimerDuration(value: number): QuickTimerDuration {
+  const rounded = Number.isFinite(value)
+    ? Math.round(value)
+    : QUICK_TIMER_CUSTOM_INITIAL_DURATION;
+  return Math.min(
+    QUICK_TIMER_MAX_DURATION_MINUTES,
+    Math.max(QUICK_TIMER_MIN_DURATION_MINUTES, rounded),
+  );
+}
+
+export function resolveQuickTimerWheelLayout(
+  height: number,
+  fontScale: number,
+  compact = false,
+): QuickTimerWheelLayout {
+  const safeHeight = Number.isFinite(height) ? Math.max(0, height) : 700;
+  const safeFontScale = Number.isFinite(fontScale)
+    ? Math.max(1, fontScale)
+    : 1;
+  const itemHeight = safeFontScale >= 1.8
+    ? 104
+    : safeFontScale >= 1.4
+      ? 80
+      : 64;
+  if (compact) {
+    return {
+      itemHeight,
+      visibleItemCount: 1,
+      viewportHeight: itemHeight,
+    };
+  }
+  const visibleItemCount =
+    safeFontScale >= 1.8 && safeHeight < 700
+      ? 1
+      : safeFontScale >= 1.4 || safeHeight < 700
+        ? 3
+        : 5;
+  return {
+    itemHeight,
+    visibleItemCount,
+    viewportHeight: itemHeight * visibleItemCount,
+  };
+}
+
+export function quickTimerDurationToOffset(
+  durationMinutes: number,
+  itemHeight: QuickTimerWheelLayout['itemHeight'],
+): number {
+  return (clampQuickTimerDuration(durationMinutes) - 1) * itemHeight;
+}
+
+export function quickTimerOffsetToDuration(
+  offset: number,
+  itemHeight: QuickTimerWheelLayout['itemHeight'],
+): QuickTimerDuration {
+  const safeOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0;
+  return clampQuickTimerDuration(Math.round(safeOffset / itemHeight) + 1);
+}
+
+export function shouldAcceptQuickTimerWheelEvent({
+  actualOffset,
+  currentRevision,
+  eventRevision,
+  expectedOffset = null,
+  visible,
+  wheelActive,
+}: QuickTimerWheelEventGuard): boolean {
+  if (
+    !visible ||
+    !wheelActive ||
+    eventRevision === null ||
+    eventRevision !== currentRevision
+  ) {
+    return false;
+  }
+  return (
+    expectedOffset === null ||
+    Math.abs(actualOffset - expectedOffset) <= 0.5
+  );
+}
+
+export function parseQuickTimerDurationInput(
+  input: string,
+): QuickTimerDurationInputResult {
+  const normalized = input.trim();
+  if (normalized.length === 0) {
+    return {
+      valid: false,
+      error: `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 시간을 입력해야 합니다.`,
+    };
+  }
+  if (!/^\d+$/u.test(normalized)) {
+    return {
+      valid: false,
+      error: '분 단위의 정수만 입력해야 합니다.',
+    };
+  }
+  if (normalized.length > 2) {
+    return { valid: false, error: '숫자 두 자리까지 입력해야 합니다.' };
+  }
+
+  const durationMinutes = Number(normalized);
+  if (!isQuickTimerDuration(durationMinutes)) {
+    return {
+      valid: false,
+      error: `${QUICK_TIMER_MIN_DURATION_MINUTES}분부터 ${QUICK_TIMER_MAX_DURATION_MINUTES}분까지 입력해야 합니다.`,
+    };
+  }
+  return { valid: true, durationMinutes };
+}
+
+export function getQuickTimerDurationStepperPresentation(
+  durationMinutes: number,
+): QuickTimerDurationStepperPresentation {
+  const safeDuration = isQuickTimerDuration(durationMinutes)
+    ? durationMinutes
+    : QUICK_TIMER_CUSTOM_INITIAL_DURATION;
+  return {
+    durationMinutes: safeDuration,
+    accessibilityLabel: `현재 ${safeDuration}분, 최소 ${QUICK_TIMER_MIN_DURATION_MINUTES}분, 최대 ${QUICK_TIMER_MAX_DURATION_MINUTES}분`,
+  };
+}
 
 export function getQuickTimerDisplayLabel(
   status: Pick<QuickTimerStatus, 'durationMinutes' | 'isRepeat' | 'state'>,
@@ -171,7 +340,7 @@ export function getQuickTimerActionPresentation(
     case 'exact-alarm':
       return {
         title: '정확한 알람 허용 필요',
-        message: '15분·30분·45분·60분 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
+        message: '선택한 시간 뒤 정확히 울리도록 정확한 알람을 허용해야 합니다.',
       };
     case 'notifications':
       return {

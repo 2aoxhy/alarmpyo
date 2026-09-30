@@ -5,8 +5,10 @@ import { AppIcon } from '@/components/app-icon';
 import { AppSheet } from '@/components/app-sheet';
 import { AppButton, AppText, Card } from '@/components/ui-kit';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import type { DayAlarmOverride } from '@/models/app-data';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
 import { formatCompactTime, formatKoreanDate } from '@/utils/date';
 import type { KoreanHolidayInfo } from '@/utils/korean-holiday';
@@ -14,6 +16,7 @@ import {
   getCalendarDateDirectChangeCopy,
   type CalendarDateDirectChange,
 } from './calendar-date-summary-presentation';
+import { formatCalendarAlarmOverride } from './calendar-day-presentation';
 
 export type { CalendarDateDirectChange } from './calendar-date-summary-presentation';
 
@@ -26,6 +29,8 @@ export type CalendarDateScheduleSummary = {
 
 export type CalendarDateSummaryData = {
   actualSchedule: CalendarDateScheduleSummary | null;
+  alarmOverride?: DayAlarmOverride | null;
+  automaticScheduleHidden?: boolean;
   baseSchedule?: CalendarDateScheduleSummary | null;
   dateKey: string;
   directChange?: CalendarDateDirectChange;
@@ -66,7 +71,9 @@ export function CalendarDateSummarySheet({
 
   const directChange = data.directChange ?? 'none';
   const editable = data.editable ?? true;
-  const hasDateInformation = Boolean(data.holiday || data.payrollEntry);
+  const hasDateInformation = Boolean(
+    data.holiday || data.payrollEntry || data.alarmOverride,
+  );
   const hasNote = Boolean(data.note?.trim());
   const fullDate = formatKoreanDate(data.dateKey, true);
 
@@ -104,34 +111,42 @@ export function CalendarDateSummarySheet({
             실제 일정
           </AppText>
         </View>
-        <ScheduleDisplay schedule={data.actualSchedule} styles={styles} />
+        {data.automaticScheduleHidden ? (
+          <AppText tone="secondary" variant="body">
+            이 날짜의 자동 근무표는 표시하지 않습니다.
+          </AppText>
+        ) : (
+          <ScheduleDisplay schedule={data.actualSchedule} styles={styles} />
+        )}
         {editable ? (
-          <View
-            accessible
-            accessibilityLabel={getCalendarDateDirectChangeCopy(directChange)}
-            style={[
-              styles.changeStatus,
-              directChange === 'none'
-                ? styles.changeStatusBase
-                : styles.changeStatusDirect,
-            ]}>
-            <AppIcon
-              accessible={false}
-              color={directChange === 'none' ? palette.mintDark : palette.amber}
-              name={
+          !data.automaticScheduleHidden ? (
+            <View
+              accessible
+              accessibilityLabel={getCalendarDateDirectChangeCopy(directChange)}
+              style={[
+                styles.changeStatus,
                 directChange === 'none'
-                  ? 'checkmark-circle'
-                  : 'options-outline'
-              }
-              size={18}
-            />
-            <AppText
-              color={directChange === 'none' ? palette.mintDark : palette.amber}
-              style={styles.changeStatusCopy}
-              variant="caption">
-              {getCalendarDateDirectChangeCopy(directChange)}
-            </AppText>
-          </View>
+                  ? styles.changeStatusBase
+                  : styles.changeStatusDirect,
+              ]}>
+              <AppIcon
+                accessible={false}
+                color={directChange === 'none' ? palette.mintDark : palette.amber}
+                name={
+                  directChange === 'none'
+                    ? 'checkmark-circle'
+                    : 'options-outline'
+                }
+                size={18}
+              />
+              <AppText
+                color={directChange === 'none' ? palette.mintDark : palette.amber}
+                style={styles.changeStatusCopy}
+                variant="caption">
+                {getCalendarDateDirectChangeCopy(directChange)}
+              </AppText>
+            </View>
+          ) : null
         ) : null}
         {editable && directChange !== 'none' ? (
           <View style={styles.baseSchedule}>
@@ -175,6 +190,21 @@ export function CalendarDateSummarySheet({
               styles={styles}
               title={data.payrollEntry.confirmed ? '급여일' : '예상 급여일'}
               value={data.payrollEntry.accessibilityLabel}
+            />
+          ) : null}
+          {data.alarmOverride ? (
+            <InformationRow
+              accessibilityLabel={
+                formatCalendarAlarmOverride(data.alarmOverride) ?? '날짜별 알람'
+              }
+              marker="알"
+              markerColor={palette.indigoDark}
+              round
+              styles={styles}
+              title="날짜별 알람"
+              value={
+                formatCalendarAlarmOverride(data.alarmOverride) ?? '설정 있음'
+              }
             />
           ) : null}
         </Card>
@@ -346,7 +376,7 @@ function createStyles(palette: AppPalette) {
       alignSelf: 'flex-start',
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
-      borderRadius: radii.small,
+      borderRadius: shape.control,
       backgroundColor: palette.surfaceSoft,
     },
     timeText: { fontVariant: ['tabular-nums'] },
@@ -356,7 +386,7 @@ function createStyles(palette: AppPalette) {
       alignItems: 'flex-start',
       gap: spacing.small,
       padding: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
     },
     changeStatusBase: { backgroundColor: palette.mintSoft },
     changeStatusDirect: { backgroundColor: palette.amberSoft },
@@ -405,7 +435,7 @@ function createStyles(palette: AppPalette) {
       alignItems: 'flex-start',
       gap: spacing.small,
       padding: spacing.medium,
-      borderRadius: radii.small,
+      borderRadius: shape.panel,
       backgroundColor: palette.surfaceSoft,
     },
   });

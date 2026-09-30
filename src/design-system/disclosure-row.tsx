@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,8 +11,9 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 
-import { interaction, radius, size, space, typeScale } from './tokens';
+import { size, space, typeScale } from './tokens';
 import { shouldReflowControl } from './responsive';
 import {
   type DesignSystemThemeProps,
@@ -44,6 +46,9 @@ export function DisclosureRow({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
+  const titleLineHeight =
+    typeScale.label.lineHeight * Math.min(Math.max(fontScale, 1), 2);
+  const focus = useWebFocusVisible();
 
   return (
     <Pressable
@@ -51,32 +56,37 @@ export function DisclosureRow({
       accessibilityRole="button"
       accessibilityState={{ disabled, expanded }}
       disabled={disabled}
+      onBlur={focus.onBlur}
+      onFocus={focus.onFocus}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
         reflow && styles.rowReflow,
         style,
         pressed && !disabled && styles.pressed,
+        focus.focusVisible && !disabled && styles.focusVisible,
         disabled && styles.disabled,
       ]}
       testID={testID}>
-      {icon ? (
-        <View style={[styles.iconTile, disabled && styles.iconTileDisabled]}>
-          <AppIcon
-            accessible={false}
-            color={disabled ? colors.textDisabled : colors.accentStrong}
-            name={icon}
-            size={size.iconMedium}
-          />
-        </View>
-      ) : null}
-      <View style={styles.textContainer}>
-        <Text style={[styles.title, disabled && styles.textDisabled]}>{title}</Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, disabled && styles.textDisabled]}>{subtitle}</Text>
+      <View style={[styles.mainContent, reflow && styles.mainContentReflow]}>
+        {icon ? (
+          <View style={[styles.icon, { height: titleLineHeight }]}>
+            <AppIcon
+              accessible={false}
+              color={disabled ? colors.textDisabled : colors.accentStrong}
+              name={icon}
+              size={size.iconMedium}
+            />
+          </View>
         ) : null}
+        <View style={styles.textContainer}>
+          <Text style={[styles.title, disabled && styles.textDisabled]}>{title}</Text>
+          {subtitle ? (
+            <Text style={[styles.subtitle, disabled && styles.textDisabled]}>{subtitle}</Text>
+          ) : null}
+        </View>
       </View>
-      <View style={styles.trailing}>
+      <View style={[styles.trailing, reflow && styles.trailingReflow]}>
         <AppIcon
           accessible={false}
           color={disabled ? colors.textDisabled : colors.textSoft}
@@ -98,30 +108,46 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       gap: space.md,
       paddingHorizontal: space.lg,
       paddingVertical: space.sm,
-      borderRadius: radius.lg,
-      backgroundColor: colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
     },
     rowReflow: {
-      alignItems: 'flex-start',
+      alignItems: 'stretch',
+      flexDirection: 'column',
+      gap: space.xs,
     },
     pressed: {
-      opacity: interaction.pressedOpacity,
+      backgroundColor: colors.surfaceMuted,
     },
     disabled: {
       backgroundColor: colors.surfaceDisabled,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
-    iconTile: {
+    focusVisible:
+      Platform.OS === 'web'
+        ? {
+            outlineColor: colors.focus,
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
+    mainContent: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: space.md,
+    },
+    mainContentReflow: {
+      width: '100%',
+      flex: 0,
+    },
+    icon: {
       width: size.minimumTouchTarget,
-      height: size.minimumTouchTarget,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.sm,
-      backgroundColor: colors.surfaceMuted,
-    },
-    iconTileDisabled: {
-      backgroundColor: colors.surfaceDisabled,
     },
     textContainer: {
       flex: 1,
@@ -147,6 +173,9 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    trailingReflow: {
+      alignSelf: 'flex-end',
     },
   });
 }

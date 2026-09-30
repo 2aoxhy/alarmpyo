@@ -37,6 +37,30 @@ describe('pattern accessibility and responsive contract', () => {
     expect(route).not.toContain('renderItem={({ index, item }) => (');
   });
 
+  it('uses segment composition first and keeps the day editor behind advanced disclosure', () => {
+    const composer = source('pattern-segment-composer.tsx');
+    const route = appSource('pattern-library-edit.tsx');
+
+    expect(composer).toContain('export const PatternSegmentComposer');
+    expect(composer).toContain('BASIC_SHIFT_OPTIONS');
+    expect(composer).toContain('SUBSTITUTE_SHIFT_OPTIONS');
+    expect(composer).toContain('직전 작업 취소');
+    expect(composer).toContain('구간 추가');
+    expect(route).toContain('<PatternSegmentComposer');
+    expect(route).toContain('title="날짜별 상세 편집"');
+    expect(route).toContain('{advancedEditorOpen ? (');
+    expect(route.indexOf('<PatternSegmentComposer')).toBeLessThan(
+      route.indexOf('<PatternSequenceStrip'),
+    );
+  });
+
+  it('uses an automatic pattern name until the user opts into editing it', () => {
+    const route = appSource('pattern-library-edit.tsx');
+    expect(route).toContain('formatPatternComposerName');
+    expect(route).toContain("label={customName ? '자동 이름' : '이름 수정'}");
+    expect(route).toContain('{nameEditorOpen ? (');
+  });
+
   it('shows pattern-name errors only after blur or save', () => {
     const route = appSource('pattern-library-edit.tsx');
     expect(route).toContain('const [nameTouched, setNameTouched] = useState(false)');
@@ -73,9 +97,31 @@ describe('pattern accessibility and responsive contract', () => {
     expect(preview).toContain('적용 후 ${selectedRow.nextLabel}');
     expect(preview).toContain('label={`변경 ${changedDateCount}일`}');
     expect(preview).not.toContain('<Card density="compact" key={row.dateKey}');
-    expect(apply).toContain('previewPatternApplication');
+    expect(apply).toContain('createPatternApplicationPreview(data,');
     expect(apply).not.toContain('향후 42일');
     expect(apply).not.toContain('42일 비교');
+  });
+
+  it('shows seven days first and keeps the full 42 day calendar collapsed', () => {
+    const preview = source('pattern-application-preview.tsx');
+    expect(preview).toContain(
+      'buildPatternSevenDaySummary({ mode, rows, selectedDateKeys })',
+    );
+    expect(preview).toContain("? '직접 수정 유지'");
+    expect(preview).toContain(": '직접 수정 제거'");
+    expect(preview).toContain('title="42일 전체 보기"');
+    expect(preview).toContain('{calendarExpanded ? (');
+    expect(preview.indexOf('<PatternSevenDaySummaryView')).toBeLessThan(
+      preview.indexOf('title="42일 전체 보기"'),
+    );
+  });
+
+  it('hides override policy when there are no direct edits and keeps preserve as default', () => {
+    const apply = appSource('pattern-library-apply.tsx');
+    expect(apply).toContain("useState<OverrideResolutionMode>('preserve')");
+    expect(apply).toContain('preview.directOverrideDateKeys.length > 0 ? (');
+    expect(apply).toContain('title="직접 수정"');
+    expect(apply).toContain('formatPatternApplyActionLabel');
   });
 
   it('keeps direct-edit policy controls usable at 320dp and large text', () => {
@@ -94,7 +140,7 @@ describe('pattern accessibility and responsive contract', () => {
 
   it('does not repeat the native vault title or render a disabled stored action', () => {
     const library = appSource('pattern-library.tsx');
-    expect(library).toContain("<Stack.Screen options={{ title: '근무 패턴 보관함' }} />");
+    expect(library).toContain("<Stack.Screen options={{ title: '패턴 보관함' }} />");
     expect(library).not.toContain('<SectionHeader centered title="근무 패턴 보관함" />');
     expect(library).toContain('{!alreadyStored ? (');
     expect(library).not.toContain("label={alreadyStored ? '보관됨' : '검증본 보관'}");
@@ -118,7 +164,7 @@ describe('pattern accessibility and responsive contract', () => {
     expect(controller).toContain('pickAndValidateShiftPatternFile');
     expect(controller).toContain('importValidatedPattern');
     expect(library).not.toContain('applyPatternFromVault');
-    expect(apply).toContain('previewPatternApplication');
+    expect(apply).toContain('createPatternApplicationPreview(data,');
     expect(apply).toContain('applyPatternFromVault');
     expect(apply).not.toContain('buildPatternDiffRows');
     expect(apply).not.toContain('pickAndValidateShiftPatternFile');
@@ -126,7 +172,7 @@ describe('pattern accessibility and responsive contract', () => {
 
   it('fails closed for invalid official integrity and connects history rollback', () => {
     const library = appSource('pattern-library.tsx');
-    expect(library).toContain('사용자 패턴으로 바꾸어 열지 않았습니다');
+    expect(library).toContain('파일을 열지 않았습니다');
     expect(library).toContain('rollbackLastPatternApplication');
     expect(library).toContain('data.patternHistory.slice(0, 10)');
   });
@@ -135,6 +181,34 @@ describe('pattern accessibility and responsive contract', () => {
     const patternEditor = appSource('pattern.tsx');
     expect(patternEditor).toContain("data.appliedPatternSource !== 'legacy'");
     expect(patternEditor).toContain("router.replace('/pattern-library'");
-    expect(patternEditor).toContain('현재 근무표는 변경하지 않았습니다');
+    expect(patternEditor).toContain('현재 근무표 유지');
+  });
+
+  it('keeps field copy short and removes repeated reassurance banners', () => {
+    const library = appSource('pattern-library.tsx');
+    const editor = appSource('pattern-library-edit.tsx');
+    const apply = appSource('pattern-library-apply.tsx');
+    const preview = source('pattern-application-preview.tsx');
+
+    for (const oldCopy of [
+      '가져오기와 적용 분리',
+      '설정 보호',
+      '앞으로 7일을 먼저 확인하고',
+      '전체 42일 비교',
+    ]) {
+      expect([library, editor, apply, preview].join('\n')).not.toContain(oldCopy);
+    }
+    expect(editor).toContain('근무 순서만 저장');
+    expect(apply).toContain('근무 순서만 적용 · 시간·알람·권한 유지');
+  });
+
+  it('uses a flat active rail and a direct delete title', () => {
+    const library = appSource('pattern-library.tsx');
+    const vaultCard = source('pattern-vault-card.tsx');
+
+    expect(library).toContain("'패턴 삭제'");
+    expect(library).not.toContain('삭제하시겠습니까');
+    expect(vaultCard).toContain('borderLeftWidth: 3');
+    expect(vaultCard).not.toContain('borderWidth: 2');
   });
 });

@@ -22,6 +22,7 @@ vi.mock('@/constants/app-theme', () => ({
   radii: { medium: 18, pill: 999 },
   spacing: { small: 8, medium: 12, large: 16, xlarge: 24 },
 }));
+vi.mock('@/design-system', () => ({ shape: { control: 8 } }));
 vi.mock('@/hooks/use-app-theme', () => ({ useAppTheme: vi.fn() }));
 vi.mock('@/hooks/use-themed-styles', () => ({ useThemedStyles: vi.fn() }));
 vi.mock('@/hooks/use-web-focus-visible', () => ({ useWebFocusVisible: vi.fn() }));
@@ -60,9 +61,10 @@ describe('V10 선택 컨트롤 계약', () => {
     expect(source).toContain('outlineColor: palette.focus');
   });
 
-  it('선택은 체크와 경계를 함께 사용하고 비활성 전체 투명도를 사용하지 않습니다', () => {
+  it('선택은 체크와 경계를 함께 사용하고 눌림은 크기 변화 없이 표시합니다', () => {
     expect(source).toContain('name="checkmark"');
     expect(source).toContain('backgroundColor: palette.white');
-    expect(source).not.toContain('opacity:');
+    expect(source).toContain('pressed: { opacity: 0.76 }');
+    expect(source).not.toContain('transform: [{ scale:');
   });
 });

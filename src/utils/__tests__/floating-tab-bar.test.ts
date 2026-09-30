@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error Vitest에서 Node 내장 모듈을 제공해요.
+import { readFileSync } from 'node:fs';
+// @ts-expect-error Vitest에서 Node 내장 모듈을 제공해요.
+import { resolve } from 'node:path';
 
 import {
   resolveFloatingTabBarGeometry,
@@ -7,6 +11,31 @@ import {
 } from '../floating-tab-bar';
 
 describe('떠 있는 하단 메뉴 배치', () => {
+  it('React Navigation의 기본 start·end 제약을 덮어쓰고 계산한 중심축을 사용해요', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/(tabs)/_layout.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('left: tabBarGeometry.inset');
+    expect(source).toContain('start: tabBarGeometry.inset');
+    expect(source).toContain("end: 'auto'");
+    expect(source).not.toContain('end: tabBarGeometry.inset');
+  });
+
+  it('하단 메뉴는 같은 라벨 컴포넌트를 사용하고 안전 영역을 중복 적용하지 않아요', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/(tabs)/_layout.tsx'),
+      'utf8',
+    );
+    expect(source).toContain("tabBarLabelPosition: 'below-icon'");
+    expect(source).toContain('tabBarLabel: TabBarLabel');
+    expect(source).toContain('safeAreaInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}');
+    for (const label of ['오늘', '달력', '타이머', '설정']) {
+      expect(source).toContain(`title: '${label}'`);
+      expect(source).toContain(`tabBarAccessibilityLabel: '${label}'`);
+    }
+  });
+
   it('안전 영역과 메뉴 높이를 콘텐츠 여백에 모두 반영해요', () => {
     const layout = resolveFloatingTabBarLayout(1, 34);
 
@@ -71,6 +100,7 @@ describe('떠 있는 하단 메뉴 배치', () => {
   it.each([
     [320, 0, 0, 4],
     [360, 24, 0, 4],
+    [390, 0, 44, 12],
     [412, 0, 24, 12],
     [768, 44, 0, 12],
     [1280, 0, 0, 12],
@@ -84,10 +114,9 @@ describe('떠 있는 하단 메뉴 배치', () => {
         outerMargin,
       );
 
-      expect(geometry.left + geometry.width / 2).toBe(windowWidth / 2);
-      expect(geometry.right).toBe(geometry.left);
-      expect(geometry.left).toBeGreaterThanOrEqual(geometry.sideGuard);
-      expect(windowWidth - geometry.left - geometry.width).toBeGreaterThanOrEqual(
+      expect(geometry.inset + geometry.width / 2).toBe(windowWidth / 2);
+      expect(geometry.inset).toBeGreaterThanOrEqual(geometry.sideGuard);
+      expect(windowWidth - geometry.inset - geometry.width).toBeGreaterThanOrEqual(
         geometry.sideGuard,
       );
       expect(geometry.width).toBeLessThanOrEqual(560);
@@ -96,8 +125,7 @@ describe('떠 있는 하단 메뉴 배치', () => {
 
   it('비대칭 안전 영역은 더 큰 값을 양쪽에 같은 여백으로 적용해요', () => {
     expect(resolveFloatingTabBarGeometry(412, 28, 4, 12)).toEqual({
-      left: 28,
-      right: 28,
+      inset: 28,
       sideGuard: 28,
       width: 356,
     });
@@ -106,6 +134,6 @@ describe('떠 있는 하단 메뉴 배치', () => {
   it('잘못된 화면·안전 영역 값도 유한한 중앙 배치를 반환해요', () => {
     expect(
       resolveFloatingTabBarGeometry(Number.NaN, Number.NaN, -4, 12),
-    ).toEqual({ left: 0, right: 0, sideGuard: 12, width: 0 });
+    ).toEqual({ inset: 0, sideGuard: 12, width: 0 });
   });
 });

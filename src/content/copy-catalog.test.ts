@@ -47,6 +47,8 @@ describe('사용자 문구 카탈로그', () => {
       openSettings: 'action',
       testAlarm: 'action',
     });
+    expect(alarmCopy.ready.text).toBe('알람 준비 완료');
+    expect(alarmCopy.unavailable.text).toBe('알람 상태 확인 불가');
   });
 
   it('자료 문구의 역할을 타입과 함께 보존합니다', () => {
@@ -54,12 +56,15 @@ describe('사용자 문구 카탈로그', () => {
       saveComplete: 'sentence',
       saveFailed: 'sentence',
       invalidSchedule: 'requirement',
-      restoreQuestion: 'question',
+      restoreQuestion: 'label',
       managementSummary: 'label',
       backupSection: 'label',
       backup: 'action',
       restore: 'action',
     });
+    expect(dataCopy.saveComplete.text).toBe('저장 완료');
+    expect(dataCopy.saveFailed.text).toBe('저장 실패');
+    expect(dataCopy.backupSection.text).toBe('백업·복구');
   });
 
   it('업데이트 문구의 역할을 타입과 함께 보존합니다', () => {

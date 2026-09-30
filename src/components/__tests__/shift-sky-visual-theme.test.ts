@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   resolveShiftHeroTheme,
+  resolveShiftVisualSpec,
   resolveShiftVisualRole,
   type ShiftVisualRole,
 } from '../../design-system/shift-visual-theme';
@@ -30,6 +31,25 @@ function contrast(first: string, second: string) {
 }
 
 describe('오늘 히어로 근무 의미색 계약', () => {
+  it('일반 근무와 대체근무는 배경을 공유하고 호박색 의미선으로 구분합니다', () => {
+    expect(resolveShiftVisualSpec('day')).toMatchObject({
+      softBackground: '#123D36',
+      meaningRail: null,
+    });
+    expect(resolveShiftVisualSpec('substitute-day')).toMatchObject({
+      softBackground: '#123D36',
+      meaningRail: '#F0C36A',
+    });
+    expect(resolveShiftVisualSpec('night')).toMatchObject({
+      softBackground: '#173650',
+      meaningRail: null,
+    });
+    expect(resolveShiftVisualSpec('substitute-night')).toMatchObject({
+      softBackground: '#173650',
+      meaningRail: '#F0C36A',
+    });
+  });
+
   it.each([
     ['day', 'day'],
     ['evening', 'evening'],
@@ -76,6 +96,17 @@ describe('오늘 히어로 근무 의미색 계약', () => {
     expect(substituteNight.gradient).toEqual(night.gradient);
     expect(substituteDay.accent).toBe('#F0C36A');
     expect(substituteNight.accent).toBe('#F0C36A');
+  });
+
+  it.each([
+    ['day', '#58D9BC'],
+    ['evening', '#F0C36A'],
+    ['night', '#89CEFF'],
+  ] as const)('%s 상태 의미색은 배경 양 끝에서 3:1 이상입니다', (role, color) => {
+    const theme = resolveShiftHeroTheme(role);
+    for (const background of theme.gradient) {
+      expect(contrast(color, background)).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('사용자 근무색은 저장값을 바꾸지 않고 강조색으로만 사용합니다', () => {

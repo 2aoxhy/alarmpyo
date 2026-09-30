@@ -61,15 +61,15 @@ export function patternImportErrorCopy(error: unknown): {
   if (error instanceof ShiftPatternError) {
     if (isPatternIntegrityError(error)) {
       return {
-        title: '패턴 안전성을 확인하지 못했습니다',
-        message: `${error.message} 공식 패턴을 사용자 패턴으로 바꾸어 열지 않았습니다.`,
+        title: '공식 패턴 확인 실패',
+        message: `${error.message} 파일을 열지 않았습니다.`,
       };
     }
-    return { title: '패턴 파일을 가져오지 못했습니다', message: error.message };
+    return { title: '가져오기 실패', message: error.message };
   }
   return {
-    title: '패턴 파일을 가져오지 못했습니다',
-    message: '파일을 확인한 뒤 다시 시도해야 합니다.',
+    title: '가져오기 실패',
+    message: '파일을 확인한 뒤 다시 시도',
   };
 }
 

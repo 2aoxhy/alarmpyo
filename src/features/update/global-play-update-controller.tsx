@@ -4,17 +4,18 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { useSegments } from 'expo-router';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  findNodeHandle,
-  Modal,
+  type LayoutChangeEvent,
   Platform,
-  ScrollView,
+  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -22,12 +23,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
+import { useAppDialog } from '@/components/app-dialog';
+import {
+  GlobalBottomOverlayLayoutContext,
+  resolveGlobalBottomOverlayBottom,
+} from '@/components/global-bottom-overlay-layout';
 import { AppButton, AppText } from '@/components/ui-kit';
 import { type AppPalette } from '@/constants/app-theme';
-import { radius, size, space } from '@/design-system/tokens';
+import { ModalSurface } from '@/design-system';
+import { shape, size, space } from '@/design-system/tokens';
 import { useAppLifecycle } from '@/hooks/use-app-active';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
 import { openGooglePlayListing } from '@/services/app-distribution';
 import {
   completeFlexiblePlayUpdate,
@@ -38,14 +46,20 @@ import {
   type PlayUpdateStatus,
 } from '@/services/play-app-update-service';
 import { useAppRuntimeController } from '@/store/app-store';
+import {
+  resolveFloatingTabBarGeometry,
+  resolveFloatingTabBarLayout,
+} from '@/utils/floating-tab-bar';
 
 import {
-  getPlayUpdateStatusBadge,
   getPlayUpdateModalPresentation,
+  getPlayUpdateStatusBadge,
+  getPlayUpdateStatusBarPresentation,
   getPlayUpdateTransitionAnnouncement,
   mergePlayUpdateStatus,
   resolvePlayUpdateNoticeKind,
   shouldPresentPlayUpdateModal,
+  shouldPresentPlayUpdateStatusBar,
   type PlayUpdateNoticeKind,
   type PlayUpdateStatusBadge,
 } from './play-update-notice-policy';
@@ -55,8 +69,10 @@ import {
   writePlayUpdatePromptSnooze,
   type PlayUpdatePromptSnooze,
 } from './play-update-snooze-repository';
+import { createPlayUpdateActionGate } from './play-update-action-gate';
 
 const PLAY_UPDATE_POLL_INTERVAL_MS = 1_500;
+const PLAY_UPDATE_PRIORITY_MODAL_OWNER = 'play-update';
 
 export type GlobalPlayUpdateContextValue = {
   badge: PlayUpdateStatusBadge | null;
@@ -76,6 +92,10 @@ export function GlobalPlayUpdateProvider({
   enabled,
 }: PropsWithChildren<{ enabled: boolean }>) {
   const appLifecycle = useAppLifecycle();
+  const insets = useSafeAreaInsets();
+  const segments = useSegments();
+  const { fontScale } = useWindowDimensions();
+  const { setPriorityModalVisible } = useAppDialog();
   const runtime = useAppRuntimeController();
   const [status, setStatus] = useState<PlayUpdateStatus | null>(null);
   const [snooze, setSnooze] = useState<PlayUpdatePromptSnooze | null>(null);
@@ -85,7 +105,30 @@ export function GlobalPlayUpdateProvider({
     'start' | 'install'
   >('start');
   const [now, setNow] = useState(Date.now);
+  const [statusBarHeight, setStatusBarHeight] = useState(0);
+  const [bottomControlInset, setBottomControlInset] = useState(0);
+  const bottomControlInsetsRef = useRef(new Map<string, number>());
   const previousNoticeKindRef = useRef<PlayUpdateNoticeKind | null>(null);
+  const actionGateRef = useRef(createPlayUpdateActionGate());
+
+  const registerBottomControlInset = useCallback(
+    (owner: string, inset: number) => {
+      const safeInset = Number.isFinite(inset) ? Math.max(inset, 0) : 0;
+      if (safeInset > 0) {
+        bottomControlInsetsRef.current.set(owner, safeInset);
+      } else {
+        bottomControlInsetsRef.current.delete(owner);
+      }
+      const nextInset = Math.max(
+        0,
+        ...bottomControlInsetsRef.current.values(),
+      );
+      setBottomControlInset((current) =>
+        current === nextInset ? current : nextInset,
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -178,11 +221,20 @@ export function GlobalPlayUpdateProvider({
     // 저장 공간 오류가 있더라도 현재 세션에서는 사용자의 닫기 동작을 존중해요.
     setSnooze(nextSnooze);
     setNow(Date.now());
-    await writePlayUpdatePromptSnooze(nextSnooze, runtime.dataRepository);
+    // 저장소 쓰기가 실패해도 현재 세션의 처리 상태는 유지하고 Play 흐름을
+    // 계속 엽니다. 같은 세션에서 모달이 다시 뜨는 것보다 업데이트 동작을
+    // 막지 않는 편이 안전하며, 다음 앱 실행에서는 다시 안내할 수 있습니다.
+    await writePlayUpdatePromptSnooze(
+      nextSnooze,
+      runtime.dataRepository,
+    ).catch(() => undefined);
   }, [runtime.dataRepository, status?.availableVersionCode]);
 
   const performPrimaryAction = useCallback(async () => {
-    if (busy) return;
+    if (!enabled) return;
+    const actionGate = actionGateRef.current;
+    const revision = actionGate.claim();
+    if (revision === null) return;
     setBusy(true);
     const kind = resolvePlayUpdateNoticeKind(status);
     const action =
@@ -191,6 +243,12 @@ export function GlobalPlayUpdateProvider({
         ? 'install'
         : 'start';
     try {
+      // Play 화면을 열기 전에 처리 상태를 기록해야 복귀 직후 같은 버전의
+      // 중앙 알림이 다시 나타나지 않아요.
+      if (kind === 'available') {
+        await snoozeFor24Hours();
+        if (!actionGate.isCurrent(revision)) return;
+      }
       let nextStatus: PlayUpdateStatus | null = null;
       if (action === 'install') {
         nextStatus = await completeFlexiblePlayUpdate();
@@ -199,15 +257,16 @@ export function GlobalPlayUpdateProvider({
       } else {
         await openGooglePlayListing();
       }
+      if (!actionGate.isCurrent(revision)) return;
       if (nextStatus) {
-        const mergedStatus = mergePlayUpdateStatus(status, nextStatus);
-        setStatus(mergedStatus);
-        if (resolvePlayUpdateNoticeKind(mergedStatus) === 'failed') {
+        setStatus((current) => mergePlayUpdateStatus(current, nextStatus));
+        if (resolvePlayUpdateNoticeKind(nextStatus) === 'failed') {
           setFailedRetryAction(action);
         }
       }
       setNow(Date.now());
     } catch {
+      if (!actionGate.isCurrent(revision)) return;
       setFailedRetryAction(action);
       setStatus((current) =>
         current
@@ -215,27 +274,59 @@ export function GlobalPlayUpdateProvider({
           : current,
       );
     } finally {
-      setBusy(false);
+      if (actionGate.release(revision)) setBusy(false);
     }
-  }, [busy, failedRetryAction, status]);
+  }, [enabled, failedRetryAction, snoozeFor24Hours, status]);
 
   const kind = resolvePlayUpdateNoticeKind(status);
   const badge = getPlayUpdateStatusBadge(status);
+  const statusBarVisible =
+    enabled && shouldPresentPlayUpdateStatusBar(status, snooze, now);
 
   useEffect(() => {
     const previousKind = previousNoticeKindRef.current;
     previousNoticeKindRef.current = kind;
-    if (kind !== 'downloading' && kind !== 'installed') return;
+    if (
+      kind === null ||
+      kind === 'available' ||
+      (kind !== 'installed' && !statusBarVisible)
+    ) {
+      return;
+    }
     const announcement = getPlayUpdateTransitionAnnouncement(previousKind, kind);
     if (announcement) {
       void AccessibilityInfo.announceForAccessibility(announcement);
     }
-  }, [kind]);
+  }, [kind, statusBarVisible]);
 
   const modalVisible =
     enabled &&
     snoozeLoaded &&
     shouldPresentPlayUpdateModal(status, snooze, now);
+  const defaultBottomControlInset =
+    segments[0] === '(tabs)'
+      ? resolveFloatingTabBarLayout(
+          fontScale,
+          insets.bottom,
+          Platform.OS === 'web',
+        ).contentOffset
+      : Math.max(insets.bottom, space.md);
+  const statusBarBottom = resolveGlobalBottomOverlayBottom(
+    defaultBottomControlInset,
+    bottomControlInset,
+    space.sm,
+  );
+  const globalBottomOverlayInset =
+    statusBarVisible && statusBarHeight > 0
+      ? statusBarBottom + statusBarHeight
+      : 0;
+
+  useLayoutEffect(() => {
+    setPriorityModalVisible(PLAY_UPDATE_PRIORITY_MODAL_OWNER, modalVisible);
+    return () => {
+      setPriorityModalVisible(PLAY_UPDATE_PRIORITY_MODAL_OWNER, false);
+    };
+  }, [modalVisible, setPriorityModalVisible]);
   const value = useMemo<GlobalPlayUpdateContextValue>(
     () => ({
       badge,
@@ -256,19 +347,36 @@ export function GlobalPlayUpdateProvider({
       status,
     ],
   );
+  const bottomOverlayLayout = useMemo(
+    () => ({
+      contentInset: globalBottomOverlayInset,
+      registerBottomControlInset,
+    }),
+    [globalBottomOverlayInset, registerBottomControlInset],
+  );
 
   return (
     <GlobalPlayUpdateContext.Provider value={value}>
-      {children}
-      <PlayUpdateDownloadProgress kind={kind} status={status} />
-      <PlayUpdateModal
-        busy={busy}
-        kind={kind}
-        onPrimaryAction={() => void performPrimaryAction()}
-        onSnooze={() => void snoozeFor24Hours()}
-        status={status}
-        visible={modalVisible}
-      />
+      <GlobalBottomOverlayLayoutContext.Provider value={bottomOverlayLayout}>
+        {children}
+        <PlayUpdateStatusBar
+          bottom={statusBarBottom}
+          busy={busy}
+          kind={kind}
+          onHeightChange={setStatusBarHeight}
+          onPrimaryAction={() => void performPrimaryAction()}
+          status={status}
+          visible={statusBarVisible}
+        />
+        <PlayUpdateModal
+          busy={busy}
+          kind={kind}
+          onPrimaryAction={() => void performPrimaryAction()}
+          onSnooze={() => void snoozeFor24Hours()}
+          status={status}
+          visible={modalVisible}
+        />
+      </GlobalBottomOverlayLayoutContext.Provider>
     </GlobalPlayUpdateContext.Provider>
   );
 }
@@ -296,167 +404,206 @@ function PlayUpdateModal({
   status: PlayUpdateStatus | null;
   visible: boolean;
 }) {
-  const { height, width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const titleRef = useRef<React.ElementRef<typeof AppText>>(null);
-  const horizontalGuard = Math.max(insets.left, insets.right, space.lg);
-  const verticalGuard = Math.max(insets.top, insets.bottom, space.lg);
   const presentation = getPlayUpdateModalPresentation(
     kind,
     status?.availableVersionCode ?? 0,
   );
 
-  useEffect(() => {
-    if (!visible || Platform.OS === 'web') return;
-    const timeout = setTimeout(() => {
-      const node = findNodeHandle(titleRef.current);
-      if (node !== null) AccessibilityInfo.setAccessibilityFocus(node);
-    }, 120);
-    return () => clearTimeout(timeout);
-  }, [visible, presentation.title]);
-
   return (
-    <Modal
-      animationType="fade"
-      navigationBarTranslucent
-      onRequestClose={() => {
-        if (presentation.snoozable && !busy) onSnooze();
-      }}
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      transparent
+    <ModalSurface
+      alert={kind === 'failed'}
+      cancelable={presentation.snoozable && !busy}
+      onClose={onSnooze}
+      title={presentation.title}
       visible={visible}>
-      <View
-        accessibilityViewIsModal
-        importantForAccessibility="yes"
-        style={[
-          styles.modalOverlay,
-          {
-            paddingBottom: verticalGuard,
-            paddingHorizontal: horizontalGuard,
-            paddingTop: verticalGuard,
-          },
-        ]}>
-        <View
-          style={[
-            styles.modalCard,
-            {
-              maxHeight: Math.max(160, height - verticalGuard * 2),
-              width: Math.min(480, Math.max(0, width - horizontalGuard * 2)),
-            },
-          ]}>
-          <ScrollView
-            bounces={false}
-            contentContainerStyle={styles.modalContent}
-            showsVerticalScrollIndicator={height < 520}>
-            <View style={styles.modalIcon}>
-              {kind === 'installing' || busy ? (
-                <ActivityIndicator color={palette.blue} size="small" />
-              ) : (
-                <AppIcon
-                  accessible={false}
-                  color={kind === 'failed' ? palette.danger : palette.blue}
-                  name={
-                    kind === 'downloaded'
-                      ? 'checkmark-circle'
-                      : kind === 'failed'
-                        ? 'alert-circle-outline'
-                        : 'download-outline'
-                  }
-                  size={28}
-                />
-              )}
-            </View>
-            <View style={styles.modalCopy}>
-              <AppText
-                ref={titleRef}
-                accessibilityRole="header"
-                style={styles.modalTitle}
-                variant="title">
-                {presentation.title}
-              </AppText>
-              <AppText style={styles.modalMessage} tone="secondary">
-                {presentation.message}
-              </AppText>
-            </View>
-            {presentation.primaryLabel ? (
-              <View style={styles.modalActions}>
-                <AppButton
-                  accessibilityHint={presentation.primaryHint}
-                  icon={
-                    kind === 'downloaded'
-                      ? 'checkmark'
-                      : kind === 'failed'
-                        ? 'refresh-outline'
-                        : 'download-outline'
-                  }
-                  label={presentation.primaryLabel}
-                  loading={busy}
-                  onPress={onPrimaryAction}
-                  style={styles.modalAction}
-                />
-                {presentation.snoozable ? (
-                  <AppButton
-                    disabled={busy}
-                    label="24시간 후 다시 알림"
-                    onPress={onSnooze}
-                    style={styles.modalAction}
-                    variant="secondary"
-                  />
-                ) : null}
-              </View>
-            ) : null}
-          </ScrollView>
-        </View>
+      <View style={styles.modalIcon}>
+        {kind === 'installing' || busy ? (
+          <ActivityIndicator color={palette.blue} size="small" />
+        ) : (
+          <AppIcon
+            accessible={false}
+            color={kind === 'failed' ? palette.danger : palette.blue}
+            name={
+              kind === 'downloaded'
+                ? 'checkmark-circle'
+                : kind === 'failed'
+                  ? 'alert-circle-outline'
+                  : 'download-outline'
+            }
+            size={28}
+          />
+        )}
       </View>
-    </Modal>
+      <AppText style={styles.modalMessage} tone="secondary">
+        {presentation.message}
+      </AppText>
+      {presentation.primaryLabel ? (
+        <View style={styles.modalActions}>
+          <AppButton
+            accessibilityHint={presentation.primaryHint}
+            icon={
+              kind === 'downloaded'
+                ? 'checkmark'
+                : kind === 'failed'
+                  ? 'refresh-outline'
+                  : 'download-outline'
+            }
+            label={presentation.primaryLabel}
+            loading={busy}
+            onPress={onPrimaryAction}
+            style={styles.modalAction}
+          />
+          {presentation.snoozable ? (
+            <AppButton
+              disabled={busy}
+              label="24시간 후 다시 알림"
+              onPress={onSnooze}
+              style={styles.modalAction}
+              variant="secondary"
+            />
+          ) : null}
+        </View>
+      ) : null}
+    </ModalSurface>
   );
 }
 
-function PlayUpdateDownloadProgress({
+function PlayUpdateStatusBar({
+  bottom,
+  busy,
   kind,
+  onHeightChange,
+  onPrimaryAction,
   status,
+  visible,
 }: {
+  bottom: number;
+  busy: boolean;
   kind: PlayUpdateNoticeKind | null;
+  onHeightChange: (height: number) => void;
+  onPrimaryAction: () => void;
   status: PlayUpdateStatus | null;
+  visible: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { fontScale, width: windowWidth } = useWindowDimensions();
   const progress = status ? getPlayUpdateProgress(status) : null;
-  const sideGuard = Math.max(insets.left, insets.right, space.lg);
-  if (kind !== 'downloading') return null;
+  const presentation = getPlayUpdateStatusBarPresentation(kind, progress);
+  const stackContent = fontScale >= 1.4 || windowWidth < 360;
+  const geometry = resolveFloatingTabBarGeometry(
+    windowWidth,
+    insets.left,
+    insets.right,
+    space.lg,
+  );
+  const actionFocus = useWebFocusVisible();
+  if (!visible || !presentation) return null;
+
+  const toneColor =
+    presentation.tone === 'success'
+      ? palette.mint
+      : presentation.tone === 'warning'
+        ? palette.amber
+        : presentation.tone === 'danger'
+          ? palette.danger
+          : palette.blue;
+  const toneSurface =
+    presentation.tone === 'success'
+      ? palette.mintSoft
+      : presentation.tone === 'warning'
+        ? palette.amberSoft
+        : presentation.tone === 'danger'
+          ? palette.dangerSoft
+          : palette.blueSoft;
 
   return (
     <View
-      accessibilityLabel="업데이트 다운로드 중"
-      accessibilityLiveRegion="none"
-      accessibilityRole="progressbar"
-      accessibilityValue={progress === null ? undefined : { min: 0, max: 100, now: progress }}
-      pointerEvents="none"
+      pointerEvents={presentation.actionLabel ? 'box-none' : 'none'}
       style={[
-        styles.progressPositioner,
+        styles.updateStatusPositioner,
         {
-          left: sideGuard,
-          right: sideGuard,
-          top: Math.max(insets.top, space.sm) + space.sm,
+          bottom,
+          left: geometry.inset,
+          width: geometry.width,
         },
       ]}>
-      <View style={styles.progressBanner}>
-        <ActivityIndicator color={palette.blue} size="small" />
-        <View style={styles.progressCopy}>
-          <AppText variant="label">업데이트 다운로드 중</AppText>
-          <AppText tone="secondary" variant="caption">
-            {progress === null ? 'Google Play에서 준비하고 있습니다.' : `${progress}% 완료`}
-          </AppText>
-          {progress === null ? null : (
-            <View accessibilityElementsHidden style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress}%` }]} />
-            </View>
-          )}
+      <View
+        accessible={presentation.actionLabel === null}
+        accessibilityLabel={
+          presentation.actionLabel === null
+            ? `${presentation.title}. ${presentation.message}`
+            : undefined
+        }
+        accessibilityLiveRegion="none"
+        accessibilityRole={kind === 'downloading' ? 'progressbar' : undefined}
+        accessibilityValue={
+          kind === 'downloading' && progress !== null
+            ? { min: 0, max: 100, now: progress }
+            : undefined
+        }
+        onLayout={(event: LayoutChangeEvent) =>
+          onHeightChange(event.nativeEvent.layout.height)
+        }
+        style={[
+          styles.updateStatusBar,
+          stackContent && styles.updateStatusBarStacked,
+          { backgroundColor: toneSurface, borderColor: toneColor },
+        ]}>
+        <View
+          style={[
+            styles.updateStatusMain,
+            stackContent && styles.updateStatusMainStacked,
+          ]}>
+          <View style={styles.updateStatusIcon}>
+            {kind === 'downloading' || kind === 'installing' || busy ? (
+              <ActivityIndicator color={toneColor} size="small" />
+            ) : (
+              <AppIcon
+                accessible={false}
+                color={toneColor}
+                name={
+                  kind === 'downloaded'
+                    ? 'checkmark-circle'
+                    : 'alert-circle-outline'
+                }
+                size={size.iconMedium}
+              />
+            )}
+          </View>
+          <View style={styles.updateStatusCopy}>
+            <AppText variant="label">{presentation.title}</AppText>
+            <AppText tone="secondary" variant="caption">
+              {presentation.message}
+            </AppText>
+          </View>
         </View>
+        {presentation.actionLabel ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy, disabled: busy }}
+            disabled={busy}
+            onBlur={actionFocus.onBlur}
+            onFocus={actionFocus.onFocus}
+            onPress={onPrimaryAction}
+            style={({ pressed }) => [
+              styles.updateStatusAction,
+              stackContent && styles.updateStatusActionStacked,
+              { borderColor: toneColor },
+              pressed && styles.updateStatusActionPressed,
+              actionFocus.focusVisible && [
+                styles.updateStatusActionFocus,
+                { outlineColor: palette.focus },
+              ],
+            ]}>
+            <AppText color={toneColor} variant="label">
+              {presentation.actionLabel}
+            </AppText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -464,79 +611,74 @@ function PlayUpdateDownloadProgress({
 
 function createStyles(palette: AppPalette) {
   return StyleSheet.create({
-    modalOverlay: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.74)',
-    },
-    modalCard: {
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: palette.controlLine,
-      borderRadius: radius.xl,
-      backgroundColor: palette.surface,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 18 },
-      shadowOpacity: 0.42,
-      shadowRadius: 34,
-      elevation: 28,
-    },
-    modalContent: {
-      alignItems: 'stretch',
-      gap: space.lg,
-      padding: space.xl,
-    },
     modalIcon: {
       width: size.largeControl,
       height: size.largeControl,
       alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radius.lg,
-      backgroundColor: palette.blueSoft,
     },
-    modalCopy: { gap: space.sm },
-    modalTitle: { textAlign: 'center' },
     modalMessage: { textAlign: 'center' },
     modalActions: { gap: space.sm },
     modalAction: { width: '100%' },
-    progressPositioner: {
+    updateStatusPositioner: {
       position: 'absolute',
       zIndex: 1_200,
       elevation: 24,
       alignItems: 'center',
     },
-    progressBanner: {
+    updateStatusBar: {
       width: '100%',
       maxWidth: 480,
-      minHeight: 72,
+      minHeight: size.minimumTouchTarget,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.md,
-      paddingHorizontal: space.lg,
-      paddingVertical: space.md,
+      gap: space.sm,
+      paddingLeft: space.md,
+      paddingRight: space.sm,
+      paddingVertical: space.sm,
       borderWidth: 1,
-      borderColor: palette.blue,
-      borderRadius: radius.lg,
-      backgroundColor: palette.surface,
-      shadowColor: palette.shadowColor,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
-      shadowRadius: 20,
-      elevation: 16,
+      borderRadius: shape.panel,
     },
-    progressCopy: { minWidth: 0, flex: 1, gap: space.xs },
-    progressTrack: {
-      height: 4,
-      overflow: 'hidden',
-      borderRadius: radius.full,
-      backgroundColor: palette.surfaceSoft,
+    updateStatusBarStacked: {
+      alignItems: 'stretch',
+      flexDirection: 'column',
     },
-    progressFill: {
-      height: '100%',
-      borderRadius: radius.full,
-      backgroundColor: palette.blue,
+    updateStatusMain: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
     },
+    updateStatusMainStacked: { width: '100%', flex: 0 },
+    updateStatusIcon: {
+      width: size.iconMedium,
+      height: size.iconMedium,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    updateStatusCopy: { minWidth: 0, flex: 1, gap: space.xxs },
+    updateStatusAction: {
+      minWidth: size.minimumTouchTarget,
+      minHeight: size.minimumTouchTarget,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: space.md,
+      borderWidth: 1,
+      borderRadius: shape.control,
+    },
+    updateStatusActionStacked: { width: '100%' },
+    updateStatusActionPressed: { opacity: 0.76 },
+    updateStatusActionFocus:
+      Platform.OS === 'web'
+        ? {
+            outlineOffset: 2,
+            outlineStyle: 'solid',
+            outlineWidth: 2,
+          }
+        : {},
   });
 }

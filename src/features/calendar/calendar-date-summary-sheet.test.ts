@@ -70,4 +70,10 @@ describe('달력 날짜 요약 시트 문구', () => {
     expect(summarySheet).toContain('{editable ? (');
     expect(summarySheet).toContain("editable && directChange !== 'none'");
   });
+
+  it('자동 근무표 표시 범위와 날짜별 알람을 짧게 구분합니다', () => {
+    expect(summarySheet).toContain('이 날짜의 자동 근무표는 표시하지 않습니다.');
+    expect(summarySheet).toContain('title="날짜별 알람"');
+    expect(summarySheet).toContain('formatCalendarAlarmOverride(data.alarmOverride)');
+  });
 });

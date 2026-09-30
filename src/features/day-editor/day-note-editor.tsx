@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText, MenuGroup } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { fontFamily } from '@/constants/typography';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -26,7 +27,7 @@ export function DayNoteEditor({
     <View style={styles.editor}>
       <TextInput
         accessibilityLabel="하루 메모"
-        accessibilityHint="인수인계나 준비물을 적어 둘 수 있습니다."
+        accessibilityHint="인수인계나 준비물을 입력합니다."
         maxLength={200}
         multiline
         onBlur={() => setFocused(false)}
@@ -58,7 +59,7 @@ function createStyles(palette: AppPalette) {
     noteInput: {
       minHeight: 88,
       padding: spacing.medium,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       borderWidth: 1,
       borderColor: palette.transparent,
       backgroundColor: palette.surfaceSoft,

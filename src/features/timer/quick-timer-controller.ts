@@ -41,13 +41,21 @@ const nativeQuickTimerPort: QuickTimerControllerPort = {
 export function createQuickTimerController(
   port: QuickTimerControllerPort = nativeQuickTimerPort,
 ): QuickTimerController {
+  // Reads join the same queue as writes: a delayed native read cannot race a
+  // schedule/pause/reset, including after a screen has been remounted.
+  let tail: Promise<void> = Promise.resolve();
+  const serialize = (operation: () => Promise<QuickTimerStatus>) => {
+    const result = tail.then(operation);
+    tail = result.then(() => undefined, () => undefined);
+    return result;
+  };
   return {
     durations: QUICK_TIMER_DURATIONS,
-    getStatus: () => port.getStatus(),
-    pause: () => port.pause(),
-    reset: () => port.reset(),
-    resume: () => port.resume(),
-    schedule: (durationMinutes) => port.schedule(durationMinutes),
+    getStatus: () => serialize(() => port.getStatus()),
+    pause: () => serialize(() => port.pause()),
+    reset: () => serialize(() => port.reset()),
+    resume: () => serialize(() => port.resume()),
+    schedule: (durationMinutes) => serialize(() => port.schedule(durationMinutes)),
   };
 }
 

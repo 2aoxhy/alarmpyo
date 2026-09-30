@@ -2,9 +2,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import {
   DisclosureRow,
+  shape,
   StatusBanner,
 } from '@/design-system';
 import { triggerSelectionFeedback } from '@/features/feedback/feedback-controller';
@@ -240,7 +241,7 @@ function createStyles(palette: AppPalette) {
       justifyContent: 'center',
       borderWidth: 1,
       borderColor: palette.controlLine,
-      borderRadius: radii.medium,
+      borderRadius: shape.control,
       backgroundColor: palette.surfaceSoft,
     },
     stepButtonDisabled: {

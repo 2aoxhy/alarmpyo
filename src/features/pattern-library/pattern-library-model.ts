@@ -5,9 +5,11 @@ import type {
 } from '../../models/app-data';
 import { PatternEngine } from '../../services/pattern-engine';
 import type {
+  PatternApplicationInput,
   PatternApplicationPreviewRow,
   PatternOverridePolicy,
 } from '../../services/pattern-vault-service';
+import { previewPatternApplication } from '../../services/pattern-vault-service';
 import {
   addDays,
   differenceInCalendarDays,
@@ -19,6 +21,11 @@ import {
 
 export const MAX_PATTERN_LENGTH = 42;
 export const PATTERN_PREVIEW_DAYS = 42;
+
+/** Preview inputs are explicit so a stable engine command cannot stale a memo. */
+export function createPatternApplicationPreview(data: AppData, input: PatternApplicationInput) {
+  return previewPatternApplication(data, input);
+}
 
 export const PATTERN_SHIFT_OPTIONS: readonly {
   code: PatternShiftCode;
@@ -48,6 +55,15 @@ export type PatternDraft = {
   id: string | null;
   name: string;
   shiftCodes: PatternShiftCode[];
+};
+
+/**
+ * 편집 화면에서만 사용하는 연속 근무 구간입니다. 저장 경계에서는 반드시
+ * 기존 PatternShiftCode[]로 펼쳐 AppData와 공유 파일 계약을 유지합니다.
+ */
+export type PatternComposerSegment = {
+  shiftCode: PatternShiftCode;
+  days: number;
 };
 
 export type PatternDraftIssue = 'name-required' | 'sequence-required' | 'sequence-too-long';
@@ -81,6 +97,17 @@ export type PatternPreviewMonth = {
   label: string;
 };
 
+export type PatternSevenDaySummary = {
+  rows: PatternSevenDaySummaryRow[];
+  changedDateCount: number;
+  preservedOverrideDateCount: number;
+  removedOverrideDateCount: number;
+};
+
+export type PatternSevenDaySummaryRow = PatternDiffRow & {
+  directOverrideResolution: 'preserve' | 'remove' | null;
+};
+
 export function getPatternShiftOption(code: PatternShiftCode) {
   return PATTERN_SHIFT_OPTIONS.find((option) => option.code === code)!;
 }
@@ -99,6 +126,122 @@ export function formatPatternSequence(codes: readonly PatternShiftCode[]): strin
   return codes.map((code) => getPatternShiftOption(code).shortLabel).join(' → ');
 }
 
+export function compressPatternShiftCodes(
+  codes: readonly PatternShiftCode[],
+): PatternComposerSegment[] {
+  return codes.reduce<PatternComposerSegment[]>((segments, shiftCode) => {
+    const previous = segments[segments.length - 1];
+    if (previous?.shiftCode === shiftCode) {
+      previous.days += 1;
+    } else {
+      segments.push({ shiftCode, days: 1 });
+    }
+    return segments;
+  }, []);
+}
+
+export function normalizePatternComposerSegments(
+  segments: readonly PatternComposerSegment[],
+): PatternComposerSegment[] {
+  return segments.reduce<PatternComposerSegment[]>((normalized, segment) => {
+    const previous = normalized[normalized.length - 1];
+    if (previous?.shiftCode === segment.shiftCode) {
+      previous.days += segment.days;
+    } else {
+      normalized.push({ ...segment });
+    }
+    return normalized;
+  }, []);
+}
+
+export function expandPatternComposerSegments(
+  segments: readonly PatternComposerSegment[],
+): PatternShiftCode[] {
+  return segments.flatMap((segment) =>
+    Array.from({ length: segment.days }, () => segment.shiftCode),
+  );
+}
+
+export function getPatternComposerTotalDays(
+  segments: readonly PatternComposerSegment[],
+): number {
+  return segments.reduce((total, segment) => total + segment.days, 0);
+}
+
+export function isPatternComposerValid(
+  segments: readonly PatternComposerSegment[],
+): boolean {
+  const totalDays = getPatternComposerTotalDays(segments);
+  return (
+    segments.length > 0 &&
+    totalDays >= 1 &&
+    totalDays <= MAX_PATTERN_LENGTH &&
+    segments.every(
+      (segment) => Number.isInteger(segment.days) && segment.days >= 1,
+    )
+  );
+}
+
+export function formatPatternComposerName(
+  segments: readonly PatternComposerSegment[],
+): string {
+  const parts = segments.map((segment) => {
+    const label = getPatternShiftOption(segment.shiftCode).shortLabel;
+    return `${label}${segment.days}일`;
+  });
+  const fullName = parts.join(' · ');
+  if (fullName.length <= 80) return fullName;
+
+  const visible = parts.slice(0, 6);
+  return `${visible.join(' · ')} · 외 ${parts.length - visible.length}구간`;
+}
+
+export function buildPatternSevenDaySummary(
+  {
+    mode,
+    rows,
+    selectedDateKeys,
+  }: {
+    mode: OverrideResolutionMode;
+    rows: readonly PatternDiffRow[];
+    selectedDateKeys: ReadonlySet<string>;
+  },
+): PatternSevenDaySummary {
+  const summaryRows = rows.slice(0, 7).map((row): PatternSevenDaySummaryRow => {
+    const directOverrideResolution = !row.hasDirectOverride
+      ? null
+      : mode === 'preserve' ||
+          (mode === 'select' && selectedDateKeys.has(row.dateKey))
+        ? 'preserve'
+        : 'remove';
+    return { ...row, directOverrideResolution };
+  });
+  return {
+    rows: summaryRows,
+    changedDateCount: summaryRows.filter(isPatternDiffRowChanged).length,
+    preservedOverrideDateCount: summaryRows.filter(
+      (row) => row.directOverrideResolution === 'preserve',
+    ).length,
+    removedOverrideDateCount: summaryRows.filter(
+      (row) => row.directOverrideResolution === 'remove',
+    ).length,
+  };
+}
+
+export function formatPatternApplyActionLabel({
+  changedDateCount,
+  clearedOverrideDateCount,
+}: {
+  changedDateCount: number;
+  clearedOverrideDateCount: number;
+}): string {
+  if (clearedOverrideDateCount > 0) {
+    return `직접 수정 ${clearedOverrideDateCount}개 정리 후 적용`;
+  }
+  if (changedDateCount === 0) return '변경 없이 적용';
+  return `변경 ${changedDateCount}일 적용`;
+}
+
 export function createPatternDraft(entry?: PatternVaultEntry): PatternDraft {
   return entry
     ? { id: entry.id, name: entry.name, shiftCodes: [...entry.shiftCodes] }
@@ -112,22 +255,22 @@ export function validatePatternDraft(draft: PatternDraft): PatternDraftValidatio
       issue: 'name-required',
       message:
         draft.name.trim().length === 0
-          ? '패턴 이름을 입력해야 합니다.'
-          : '패턴 이름은 80자 이하여야 합니다.',
+          ? '패턴 이름 입력'
+          : '패턴 이름은 80자 이하',
     };
   }
   if (draft.shiftCodes.length === 0) {
     return {
       valid: false,
       issue: 'sequence-required',
-      message: '근무 순서를 1일 이상 추가해야 합니다.',
+      message: '근무 순서를 1일 이상 추가',
     };
   }
   if (draft.shiftCodes.length > MAX_PATTERN_LENGTH) {
     return {
       valid: false,
       issue: 'sequence-too-long',
-      message: '근무 순서는 42일 이하여야 합니다.',
+      message: '근무 순서는 42일 이하',
     };
   }
   return { valid: true, issue: null, message: null };

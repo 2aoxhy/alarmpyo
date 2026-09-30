@@ -9,7 +9,7 @@ import { updateCopy } from '@/content/update-copy';
 import { useDirectAppUpdateController } from '@/features/update/direct-app-update-controller';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { useAppStoreStatus } from '@/store/app-store';
+import { useAppSelector } from '@/store/app-store';
 
 export const DIRECT_APK_UPDATE_BUNDLE_SENTINEL = 'ALARMPYO_DIRECT_APK_UPDATE_V1';
 
@@ -17,7 +17,7 @@ export default function AppUpdateScreen() {
   const { showDialog } = useAppDialog();
   const { isDark, palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const { saveStatus } = useAppStoreStatus();
+  const saveStatus = useAppSelector((store) => store.saveStatus);
   const {
     actionDisabled,
     apkProgress,
@@ -118,11 +118,7 @@ export default function AppUpdateScreen() {
           safeAreaEdges={['left', 'right']}>
           <Card density="compact" style={styles.updateCard}>
             <View style={styles.summary}>
-              <View
-                style={[
-                  styles.iconTile,
-                  { backgroundColor: palette.indigoSoft },
-                ]}>
+              <View style={styles.iconTile}>
                 <AppIcon
                   accessible={false}
                   color={isDark ? palette.indigoDark : palette.indigo}
@@ -175,20 +171,7 @@ export default function AppUpdateScreen() {
             }
             accessible
             style={styles.summary}>
-            <View
-              style={[
-                styles.iconTile,
-                {
-                  backgroundColor:
-                    status === 'error'
-                      ? palette.dangerSoft
-                      : status === 'check-warning'
-                        ? palette.amberSoft
-                      : status === 'current'
-                        ? palette.mintSoft
-                        : palette.indigoSoft,
-                },
-              ]}>
+            <View style={styles.iconTile}>
               <AppIcon accessible={false} color={statusColor} name={statusIcon} size={25} />
             </View>
             <View style={styles.copy}>
@@ -240,7 +223,6 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 17,
     },
     copy: { flex: 1, minWidth: 0, gap: spacing.tiny },
     notesCard: { gap: spacing.small, borderColor: palette.indigoSoft },

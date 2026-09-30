@@ -234,7 +234,7 @@ describe('stable 배포 설정', () => {
     expect(app.expo.runtimeVersion).toEqual({ policy: 'appVersion' });
   });
 
-  it('알람표 표시명과 새 앱 계보 식별자·V15 후보 버전을 유지합니다', () => {
+  it('알람표 표시명과 새 앱 계보 식별자·V1.24 후보 버전을 유지합니다', () => {
     const pkg = readJson('package.json');
     const app = readJson('app.json');
     const generatedAndroidStringsPath = resolve(
@@ -256,10 +256,19 @@ describe('stable 배포 설정', () => {
     expect(app.expo.description).toBe(
       '교대 근무표와 근무·타이머 알람을 간편하게 관리합니다',
     );
-    expect(pkg.version).toBe('1.15.0');
-    expect(app.expo.version).toBe('1.15');
-    expect(app.expo.android.versionCode).toBe(15);
-    expect(app.expo.ios.buildNumber).toBe('15');
+    expect(pkg.version).toBe('1.24.0');
+    expect(app.expo.version).toBe('1.24');
+    expect(app.expo.android.versionCode).toBe(24);
+    expect(app.expo.ios.buildNumber).toBe('24');
+    expect(app.expo.plugins).toContainEqual([
+      'expo-build-properties',
+      {
+        android: {
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
+      },
+    ]);
     expect(app.expo.android.blockedPermissions).toEqual(
       expect.arrayContaining([
         'android.permission.ACCESS_COARSE_LOCATION',

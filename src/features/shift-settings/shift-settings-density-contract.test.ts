@@ -16,6 +16,20 @@ const shiftTimingEditor = readFileSync(
   ),
   'utf8',
 );
+const sharedWakeEditor = readFileSync(
+  resolve(
+    process.cwd(),
+    'src/features/shift-settings/shared-wake-settings-editor.tsx',
+  ),
+  'utf8',
+);
+const payrollEditor = readFileSync(
+  resolve(
+    process.cwd(),
+    'src/features/shift-settings/payroll-settings-editor.tsx',
+  ),
+  'utf8',
+);
 
 describe('근무표 설정 요약 허브 계약', () => {
   it('근무 방식·시간·루틴을 요약하고 동시에 하나만 열어요', () => {
@@ -26,26 +40,70 @@ describe('근무표 설정 요약 허브 계약', () => {
     expect(shiftSettings).toContain(
       'setActivePanel((current) => (current === panel ? null : panel))',
     );
-    expect(shiftSettings).toContain('showDisclosure={false}');
     expect(shiftSettings).toContain('visibleSection="time"');
-    expect(shiftSettings).toContain('visibleSection="wake"');
+    expect(shiftSettings).toContain('<SharedWakeSettingsEditor');
+    expect(shiftSettings).toContain('expandedRoutineKind === kind');
   });
 
-  it('일반 진입에서는 모두 접고 시간·기상 딥링크만 해당 편집을 열어요', () => {
-    expect(shiftSettings).toContain("focus === 'wake' ? 'routine'");
-    expect(shiftSettings).toContain("focus === 'time' ? 'time'");
+  it('일반 진입에서는 모두 접고 시간·기상·급여 딥링크만 해당 편집을 열어요', () => {
+    expect(shiftSettings).toContain("focus === 'wake'");
+    expect(shiftSettings).toContain("? 'routine'");
+    expect(shiftSettings).toContain("focus === 'time'");
+    expect(shiftSettings).toContain("? 'time'");
+    expect(shiftSettings).toContain("focus === 'payroll'");
+    expect(shiftSettings).toContain("? 'payroll'");
     expect(shiftSettings).toContain('useState(focusedPanel === null)');
     expect(shiftSettings).toContain("label=\"전체 설정 보기\"");
     expect(shiftSettings).toContain("focusedPanel === 'time' ? timeEditor");
     expect(shiftSettings).toContain("focusedPanel === 'routine' ? routineEditor");
+    expect(shiftSettings).toContain("focusedPanel === 'payroll' ? payrollEditor");
   });
 
-  it('직접 진입에서는 반복되는 편집기 제목을 숨겨 핵심 설정부터 보여줘요', () => {
+  it('기상 시간은 화면 표시와 무관하게 주간·오후·야간에 동일 적용하고 루틴만 필요할 때 열어요', () => {
     expect(shiftSettings).toContain('showHeader={showAllSettings}');
-    expect(shiftSettings).toContain('필요한 항목만 열어 수정합니다.');
+    expect(shiftSettings).toContain('<SharedWakeSettingsEditor');
+    expect(shiftSettings).toContain('activeWorkShiftIds.map((kind)');
+    expect(shiftSettings).toContain('expanded={expandedRoutineKind === kind}');
+    expect(shiftSettings).not.toContain('routineSectionOptions');
+    expect(sharedWakeEditor).toContain(
+      '한 번 선택하면 주간·오후·야간에 같은 기준을 적용합니다.',
+    );
+    expect(shiftSettings).toContain("(['day', 'evening', 'night'] as const).filter(");
+    expect(shiftSettings).toContain('targetDraftIds={sharedWakeTargetDraftIds}');
+    expect(sharedWakeEditor).toContain(
+      'onChange(draftIds, { alarmMinutesBefore: minutes })',
+    );
+    expect(sharedWakeEditor).toContain(
+      'onChange(draftIds, { alarmEnabled })',
+    );
+    expect(shiftSettings).toContain(
+      'applySharedWakePatch(current, draftIds, patch)',
+    );
     expect(shiftSettings).toContain(
       '주대와 야대는 각각 주간과 야간의 기상·출근 설정을 사용합니다.',
     );
+  });
+
+  it('집중 근무시간 화면에는 현재 패턴에 포함된 근무만 표시해요', () => {
+    expect(shiftSettings).toContain('getActiveWorkShiftIds(');
+    expect(shiftSettings).toContain(
+      '...activeWorkShiftIds.map((value) => ({ label: shiftLabels[value], value }))',
+    );
+    expect(shiftSettings).toContain('...(showAllSettings');
+    expect(shiftSettings).toContain("{ label: '특근', value: 'substitute' as const }");
+  });
+
+  it('급여일까지 화면 아래의 저장 버튼 하나로 적용해요', () => {
+    expect(shiftSettings).toContain('const hasPayrollChanges =');
+    expect(shiftSettings).toContain('hasPayrollChanges;');
+    expect(shiftSettings).toContain('updateShiftSettings(');
+    expect(shiftSettings).toContain('payrollDraft,');
+    expect(shiftSettings).not.toContain('updatePayrollSettings(payrollDraft)');
+    expect(shiftSettings).toContain('<PayrollSettingsEditor');
+    expect(shiftSettings).toContain('onChange={(next) =>');
+    expect(payrollEditor).toContain('onChange: (settings: PayrollSettings | null)');
+    expect(payrollEditor).not.toContain('onSave');
+    expect(payrollEditor).not.toContain('<AppButton');
   });
 
   it('기상 시각을 원자 텍스트로 표시하고 큰 글자에서는 한 열로 바꿔요', () => {

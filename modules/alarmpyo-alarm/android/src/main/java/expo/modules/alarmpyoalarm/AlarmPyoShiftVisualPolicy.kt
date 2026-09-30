@@ -3,6 +3,7 @@ package expo.modules.alarmpyoalarm
 import androidx.annotation.ColorRes
 
 internal data class AlarmPyoShiftVisualStyle(
+  @ColorRes val background: Int,
   @ColorRes val accent: Int,
   @ColorRes val foreground: Int
 )
@@ -13,7 +14,7 @@ internal data class AlarmPyoShiftVisualStyle(
  */
 internal object AlarmPyoShiftVisualPolicy {
   fun resolve(shiftTypeId: String): AlarmPyoShiftVisualStyle {
-    val accent = when (shiftTypeId) {
+    val background = when (shiftTypeId) {
       "day", "substitute-day" -> R.color.alarmpyo_day
       "evening" -> R.color.alarmpyo_evening
       "night", "substitute-night" -> R.color.alarmpyo_night
@@ -21,13 +22,21 @@ internal object AlarmPyoShiftVisualPolicy {
       "exception-reserve" -> R.color.alarmpyo_reserve
       "off" -> R.color.alarmpyo_off
       "substitute" -> R.color.alarmpyo_unknown
+      else -> R.color.alarmpyo_unknown
+    }
+    val accent = when (shiftTypeId) {
+      "day" -> R.color.alarmpyo_day_accent
+      "evening" -> R.color.alarmpyo_evening_accent
+      "night" -> R.color.alarmpyo_night_accent
+      "substitute-day", "substitute-night", "substitute" ->
+        R.color.alarmpyo_substitute_accent
+      "off" -> R.color.alarmpyo_off_accent
       else -> R.color.alarmpyo_accent
     }
-    val foreground = if (accent == R.color.alarmpyo_accent) {
-      R.color.alarmpyo_background
-    } else {
-      R.color.alarmpyo_text_primary
-    }
-    return AlarmPyoShiftVisualStyle(accent, foreground)
+    return AlarmPyoShiftVisualStyle(
+      background = background,
+      accent = accent,
+      foreground = R.color.alarmpyo_text_primary
+    )
   }
 }

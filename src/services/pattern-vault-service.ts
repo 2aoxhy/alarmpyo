@@ -8,6 +8,7 @@ import type {
   RotationPattern,
 } from '../models/app-data';
 import { addDays, isValidDateKey } from '../utils/date';
+import { arePatternExecutionsEqual } from '../utils/pattern-execution';
 import {
   getWorkPatternDisplayName,
   getWorkPatternKind,
@@ -116,7 +117,13 @@ export type PatternVaultDeleteResult =
   | { status: 'not-found'; patternId: string }
   | {
       status: 'failure';
-      reason: 'not-ready' | 'pattern-in-use' | 'storage-failed';
+      reason:
+        | 'not-ready'
+        | 'backup-failed'
+        | 'storage-failed'
+        | 'sync-failed'
+        | 'rollback-failed';
+      rolledBack?: boolean;
     };
 
 export type PatternApplyResult =
@@ -453,25 +460,22 @@ export function deletePatternMutation(
   patternId: string,
 ):
   | { status: 'deleted'; data: AppData; patternId: string }
-  | { status: 'not-found'; data: AppData; patternId: string }
-  | { status: 'failure'; reason: 'pattern-in-use' } {
+  | { status: 'not-found'; data: AppData; patternId: string } {
   const index = current.patternVault.findIndex((entry) => entry.id === patternId);
   if (index < 0) return { status: 'not-found', data: current, patternId };
-  if (
-    current.appliedPatternId === patternId ||
-    current.patternHistory.some(
-      (history) =>
-        history.patternId === patternId || history.previousPatternId === patternId,
-    )
-  ) {
-    return { status: 'failure', reason: 'pattern-in-use' };
-  }
+  const applied = current.appliedPatternId === patternId;
   return {
     status: 'deleted',
     patternId,
     data: {
       ...current,
       patternVault: current.patternVault.filter((entry) => entry.id !== patternId),
+      patternHistory: current.patternHistory.filter(
+        (history) =>
+          history.patternId !== patternId && history.previousPatternId !== patternId,
+      ),
+      appliedPatternSource: applied ? 'legacy' : current.appliedPatternSource,
+      appliedPatternId: applied ? null : current.appliedPatternId,
     },
   };
 }
@@ -730,26 +734,14 @@ export function buildPatternApplicationMutation(
   };
 }
 
-function arePatternsEqual(left: RotationPattern, right: RotationPattern): boolean {
-  return (
-    (left.kind ?? getWorkPatternKind(left.shiftTypeIds)) ===
-      (right.kind ?? getWorkPatternKind(right.shiftTypeIds)) &&
-    arePatternNamesEquivalent(left, right) &&
-    left.anchorDate === right.anchorDate &&
-    (left.scheduleStartDate ?? left.anchorDate) ===
-      (right.scheduleStartDate ?? right.anchorDate) &&
-    left.shiftTypeIds.length === right.shiftTypeIds.length &&
-    left.shiftTypeIds.every((id, index) => id === right.shiftTypeIds[index])
-  );
-}
-
 export function buildPatternRollbackMutation(
   current: AppData,
 ): PatternRollbackMutationResult {
   const history = current.patternHistory[0];
   if (!history) return { status: 'nothing-to-rollback' };
   if (
-    !arePatternsEqual(current.pattern, history.nextPattern) ||
+    !arePatternNamesEquivalent(current.pattern, history.nextPattern) ||
+    !arePatternExecutionsEqual(current.pattern, history.nextPattern) ||
     current.appliedPatternSource !== history.source ||
     current.appliedPatternId !== history.patternId
   ) {

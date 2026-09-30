@@ -5,6 +5,7 @@ import {
   Animated,
   BackHandler,
   Easing,
+  findNodeHandle,
   Platform,
   Pressable,
   Share,
@@ -14,6 +15,7 @@ import {
   type ViewProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ViewShotRef } from 'react-native-view-shot';
 
 import { useAppDialog } from '@/components/app-dialog';
 import { AppSheet } from '@/components/app-sheet';
@@ -33,25 +35,32 @@ import { CalendarMonthCard } from '@/features/calendar/calendar-month-card';
 import { CalendarScreenHeader } from '@/features/calendar/calendar-screen-header';
 import { CalendarSelectionPanel } from '@/features/calendar/calendar-selection-panel';
 import {
+  CalendarAutomaticScheduleNotice,
   CalendarHolidayNotice,
   CalendarLegend,
   CalendarMenuSections,
 } from '@/features/calendar/calendar-support-sections';
 import { resolveCalendarDateAtPoint } from '@/features/calendar/calendar-drag-geometry';
+import { CalendarImageCaptureLayer } from '@/features/calendar/calendar-image-capture-layer';
+import { createCalendarImageShareController } from '@/features/calendar/calendar-image-share-controller';
+import {
+  buildCalendarImageShareSnapshot,
+  type CalendarImageShareSnapshot,
+} from '@/features/calendar/calendar-image-share-model';
 import { resolveCalendarSelectionCountViewModel } from '@/features/calendar/calendar-selection-presentation';
+import { selectCalendarStoreData, areCalendarStoreDataEqual } from '@/features/calendar/calendar-store-selection';
 import { usesSimplifiedCalendar } from '@/design-system/responsive';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import {
   buildCalendarMonthViewModel,
-  type CalendarProjectionData,
 } from '@/services/calendar-month-view-model';
 import type { BulkDayChange } from '@/services/bulk-day-update';
 import { buildScheduleShareText } from '@/services/schedule-share-service';
 import {
-  useAppStoreActions,
-  useAppStoreData,
+  useAppCommands,
+  useAppSelector,
 } from '@/store/app-store';
 import {
   formatKoreanDate,
@@ -88,6 +97,10 @@ type CalendarSwipeStart = {
   startedAt: number;
 };
 
+function waitForAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 export default function CalendarScreen() {
   const { showDialog } = useAppDialog();
   const { isDark } = useAppTheme();
@@ -104,12 +117,18 @@ export default function CalendarScreen() {
     month: initial.getMonth(),
   });
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [imageShareBusy, setImageShareBusy] = useState(false);
+  const [imageShareCaptureReady, setImageShareCaptureReady] = useState(false);
+  const [imageShareSnapshot, setImageShareSnapshot] =
+    useState<CalendarImageShareSnapshot | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [summaryDateKey, setSummaryDateKey] = useState<string | null>(null);
   const [selectionArmed, setSelectionArmed] = useState(false);
   const [selectedDateKeys, setSelectedDateKeys] = useState<readonly string[]>([]);
   const selectedDateKeysRef = useRef<readonly string[]>([]);
   const calendarGridRef = useRef<View>(null);
+  const imageShareCaptureRef = useRef<ViewShotRef>(null);
+  const imageShareTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const legendTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const summaryTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const calendarGridFrameRef = useRef<CalendarGridFrame>({ x: 0, y: 0, width: 0 });
@@ -124,28 +143,12 @@ export default function CalendarScreen() {
   const lastAnnouncedMonthBoundaryRef = useRef<
     'minimum' | 'maximum' | null
   >(null);
-  const { data } = useAppStoreData();
-  const { saveDays } = useAppStoreActions();
-  const calendarProjectionData = useMemo<CalendarProjectionData>(
-    () => ({
-      dayExceptions: data.dayExceptions,
-      notes: data.notes,
-      overrides: data.overrides,
-      pattern: data.pattern,
-      payrollSettings: data.payrollSettings,
-      shiftTypes: data.shiftTypes,
-      timeOverrides: data.timeOverrides,
-    }),
-    [
-      data.dayExceptions,
-      data.notes,
-      data.overrides,
-      data.pattern,
-      data.payrollSettings,
-      data.shiftTypes,
-      data.timeOverrides,
-    ],
+  const [imageShareController] = useState(() =>
+    createCalendarImageShareController(),
   );
+  const data = useAppSelector(selectCalendarStoreData, areCalendarStoreDataEqual);
+  const { saveDays } = useAppCommands();
+  const calendarProjectionData = data;
   const selectedDateKeySet = useMemo(() => new Set(selectedDateKeys), [selectedDateKeys]);
   const selectionMode = selectionArmed || selectedDateKeys.length > 0;
   const simplifiedCalendar = usesSimplifiedCalendar(fontScale);
@@ -156,6 +159,8 @@ export default function CalendarScreen() {
     insets.bottom,
   ).contentOffset;
   const {
+    automaticScheduleHiddenDateKeySet,
+    automaticScheduleVisible,
     calendarLayout,
     cellRows,
     currentMonthDateKeys,
@@ -167,18 +172,20 @@ export default function CalendarScreen() {
     monthlySummary,
     payrollEntries,
     resolveDay: getEffectiveDay,
+    scheduleStartDateInMonth,
     selectableDateKeys,
     selectableDateKeySet,
   } = useMemo(
     () =>
       buildCalendarMonthViewModel({
+        automaticScheduleReferenceDateKey: today,
         data: calendarProjectionData,
         year: visibleMonth.year,
         month: visibleMonth.month,
         windowWidth,
         fontScale,
       }),
-    [calendarProjectionData, fontScale, visibleMonth.month, visibleMonth.year, windowWidth],
+    [calendarProjectionData, fontScale, today, visibleMonth.month, visibleMonth.year, windowWidth],
   );
   const selectionCount = useMemo(
     () =>
@@ -221,6 +228,8 @@ export default function CalendarScreen() {
 
     return {
       actualSchedule: toSchedule(actualLabel, summary.effectiveShift),
+      alarmOverride: summary.alarmOverride,
+      automaticScheduleHidden: summary.automaticScheduleHidden,
       baseSchedule: toSchedule(
         summary.basePatternShift?.name ?? null,
         summary.basePatternShift,
@@ -292,6 +301,132 @@ export default function CalendarScreen() {
     animation.start();
     return () => animation.stop();
   }, [reduceMotion, todayBlink, todayBlinkRequest]);
+
+  const restoreImageShareFocus = useCallback(() => {
+    setTimeout(() => {
+      const target = imageShareTriggerRef.current;
+      if (!target) return;
+      if (Platform.OS === 'web') {
+        (target as unknown as { focus?: () => void }).focus?.();
+        return;
+      }
+      const node = findNodeHandle(target);
+      if (node !== null) AccessibilityInfo.setAccessibilityFocus(node);
+    }, 0);
+  }, []);
+
+  const showImageShareError = useCallback(
+    (title: string, message: string) => {
+      showDialog(
+        title,
+        message,
+        [
+          {
+            text: '확인',
+            actionId: 'confirm',
+            icon: 'checkmark',
+            onPress: restoreImageShareFocus,
+          },
+        ],
+        { tone: 'neutral', onDismiss: restoreImageShareFocus },
+      );
+    },
+    [restoreImageShareFocus, showDialog],
+  );
+
+  const openCalendarImageShare = useCallback(() => {
+    if (imageShareBusy) return;
+    try {
+      const snapshot = buildCalendarImageShareSnapshot({
+        automaticScheduleVisible,
+        cellRows,
+        effectiveDays,
+        holidayDataStatus,
+        holidays,
+        month: visibleMonth.month,
+        year: visibleMonth.year,
+      });
+      setImageShareCaptureReady(false);
+      setImageShareBusy(true);
+      setImageShareSnapshot(snapshot);
+    } catch (error) {
+      showImageShareError(
+        '이미지로 공유할 수 없습니다',
+        error instanceof Error
+          ? error.message
+          : '달력 정보를 확인한 뒤 다시 시도해야 합니다.',
+      );
+    }
+  }, [
+    automaticScheduleVisible,
+    cellRows,
+    effectiveDays,
+    holidayDataStatus,
+    holidays,
+    imageShareBusy,
+    showImageShareError,
+    visibleMonth.month,
+    visibleMonth.year,
+  ]);
+
+  useEffect(() => {
+    if (!imageShareSnapshot || !imageShareCaptureReady) return;
+    let cancelled = false;
+    let errorShown = false;
+
+    const share = async () => {
+      try {
+        // 캡처 전용 뷰의 글꼴·레이아웃이 네이티브 트리에 반영될 시간을 줍니다.
+        await waitForAnimationFrame();
+        await waitForAnimationFrame();
+        if (cancelled) return;
+        const result = await imageShareController.share(
+          imageShareSnapshot,
+          imageShareCaptureRef,
+        );
+        if (!cancelled && result.status === 'chooser-closed') {
+          AccessibilityInfo.announceForAccessibility(
+            '공유 화면을 닫았습니다. 이미지의 저장이나 전송 여부는 선택한 앱에서 확인해야 합니다.',
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          errorShown = true;
+          showImageShareError(
+            '이미지를 공유하지 못했습니다',
+            error instanceof Error
+              ? error.message
+              : '공유할 앱을 확인한 뒤 다시 시도해야 합니다.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setImageShareSnapshot(null);
+          setImageShareCaptureReady(false);
+          setImageShareBusy(false);
+          if (!errorShown) restoreImageShareFocus();
+        }
+      }
+    };
+
+    void share();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    imageShareCaptureReady,
+    imageShareController,
+    imageShareSnapshot,
+    restoreImageShareFocus,
+    showImageShareError,
+  ]);
+
+  useEffect(
+    () => () => {
+      imageShareController.invalidate();
+    },
+    [imageShareController],
+  );
 
   const clearDateSelection = useCallback(() => {
     selectionAnnouncementRef.current = null;
@@ -613,8 +748,8 @@ export default function CalendarScreen() {
     async (message: string) => {
       try {
         await Share.share(
-          { message, title: '알람표 근무 일정' },
-          { dialogTitle: '알람표 근무 일정 공유하기' },
+          { message, title: '근무 일정' },
+          { dialogTitle: '근무 일정 공유하기' },
         );
         AccessibilityInfo.announceForAccessibility(
           '공유 화면을 닫았습니다. 선택한 일정은 유지했습니다.',
@@ -936,7 +1071,13 @@ export default function CalendarScreen() {
         supportsDragSelection={calendarLayout.presentation === 'month-grid'}
         />
 
+        {!automaticScheduleVisible ? (
+          <CalendarAutomaticScheduleNotice />
+        ) : null}
+
         <CalendarMonthCard
+          alarmOverrides={data.alarmOverrides}
+          automaticScheduleHiddenDateKeySet={automaticScheduleHiddenDateKeySet}
           calendarLayout={calendarLayout}
           canGoNextMonth={monthNavigation.canMoveNext}
           canGoPreviousMonth={monthNavigation.canMovePrevious}
@@ -959,6 +1100,7 @@ export default function CalendarScreen() {
           payrollEntries={payrollEntries}
           selectedDateKeySet={selectedDateKeySet}
           selectionMode={selectionMode}
+          scheduleStartDateInMonth={scheduleStartDateInMonth}
           simplified={simplifiedCalendar}
           summaryDateKey={summaryDateKey}
           summaryTriggerRef={summaryTriggerRef}
@@ -976,9 +1118,14 @@ export default function CalendarScreen() {
 
         <CalendarMenuSections
           onOpenLegend={() => setLegendOpen(true)}
+          onShareImage={openCalendarImageShare}
+          shareImageBusy={imageShareBusy}
+          shareTriggerRef={imageShareTriggerRef}
           showCompactKey={calendarLayout.presentation === 'month-grid'}
           triggerRef={legendTriggerRef}
         />
+
+        <View accessible={false} style={screenStyles.bottomClearance} />
 
       </Screen>
       <AppSheet
@@ -995,6 +1142,13 @@ export default function CalendarScreen() {
         triggerRef={summaryTriggerRef}
         visible={summaryDateKey !== null}
       />
+      {imageShareSnapshot ? (
+        <CalendarImageCaptureLayer
+          captureRef={imageShareCaptureRef}
+          onCaptureLayout={() => setImageShareCaptureReady(true)}
+          snapshot={imageShareSnapshot}
+        />
+      ) : null}
     </>
   );
 }
@@ -1004,4 +1158,5 @@ const screenStyles = StyleSheet.create({
     gap: spacing.medium,
     paddingTop: spacing.small,
   },
+  bottomClearance: { height: spacing.small },
 });

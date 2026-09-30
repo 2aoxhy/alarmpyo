@@ -3,8 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { SleepTimingCard } from '@/components/sleep-timing-card';
-import { StatusBadge } from '@/components/status-badge';
-import { AppText, Card, SectionHeader } from '@/components/ui-kit';
+import { AppText, SectionHeader } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -18,6 +17,7 @@ type TodayGuidanceSectionProps = {
   alarmHealthState: AlarmHealthState;
   alarmSummary: TodayAlarmSummary;
   compact: boolean;
+  hideAlarmRow?: boolean;
   largeText: boolean;
   now: Date;
   routinePlan: WorkRoutinePlan | null;
@@ -30,6 +30,7 @@ export function TodayGuidanceSection({
   alarmHealthState,
   alarmSummary,
   compact,
+  hideAlarmRow = false,
   largeText,
   now,
   routinePlan,
@@ -48,9 +49,9 @@ export function TodayGuidanceSection({
 
   return (
     <View style={styles.section}>
-      <SectionHeader centered title="오늘 안내" />
+      <SectionHeader centered title="오늘 일정" />
 
-      <Card style={[styles.alarmCard, hasAlarmIssue && styles.alarmIssueCard]}>
+      {!hideAlarmRow ? (
         <Pressable
           accessibilityHint="알람 상태와 예약 내용을 확인합니다."
           accessibilityLabel={`근무 알람. ${alarmAccessibilitySummary}${
@@ -60,16 +61,11 @@ export function TodayGuidanceSection({
           onPress={() => router.push('/alarm-settings')}
           style={({ pressed }) => [
             styles.alarmRow,
+            hasAlarmIssue && styles.alarmIssueRow,
             largeText && styles.alarmRowLargeText,
             pressed && styles.rowPressed,
           ]}>
-          <View
-            style={[
-              styles.alarmIcon,
-              hasAlarmIssue
-                ? styles.alarmIssueIcon
-                : !alarmsReady && styles.alarmIdleIcon,
-            ]}>
+          <View style={styles.alarmIcon}>
             <AppIcon
               accessible={false}
               color={
@@ -85,23 +81,9 @@ export function TodayGuidanceSection({
           </View>
 
           <View style={styles.alarmCopy}>
-            <View style={styles.alarmTitleRow}>
-              <AppText variant="label">근무 알람</AppText>
-              {alarmsReady && scheduledAlarmCount > 0 ? (
-                <StatusBadge
-                  backgroundColor={palette.violetSoft}
-                  borderColor={palette.violet}
-                  label={`${scheduledAlarmCount}개 예약`}
-                />
-              ) : null}
-              {alarmHasDateOverride ? (
-                <StatusBadge
-                  backgroundColor={palette.mintSoft}
-                  borderColor={palette.mint}
-                  label="이날만 설정"
-                />
-              ) : null}
-            </View>
+            <AppText variant="label">
+              {`근무 알람${alarmsReady && scheduledAlarmCount > 0 ? ` · ${scheduledAlarmCount}개 예약` : ''}${alarmHasDateOverride ? ' · 이날만 설정' : ''}`}
+            </AppText>
             <View style={styles.alarmSummary}>
               <AppText
                 color={hasAlarmIssue ? palette.danger : undefined}
@@ -127,7 +109,7 @@ export function TodayGuidanceSection({
             size={18}
           />
         </Pressable>
-      </Card>
+      ) : null}
 
       <SleepTimingCard
         compact={compact}
@@ -144,48 +126,34 @@ const createStyles = (palette: AppPalette) =>
     section: {
       gap: spacing.medium,
     },
-    alarmCard: {
-      borderRadius: 22,
-      paddingVertical: spacing.medium,
-    },
-    alarmIssueCard: {
-      borderColor: palette.danger,
-    },
     alarmRow: {
-      minHeight: 54,
+      minHeight: 68,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.medium,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
+      paddingVertical: spacing.medium,
+      paddingHorizontal: spacing.tiny,
+    },
+    alarmIssueRow: {
+      borderColor: palette.danger,
     },
     alarmRowLargeText: {
       alignItems: 'flex-start',
     },
     alarmIcon: {
-      width: 42,
-      height: 42,
+      width: 32,
+      height: 48,
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 14,
-      backgroundColor: palette.violetSoft,
-    },
-    alarmIssueIcon: {
-      backgroundColor: palette.dangerSoft,
-    },
-    alarmIdleIcon: {
-      backgroundColor: palette.surfaceSoft,
     },
     alarmCopy: {
       flex: 1,
       minWidth: 0,
       gap: spacing.tiny,
-    },
-    alarmTitleRow: {
-      minWidth: 0,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: spacing.small,
     },
     alarmSummary: {
       minWidth: 0,
@@ -193,6 +161,5 @@ const createStyles = (palette: AppPalette) =>
     },
     rowPressed: {
       opacity: 0.72,
-      transform: [{ scale: 0.985 }],
     },
   });

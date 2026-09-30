@@ -109,3 +109,9 @@ export function createDefaultWorkShift(id: DefaultWorkShiftId): ShiftType {
   if (!shift) throw new Error(`기본 근무 종류 ${id}를 찾을 수 없습니다.`);
   return { ...shift };
 }
+
+export const DEFAULT_WIDGET_DISPLAY_OPTIONS: Readonly<import('../models/app-data').WidgetDisplayOptions> = {
+  todayShift: true,
+  nextShift: true,
+  nextAlarm: false,
+};

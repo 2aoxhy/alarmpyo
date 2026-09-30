@@ -474,7 +474,7 @@ describe('pattern-vault-service', () => {
     })).toEqual({ status: 'failure', reason: 'history-conflict' });
   });
 
-  it('적용 이력은 최신 10건만 유지하고 참조 중인 패턴 삭제를 차단합니다', () => {
+  it('적용 이력은 최신 10건만 유지하고 패턴 삭제 시 관련 이력을 정리합니다', () => {
     let data = withUserPattern(createDefaultAppData(EFFECTIVE_DATE));
     for (let index = 0; index < 11; index += 1) {
       const result = applyUserPattern(data, { mode: 'preserve' }, `history-${index}`);
@@ -494,13 +494,16 @@ describe('pattern-vault-service', () => {
       'history-2',
       'history-1',
     ]);
-    expect(deletePatternMutation(data, 'user-pattern')).toEqual({
-      status: 'failure',
-      reason: 'pattern-in-use',
-    });
+    const deleted = deletePatternMutation(data, 'user-pattern');
+    expect(deleted.status).toBe('deleted');
+    if (deleted.status !== 'deleted') return;
+    expect(deleted.data.pattern.name).toBe(data.pattern.name);
+    expect(deleted.data.patternHistory).toEqual([]);
+    expect(deleted.data.appliedPatternSource).toBe('legacy');
+    expect(deleted.data.appliedPatternId).toBeNull();
   });
 
-  it('최근 이력의 이전 패턴 참조도 삭제하지 않고 되돌릴 수 있습니다', () => {
+  it('이전 패턴을 삭제하면 해당 참조 이력만 제거하고 현재 일정은 유지합니다', () => {
     let data = withUserPattern(createDefaultAppData(EFFECTIVE_DATE), {
       id: 'pattern-a',
       name: '패턴 A',
@@ -527,15 +530,15 @@ describe('pattern-vault-service', () => {
     if (second.status !== 'ready') return;
 
     expect(second.data.appliedPatternId).toBe('pattern-b');
-    expect(deletePatternMutation(second.data, 'pattern-a')).toEqual({
-      status: 'failure',
-      reason: 'pattern-in-use',
+    const deleted = deletePatternMutation(second.data, 'pattern-a');
+    expect(deleted.status).toBe('deleted');
+    if (deleted.status !== 'deleted') return;
+    expect(deleted.data.pattern.name).toBe('패턴 B');
+    expect(deleted.data.appliedPatternId).toBe('pattern-b');
+    expect(deleted.data.patternHistory).toEqual([]);
+    expect(buildPatternRollbackMutation(deleted.data)).toEqual({
+      status: 'nothing-to-rollback',
     });
-    const rollback = buildPatternRollbackMutation(second.data);
-    expect(rollback.status).toBe('ready');
-    if (rollback.status !== 'ready') return;
-    expect(rollback.data.appliedPatternId).toBe('pattern-a');
-    expect(rollback.data.pattern.name).toBe('패턴 A');
   });
 
   it('수동 패턴 변경 뒤에는 충돌한 이력을 되돌리지 않습니다', () => {
@@ -547,6 +550,19 @@ describe('pattern-vault-service', () => {
       ...applied.data,
       pattern: { ...applied.data.pattern, name: '수동 변경' },
     })).toEqual({ status: 'failure', reason: 'history-conflict' });
+  });
+
+  it('종류가 없는 이전 사용자 순서는 rotation 이력과 같은 실행으로 복구합니다', () => {
+    const source = withUserPattern(createDefaultAppData(EFFECTIVE_DATE));
+    const applied = applyUserPattern(source, { mode: 'preserve' });
+    expect(applied.status).toBe('ready');
+    if (applied.status !== 'ready') return;
+    const { kind: _kind, ...legacyPattern } = applied.data.pattern;
+
+    expect(buildPatternRollbackMutation({
+      ...applied.data,
+      pattern: legacyPattern,
+    }).status).toBe('ready');
   });
 
   it('v21 적용 이력의 복구 원본을 strict parser로 왕복 보존합니다', () => {

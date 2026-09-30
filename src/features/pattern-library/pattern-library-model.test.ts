@@ -7,9 +7,18 @@ import {
   buildPatternPreviewMonths,
   buildPatternDiffRows,
   buildPatternOverridePolicy,
+  buildPatternSevenDaySummary,
+  compressPatternShiftCodes,
+  createPatternApplicationPreview,
+  expandPatternComposerSegments,
+  formatPatternApplyActionLabel,
   formatPatternCalendarShiftToken,
+  formatPatternComposerName,
   formatPatternDayAccessibilityLabel,
   getPreservedOverrideDateKeys,
+  getPatternComposerTotalDays,
+  isPatternComposerValid,
+  normalizePatternComposerSegments,
   resolvePatternPreviewRow,
   type PatternDiffRow,
   validatePatternDraft,
@@ -26,6 +35,30 @@ const pattern: PatternVaultEntry = {
   createdAt: '2026-08-20T00:00:00.000Z',
   updatedAt: '2026-08-20T00:00:00.000Z',
 };
+
+describe('명시적인 적용 비교 입력', () => {
+  it('직접 변경이 생기면 새 데이터를 비교하고 이전 snapshot은 유지합니다', () => {
+    const data = { ...createDefaultAppData('2026-08-02'), patternVault: [pattern] };
+    const input = {
+      patternId: pattern.id,
+      effectiveDate: '2026-08-02',
+      overridePolicy: { mode: 'preserve' as const },
+    };
+    const before = createPatternApplicationPreview(data, input);
+    const after = createPatternApplicationPreview({
+      ...data, overrides: { '2026-08-02': 'night' },
+    }, input);
+    expect(before.status).toBe('ready');
+    expect(after.status).toBe('ready');
+    if (before.status !== 'ready' || after.status !== 'ready') return;
+    expect(before.preview.directOverrideDateKeys).toEqual([]);
+    expect(after.preview.directOverrideDateKeys).toEqual(['2026-08-02']);
+    expect(after.preview.rows[0]).toMatchObject({
+      currentShiftTypeId: 'night', nextShiftTypeId: 'night', hasDirectOverride: true,
+    });
+    expect(data.overrides).toEqual({});
+  });
+});
 
 function previewRow(
   dateKey: string,
@@ -48,6 +81,46 @@ function previewRow(
 }
 
 describe('pattern library UI model', () => {
+  it('losslessly compresses and expands consecutive composer segments', () => {
+    const codes = [
+      'DAY',
+      'DAY',
+      'NIGHT',
+      'NIGHT',
+      'OFF',
+      'OFF',
+    ] as const;
+    const segments = compressPatternShiftCodes(codes);
+
+    expect(segments).toEqual([
+      { shiftCode: 'DAY', days: 2 },
+      { shiftCode: 'NIGHT', days: 2 },
+      { shiftCode: 'OFF', days: 2 },
+    ]);
+    expect(expandPatternComposerSegments(segments)).toEqual(codes);
+    expect(getPatternComposerTotalDays(segments)).toBe(6);
+    expect(formatPatternComposerName(segments)).toBe('주2일 · 야2일 · 휴2일');
+    expect(
+      normalizePatternComposerSegments([
+        { shiftCode: 'DAY', days: 1 },
+        { shiftCode: 'DAY', days: 2 },
+        { shiftCode: 'OFF', days: 1 },
+      ]),
+    ).toEqual([
+      { shiftCode: 'DAY', days: 3 },
+      { shiftCode: 'OFF', days: 1 },
+    ]);
+  });
+
+  it('accepts only composer segments totaling 1 through 42 days', () => {
+    expect(isPatternComposerValid([{ shiftCode: 'DAY', days: 1 }])).toBe(true);
+    expect(isPatternComposerValid([{ shiftCode: 'DAY', days: 42 }])).toBe(true);
+    expect(isPatternComposerValid([])).toBe(false);
+    expect(isPatternComposerValid([{ shiftCode: 'DAY', days: 0 }])).toBe(false);
+    expect(isPatternComposerValid([{ shiftCode: 'DAY', days: 43 }])).toBe(false);
+    expect(isPatternComposerValid([{ shiftCode: 'DAY', days: 1.5 }])).toBe(false);
+  });
+
   it('accepts only named 1 through 42 day drafts', () => {
     expect(validatePatternDraft({ id: null, name: '', shiftCodes: ['DAY'] }).issue).toBe(
       'name-required',
@@ -167,5 +240,90 @@ describe('pattern library UI model', () => {
     expect(formatPatternCalendarShiftToken('substitute-night', '야간 대체근무')).toBe('야대');
     expect(formatPatternCalendarShiftToken('custom', '장시간근무')).toBe('장시');
     expect(formatPatternCalendarShiftToken(null, '일정 없음')).toBe('—');
+  });
+
+  it('builds the first seven day summary without changing the 42 day source', () => {
+    const rows = Array.from({ length: 42 }, (_, index) => ({
+      ...previewRow(`2026-08-${String(index + 1).padStart(2, '0')}`, 'day', 'night'),
+      hasDirectOverride: index === 2,
+    }));
+    const summary = buildPatternSevenDaySummary({
+      mode: 'preserve',
+      rows,
+      selectedDateKeys: new Set(),
+    });
+
+    expect(summary.rows).toHaveLength(7);
+    expect(summary.rows[0]).toMatchObject(rows[0]);
+    expect(summary.rows[6]).toMatchObject(rows[6]);
+    expect(summary.changedDateCount).toBe(7);
+    expect(summary.preservedOverrideDateCount).toBe(1);
+    expect(summary.removedOverrideDateCount).toBe(0);
+    expect(rows).toHaveLength(42);
+  });
+
+  it('describes the actual seven-day direct-edit result for every override policy', () => {
+    const rows = Array.from({ length: 8 }, (_, index) => ({
+      ...previewRow(`2026-08-${String(index + 20).padStart(2, '0')}`, 'day', 'night'),
+      hasDirectOverride: index === 1 || index === 3 || index === 7,
+    }));
+
+    const preserve = buildPatternSevenDaySummary({
+      mode: 'preserve',
+      rows,
+      selectedDateKeys: new Set(),
+    });
+    expect(preserve.rows.map((row) => row.directOverrideResolution)).toEqual([
+      null,
+      'preserve',
+      null,
+      'preserve',
+      null,
+      null,
+      null,
+    ]);
+    expect(preserve.preservedOverrideDateCount).toBe(2);
+    expect(preserve.removedOverrideDateCount).toBe(0);
+
+    const removeAll = buildPatternSevenDaySummary({
+      mode: 'remove-all',
+      rows,
+      selectedDateKeys: new Set(['2026-08-21']),
+    });
+    expect(removeAll.rows[1].directOverrideResolution).toBe('remove');
+    expect(removeAll.rows[3].directOverrideResolution).toBe('remove');
+    expect(removeAll.preservedOverrideDateCount).toBe(0);
+    expect(removeAll.removedOverrideDateCount).toBe(2);
+
+    const selective = buildPatternSevenDaySummary({
+      mode: 'select',
+      rows,
+      selectedDateKeys: new Set(['2026-08-23', '2026-08-27']),
+    });
+    expect(selective.rows[1].directOverrideResolution).toBe('remove');
+    expect(selective.rows[3].directOverrideResolution).toBe('preserve');
+    expect(selective.preservedOverrideDateCount).toBe(1);
+    expect(selective.removedOverrideDateCount).toBe(1);
+  });
+
+  it('uses an apply action label that reflects the preview result', () => {
+    expect(
+      formatPatternApplyActionLabel({
+        changedDateCount: 7,
+        clearedOverrideDateCount: 0,
+      }),
+    ).toBe('변경 7일 적용');
+    expect(
+      formatPatternApplyActionLabel({
+        changedDateCount: 7,
+        clearedOverrideDateCount: 2,
+      }),
+    ).toBe('직접 수정 2개 정리 후 적용');
+    expect(
+      formatPatternApplyActionLabel({
+        changedDateCount: 0,
+        clearedOverrideDateCount: 0,
+      }),
+    ).toBe('변경 없이 적용');
   });
 });

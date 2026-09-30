@@ -33,6 +33,10 @@ function artifact(overrides = {}) {
     easBuildId: EAS_BUILD_ID,
     easBuildFinishedAt: '2026-08-12T09:00:00.000Z',
     pageAlignment: 'PAGE_ALIGNMENT_16K',
+    r8Mapping: {
+      entryName: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+      sizeBytes: 42,
+    },
     ...overrides,
   };
 }
@@ -52,6 +56,10 @@ function releaseEvidence(overrides = {}) {
   return {
     schemaVersion: 1,
     ...boundFields(),
+    r8Mapping: {
+      entryName: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+      sizeBytes: 42,
+    },
     appSigningCertificateSha256: SIGNER_SHA256,
     highestPreviouslyDistributedVersionCode: 0,
     highestExistingPlayVersionCode: 0,
@@ -135,8 +143,38 @@ describe('Play 최종 출고 증거', () => {
     ).toMatchObject({
       aabSha256: AAB_SHA256,
       versionCode: 2,
+      r8Mapping: { sizeBytes: 42 },
       appSigningCertificateSha256: SIGNER_SHA256,
     });
+  });
+
+  it('R8 가독화 파일 검증이 없는 AAB는 거부해요', () => {
+    expect(() =>
+      assertPlayReleaseEvidence(
+        releaseEvidence(),
+        artifact({ r8Mapping: null }),
+        playPolicy,
+        rawEvidence(),
+        { now: NOW },
+      ),
+    ).toThrow('R8 가독화 파일');
+  });
+
+  it('릴리스 증거의 R8 가독화 정보가 AAB와 다르면 거부해요', () => {
+    expect(() =>
+      assertPlayReleaseEvidence(
+        releaseEvidence({
+          r8Mapping: {
+            entryName: 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map',
+            sizeBytes: 41,
+          },
+        }),
+        artifact(),
+        playPolicy,
+        rawEvidence(),
+        { now: NOW },
+      ),
+    ).toThrow('AAB 출처 기록과 달라요');
   });
 
   it('별도 Play 서명 계보는 불가능한 direct 교차 업데이트를 요구하지 않아요', () => {

@@ -1,9 +1,14 @@
 import type { AppPalette } from '../constants/app-theme';
 import type { ShiftType } from '../models/app-data';
+import {
+  resolveShiftVisualRole,
+  resolveShiftVisualSpec,
+} from '../design-system/shift-visual-theme';
 
 export type ShiftAppearance = {
   accentColor: string;
   softColor: string;
+  meaningColor?: string;
 };
 
 export type ShiftCategory =
@@ -29,8 +34,22 @@ export function getShiftCategory(
 export function getShiftAppearance(
   shift: Pick<ShiftType, 'color' | 'id' | 'isOff' | 'softColor'>,
   palette: AppPalette,
-  _isDark: boolean,
+  isDark: boolean,
 ): ShiftAppearance {
+  if (isDark) {
+    const role = resolveShiftVisualRole(shift);
+    const spec = resolveShiftVisualSpec(role, shift.color);
+    return {
+      accentColor:
+        role === 'substitute-day'
+          ? '#58D9BC'
+          : role === 'substitute-night'
+            ? '#89CEFF'
+            : spec.accent,
+      softColor: spec.softBackground,
+      ...(spec.meaningRail ? { meaningColor: spec.meaningRail } : {}),
+    };
+  }
   if (shift.isOff || shift.id === 'off') {
     return { accentColor: palette.inkMuted, softColor: palette.surfaceSoft };
   }
@@ -38,13 +57,24 @@ export function getShiftAppearance(
     return { accentColor: palette.mintDark, softColor: palette.mintSoft };
   }
   if (shift.id === 'evening') {
-    return { accentColor: palette.indigoDark, softColor: palette.indigoSoft };
+    return { accentColor: palette.amber, softColor: palette.amberSoft };
   }
   if (shift.id === 'night') {
-    return { accentColor: palette.violet, softColor: palette.violetSoft };
+    return { accentColor: palette.blue, softColor: palette.blueSoft };
   }
-  if (shift.id.startsWith('substitute-')) {
-    return { accentColor: palette.amber, softColor: palette.amberSoft };
+  if (shift.id === 'substitute-day') {
+    return {
+      accentColor: palette.mintDark,
+      softColor: palette.mintSoft,
+      meaningColor: palette.amber,
+    };
+  }
+  if (shift.id === 'substitute-night') {
+    return {
+      accentColor: palette.blue,
+      softColor: palette.blueSoft,
+      meaningColor: palette.amber,
+    };
   }
   return { accentColor: shift.color, softColor: shift.softColor };
 }

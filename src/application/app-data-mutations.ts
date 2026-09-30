@@ -3,20 +3,16 @@ import type {
   RotationPattern,
   ShiftType,
 } from '../models/app-data';
+import { arePatternExecutionsEqual } from '../utils/pattern-execution';
+
+export { arePatternExecutionsEqual } from '../utils/pattern-execution';
 
 /** 저장 계약을 바꾸지 않고 근무 패턴의 실질적인 변경 여부만 비교해요. */
 export function areRotationPatternsEqual(
   left: RotationPattern,
   right: RotationPattern,
 ): boolean {
-  return (
-    left.name === right.name &&
-    left.anchorDate === right.anchorDate &&
-    (left.scheduleStartDate ?? left.anchorDate) ===
-      (right.scheduleStartDate ?? right.anchorDate) &&
-    left.shiftTypeIds.length === right.shiftTypeIds.length &&
-    left.shiftTypeIds.every((id, index) => id === right.shiftTypeIds[index])
-  );
+  return left.name === right.name && arePatternExecutionsEqual(left, right);
 }
 
 /** 정의된 값만 반영하고, 변경이 없으면 기존 참조를 그대로 유지해요. */

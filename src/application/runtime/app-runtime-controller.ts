@@ -5,9 +5,8 @@ import type {
 
 /**
  * Coordinates platform runtime capabilities behind application-owned ports.
- * Scheduling policy and persistence policy stay in their existing pure
- * services during the V14 incremental migration; this controller owns only
- * the platform boundary.
+ * The non-React AppStoreEngine owns scheduling and persistence coordination.
+ * This reusable controller only delegates device capabilities to injected ports.
  */
 export class AppRuntimeController<TContract extends AppRuntimeContract> {
   readonly dataRepository: AppRuntimeDependencies<TContract>['dataRepository'];

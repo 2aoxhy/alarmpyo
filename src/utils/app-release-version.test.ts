@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatAppReleaseVersion } from './app-release-version';
+import {
+  formatAppReleaseVersion,
+  formatAppReleaseVersionCode,
+} from './app-release-version';
 
 describe('앱 표시 버전', () => {
   it('1.0.x 버전을 V00 형식으로 표시해요', () => {
@@ -10,6 +13,18 @@ describe('앱 표시 버전', () => {
     expect(formatAppReleaseVersion('1.0.12')).toBe('V12');
     expect(formatAppReleaseVersion('1.15')).toBe('V15');
     expect(formatAppReleaseVersion('1.16')).toBe('V16');
+    expect(formatAppReleaseVersion('1.20')).toBe('V20');
+    expect(formatAppReleaseVersion('1.21')).toBe('V1.21');
+    expect(formatAppReleaseVersion('1.22')).toBe('V1.22');
+    expect(formatAppReleaseVersion('1.23')).toBe('V1.23');
+  });
+
+  it('Play versionCode도 V1.21 경계부터 새 형식으로 표시해요', () => {
+    expect(formatAppReleaseVersionCode(20)).toBe('V20');
+    expect(formatAppReleaseVersionCode(21)).toBe('V1.21');
+    expect(formatAppReleaseVersionCode(22)).toBe('V1.22');
+    expect(formatAppReleaseVersionCode(23)).toBe('V1.23');
+    expect(formatAppReleaseVersionCode(0)).toBe('새 버전');
   });
 
   it('지원하지 않는 기술 버전을 그럴듯하게 추측하지 않아요', () => {

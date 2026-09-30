@@ -22,7 +22,7 @@ export function AdditionalSettingsSection({
         icon="options-outline"
         onPress={onToggle}
         subtitle={summary}
-        title="특별 일정·시간·알람·메모"
+        title="추가 설정"
       />
       {expanded ? <View style={styles.content}>{children}</View> : null}
     </View>

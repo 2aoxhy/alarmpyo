@@ -89,13 +89,15 @@ class AlarmPyoQuickTimerPolicyTest {
   }
 
   @Test
-  fun `fifteen thirty forty five and sixty minute quick timers are accepted`() {
+  fun `one through sixty minute integer quick timers are accepted`() {
+    assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(1))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(15))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(30))
+    assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(37))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(45))
     assertTrue(AlarmPyoQuickTimerPolicy.isSupportedDuration(60))
     assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(0))
-    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(20))
+    assertFalse(AlarmPyoQuickTimerPolicy.isSupportedDuration(61))
   }
 
   @Test

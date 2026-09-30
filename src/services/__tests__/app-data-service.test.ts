@@ -2399,6 +2399,7 @@ describe('근무표 데이터 검증과 백업', () => {
       shiftTypeCount: 6,
       changedDateCount: 2,
       noteCount: 1,
+      notificationsEnabled: false,
     });
     expect(appDataFromImportPreview(preview)).toEqual(data);
   });

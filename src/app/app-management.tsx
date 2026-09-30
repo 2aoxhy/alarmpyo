@@ -24,15 +24,11 @@ export default function AppManagementScreen() {
     <>
       <Stack.Screen options={{ title: '데이터·앱 정보' }} />
       <Screen contentStyle={styles.screen}>
-        <AppText tone="secondary" style={styles.centerText}>
-          자주 바꾸지 않는 관리 항목을 모았습니다.
-        </AppText>
-
         <MenuGroup centered title="관리">
           <ListRow
             icon="download-outline"
             onPress={() => router.push('/data-settings')}
-            subtitle="근무 설정 공유와 백업·복구를 관리합니다"
+            subtitle="근무표 공유 · 백업 · 복구"
             title="데이터 관리"
           />
           <MenuDivider />
@@ -47,7 +43,7 @@ export default function AppManagementScreen() {
           <ListRow
             icon="shield-outline"
             onPress={() => router.push('/privacy' as Href)}
-            subtitle="저장·권한·데이터 처리 기준을 확인합니다"
+            subtitle="저장 · 권한 · 데이터 처리 기준"
             title="개인정보 처리방침"
           />
         </MenuGroup>

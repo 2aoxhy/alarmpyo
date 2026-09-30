@@ -9,6 +9,7 @@ import {
   type CollapsedSleepAction,
 } from '@/components/sleep-timing-card-model';
 import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type {
@@ -84,38 +85,22 @@ function getDurationMinutes(window: SleepTimingWindow): number {
 
 function getWindowAccessibilityLabel(window: SleepTimingWindow): string {
   if (window.kind === 'pre-night-nap') {
-    return `${window.title}. 보충 수면 시작 ${formatNaturalDateTime(window.startAt)}. 종료 ${formatNaturalDateTime(window.endAt)}. 눕기 준비 ${formatNaturalDateTime(window.bedtimeRangeStartAt)}부터 ${formatNaturalDateTime(window.bedtimeRangeEndAt)}까지. 총 ${formatDuration(getDurationMinutes(window))}. ${window.guidance}`;
+    return `${window.title}. 보충 수면 ${formatNaturalDateTime(window.startAt)}부터 ${formatNaturalDateTime(window.endAt)}까지. 눕기 준비 ${formatNaturalDateTime(window.bedtimeRangeStartAt)}부터 ${formatNaturalDateTime(window.bedtimeRangeEndAt)}까지. 총 ${formatDuration(getDurationMinutes(window))}.`;
   }
-  return `${window.title}. 취침 목표 ${formatNaturalDateTime(window.startAt)}. 기상 목표 ${formatNaturalDateTime(window.endAt)}. 참고 취침 범위 ${formatNaturalDateTime(window.bedtimeRangeStartAt)}부터 ${formatNaturalDateTime(window.bedtimeRangeEndAt)}까지. 총 ${formatDuration(getDurationMinutes(window))}. ${window.guidance}`;
+  return `${window.title}. 취침 ${formatNaturalDateTime(window.startAt)}. 기상 ${formatNaturalDateTime(window.endAt)}. 취침 범위 ${formatNaturalDateTime(window.bedtimeRangeStartAt)}부터 ${formatNaturalDateTime(window.bedtimeRangeEndAt)}까지. 총 ${formatDuration(getDurationMinutes(window))}.`;
 }
 
 function formatCollapsedSleepAction(
   action: CollapsedSleepAction,
   now: Date,
 ): string {
-  if (action.kind === 'continue') return '지금은 수면을 이어가야 합니다.';
+  if (action.kind === 'continue') return '수면 유지';
   if (action.kind === 'prepare-nap') {
     return action.at <= now.getTime()
-      ? '지금부터 보충 수면을 준비해야 합니다.'
-      : `${formatShortDateTime(action.at, now)}부터 보충 수면을 준비해야 합니다.`;
+      ? '보충 수면 준비'
+      : `${formatShortDateTime(action.at, now)} 보충 수면 준비`;
   }
-  return `참고 취침 시각은 ${formatShortDateTime(action.at, now)}까지입니다.`;
-}
-
-function getReferenceNote(window: SleepTimingWindow): string {
-  if (window.kind === 'pre-night-nap') {
-    return '90분 보충 수면을 주수면과 함께 활용하는 일정 참고용입니다.';
-  }
-  if (window.kind === 'post-night' && getDurationMinutes(window) < 7 * 60) {
-    return '퇴근 뒤 이동·정리 1시간 15분과 짧은 회복 수면을 반영한 예시입니다. 당일 밤의 전환 수면도 함께 확인해야 합니다.';
-  }
-  if (window.kind === 'post-night') {
-    return '퇴근 뒤 이동·정리 1시간 15분을 반영한 일정입니다. 실제 귀가 시간에 맞춰 조정해야 합니다.';
-  }
-  if (window.kind === 'off-transition') {
-    return '마지막 야간 뒤 짧게 쉬고 이른 밤 수면으로 돌아가는 전환 예시입니다.';
-  }
-  return '7시간 이상을 확보하는 일정 참고용입니다. 개인 상태에 따라 조정해야 합니다.';
+  return `${formatShortDateTime(action.at, now)}까지 취침`;
 }
 
 function getCoreTimingLine(window: SleepTimingWindow, now: Date): string {
@@ -156,7 +141,7 @@ function TimingWindow({
           style={styles.windowTitle}>
           {window.title}
         </AppText>
-        <View style={[styles.durationBadge, primary && styles.primaryDurationBadge]}>
+        <View style={styles.durationBadge}>
           <AppText
             variant="caption"
             color={primary ? palette.blue : undefined}
@@ -172,10 +157,7 @@ function TimingWindow({
         {isNap ? '보충 수면' : '취침 목표'} {formatShortDateTime(window.startAt, now)}
       </AppText>
       <AppText variant="caption" tone="secondary" style={styles.shiftContext}>
-        {isNap ? '눕기 준비' : '참고 취침'} {formatBedtimeRange(window, now)} · 기상 {formatShortDateTime(window.endAt, now)}
-      </AppText>
-      <AppText variant="caption" tone="secondary" style={styles.windowGuidance}>
-        {window.guidance}
+        {isNap ? '눕기 준비' : '취침 범위'} {formatBedtimeRange(window, now)} · 기상 {formatShortDateTime(window.endAt, now)}
       </AppText>
     </View>
   );
@@ -196,7 +178,7 @@ function TransitionPanel({
     1,
     Math.ceil((transition.endAt - now.getTime()) / 60_000),
   );
-  const accessibilityLabel = `현재 야간 전환 시간입니다. ${formatNaturalDateTime(transition.startAt)}부터 ${formatNaturalDateTime(transition.endAt)}까지입니다. 보충 수면 준비까지 ${formatDuration(remainingMinutes)} 남았습니다. ${transition.guidance}`;
+  const accessibilityLabel = `야간 전환. ${formatNaturalDateTime(transition.startAt)}부터 ${formatNaturalDateTime(transition.endAt)}까지. 보충 수면 준비까지 ${formatDuration(remainingMinutes)} 남음.`;
 
   return (
     <View
@@ -210,7 +192,7 @@ function TransitionPanel({
           </View>
           <View style={styles.transitionCopy}>
             <AppText variant="label" color={palette.amber}>
-              지금은 야간 전환 시간입니다
+              야간 전환
             </AppText>
             <AppText variant="caption" tone="secondary">
               {formatShortTimeRange(transition.startAt, transition.endAt, now)}
@@ -224,7 +206,7 @@ function TransitionPanel({
         </View>
       </View>
       <AppText variant="caption" tone="primary">
-        {transition.guidance} {formatShortDateTime(transition.endAt, now)}부터 보충 수면을 준비해야 합니다.
+        {formatShortDateTime(transition.endAt, now)} 보충 수면 준비
       </AppText>
     </View>
   );
@@ -239,8 +221,6 @@ export function SleepTimingCard({
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
-  const isRegularSleep =
-    guidance.primary.kind === 'regular' || guidance.primary.kind === 'off-transition';
   const collapsedSummary = buildCollapsedSleepSummaryModel(
     guidance,
     now.getTime(),
@@ -265,17 +245,11 @@ export function SleepTimingCard({
           <AppIcon accessible={false} color={palette.blue} name="shift-night" size={22} />
         </View>
         <View style={styles.headerCopy}>
-          <AppText accessibilityRole="header" variant="label">
-            수면 참고 일정
+          <AppText accessibilityRole="header" aria-level={3} variant="label">
+            수면 시간
           </AppText>
           <AppText variant="caption" tone="secondary">
-            {guidance.transitionMode
-              ? '근무 전환에 맞춘 취침·기상·보충 수면 일정 참고입니다.'
-              : guidance.transition
-              ? '주수면과 보충 수면 사이도 빠짐없이 안내합니다.'
-              : isRegularSleep
-              ? '야간 회복과 휴무 전환까지 고려한 참고 시간'
-              : '저장한 기상 시각과 출근 루틴에 맞춘 일정 참고입니다.'}
+            취침·기상 참고
           </AppText>
         </View>
       </View>
@@ -300,7 +274,7 @@ export function SleepTimingCard({
           size={17}
         />
         <AppText tone="secondary" style={styles.referenceNoticeCopy} variant="caption">
-          생활 리듬을 위한 참고 정보입니다. 건강 상태를 판단하는 의료 안내가 아닙니다.
+          수면 참고용 · 의료 조언 아님
         </AppText>
       </View>
 
@@ -308,20 +282,20 @@ export function SleepTimingCard({
         <View accessible accessibilityLiveRegion="polite" style={styles.fallbackNotice}>
           <AppIcon accessible={false} color={palette.amber} name="alert-circle-outline" size={18} />
           <AppText variant="caption" tone="primary" style={styles.fallbackNoticeCopy}>
-            기상 기준을 확인할 수 없어 저장한 출근 루틴과 근무 시작 {formatDuration(ROUTINE_ALARM_LEAD_MINUTES)} 전을 기준으로 계산했습니다.
+            기상 설정 없음 · 근무 시작 {formatDuration(ROUTINE_ALARM_LEAD_MINUTES)} 전 기준
           </AppText>
         </View>
       ) : null}
 
       <Pressable
-        accessibilityHint={expanded ? '수면 세부 일정을 접습니다.' : '수면 세부 일정을 펼칩니다.'}
-        accessibilityLabel={expanded ? '수면 세부 일정 접기' : '수면 세부 일정 보기'}
+        accessibilityHint={expanded ? '전체 일정을 접습니다.' : '전체 일정을 펼칩니다.'}
+        accessibilityLabel={expanded ? '일정 접기' : '전체 일정 보기'}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((current) => !current)}
         style={({ pressed }) => [styles.detailToggle, pressed && styles.detailTogglePressed]}>
         <AppText variant="label" color={palette.blue}>
-          {expanded ? '세부 일정 접기' : '세부 일정 보기'}
+          {expanded ? '일정 접기' : '전체 일정'}
         </AppText>
         <AppIcon
           accessible={false}
@@ -353,15 +327,6 @@ export function SleepTimingCard({
             </View>
           ) : null}
 
-          <View style={[styles.guidanceNote, compact && styles.guidanceNoteCompact]}>
-            <AppIcon accessible={false} color={palette.blue} name="checkmark-circle" size={20} />
-            <View style={styles.guidanceNoteCopy}>
-              <AppText variant="caption" tone="secondary">
-                {getReferenceNote(guidance.primary)} 개인 상태에 맞게 조정해야 합니다.
-              </AppText>
-            </View>
-          </View>
-
           {routinePlan ? <WorkRoutinePanel compact={compact} plan={routinePlan} /> : null}
         </View>
       ) : null}
@@ -373,8 +338,6 @@ const createStyles = (palette: AppPalette) =>
   StyleSheet.create({
     card: {
       gap: spacing.medium,
-      borderRadius: 24,
-      borderColor: palette.blue,
     },
     cardCompact: {
       padding: spacing.large,
@@ -389,13 +352,11 @@ const createStyles = (palette: AppPalette) =>
       alignItems: 'flex-start',
     },
     headerIcon: {
-      width: 44,
+      width: 32,
       height: 44,
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 15,
-      backgroundColor: palette.blueSoft,
     },
     headerCopy: {
       flex: 1,
@@ -405,9 +366,9 @@ const createStyles = (palette: AppPalette) =>
     coreSummary: {
       minWidth: 0,
       gap: 4,
-      borderRadius: radii.medium,
-      backgroundColor: palette.blueSoft,
-      paddingHorizontal: spacing.large,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.blue,
+      paddingLeft: spacing.medium,
       paddingVertical: spacing.medium,
     },
     referenceNotice: {
@@ -425,7 +386,7 @@ const createStyles = (palette: AppPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       backgroundColor: palette.amberSoft,
       paddingHorizontal: spacing.medium,
       paddingVertical: spacing.small,
@@ -440,8 +401,8 @@ const createStyles = (palette: AppPalette) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.small,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
     },
     detailTogglePressed: {
       opacity: 0.72,
@@ -452,7 +413,7 @@ const createStyles = (palette: AppPalette) =>
     window: {
       minWidth: 0,
       gap: 5,
-      borderRadius: radii.medium,
+      borderRadius: shape.panel,
       paddingHorizontal: spacing.large,
       paddingVertical: spacing.medium,
     },
@@ -460,14 +421,13 @@ const createStyles = (palette: AppPalette) =>
       paddingHorizontal: spacing.medium,
     },
     primaryWindow: {
-      borderWidth: 1,
-      borderColor: palette.blue,
-      backgroundColor: palette.blueSoft,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.blue,
+      backgroundColor: palette.surfaceSoft,
     },
     additionalWindow: {
-      borderWidth: 1,
-      borderColor: palette.line,
-      backgroundColor: palette.surfaceSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.line,
     },
     windowHeading: {
       minWidth: 0,
@@ -484,13 +444,8 @@ const createStyles = (palette: AppPalette) =>
       minHeight: 28,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radii.pill,
-      backgroundColor: palette.surface,
-      paddingHorizontal: spacing.medium,
+      paddingHorizontal: spacing.small,
       paddingVertical: 4,
-    },
-    primaryDurationBadge: {
-      backgroundColor: palette.surface,
     },
     durationText: {
       textAlign: 'center',
@@ -501,19 +456,14 @@ const createStyles = (palette: AppPalette) =>
     shiftContext: {
       flexShrink: 1,
     },
-    windowGuidance: {
-      flexShrink: 1,
-      marginTop: 2,
-    },
     additionalList: {
       gap: spacing.small,
     },
     transition: {
       minWidth: 0,
       gap: spacing.small,
-      borderWidth: 1,
-      borderColor: palette.amber,
-      borderRadius: radii.medium,
+      borderLeftWidth: 3,
+      borderLeftColor: palette.amber,
       backgroundColor: palette.amberSoft,
       paddingHorizontal: spacing.large,
       paddingVertical: spacing.medium,
@@ -542,8 +492,6 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 12,
-      backgroundColor: palette.surface,
     },
     transitionCopy: {
       minWidth: 0,
@@ -559,23 +507,5 @@ const createStyles = (palette: AppPalette) =>
       backgroundColor: palette.surface,
       paddingHorizontal: spacing.medium,
       paddingVertical: 4,
-    },
-    guidanceNote: {
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.medium,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
-      paddingHorizontal: spacing.large,
-      paddingVertical: spacing.medium,
-    },
-    guidanceNoteCompact: {
-      paddingHorizontal: spacing.medium,
-    },
-    guidanceNoteCopy: {
-      flex: 1,
-      minWidth: 0,
-      gap: 3,
     },
   });

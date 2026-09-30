@@ -4,8 +4,7 @@ import { createDefaultAppData } from '../../services/app-data-service';
 import { getAlarmScheduleSignature } from '../../services/alarm-schedule-signature';
 import { getSleepReminderScheduleSignature } from '../../services/sleep-reminder-planner';
 import { createSerializedMutationCoordinator } from '../../services/app-storage-service';
-// @ts-expect-error Vitest는 회귀 계약 검사를 위해 소스 파일을 문자열로 불러와요.
-import providerSource from '../../store/app-store.tsx?raw';
+import { allCoordinatorSource as providerSource, coordinatorSources, operationSource } from './store-coordinator-source';
 
 import {
   applyCanonicalSnapshotIfSourceIsCurrent,
@@ -284,12 +283,12 @@ describe('app-store-persistence', () => {
   });
 
 
-  it('Provider는 저장 전 수면 동기화를 시작하지 않고 변경된 자료만 자동 저장합니다', () => {
+  it('엔진은 저장 전 수면 동기화를 시작하지 않고 변경된 자료만 자동 저장합니다', () => {
     expect(providerSource).not.toContain('sleepReminderScheduleSignature');
     expect(providerSource).toContain('lastPersistedAutomaticSaveSignatureRef');
     expect(providerSource).toContain('shouldFlushAutomaticSave(');
     expect(providerSource).toContain(
-      'void flushAutomaticSave(automaticSaveGenerationRef.current);',
+      'void this.operations.flushAutomaticSave(this.context.automaticSaveGenerationRef.current);',
     );
     expect(providerSource).toContain(
       'persistLatestCanonicalSnapshotAndSyncSleep({',
@@ -297,47 +296,19 @@ describe('app-store-persistence', () => {
   });
 
   it('구조화된 재시도는 지정된 후속 작업만 실행해요', () => {
-    const retrySaveStart = providerSource.indexOf('const retrySave = useCallback');
-    const retrySleepStart = providerSource.indexOf(
-      'const retrySleepReminderSync = useCallback',
-    );
-    const replacementStart = providerSource.indexOf(
-      'const replaceDataAndPersistDetailedInternal = useCallback',
-    );
-    const alarmRetryStart = providerSource.indexOf(
-      'const resyncAlarms = useCallback',
-    );
-    const enableAlarmsStart = providerSource.indexOf(
-      'const enableAlarms = useCallback',
-    );
-
-    expect([
-      retrySaveStart,
-      retrySleepStart,
-      replacementStart,
-      alarmRetryStart,
-      enableAlarmsStart,
-    ]).not.toContain(-1);
-
-    const retrySaveSource = providerSource.slice(retrySaveStart, retrySleepStart);
+    const retrySaveSource = operationSource(coordinatorSources.persistence, 'retrySave');
     expect(retrySaveSource).toContain('persistSnapshot(');
     expect(retrySaveSource).toContain('syncSleepRemindersForSnapshot(');
     expect(retrySaveSource).not.toContain('syncAlarmsForSnapshot(');
 
-    const retrySleepSource = providerSource.slice(
-      retrySleepStart,
-      replacementStart,
-    );
+    const retrySleepSource = operationSource(coordinatorSources.runtime, 'retrySleepReminderSync');
     expect(retrySleepSource).toContain('syncSleepRemindersForSnapshot(');
     expect(retrySleepSource).not.toContain('reportSaveSuccess()');
     expect(providerSource).toContain(
       "clearReportedSaveIssues('retry-sleep-reminders')",
     );
 
-    const retryAlarmSource = providerSource.slice(
-      alarmRetryStart,
-      enableAlarmsStart,
-    );
+    const retryAlarmSource = operationSource(coordinatorSources.runtime, 'resyncAlarms');
     expect(retryAlarmSource).not.toContain('reportSaveSuccess()');
     expect(providerSource).toContain(
       "clearReportedSaveIssues('retry-alarms')",
@@ -346,13 +317,9 @@ describe('app-store-persistence', () => {
 
   it('기기 백업과 초기화 표시 정리 실패를 각각 기록해요', () => {
     expect(providerSource).toContain('if (!deviceBackupSaved) {');
-    expect(providerSource).toContain(
-      "reportSaveIssue(\n            'device-backup-failed'",
-    );
+    expect(providerSource).toMatch(/reportSaveIssue\(\s*'device-backup-failed'/);
     expect(providerSource).toContain('if (!resetMarkerCleared) {');
-    expect(providerSource).toContain(
-      "reportSaveIssue(\n            'reset-marker-cleanup-failed'",
-    );
+    expect(providerSource).toMatch(/reportSaveIssue\(\s*'reset-marker-cleanup-failed'/);
   });
 
   it('본문 저장이 끝나기 전에는 수면 네이티브 동기화를 시작하지 않아요', async () => {

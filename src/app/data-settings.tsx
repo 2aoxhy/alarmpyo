@@ -1,6 +1,6 @@
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { useAppDialog } from '@/components/app-dialog';
 import {
@@ -11,35 +11,27 @@ import { getBackupRestorePresentation } from '@/components/backup-restore-feedba
 import { ListRow, MenuDivider, MenuGroup, Screen } from '@/components/ui-kit';
 import { spacing, type AppPalette } from '@/constants/app-theme';
 import { dataCopy } from '@/content/data-copy';
+import { StatusBanner } from '@/design-system';
 import {
   type AppDataImportPreview,
+  isExternalBackupReminderDue,
   type SharedShiftSettings,
   type WorkSettingsSharePreview,
 } from '@/features/data-settings/data-settings-controller';
 import { dataSettingsController } from '@/features/data-settings/data-settings-native-controller';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
-  useAppStoreActions,
+  useAppSelector,
+  useAppCommands,
   type PendingRestoreBackupPreview,
 } from '@/store/app-store';
+import type { AppStore } from '@/application/app-store-contract';
 import { formatCompactTime, formatKoreanDate } from '@/utils/date';
-
-function formatAlarmLead(minutes: number): string {
-  if (minutes < 60) return `${minutes}분 전`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes === 0
-    ? `${hours}시간 전`
-    : `${hours}시간 ${remainingMinutes}분 전`;
-}
 
 function formatSharedShiftLine(label: string, shift: SharedShiftSettings): string {
   if (shift.startMinutes === null || shift.endMinutes === null) return `${label} · 휴무`;
   const endPrefix = shift.endsNextDay ? '다음 날 ' : '';
-  const alarm = shift.alarmEnabled
-    ? `알람 ${formatAlarmLead(shift.alarmMinutesBefore)}`
-    : '알람 끔';
-  return `${label} ${formatCompactTime(shift.startMinutes)}~${endPrefix}${formatCompactTime(shift.endMinutes)} · ${alarm}`;
+  return `${label} ${formatCompactTime(shift.startMinutes)}~${endPrefix}${formatCompactTime(shift.endMinutes)}`;
 }
 
 function safePickedFileName(fileName: string): string {
@@ -82,9 +74,22 @@ type EncryptedBackupRequest =
   | { mode: 'create' }
   | { mode: 'open'; contents: string; fileName: string };
 
+function selectCurrentRestoreSummary(store: AppStore): string {
+  const changedDateCount = new Set([
+    ...Object.keys(store.data.overrides),
+    ...Object.keys(store.data.timeOverrides),
+    ...Object.keys(store.data.dayExceptions),
+    ...Object.keys(store.data.alarmOverrides),
+  ]).size;
+  const noteCount = Object.keys(store.data.notes).length;
+  const alarmState = store.data.settings.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐';
+  return `${store.data.pattern.name} · 바꾼 날짜 ${changedDateCount}개 · 메모 ${noteCount}개 · ${alarmState}`;
+}
+
 export default function DataSettingsScreen() {
   const { showDialog } = useAppDialog();
   const styles = useThemedStyles(createStyles);
+  const currentRestoreSummary = useAppSelector(selectCurrentRestoreSummary);
   const {
     applySharedWorkSettings,
     exportData,
@@ -97,7 +102,7 @@ export default function DataSettingsScreen() {
     resetAllDataDetailed,
     restoreLatestBackup,
     retryPendingRestoreBackup,
-  } = useAppStoreActions();
+  } = useAppCommands();
   const [activeOperation, setActiveOperation] = useState<DataOperation | null>(null);
   const busy = activeOperation !== null;
   const receivingSettings =
@@ -105,11 +110,14 @@ export default function DataSettingsScreen() {
   const loadingFullBackup =
     activeOperation === 'select-backup' || activeOperation === 'import-backup';
   const busyRef = useRef(false);
+  const encryptedBackupTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
+  const backupFileRestoreTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null);
   const [latestBackup, setLatestBackup] = useState<AppDataImportPreview | null>(null);
   const [pendingRestoreBackup, setPendingRestoreBackup] =
     useState<PendingRestoreBackupPreview | null>(null);
   const [backupLookupStatus, setBackupLookupStatus] =
     useState<BackupLookupStatus>('loading');
+  const [restoreJournalRepairRequired, setRestoreJournalRepairRequired] = useState(false);
   const [encryptedBackupRequest, setEncryptedBackupRequest] =
     useState<EncryptedBackupRequest | null>(null);
   const [advancedBackupExpanded, setAdvancedBackupExpanded] = useState(false);
@@ -130,8 +138,20 @@ export default function DataSettingsScreen() {
     setActiveOperation(null);
   }, []);
 
-  const refreshBackup = useCallback(async () => {
+  const refreshBackup = useCallback(async (repairJournal = false) => {
     setBackupLookupStatus('loading');
+    if (repairJournal) {
+      try {
+        const result = await retryPendingRestoreBackup();
+        if (result.status === 'failed') {
+          setBackupLookupStatus('error');
+          return;
+        }
+      } catch {
+        setBackupLookupStatus('error');
+        return;
+      }
+    }
     const [latestResult, pendingResult] = await Promise.allSettled([
       getLatestBackupPreview(),
       getPendingRestoreBackupPreview(),
@@ -142,12 +162,14 @@ export default function DataSettingsScreen() {
     if (pendingResult.status === 'fulfilled') {
       setPendingRestoreBackup(pendingResult.value);
     }
+    setRestoreJournalRepairRequired(pendingResult.status === 'rejected' &&
+      pendingResult.reason instanceof Error && pendingResult.reason.name === 'CorruptPendingRestoreBackupError');
     setBackupLookupStatus(
       latestResult.status === 'rejected' || pendingResult.status === 'rejected'
         ? 'error'
         : 'ready',
     );
-  }, [getLatestBackupPreview, getPendingRestoreBackupPreview]);
+  }, [getLatestBackupPreview, getPendingRestoreBackupPreview, retryPendingRestoreBackup]);
 
   const refreshBackupExportAttemptAt = useCallback(async () => {
     setLastBackupExportAttemptAt(
@@ -162,7 +184,8 @@ export default function DataSettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (advancedBackupExpandedRef.current) void refreshBackup();
+      backupLookupStartedRef.current = true;
+      void refreshBackup();
       void refreshBackupExportAttemptAt();
     }, [refreshBackup, refreshBackupExportAttemptAt]),
   );
@@ -171,11 +194,7 @@ export default function DataSettingsScreen() {
     const nextExpanded = !advancedBackupExpanded;
     advancedBackupExpandedRef.current = nextExpanded;
     setAdvancedBackupExpanded(nextExpanded);
-    if (nextExpanded && !backupLookupStartedRef.current) {
-      backupLookupStartedRef.current = true;
-      void refreshBackup();
-    }
-  }, [advancedBackupExpanded, refreshBackup]);
+  }, [advancedBackupExpanded]);
 
   const refreshBackupIfLoaded = useCallback(() => {
     if (backupLookupStartedRef.current) void refreshBackup();
@@ -201,10 +220,10 @@ export default function DataSettingsScreen() {
       formatSharedShiftLine('주대', summary.substituteDay),
       formatSharedShiftLine('야대', summary.substituteNight),
       '',
-      '개인 일정과 메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
+      '개인 알람·일정·메모는 유지하며, 적용 전에 현재 데이터를 자동으로 안전 백업합니다.',
     ];
     showDialog(
-      '이 근무 설정을 적용하시겠습니까?',
+      '근무표와 시간 적용',
       lines.join('\n'),
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -218,8 +237,8 @@ export default function DataSettingsScreen() {
             .then((result) => {
               if (result.success) {
                 showDialog(
-                  '근무 설정을 적용했습니다',
-                  '개인 일정과 메모는 그대로 유지했습니다.',
+                  '근무표와 시간을 적용했습니다',
+                  '개인 알람·일정·메모는 그대로 유지했습니다.',
                   undefined,
                   { tone: 'success' },
                 );
@@ -227,19 +246,19 @@ export default function DataSettingsScreen() {
                 return;
               }
               const message = {
-                'not-ready': '근무표를 불러오는 중입니다. 잠시 후 다시 시도해야 합니다.',
-                'invalid-file': '파일 내용이 달라졌습니다. 파일을 다시 선택해야 합니다.',
+                'not-ready': '근무표 불러오는 중 · 다시 시도',
+                'invalid-file': '파일 내용 변경됨 · 파일 다시 선택',
                 'backup-failed': '안전 백업을 만들지 못해 아무것도 변경하지 않았습니다.',
                 'save-failed': '새 설정을 저장하지 못해 기존 설정을 유지했습니다.',
               }[result.reason];
-              showDialog('근무 설정을 적용하지 못했습니다', message, undefined, {
+              showDialog('근무표와 시간을 적용하지 못했습니다', message, undefined, {
                 tone: 'danger',
               });
               if (result.reason === 'save-failed') refreshBackupIfLoaded();
             })
             .catch(() => {
               showDialog(
-                '근무 설정을 적용하지 못했습니다',
+                '근무표와 시간을 적용하지 못했습니다',
                 '예상하지 못한 오류가 발생하여 기존 설정을 유지했습니다.',
                 undefined,
                 { tone: 'danger' },
@@ -260,21 +279,38 @@ export default function DataSettingsScreen() {
         exportSharedWorkSettings(),
       );
       showDialog(
-        '근무 설정 파일을 준비했습니다',
-        `${fileName} 파일의 공유 화면을 닫았습니다. 앱을 선택한 경우에만 파일이 전달됩니다. 개인 일정과 메모는 포함하지 않았습니다.`,
+        '근무표와 시간 파일을 준비했습니다',
+        `${fileName} 파일의 공유 화면을 닫았습니다. 앱을 선택한 경우에만 파일이 전달됩니다. V17 이상에서 받으면 근무 순서와 시간만 적용되고 개인 알람·일정·메모는 유지됩니다.`,
         undefined,
         { tone: 'success' },
       );
     } catch (error) {
       showDialog(
-        '근무 설정 파일을 만들지 못했습니다',
-        error instanceof Error ? error.message : '잠시 후 다시 시도해야 합니다.',
+        '근무표와 시간 파일을 만들지 못했습니다',
+        error instanceof Error ? error.message : '다시 시도',
         undefined,
         { tone: 'danger' },
       );
     } finally {
       finishOperation();
     }
+  };
+
+  const requestSendWorkSettings = () => {
+    showDialog(
+      '받는 앱 버전 확인',
+      'V17 이상에서 받으면 개인 알람을 유지합니다. V16 이하에서는 이전 공유 규칙으로 파일의 알람 값도 적용될 수 있으므로, 받는 사람이 V17 이상인지 확인한 뒤 보내야 합니다.',
+      [
+        { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
+        {
+          text: '파일 보내기',
+          actionId: 'confirm',
+          icon: 'share-outline',
+          onPress: () => void sendWorkSettings(),
+        },
+      ],
+      { tone: 'warning' },
+    );
   };
 
   const receiveWorkSettings = async () => {
@@ -288,10 +324,10 @@ export default function DataSettingsScreen() {
       );
     } catch (error) {
       showDialog(
-        '근무 설정 파일을 읽지 못했습니다',
+        '근무표와 시간 파일을 읽지 못했습니다',
         error instanceof Error
           ? error.message
-          : '알람표에서 만든 근무 설정 파일인지 확인해야 합니다.',
+          : '알람표 근무 설정 파일인지 확인',
         undefined,
         { tone: 'danger' },
       );
@@ -303,16 +339,19 @@ export default function DataSettingsScreen() {
   const saveFullBackup = async () => {
     if (!beginOperation('export-backup')) return;
     try {
-      const { fileName } = await dataSettingsController.exportBackupFile(exportData());
+      const result = await dataSettingsController.exportBackupFile(exportData());
+      if (result.storageStatus === 'cancelled') return;
       await recordBackupExportAttempt();
       showDialog(
-        '백업 내보내기 화면을 닫았습니다',
-        `${fileName} 파일을 준비했지만 알람표는 저장 완료 여부를 확인할 수 없습니다. 앱이나 저장 위치를 선택했다면 해당 앱에서 파일을 확인해야 합니다.`,
+        result.storageStatus === 'saved' ? '백업 저장 완료' : '백업 화면 종료',
+        result.storageStatus === 'saved'
+          ? `${result.fileName} 파일을 저장했습니다.`
+          : `${result.fileName} 파일 준비 완료 · 선택한 앱 또는 저장 위치 확인 필요`,
       );
     } catch (error) {
       showDialog(
         '백업 파일을 만들지 못했습니다',
-        error instanceof Error ? error.message : '잠시 후 다시 시도해야 합니다.',
+        error instanceof Error ? error.message : '다시 시도',
         undefined,
         { tone: 'danger' },
       );
@@ -323,8 +362,8 @@ export default function DataSettingsScreen() {
 
   const requestPlainBackup = () => {
     showDialog(
-      '암호화하지 않은 백업을 저장하시겠습니까?',
-      '근무표와 설정, 개인 메모가 비밀번호 보호 없이 파일에 그대로 저장됩니다. 다른 사람에게 노출되지 않는 위치에만 보관해야 합니다.',
+      '보호 없이 백업 저장',
+      '근무표·설정·개인 메모가 보호 없이 저장됩니다. 안전한 위치에만 보관',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
@@ -346,7 +385,7 @@ export default function DataSettingsScreen() {
     const operation: DataOperation =
       request.mode === 'create' ? 'export-encrypted-backup' : 'decrypt-backup';
     if (!beginOperation(operation)) {
-      throw new Error('진행 중인 작업이 끝난 뒤 다시 시도해야 합니다.');
+      throw new Error('진행 중인 작업 종료 후 다시 시도');
     }
 
     try {
@@ -355,14 +394,17 @@ export default function DataSettingsScreen() {
           exportData(),
           password,
         );
-        const { fileName } = await dataSettingsController.exportBackupFile(encrypted, {
+        const result = await dataSettingsController.exportBackupFile(encrypted, {
           encrypted: true,
         });
+        if (result.storageStatus === 'cancelled') return;
         await recordBackupExportAttempt();
         setEncryptedBackupRequest(null);
         showDialog(
-          '암호화 백업 내보내기 화면을 닫았습니다',
-          `${fileName} 파일을 준비했지만 알람표는 저장 완료 여부를 확인할 수 없습니다. 앱이나 저장 위치를 선택했다면 해당 앱에서 파일을 확인해야 합니다. 비밀번호는 알람표에 저장되지 않으므로 별도로 기억해야 합니다.`,
+          result.storageStatus === 'saved' ? '암호화 백업 저장 완료' : '백업 화면 종료',
+          result.storageStatus === 'saved'
+            ? `${result.fileName} 파일 저장 완료 · 비밀번호 별도 보관 필요`
+            : `${result.fileName} 파일 준비 완료 · 저장 여부 확인 및 비밀번호 별도 보관 필요`,
         );
         return;
       }
@@ -386,14 +428,17 @@ export default function DataSettingsScreen() {
       [
         `파일 · ${safePickedFileName(fileName)}`,
         `생성 · ${formatBackupCreatedAt(preview.exportedAt)}`,
-        `근무 방식 · ${summary.patternName}`,
-        `일정 적용 시작일 · ${formatKoreanDate(summary.scheduleStartDate, true)}`,
-        `바꾼 날짜 ${summary.changedDateCount}개 · 메모 ${summary.noteCount}개`,
+        '',
+        `현재 · ${currentRestoreSummary}`,
+        `백업 · ${summary.patternName} · 바꾼 날짜 ${summary.changedDateCount}개 · 메모 ${summary.noteCount}개 · ${summary.notificationsEnabled ? '알람 켜짐' : '알람 꺼짐'}`,
+        `백업 적용일 · ${formatKoreanDate(summary.scheduleStartDate, true)}`,
+        '',
+        '복구 전에 현재 데이터를 안전 백업합니다.',
       ].join('\n'),
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
-          text: '불러오기',
+          text: '현재 데이터 덮어쓰기',
           actionId: 'confirm',
           icon: 'checkmark',
           onPress: () => {
@@ -440,7 +485,7 @@ export default function DataSettingsScreen() {
         '백업 파일을 읽지 못했습니다',
         error instanceof Error
           ? error.message
-          : '알람표에서 만든 백업 파일인지 확인해야 합니다.',
+          : '알람표 백업 파일인지 확인',
         undefined,
         { tone: 'danger' },
       );
@@ -464,7 +509,7 @@ export default function DataSettingsScreen() {
       if (result.status === 'confirmation-required') {
         showDialog(
           '원본 백업 확인이 필요합니다',
-          '현재 근무표만으로 복원 완료 여부를 확인할 수 없어 자동으로 덮어쓰지 않았습니다. 다시 눌러 원본 백업 보관을 확인해야 합니다.',
+          '복원 상태 확인 불가 · 원본 백업 보관 확인 필요',
           undefined,
           { tone: 'warning' },
         );
@@ -475,14 +520,14 @@ export default function DataSettingsScreen() {
         success ? '복원 전 백업을 저장했습니다' : '복원 전 백업을 저장하지 못했습니다',
         success
           ? '복원하기 전 근무표를 최근 안전 백업으로 보관했습니다.'
-          : '대기 중인 복원 전 백업은 지우지 않았습니다. 저장 공간을 확인한 뒤 다시 시도해야 합니다.',
+          : '복원 전 백업 유지 · 저장 공간 확인 후 다시 시도',
         undefined,
         { tone: success ? 'success' : 'danger' },
       );
     } catch {
       showDialog(
         '복원 전 백업을 저장하지 못했습니다',
-        '대기 중인 복원 전 백업은 유지했습니다. 잠시 후 다시 시도해야 합니다.',
+        '복원 전 백업 유지 · 다시 시도',
         undefined,
         { tone: 'danger' },
       );
@@ -502,7 +547,7 @@ export default function DataSettingsScreen() {
     }
 
     showDialog(
-      '보호 중인 원본 백업을 보관하시겠습니까?',
+      '원본 백업 보관',
       '현재 근무표만으로 이전 복원이 끝났는지 확인할 수 없습니다. 현재 자료로 오인하지 않고, 복원을 시도하기 전에 보관한 원본을 최근 안전 백업으로 저장합니다.',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -577,7 +622,7 @@ export default function DataSettingsScreen() {
               .catch(() => {
                 showDialog(
                   '백업을 복구하지 못했습니다',
-                  '예상하지 못한 오류가 발생했습니다. 현재 근무표와 대기 중인 복원 전 백업을 확인해야 합니다.',
+                  '처리 실패 · 현재 근무표와 복원 전 백업 확인',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -592,7 +637,7 @@ export default function DataSettingsScreen() {
 
   const reset = () => {
     showDialog(
-      '모든 데이터를 초기화하시겠습니까?',
+      '모든 데이터 초기화',
       '직접 변경한 날짜와 메모, 근무 시간 등 앱 데이터를 지우고 실행 중인 타이머를 취소한 뒤 처음 설정 화면으로 돌아갑니다. 휴대폰 밖에 저장한 백업 파일은 지우지 않으며, 초기화 전에 자동으로 안전 백업합니다.',
       [
         { text: '취소', actionId: 'cancel', icon: 'close', style: 'cancel' },
@@ -608,14 +653,14 @@ export default function DataSettingsScreen() {
                 if (result.status === 'success') {
                   showDialog(
                     '앱 데이터를 초기화했습니다',
-                    '오늘 근무 위치부터 다시 설정해야 합니다.',
+                    '오늘 근무 위치부터 다시 설정',
                     undefined,
                     { tone: 'success' },
                   );
                 } else if (result.status === 'partial') {
                   showDialog(
                     '초기화 후 확인이 필요합니다',
-                    '앱 데이터는 초기화했지만 타이머·수면 알림을 포함한 알람 예약이나 안전 백업 후속 처리는 끝나지 않았습니다. 처음 설정을 마친 뒤 타이머와 알람 화면에서 상태를 확인해야 합니다.',
+                    '앱 데이터 초기화 완료 · 첫 설정 후 타이머·알람 상태 확인 필요',
                     undefined,
                     { tone: 'warning' },
                   );
@@ -624,7 +669,7 @@ export default function DataSettingsScreen() {
                     '초기화하지 못했습니다',
                     result.reason === 'backup-failed'
                       ? '안전 백업을 만들지 못해 현재 데이터를 유지했습니다.'
-                      : '안전 백업은 만들었지만 현재 데이터를 지우지 못했습니다. 다시 시도해야 합니다.',
+                      : '안전 백업 완료 · 데이터 삭제 실패 · 다시 시도',
                     undefined,
                     { tone: 'danger' },
                   );
@@ -634,7 +679,7 @@ export default function DataSettingsScreen() {
               .catch(() => {
                 showDialog(
                   '초기화 결과를 확인하지 못했습니다',
-                  '앱을 다시 연 뒤 데이터와 알람 상태를 확인해야 합니다.',
+                  '앱 재실행 후 데이터·알람 상태 확인',
                   undefined,
                   { tone: 'danger' },
                 );
@@ -654,14 +699,17 @@ export default function DataSettingsScreen() {
     ? `${pendingRestoreBackup.summary.patternName} · 바꾼 날짜 ${pendingRestoreBackup.summary.changedDateCount}개 · 메모 ${pendingRestoreBackup.summary.noteCount}개`
     : undefined;
   const latestBackupSubtitle = pendingRestoreBackup
-    ? '보호 중인 백업을 먼저 보관해야 합니다.'
+    ? '보호 중인 백업 먼저 보관'
     : backupLookupStatus === 'loading'
       ? '자동 백업을 확인하고 있습니다.'
       : backupLookupStatus === 'error'
-        ? '자동 백업을 확인하지 못했습니다. 다시 확인해야 합니다.'
+        ? '자동 백업 확인 실패 · 다시 확인'
         : latestBackup
       ? `${latestBackup.summary.patternName} · 바꾼 날짜 ${latestBackup.summary.changedDateCount}개 · 메모 ${latestBackup.summary.noteCount}개`
       : '복구할 자동 백업이 아직 없습니다.';
+  const externalBackupReminderDue = isExternalBackupReminderDue(
+    lastBackupExportAttemptAt,
+  );
 
   return (
     <>
@@ -669,14 +717,47 @@ export default function DataSettingsScreen() {
       <Screen
         contentStyle={styles.screenContent}
         safeAreaEdges={['left', 'right']}>
-        <MenuGroup title="근무 설정 공유">
+        {pendingRestoreBackup || latestBackup ? (
+          <StatusBanner
+            actionLabel={pendingRestoreBackup ? '원본 보관' : '복구하기'}
+            announceChanges={false}
+            message={
+              pendingRestoreBackup
+                ? '복원 전 원본이 보호 중입니다. 덮어쓰기 전에 보관 여부를 정합니다.'
+                : `${latestBackup!.summary.patternName} 근무표로 복구할 수 있습니다.`
+            }
+            onAction={
+              pendingRestoreBackup
+                ? requestPendingRestoreBackupSave
+                : restoreAutomaticBackup
+            }
+            testID="recovery-available-banner"
+            title={
+              pendingRestoreBackup
+                ? '복원 전 백업 미저장'
+                : '자동 백업 복구 가능'
+            }
+            tone={pendingRestoreBackup ? 'warning' : 'info'}
+          />
+        ) : null}
+
+        {externalBackupReminderDue ? (
+          <StatusBanner
+            announceChanges={false}
+            message="암호화 백업 생성 후 저장 파일 열기 확인 필요"
+            title="외부 백업 확인 권장"
+            tone="neutral"
+          />
+        ) : null}
+
+        <MenuGroup title="동료와 근무표 주고받기">
           <ListRow
             disabled={busy && activeOperation !== 'send-settings'}
             icon="share-outline"
             loading={activeOperation === 'send-settings'}
-            onPress={() => void sendWorkSettings()}
-            subtitle="근무 방식·시간·알람을 파일로 공유합니다."
-            title="설정 보내기"
+            onPress={requestSendWorkSettings}
+            subtitle="근무 순서·시간만 · 알람·메모 제외"
+            title="근무표와 시간 보내기"
           />
           <MenuDivider />
           <ListRow
@@ -684,40 +765,55 @@ export default function DataSettingsScreen() {
             icon="download-outline"
             loading={receivingSettings}
             onPress={() => void receiveWorkSettings()}
-            subtitle="받은 파일을 확인한 뒤 적용합니다."
-            title="설정 받기"
-          />
-          <MenuDivider />
-          <ListRow
-            icon="book-outline"
-            onPress={() => router.push('/pattern-library' as never)}
-            subtitle="근무 순서만 담은 파일을 가져오거나 공유합니다."
-            title="근무 패턴 보관함"
+            subtitle="파일 확인 후 근무 순서·시간 적용"
+            title="받은 근무표 적용"
           />
         </MenuGroup>
 
-        <MenuGroup title={dataCopy.backupSection.text}>
+        <MenuGroup title="내 데이터 백업">
           <ListRow
             allowSubtitleWrapping
             disabled={busy && activeOperation !== 'export-encrypted-backup'}
+            elementRef={encryptedBackupTriggerRef}
             icon="shield-outline"
             loading={activeOperation === 'export-encrypted-backup'}
             onPress={() => setEncryptedBackupRequest({ mode: 'create' })}
             subtitle={
               lastBackupExportAttemptAt
-                ? `마지막 내보내기 시도 ${formatBackupCreatedAt(lastBackupExportAttemptAt)} · 저장 여부는 공유 화면에서 확인합니다.`
-                : '비밀번호로 보호한 백업 파일을 준비합니다. 공유 화면에서 저장해야 앱 밖에 남습니다.'
+                ? `마지막 백업 화면 ${formatBackupCreatedAt(lastBackupExportAttemptAt)} · 저장 파일 확인 필요`
+                : '암호화 파일로 보관'
             }
-            title="암호화 백업 만들기"
+            title="암호화 백업"
+          />
+        </MenuGroup>
+
+        <MenuGroup title="복구">
+          <ListRow
+            allowSubtitleWrapping
+            disabled={
+              backupLookupStatus !== 'ready' ||
+              latestBackup === null ||
+              pendingRestoreBackup !== null ||
+              (busy && activeOperation !== 'restore-backup')
+            }
+            icon="arrow-undo-outline"
+            loading={
+              backupLookupStatus === 'loading' ||
+              activeOperation === 'restore-backup'
+            }
+            onPress={latestBackup ? restoreAutomaticBackup : undefined}
+            subtitle={latestBackupSubtitle}
+            title="자동 백업으로 복구"
           />
           <MenuDivider />
           <ListRow
             disabled={busy && !loadingFullBackup}
+            elementRef={backupFileRestoreTriggerRef}
             icon="download-outline"
             loading={loadingFullBackup}
             onPress={() => void loadFullBackup()}
-            subtitle="알람표 백업 파일을 확인한 뒤 안전하게 복구합니다."
-            title="백업 파일 복구하기"
+            subtitle="백업 파일 선택"
+            title="백업 파일로 복구"
           />
         </MenuGroup>
 
@@ -726,32 +822,13 @@ export default function DataSettingsScreen() {
             expanded={advancedBackupExpanded}
             icon="options-outline"
             onPress={toggleAdvancedBackup}
-            subtitle="기기 안의 자동 백업과 보호되지 않은 백업을 관리합니다."
+            subtitle="원본 보호 · 일반 백업"
             title={advancedBackupExpanded ? '고급 관리 접기' : '고급 관리 보기'}
           />
           {advancedBackupExpanded ? (
             <>
-              <MenuDivider />
-              <ListRow
-                allowSubtitleWrapping
-                disabled={
-                  backupLookupStatus !== 'ready' ||
-                  latestBackup === null ||
-                  pendingRestoreBackup !== null ||
-                  (busy && activeOperation !== 'restore-backup')
-                }
-                icon="arrow-undo-outline"
-                loading={
-                  backupLookupStatus === 'loading' ||
-                  activeOperation === 'restore-backup'
-                }
-                onPress={latestBackup ? restoreAutomaticBackup : undefined}
-                subtitle={`앱을 삭제하면 함께 지워집니다 · ${latestBackupSubtitle}`}
-                title="기기 안의 최근 백업 복구하기"
-              />
               {pendingRestoreBackup ? (
                 <>
-                  <MenuDivider />
                   <ListRow
                     disabled={busy && activeOperation !== 'save-pending-backup'}
                     icon="alert-circle-outline"
@@ -760,8 +837,8 @@ export default function DataSettingsScreen() {
                     subtitle={pendingBackupSubtitle}
                     title={
                       pendingBackupNeedsReview
-                        ? '보호 중인 원본 백업 보관하기'
-                        : '복원 전 백업 저장하기'
+                        ? '원본 백업 저장'
+                        : '복원 전 백업 저장'
                     }
                   />
                 </>
@@ -772,9 +849,9 @@ export default function DataSettingsScreen() {
                   <ListRow
                     disabled={busy}
                     icon="refresh-outline"
-                    onPress={() => void refreshBackup()}
-                    subtitle="저장공간 상태를 확인한 뒤 기기 백업을 다시 조회합니다."
-                    title="기기 백업 다시 확인하기"
+                    onPress={() => void refreshBackup(restoreJournalRepairRequired)}
+                    subtitle={restoreJournalRepairRequired ? '원본 보관 후 다시 확인' : '자동 백업 다시 조회'}
+                    title={restoreJournalRepairRequired ? '복원 기록 복구' : '백업 다시 확인'}
                   />
                 </>
               ) : null}
@@ -785,8 +862,8 @@ export default function DataSettingsScreen() {
                 icon="alert-circle-outline"
                 loading={activeOperation === 'export-backup'}
                 onPress={requestPlainBackup}
-                subtitle="개인 메모가 보호되지 않은 채 저장됩니다. 다른 방식이 꼭 필요할 때만 사용해야 합니다."
-                title="보호되지 않은 백업 만들기"
+                subtitle="암호화 안 됨 · 개인 메모 포함"
+                title="일반 백업 만들기"
               />
             </>
           ) : null}
@@ -799,7 +876,7 @@ export default function DataSettingsScreen() {
             icon="refresh-outline"
             loading={activeOperation === 'reset-data'}
             onPress={reset}
-            subtitle="안전 백업 후 처음 설정으로 돌아갑니다."
+            subtitle="자동 백업 후 처음 설정"
             title="앱 데이터 초기화하기"
           />
         </MenuGroup>
@@ -812,6 +889,11 @@ export default function DataSettingsScreen() {
           if (!busy) setEncryptedBackupRequest(null);
         }}
         onSubmit={submitEncryptedBackupPassword}
+        returnFocusRef={
+          encryptedBackupRequest?.mode === 'create'
+            ? encryptedBackupTriggerRef
+            : backupFileRestoreTriggerRef
+        }
       />
     </>
   );

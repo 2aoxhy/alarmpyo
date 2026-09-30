@@ -5,13 +5,10 @@ import { AppText } from '@/components/ui-kit';
 import { space } from '@/design-system';
 
 import {
-  formatQuickTimerCountdown,
-  formatQuickTimerTarget,
-  getQuickTimerRemainingLabel,
-  getQuickTimerRemainingMillis,
-  getQuickTimerTargetAt,
-  type QuickTimerCountdownAnchor,
-} from './quick-timer-model';
+  getQuickTimerCountdownPresentation,
+  type QuickTimerDisplayClock,
+} from './quick-timer-display-model';
+import type { QuickTimerCountdownAnchor } from './quick-timer-model';
 
 type QuickTimerCountdownProps = {
   active: boolean;
@@ -20,6 +17,7 @@ type QuickTimerCountdownProps = {
   label: string;
   onExpired: (observationKey: string) => void;
   observationKey: string;
+  observedClock: QuickTimerDisplayClock;
   paused?: boolean;
   screenActive: boolean;
 };
@@ -38,6 +36,7 @@ function QuickTimerCountdownView({
   label,
   onExpired,
   observationKey,
+  observedClock,
   paused = false,
   screenActive,
 }: QuickTimerCountdownProps) {
@@ -59,12 +58,14 @@ function QuickTimerCountdownView({
     };
   }, [active, observationKey, screenActive]);
 
-  const remainingMillis = paused
-    ? anchor.remainingMillis
-    : getQuickTimerRemainingMillis(anchor, clock.monotonic);
-  const targetAt = paused
-    ? 0
-    : getQuickTimerTargetAt(remainingMillis, clock.wall);
+  const presentation = getQuickTimerCountdownPresentation({
+    anchor,
+    clock,
+    observedClock,
+    label,
+    paused,
+  });
+  const { remainingMillis } = presentation;
 
   useEffect(() => {
     if (
@@ -82,15 +83,10 @@ function QuickTimerCountdownView({
   return (
     <View
       accessible
-      accessibilityLabel={
-        paused
-          ? `${label}. 일시정지했습니다. ${getQuickTimerRemainingLabel(remainingMillis)}`
-          : `${label}. ${formatQuickTimerTarget(
-              targetAt,
-              clock.wall,
-            )}에 울립니다. ${getQuickTimerRemainingLabel(remainingMillis)}`
-      }
-      style={styles.root}>
+      collapsable={false}
+      accessibilityLabel={presentation.accessibilityLabel}
+      style={styles.root}
+      testID="quick-timer-countdown">
       <AppText tone="secondary" style={styles.timerLabel} variant="label">
         {label}
       </AppText>
@@ -105,12 +101,10 @@ function QuickTimerCountdownView({
           },
         ]}
         variant="display">
-        {formatQuickTimerCountdown(remainingMillis)}
+        {presentation.countdown}
       </AppText>
       <AppText tone="secondary" style={styles.centerText} variant="body">
-        {paused
-          ? '재개하면 남은 시간부터 다시 시작합니다.'
-          : `${formatQuickTimerTarget(targetAt, clock.wall)}에 울립니다.`}
+        {presentation.detail}
       </AppText>
     </View>
   );

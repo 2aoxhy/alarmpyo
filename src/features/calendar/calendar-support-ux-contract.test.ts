@@ -48,7 +48,7 @@ describe('달력 보조 경험 계약', () => {
 
   it('빠른 표시 키를 선택적으로 숨길 수 있고 전체 안내는 네 구역으로 나눕니다', () => {
     expect(supportSections).toContain('showCompactKey = true');
-    expect(supportSections).toContain('if (!showCompactKey)');
+    expect(supportSections).toContain('const guide = !showCompactKey ?');
     expect(supportSections).toContain(
       'accessibilityLabel="달력 표시 안내. 공은 공휴일, 급은 급여일, 점은 메모, 굵은 선은 직접 변경한 날을 표시합니다."',
     );

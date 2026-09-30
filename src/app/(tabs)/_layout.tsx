@@ -1,14 +1,10 @@
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, Text, useWindowDimensions, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppIcon } from '@/components/app-icon';
-import {
-  colorWithAlpha,
-  shadow,
-  type AppPalette,
-} from '@/constants/app-theme';
-import { fontFamily } from '@/constants/typography';
+import { TabBarIcon, TabBarLabel } from '@/components/tab-bar-visuals';
+import { type AppPalette } from '@/constants/app-theme';
+import { shape } from '@/design-system/tokens';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
@@ -20,7 +16,7 @@ import {
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { fontScale, width: windowWidth } = useWindowDimensions();
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const horizontalLayout = resolveFloatingTabBarHorizontalLayout(windowWidth, 4);
   const tabBarGeometry = resolveFloatingTabBarGeometry(
@@ -36,33 +32,22 @@ export default function TabsLayout() {
     Platform.OS === 'web',
   );
   const tabBarItemPadding = effectiveFontScale >= 1.35 ? 4 : 2;
-  const floatingTabShadow: ViewStyle =
-    Platform.OS === 'web'
-      ? {
-          boxShadow: `0 ${isDark ? 10 : 9}px ${isDark ? 32 : 28}px ${colorWithAlpha(
-            palette.shadowColor,
-            isDark ? 0.34 : 0.12,
-          )}`,
-        }
-      : {
-          ...shadow,
-          shadowColor: palette.shadowColor,
-          shadowOpacity: isDark ? 0.24 : shadow.shadowOpacity,
-        };
-
   return (
     <Tabs
-      safeAreaInsets={{ bottom: 0 }}
+      detachInactiveScreens
+      // Geometry already accounts for all safe insets; do not apply them again inside each tab.
+      safeAreaInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
       screenOptions={{
         headerShown: false,
         freezeOnBlur: true,
         lazy: true,
         sceneStyle: { backgroundColor: palette.canvas },
-        tabBarActiveBackgroundColor: palette.indigo,
-        tabBarActiveTintColor: palette.white,
+        tabBarActiveBackgroundColor: palette.transparent,
+        tabBarActiveTintColor: palette.indigoDark,
         tabBarHideOnKeyboard: true,
         tabBarInactiveTintColor: palette.inkSoft,
         tabBarIconStyle: styles.tabBarIcon,
+        tabBarLabelPosition: 'below-icon',
         tabBarItemStyle: [
           styles.tabBarItem,
           {
@@ -70,26 +55,16 @@ export default function TabsLayout() {
             paddingVertical: tabBarItemPadding,
           },
         ],
-        tabBarLabel: ({ children, color }) => (
-          <Text
-            maxFontSizeMultiplier={2}
-            numberOfLines={1}
-            style={[styles.tabBarLabel, { color }]}>
-            {children}
-          </Text>
-        ),
+        tabBarLabel: TabBarLabel,
         tabBarStyle: [
           styles.tabBar,
-          floatingTabShadow,
           {
             bottom: tabBarLayout.bottom,
             height: tabBarLayout.height,
-            left: tabBarGeometry.left,
+            left: tabBarGeometry.inset,
+            start: tabBarGeometry.inset,
+            end: 'auto',
             paddingHorizontal: horizontalLayout.horizontalPadding,
-            // React Navigation의 웹 기본값(right: 0)을 남기면 width/left와
-            // 과도하게 제약되어 RTL·일부 웹 레이아웃에서 한쪽으로 밀립니다.
-            // 같은 inset을 양쪽에 명시해 화면 중심축을 기준으로 고정합니다.
-            right: tabBarGeometry.right,
             width: tabBarGeometry.width,
           },
         ],
@@ -98,8 +73,15 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: '오늘',
+          tabBarAccessibilityLabel: '오늘',
           tabBarIcon: ({ color, focused }) => (
-            <AppIcon color={color} name={focused ? 'today' : 'today-outline'} size={22} />
+            <TabBarIcon
+              activeName="today"
+              color={color}
+              focused={focused}
+              inactiveName="today-outline"
+              indicatorColor={palette.focus}
+            />
           ),
         }}
       />
@@ -107,8 +89,15 @@ export default function TabsLayout() {
         name="calendar"
         options={{
           title: '달력',
+          tabBarAccessibilityLabel: '달력',
           tabBarIcon: ({ color, focused }) => (
-            <AppIcon color={color} name={focused ? 'calendar' : 'calendar-outline'} size={22} />
+            <TabBarIcon
+              activeName="calendar"
+              color={color}
+              focused={focused}
+              inactiveName="calendar-outline"
+              indicatorColor={palette.focus}
+            />
           ),
         }}
       />
@@ -116,8 +105,15 @@ export default function TabsLayout() {
         name="timer"
         options={{
           title: '타이머',
+          tabBarAccessibilityLabel: '타이머',
           tabBarIcon: ({ color, focused }) => (
-            <AppIcon color={color} name={focused ? 'timer' : 'timer-outline'} size={22} />
+            <TabBarIcon
+              activeName="timer"
+              color={color}
+              focused={focused}
+              inactiveName="timer-outline"
+              indicatorColor={palette.focus}
+            />
           ),
         }}
       />
@@ -125,8 +121,15 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: '설정',
+          tabBarAccessibilityLabel: '설정',
           tabBarIcon: ({ color, focused }) => (
-            <AppIcon color={color} name={focused ? 'settings' : 'settings-outline'} size={22} />
+            <TabBarIcon
+              activeName="settings"
+              color={color}
+              focused={focused}
+              inactiveName="settings-outline"
+              indicatorColor={palette.focus}
+            />
           ),
         }}
       />
@@ -141,8 +144,8 @@ function createStyles(palette: AppPalette) {
       height: 68,
       paddingHorizontal: 5,
       paddingVertical: 5,
-      borderRadius: 22,
-      borderTopWidth: 0,
+      borderRadius: shape.panel,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderWidth: 1,
       borderColor: palette.line,
       backgroundColor: palette.surface,
@@ -150,16 +153,9 @@ function createStyles(palette: AppPalette) {
     tabBarItem: {
       marginHorizontal: 2,
       marginVertical: 1,
-      borderRadius: 16,
+      borderRadius: shape.section,
       overflow: 'hidden',
     },
     tabBarIcon: { marginTop: 1 },
-    tabBarLabel: {
-      marginTop: 0,
-      marginBottom: 1,
-      fontFamily: fontFamily.label,
-      fontSize: 12,
-      lineHeight: 17,
-    },
   });
 }

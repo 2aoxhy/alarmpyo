@@ -12,6 +12,8 @@ on:
       - modules/alarmpyo-alarm/**
       - plugins/**
       - scripts/run-native-unit-tests.mjs
+      - scripts/native-test-workspace.mjs
+      - tooling/uri-decoder-compat/**
       - .github/workflows/native-checks.yml
   workflow_dispatch:
 

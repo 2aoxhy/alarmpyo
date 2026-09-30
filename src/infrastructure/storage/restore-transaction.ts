@@ -15,10 +15,11 @@ import {
 } from '../../services/backup-file-policy';
 import {
   APP_DATA_AUTOMATIC_BACKUP_KEY,
+  APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY,
   APP_DATA_PENDING_RESTORE_BACKUP_KEY,
   CLEARED_PENDING_RESTORE_BACKUP,
 } from './app-data-storage-keys';
-import type { StorageAdapter, StorageWriter } from './serialized-storage';
+import type { StorageAdapter, StorageWriteOperations, StorageWriter } from './serialized-storage';
 
 // A pending document contains both a maximum backup and target snapshot.
 export const MAX_PENDING_RESTORE_DOCUMENT_BYTES =
@@ -66,18 +67,27 @@ export type PendingRestoreBackupRetryResult =
   | { status: 'confirmation-required' }
   | { status: 'failed' };
 
+export type PendingRestoreJournalReadResult =
+  | { status: 'absent' }
+  | { status: 'valid'; document: PendingRestoreBackupDocument }
+  | { status: 'corrupt'; raw: string };
+
 function normalizedRestoreSnapshot(data: AppData): string {
   return serializeAppData(withoutAlarmRuntimeState(data));
 }
 
 function parsePendingRestoreBackup(
   raw: string | null,
-): PendingRestoreBackupDocument | null {
-  if (raw === null || raw === CLEARED_PENDING_RESTORE_BACKUP) return null;
+): PendingRestoreJournalReadResult {
+  if (raw === null || raw === CLEARED_PENDING_RESTORE_BACKUP) {
+    return { status: 'absent' };
+  }
   try {
     getCheckedPendingRestoreDocumentByteSize(raw);
     const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return { status: 'corrupt', raw };
+    }
     const candidate = value as Partial<PendingRestoreBackupDocument>;
     if (
       candidate.format !== 'alarmpyo-pending-restore-backup' ||
@@ -88,16 +98,58 @@ function parsePendingRestoreBackup(
       typeof candidate.backup !== 'string' ||
       typeof candidate.targetSnapshot !== 'string'
     ) {
-      return null;
+      return { status: 'corrupt', raw };
     }
     getCheckedBackupContentsByteSize(candidate.backup);
     getCheckedAppDataContentsByteSize(candidate.targetSnapshot);
     previewAppDataImport(candidate.backup);
     const target = tryParseAppDataJson(candidate.targetSnapshot);
-    if (!target.ok) return null;
-    return candidate as PendingRestoreBackupDocument;
+    if (!target.ok) return { status: 'corrupt', raw };
+    return {
+      status: 'valid',
+      document: candidate as PendingRestoreBackupDocument,
+    };
   } catch {
-    return null;
+    return { status: 'corrupt', raw };
+  }
+}
+
+export class CorruptPendingRestoreBackupError extends Error {
+  constructor() {
+    super('복원 기록을 확인하지 못했습니다. 백업 복구에서 다시 시도할 수 있습니다.');
+    this.name = 'CorruptPendingRestoreBackupError';
+  }
+}
+
+/** Reads never clear recovery evidence, including malformed documents. */
+export async function inspectPendingRestoreBackupJournal(
+  storage: StorageAdapter,
+): Promise<PendingRestoreJournalReadResult> {
+  return parsePendingRestoreBackup(await storage.getItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY));
+}
+
+/** Call under the application's mutation queue, shared by restore and reset. */
+export async function repairCorruptPendingRestoreBackup(
+  storage: StorageAdapter,
+  writer: StorageWriter,
+): Promise<boolean> {
+  try {
+    return await writer.runExclusive(async (transactionWriter) => {
+      const parsed = await inspectPendingRestoreBackupJournal(storage);
+      if (parsed.status !== 'corrupt') return true;
+      await transactionWriter.write(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY, parsed.raw);
+      if (await storage.getItem(APP_DATA_CORRUPT_PENDING_RESTORE_BACKUP_KEY) !== parsed.raw) {
+        return false;
+      }
+      // Do not clear a newer document, even if an external adapter replaced it.
+      const currentRaw = await storage.getItem(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
+      if (currentRaw !== parsed.raw) return parsePendingRestoreBackup(currentRaw).status !== 'corrupt';
+      await clearPendingRestoreBackup(transactionWriter);
+      return true;
+    });
+  } catch {
+    // Without a verified quarantine copy the source remains protected.
+    return false;
   }
 }
 
@@ -119,7 +171,7 @@ function pendingRestoreBackupDocument(
 }
 
 export async function clearPendingRestoreBackup(
-  writer: StorageWriter,
+  writer: StorageWriteOperations,
 ): Promise<void> {
   try {
     await writer.remove(APP_DATA_PENDING_RESTORE_BACKUP_KEY);
@@ -163,8 +215,12 @@ export async function readPendingRestoreBackup(
   } catch {
     throw new Error('대기 중인 복원 전 백업을 확인하지 못했습니다.');
   }
-  const pending = parsePendingRestoreBackup(pendingRaw);
-  if (pending === null) return null;
+  const parsed = parsePendingRestoreBackup(pendingRaw);
+  if (parsed.status === 'absent') return null;
+  if (parsed.status === 'corrupt') {
+    throw new CorruptPendingRestoreBackupError();
+  }
+  const pending = parsed.document;
 
   try {
     const automaticBackup = await storage.getItem(APP_DATA_AUTOMATIC_BACKUP_KEY);
@@ -191,8 +247,12 @@ export async function reconcilePendingRestoreBackup(
   } catch {
     return false;
   }
-  const pending = parsePendingRestoreBackup(raw);
-  if (pending === null) return false;
+  const parsed = parsePendingRestoreBackup(raw);
+  if (parsed.status === 'absent') return false;
+  if (parsed.status === 'corrupt') {
+    return !(await repairCorruptPendingRestoreBackup(storage, writer));
+  }
+  const pending = parsed.document;
 
   try {
     if ((await storage.getItem(APP_DATA_AUTOMATIC_BACKUP_KEY)) === pending.backup) {
@@ -264,6 +324,8 @@ export async function protectPendingRestoreBackupBeforeDataChange(
   const nextSnapshot = normalizedRestoreSnapshot(nextData);
   if (currentSnapshot === nextSnapshot) return true;
 
+  if (!(await repairCorruptPendingRestoreBackup(storage, writer))) return false;
+
   const pending = await readPendingRestoreBackup(storage, currentData);
   if (pending === null || pending.recoveryState === 'committed') return true;
 
@@ -317,6 +379,7 @@ export async function retryPendingRestoreBackupCommit(
   currentData: AppData,
   options?: { allowUnverified?: boolean },
 ): Promise<PendingRestoreBackupRetryResult> {
+  if (!(await repairCorruptPendingRestoreBackup(storage, writer))) return { status: 'failed' };
   const pending = await readPendingRestoreBackup(storage, currentData);
   if (pending === null) return { status: 'unavailable' };
   if (

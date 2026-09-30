@@ -6,12 +6,7 @@ import {
 } from '../models/app-data';
 import { addDays, dateAtMinutes, toDateKey } from '../utils/date';
 import { getDayExceptionLabel, usesDayAlarmForException } from '../utils/day-exception';
-import {
-  getDayAlarmOverrideLeadMinutes,
-  getDayAlarmOverrideWakeAt,
-  resolveDayAlarmOverrideFromAppData,
-  resolveEffectiveDayFromAppData,
-} from './app-data-service';
+import { getDayAlarmOverrideLeadMinutes, getDayAlarmOverrideWakeAt, resolveDayAlarmOverrideFromAppData, resolveEffectiveDayFromAppData } from '../application/app-data-policy';
 import { resolveAlarmSettingsForShift } from './pattern-engine';
 
 /**

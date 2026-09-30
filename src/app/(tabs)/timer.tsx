@@ -1,8 +1,18 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ElementRef,
+} from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  findNodeHandle,
+  Platform,
+  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -27,7 +37,6 @@ import {
   type QuickTimerStatus,
 } from '@/features/timer/quick-timer-controller';
 import {
-  createQuickTimerCountdownAnchor,
   formatQuickTimerTarget,
   getQuickTimerActionPresentation,
   getQuickTimerDisplayLabel,
@@ -36,19 +45,25 @@ import {
   resolveQuickTimerCountdownSize,
   resolveQuickTimerPresetColumns,
   shouldStackQuickTimerActions,
-  type QuickTimerCountdownAnchor,
 } from '@/features/timer/quick-timer-model';
+import {
+  createQuickTimerDisplayObservation,
+  getQuickTimerObservationKey,
+  type QuickTimerDisplayObservation,
+} from '@/features/timer/quick-timer-display-model';
 import { QuickTimerCountdown } from '@/features/timer/quick-timer-countdown';
+import { QuickTimerDurationStepper } from '@/features/timer/quick-timer-duration-stepper';
+import { QuickTimerPresets } from '@/features/timer/quick-timer-presets';
+import {
+  createQuickTimerObservationSession,
+  type TimerObservationRevision,
+} from '@/features/timer/quick-timer-observation';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenActive } from '@/hooks/use-screen-active';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
 const FIRE_SETTLE_POLL_INTERVAL_MS = 750;
 const FIRE_SETTLE_MAX_ATTEMPTS = 8;
-
-function getQuickTimerObservationKey(status: QuickTimerStatus): string {
-  return [status.startedAt, status.fireAt, status.isRepeat, status.state].join(':');
-}
 
 export default function TimerScreen() {
   const { showDialog } = useAppDialog();
@@ -58,16 +73,10 @@ export default function TimerScreen() {
   const screenActive = useScreenActive();
   const stackActions = shouldStackQuickTimerActions(width, fontScale);
   const presetColumns = resolveQuickTimerPresetColumns(width, fontScale);
-  const presetButtonStyle =
-    presetColumns === 1
-      ? styles.presetButtonFull
-      : presetColumns === 2
-        ? styles.presetButtonHalf
-        : styles.presetButtonQuarter;
   const countdownFontSize = resolveQuickTimerCountdownSize(width, fontScale);
-  const [status, setStatus] = useState<QuickTimerStatus | null>(null);
-  const [countdownAnchor, setCountdownAnchor] =
-    useState<QuickTimerCountdownAnchor | null>(null);
+  const [displayObservation, setDisplayObservation] =
+    useState<QuickTimerDisplayObservation | null>(null);
+  const status = displayObservation?.status ?? null;
   const [expiredObservationKey, setExpiredObservationKey] =
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,46 +85,112 @@ export default function TimerScreen() {
   >(null);
   const [schedulingDuration, setSchedulingDuration] =
     useState<QuickTimerDuration | null>(null);
+  const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [customDurationInitialMinutes, setCustomDurationInitialMinutes] =
+    useState<QuickTimerDuration>(15);
   const [loadError, setLoadError] = useState(false);
-  const mountedRef = useRef(true);
+  const directInputButtonRef = useRef<ElementRef<typeof Pressable>>(null);
+  const shouldRestoreDirectInputFocusRef = useRef(false);
   const hasLoadedRef = useRef(false);
+  const [observationSession] = useState(createQuickTimerObservationSession);
+  const readWallClock = useCallback(() => Date.now(), []);
+  const restoreDirectInputFocus = useCallback(() => {
+    if (Platform.OS === 'web') {
+      (
+        directInputButtonRef.current as
+          | (ElementRef<typeof Pressable> & { focus?: () => void })
+          | null
+      )?.focus?.();
+      return;
+    }
+    const node = findNodeHandle(directInputButtonRef.current);
+    if (node) AccessibilityInfo.setAccessibilityFocus(node);
+  }, []);
 
-  const observeStatus = useCallback((nextStatus: QuickTimerStatus) => {
+  const observeStatus = useCallback((
+    nextStatus: QuickTimerStatus,
+    observationRevision: TimerObservationRevision,
+  ) => {
+    if (!observationSession.isCurrent(observationRevision)) return null;
     const nextClock = {
       monotonic: performance.now(),
       wall: Date.now(),
     };
-    setCountdownAnchor(
-      createQuickTimerCountdownAnchor(nextStatus, nextClock.monotonic),
-    );
-    setStatus(nextStatus);
-    const nextObservationKey = getQuickTimerObservationKey(nextStatus);
+    const nextObservation = createQuickTimerDisplayObservation(nextStatus, nextClock);
+    setDisplayObservation(nextObservation);
+    const nextObservationKey = nextObservation.key;
     setExpiredObservationKey((current) =>
       current === null || current === nextObservationKey ? current : null,
     );
     return nextClock;
-  }, []);
+  }, [observationSession]);
 
-  useEffect(
-    () => () => {
-      mountedRef.current = false;
-    },
-    [],
-  );
+  const claimTimerAction = useCallback((
+    action: 'schedule' | 'pause' | 'resume' | 'reset' | 'refresh',
+  ) => {
+    const revision = observationSession.claimAction();
+    if (revision === null) return null;
+    setBusyAction(action);
+    return revision;
+  }, [observationSession]);
+
+  const releaseTimerAction = useCallback((revision: TimerObservationRevision) => {
+    if (!observationSession.releaseAction(revision)) return false;
+    setBusyAction(null);
+    return true;
+  }, [observationSession]);
+
+  useEffect(() => {
+    if (!screenActive) {
+      observationSession.deactivate();
+      shouldRestoreDirectInputFocusRef.current = false;
+      const hideInput = setTimeout(() => setCustomDurationOpen(false), 0);
+      return () => clearTimeout(hideInput);
+    }
+    observationSession.activate();
+    // Commands accepted on an earlier visit still finish in the native queue;
+    // the returning screen gets their final state through a fresh observation.
+    const resetInactiveAction = setTimeout(() => {
+      if (observationSession.hasPendingAction()) return;
+      setBusyAction(null);
+      setSchedulingDuration(null);
+    }, 0);
+    return () => {
+      clearTimeout(resetInactiveAction);
+      observationSession.deactivate();
+    };
+  }, [observationSession, screenActive]);
+
+  useEffect(() => {
+    if (!screenActive || customDurationOpen || !shouldRestoreDirectInputFocusRef.current) {
+      return;
+    }
+    shouldRestoreDirectInputFocusRef.current = false;
+    const timeout = setTimeout(
+      restoreDirectInputFocus,
+      Platform.OS === 'web' ? 0 : 180,
+    );
+    return () => clearTimeout(timeout);
+  }, [customDurationOpen, restoreDirectInputFocus, screenActive]);
 
   const refreshStatus = useCallback(async (
     showLoading = false,
     announceFailure = false,
+    claimedRevision?: TimerObservationRevision,
   ) => {
+    const observationRevision = observationSession.beginObservation(claimedRevision);
+    if (observationRevision === null) return null;
     if (showLoading) setLoading(true);
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.getStatus();
-      if (!mountedRef.current) return;
-      observeStatus(nextStatus);
+      if (!observationSession.isCurrent(observationRevision)) {
+        return null;
+      }
+      observeStatus(nextStatus, observationRevision);
       return nextStatus;
     } catch {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         if (announceFailure) {
           void AccessibilityInfo.announceForAccessibility(
@@ -125,22 +200,24 @@ export default function TimerScreen() {
       }
       return null;
     } finally {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         hasLoadedRef.current = true;
         setLoading(false);
-        setBusyAction((current) => (current === 'refresh' ? null : current));
+        if (claimedRevision !== undefined) {
+          releaseTimerAction(claimedRevision);
+        } else {
+          setBusyAction((current) => (current === 'refresh' ? null : current));
+        }
       }
     }
-  }, [observeStatus]);
+  }, [observationSession, observeStatus, releaseTimerAction]);
 
   useEffect(() => {
     if (!screenActive) return;
     void refreshStatus(!hasLoadedRef.current);
   }, [refreshStatus, screenActive]);
 
-  const statusObservationKey = status
-    ? getQuickTimerObservationKey(status)
-    : null;
+  const statusObservationKey = displayObservation?.key ?? null;
   const statusActive = status?.active === true;
   const statusFireAt = status?.fireAt ?? 0;
 
@@ -199,14 +276,17 @@ export default function TimerScreen() {
   };
 
   const startTimer = async (durationMinutes: QuickTimerDuration) => {
-    if (busyAction !== null) return;
-    setBusyAction('schedule');
+    const observationRevision = claimTimerAction('schedule');
+    if (observationRevision === null) return;
     setSchedulingDuration(durationMinutes);
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.schedule(durationMinutes);
-      if (!mountedRef.current) return;
-      const observedClock = observeStatus(nextStatus);
+      if (!observationSession.isCurrent(observationRevision)) {
+        return;
+      }
+      const observedClock = observeStatus(nextStatus, observationRevision);
+      if (!observedClock) return;
       if (nextStatus.state === 'action-required') {
         announce('타이머를 시작하려면 알람 설정을 확인해야 합니다.');
       } else if (nextStatus.state === 'error') {
@@ -223,13 +303,12 @@ export default function TimerScreen() {
         announce('타이머 설정 결과를 확인하지 못했습니다. 다시 시도해야 합니다.');
       }
     } catch {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 준비하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
-      if (mountedRef.current) {
-        setBusyAction(null);
+      if (releaseTimerAction(observationRevision)) {
         setSchedulingDuration(null);
       }
     }
@@ -248,8 +327,8 @@ export default function TimerScreen() {
       currentWallClock,
     );
     showDialog(
-      '실행 중인 타이머를 변경하시겠습니까?',
-      `현재 타이머를 취소하고 ${durationMinutes}분 타이머를 시작합니다. ${target}에 울릴 예정입니다.`,
+      `${durationMinutes}분으로 변경`,
+      `현재 타이머 취소 · ${target} 울림`,
       [
         { text: '유지', actionId: 'cancel', icon: 'close', style: 'cancel' },
         {
@@ -263,14 +342,33 @@ export default function TimerScreen() {
     );
   };
 
+  const openCustomDuration = () => {
+    if (busyAction !== null || observationSession.hasPendingAction()) return;
+    setCustomDurationInitialMinutes(status?.durationMinutes ?? 15);
+    setCustomDurationOpen(true);
+  };
+
+  const closeCustomDuration = (restoreFocus = true) => {
+    shouldRestoreDirectInputFocusRef.current = restoreFocus && screenActive;
+    setCustomDurationOpen(false);
+  };
+
+  const submitCustomDuration = (durationMinutes: QuickTimerDuration) => {
+    if (busyAction !== null || observationSession.hasPendingAction()) return;
+    closeCustomDuration(false);
+    selectDuration(durationMinutes, readWallClock());
+  };
+
   const pause = async () => {
-    if (busyAction !== null) return;
-    setBusyAction('pause');
+    const observationRevision = claimTimerAction('pause');
+    if (observationRevision === null) return;
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.pause();
-      if (!mountedRef.current) return;
-      observeStatus(nextStatus);
+      if (!observationSession.isCurrent(observationRevision)) {
+        return;
+      }
+      observeStatus(nextStatus, observationRevision);
       if (nextStatus.state !== 'paused') {
         setLoadError(true);
         announce('타이머를 일시정지하지 못했습니다. 다시 확인해야 합니다.');
@@ -278,23 +376,25 @@ export default function TimerScreen() {
         announce('타이머를 일시정지했습니다.');
       }
     } catch {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 일시정지하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
-      if (mountedRef.current) setBusyAction(null);
+      releaseTimerAction(observationRevision);
     }
   };
 
   const resume = async () => {
-    if (busyAction !== null) return;
-    setBusyAction('resume');
+    const observationRevision = claimTimerAction('resume');
+    if (observationRevision === null) return;
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.resume();
-      if (!mountedRef.current) return;
-      observeStatus(nextStatus);
+      if (!observationSession.isCurrent(observationRevision)) {
+        return;
+      }
+      observeStatus(nextStatus, observationRevision);
       if (!nextStatus.active || nextStatus.state !== 'scheduled') {
         setLoadError(true);
         announce('타이머를 재개하지 못했습니다. 다시 확인해야 합니다.');
@@ -302,23 +402,25 @@ export default function TimerScreen() {
         announce('타이머를 재개했습니다.');
       }
     } catch {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 재개하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
-      if (mountedRef.current) setBusyAction(null);
+      releaseTimerAction(observationRevision);
     }
   };
 
   const reset = async () => {
-    if (busyAction !== null) return;
-    setBusyAction('reset');
+    const observationRevision = claimTimerAction('reset');
+    if (observationRevision === null) return;
     setLoadError(false);
     try {
       const nextStatus = await quickTimerController.reset();
-      if (!mountedRef.current) return;
-      observeStatus(nextStatus);
+      if (!observationSession.isCurrent(observationRevision)) {
+        return;
+      }
+      observeStatus(nextStatus, observationRevision);
       if (nextStatus.state === 'error' || nextStatus.storageHealth === 'corrupt') {
         setLoadError(true);
         announce('타이머를 초기화하지 못했습니다. 다시 확인해야 합니다.');
@@ -326,19 +428,19 @@ export default function TimerScreen() {
         announce('타이머를 초기화했습니다.');
       }
     } catch {
-      if (mountedRef.current) {
+      if (observationSession.isCurrent(observationRevision)) {
         setLoadError(true);
         announce('타이머를 초기화하지 못했습니다. 다시 확인해야 합니다.');
       }
     } finally {
-      if (mountedRef.current) setBusyAction(null);
+      releaseTimerAction(observationRevision);
     }
   };
 
   const retry = () => {
-    if (busyAction !== null) return;
-    setBusyAction('refresh');
-    void refreshStatus(false, true);
+    const observationRevision = claimTimerAction('refresh');
+    if (observationRevision === null) return;
+    void refreshStatus(false, true, observationRevision);
   };
 
   const supported = status?.supported === true;
@@ -354,10 +456,11 @@ export default function TimerScreen() {
     status.storageHealth !== 'corrupt';
 
   return (
-    <Screen contentStyle={styles.screenContent}>
+    <>
+    <Screen contentStyle={styles.screenContent} removeClippedSubviews={false}>
       <PageHeader
         align="center"
-        subtitle="15분·30분·45분·60분 뒤 알람음과 진동으로 알립니다."
+        subtitle="15·30·45분 · 직접 입력"
         title="타이머"
       />
 
@@ -372,8 +475,7 @@ export default function TimerScreen() {
         <StatusBanner
           announceChanges={false}
           icon="alert-circle-outline"
-          message="타이머 알람은 지원되는 Android 설치본에서 사용할 수 있습니다."
-          title="이 기기에서는 타이머를 사용할 수 없습니다"
+          message="Android 설치본에서만 사용할 수 있습니다."
           tone="neutral"
         />
       ) : null}
@@ -382,9 +484,9 @@ export default function TimerScreen() {
         <StatusBanner
           actionLabel="다시 확인"
           icon="alert-circle-outline"
-          message="타이머 상태를 확인하지 못했습니다. 기존 근무 알람은 그대로 유지됩니다."
+          message="근무 알람은 유지됩니다."
           onAction={retry}
-          title="타이머를 준비하지 못했습니다"
+          title="타이머 확인 실패"
           tone="danger"
         />
       ) : null}
@@ -408,14 +510,14 @@ export default function TimerScreen() {
               {paused ? '일시정지' : ringing ? '울림 중' : '실행 중'}
             </AppText>
           </View>
-          {countdownAnchor ? (
+          {displayObservation ? (
             <QuickTimerCountdown
               active={active}
-              anchor={countdownAnchor}
+              anchor={displayObservation.anchor}
               countdownFontSize={countdownFontSize}
-              key={statusObservationKey ?? undefined}
               label={activeTimerLabel}
               observationKey={statusObservationKey ?? ''}
+              observedClock={displayObservation.clock}
               onExpired={handleCountdownExpired}
               paused={paused}
               screenActive={screenActive}
@@ -453,68 +555,58 @@ export default function TimerScreen() {
               <AppText tone="secondary" variant="label">
                 다른 시간으로 변경
               </AppText>
-              <View style={styles.presetButtons}>
-                {quickTimerController.durations.map((durationMinutes) => (
-                  <Button
-                    accessibilityHint={`현재 타이머를 취소하고 지금부터 ${durationMinutes}분 뒤 울리도록 변경합니다.`}
-                    accessibilityLabel={`${durationMinutes}분 타이머로 변경`}
-                    disabled={busyAction !== null}
-                    icon="timer-outline"
-                    key={durationMinutes}
-                    label={`${durationMinutes}분`}
-                    loading={schedulingDuration === durationMinutes}
-                    onPress={() => selectDuration(durationMinutes, Date.now())}
-                    style={[styles.presetButton, presetButtonStyle]}
-                    variant="ghost"
-                  />
-                ))}
-              </View>
+              <QuickTimerPresets
+                columns={presetColumns}
+                disabled={busyAction !== null}
+                directInputButtonRef={directInputButtonRef}
+                onDirectInput={openCustomDuration}
+                onSelectDuration={(durationMinutes) => selectDuration(durationMinutes, Date.now())}
+                replacingTimer
+                schedulingDuration={schedulingDuration}
+              />
             </View>
           ) : null}
         </Surface>
       ) : canShowIdleControls ? (
         <Surface style={styles.timerSurface}>
           <View style={styles.idleCopy}>
-            <View style={styles.idleIcon}>
-              <AppIcon accessible={false} color={palette.indigoDark} name="timer" size={28} />
-            </View>
-            <AppText accessibilityRole="header" style={styles.centerText} variant="heading">
-              시간을 선택하십시오
+            <AppText accessibilityRole="header" aria-level={2} style={styles.centerText} variant="heading">
+              시간 선택
             </AppText>
             <AppText tone="secondary" style={styles.centerText} variant="body">
-              한 번에 하나의 타이머만 실행할 수 있습니다.
+              한 번에 1개만 실행
             </AppText>
           </View>
-          <View style={styles.presetButtons}>
-            {quickTimerController.durations.map((durationMinutes) => (
-              <Button
-                accessibilityHint={`지금부터 ${durationMinutes}분 뒤 알람음과 진동이 울립니다.`}
-                accessibilityLabel={`${durationMinutes}분 타이머 시작`}
-                disabled={busyAction !== null || status.state === 'action-required'}
-                icon="timer-outline"
-                key={durationMinutes}
-                label={`${durationMinutes}분`}
-                loading={schedulingDuration === durationMinutes}
-                onPress={() => selectDuration(durationMinutes, Date.now())}
-                style={[styles.presetButton, presetButtonStyle]}
-              />
-            ))}
-          </View>
+          <QuickTimerPresets
+            columns={presetColumns}
+            disabled={busyAction !== null || status.state === 'action-required'}
+            directInputButtonRef={directInputButtonRef}
+            onDirectInput={openCustomDuration}
+            onSelectDuration={(durationMinutes) => selectDuration(durationMinutes, Date.now())}
+            replacingTimer={false}
+            schedulingDuration={schedulingDuration}
+          />
         </Surface>
       ) : null}
 
       {supported ? (
-        <Surface density="compact" tone="muted" style={styles.infoSurface}>
-          <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={22} />
-          <View style={styles.infoCopy}>
-            <AppText variant="label">알람음·진동</AppText>
-            <AppText tone="secondary" variant="caption">
-              화면이 꺼져 있어도 울리며, 휴대폰의 알람음과 진동을 사용합니다.
-            </AppText>
-          </View>
-        </Surface>
+        <View style={styles.infoRow}>
+          <AppIcon accessible={false} color={palette.inkMuted} name="alarm-outline" size={18} />
+          <AppText tone="secondary" style={styles.infoCopy} variant="caption">
+            화면이 꺼져도 알람음·진동 사용
+          </AppText>
+        </View>
       ) : null}
     </Screen>
+    <QuickTimerDurationStepper
+      busy={busyAction === 'schedule'}
+      initialDurationMinutes={customDurationInitialMinutes}
+      onCancel={() => closeCustomDuration()}
+      onSubmit={submitCustomDuration}
+      replacingTimer={hasTimer}
+      visible={customDurationOpen && screenActive}
+    />
+    </>
   );
 }
 
@@ -558,26 +650,13 @@ function createStyles(palette: AppPalette) {
       borderTopColor: palette.line,
     },
     idleCopy: { alignItems: 'center', gap: space.sm },
-    idleIcon: {
-      width: 56,
-      height: 56,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radius.lg,
-      backgroundColor: palette.indigoSoft,
-    },
-    presetButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-    presetButton: { minHeight: 64 },
-    presetButtonFull: { width: '100%' },
-    presetButtonHalf: { flexBasis: '48%', flexGrow: 1 },
-    presetButtonQuarter: { minWidth: 0, flexBasis: 0, flexGrow: 1 },
-    infoSurface: {
-      minHeight: 76,
+    infoRow: {
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.md,
-      borderWidth: 0,
+      justifyContent: 'center',
+      gap: space.sm,
     },
-    infoCopy: { minWidth: 0, flex: 1, gap: space.xs },
+    infoCopy: { flexShrink: 1 },
   });
 }

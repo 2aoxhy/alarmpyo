@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/ui-kit';
 import { type AppPalette } from '@/constants/app-theme';
-import { Button, radius, space } from '@/design-system';
+import { Button, shape, space } from '@/design-system';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { formatCalendarSelectionPanelCount } from './calendar-selection-presentation';
@@ -43,9 +43,6 @@ export function CalendarSelectionPanel({
         compact && styles.panelCompact,
       ]}>
       <View style={styles.header}>
-        <View style={styles.icon}>
-          <AppIcon color={palette.indigoDark} name="checkmark-circle" size={23} />
-        </View>
         <View style={styles.copy}>
           <AppText
             accessibilityLabel={`전체 ${selectedCount}일, 이 달 ${selectedInMonthCount}일`}
@@ -113,7 +110,7 @@ function createStyles(palette: AppPalette) {
       gap: space.md,
       padding: space.lg,
       borderWidth: 1,
-      borderRadius: radius.lg,
+      borderRadius: shape.panel,
       borderColor: palette.controlLine,
       backgroundColor: palette.indigoSoft,
     },
@@ -126,14 +123,6 @@ function createStyles(palette: AppPalette) {
       alignItems: 'center',
       gap: space.md,
     },
-    icon: {
-      width: 44,
-      height: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 15,
-      backgroundColor: palette.surface,
-    },
     copy: { flex: 1, minWidth: 0, gap: 2 },
     close: {
       width: 42,
@@ -141,13 +130,12 @@ function createStyles(palette: AppPalette) {
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 14,
-      backgroundColor: palette.surface,
+      borderRadius: shape.control,
     },
     actions: { flexDirection: 'row', gap: space.sm },
     actionsStacked: { flexDirection: 'column' },
     action: { flex: 1 },
     actionStacked: { width: '100%', flex: 0 },
-    pressed: { opacity: 0.66, transform: [{ scale: 0.97 }] },
+    pressed: { opacity: 0.66 },
   });
 }

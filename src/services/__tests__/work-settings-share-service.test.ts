@@ -249,6 +249,8 @@ describe('근무 설정 공유 파일', () => {
     const currentEvening = current.shiftTypes.find((shift) => shift.id === 'evening')!;
     currentEvening.startMinutes = 16 * 60;
     currentEvening.endMinutes = 23 * 60 + 30;
+    currentEvening.alarmEnabled = false;
+    currentEvening.alarmMinutesBefore = 75;
 
     const preview = previewWorkSettingsImport(exportWorkSettingsToJson(source));
     const applied = applyWorkSettingsPreview(current, preview);
@@ -258,8 +260,8 @@ describe('근무 설정 공유 파일', () => {
       startMinutes: 13 * 60 + 30,
       endMinutes: 21 * 60 + 45,
       endsNextDay: false,
-      alarmEnabled: true,
-      alarmMinutesBefore: 100,
+      alarmEnabled: false,
+      alarmMinutesBefore: 75,
     });
   });
 
@@ -296,6 +298,11 @@ describe('근무 설정 공유 파일', () => {
     current.dayExceptions['2026-07-15'] = 'training';
     current.settings.themeMode = 'dark';
     current.settings.notificationsEnabled = true;
+    current.alarmOverrides['2026-07-16'] = {
+      mode: 'wake-time',
+      wakeMinutes: 5 * 60 + 30,
+      wakeDayOffset: 0,
+    };
 
     const source = createDefaultAppData('2026-08-01');
     source.pattern.name = '주간 고정';
@@ -304,6 +311,9 @@ describe('근무 설정 공유 파일', () => {
     day.startMinutes = 6 * 60;
     day.endMinutes = 17 * 60;
     day.alarmMinutesBefore = 90;
+    const currentDay = current.shiftTypes.find((shift) => shift.id === 'day')!;
+    currentDay.alarmEnabled = false;
+    currentDay.alarmMinutesBefore = 135;
 
     const applied = applyWorkSettingsPreview(
       current,
@@ -318,13 +328,49 @@ describe('근무 설정 공유 파일', () => {
     expect(applied.shiftTypes.find((shift) => shift.id === 'day')).toMatchObject({
       startMinutes: 6 * 60,
       endMinutes: 17 * 60,
-      alarmMinutesBefore: 90,
+      alarmEnabled: false,
+      alarmMinutesBefore: 135,
     });
     expect(applied.notes).toEqual(current.notes);
     expect(applied.overrides).toEqual(current.overrides);
     expect(applied.timeOverrides).toEqual(current.timeOverrides);
     expect(applied.dayExceptions).toEqual(current.dayExceptions);
+    expect(applied.alarmOverrides).toEqual(current.alarmOverrides);
     expect(applied.settings).toEqual(current.settings);
+  });
+
+  it('받은 근무 시간은 적용해도 모든 개인 알람 설정은 유지합니다', () => {
+    const current = createDefaultAppData('2026-07-01');
+    const source = createDefaultAppData('2026-08-01');
+    const expected = new Map<string, { alarmEnabled: boolean; alarmMinutesBefore: number }>();
+
+    current.shiftTypes.forEach((shift, index) => {
+      if (shift.isOff) return;
+      shift.alarmEnabled = index % 2 === 0;
+      shift.alarmMinutesBefore = 180 + index;
+      expected.set(shift.id, {
+        alarmEnabled: shift.alarmEnabled,
+        alarmMinutesBefore: shift.alarmMinutesBefore,
+      });
+    });
+    source.shiftTypes.forEach((shift) => {
+      if (shift.isOff) return;
+      shift.startMinutes = (shift.startMinutes! + 15) % (24 * 60);
+      shift.endMinutes = (shift.endMinutes! + 15) % (24 * 60);
+      shift.endsNextDay = shift.endMinutes < shift.startMinutes;
+      shift.alarmEnabled = true;
+      shift.alarmMinutesBefore = 90;
+    });
+
+    const applied = applyWorkSettingsPreview(
+      current,
+      previewWorkSettingsImport(exportWorkSettingsToJson(source)),
+    );
+
+    for (const shift of applied.shiftTypes) {
+      const alarm = expected.get(shift.id);
+      if (alarm) expect(shift).toMatchObject(alarm);
+    }
   });
 
   it('현재 형식에 허용되지 않는 항목이 있으면 거부합니다', () => {
@@ -408,18 +454,18 @@ describe('근무 설정 공유 파일', () => {
     );
   });
 
-  it('출발보다 늦은 기상 알람이 포함된 공유 설정은 적용하지 않아요', () => {
+  it('공유 파일의 알람 대신 현재 개인 알람의 출근 루틴 호환성을 검사해요', () => {
     const current = createDefaultAppData('2026-07-13');
     const source = createDefaultAppData('2026-08-01');
-    const day = source.shiftTypes.find((shift) => shift.id === 'day')!;
-    day.alarmMinutesBefore =
+    const currentDay = current.shiftTypes.find((shift) => shift.id === 'day')!;
+    currentDay.alarmMinutesBefore =
       current.settings.workRoutineProfiles.day.departMinutesBefore;
     const preview = previewWorkSettingsImport(
       exportWorkSettingsToJson(source),
     );
 
     expect(() => applyWorkSettingsPreview(current, preview)).toThrow(
-      '기상 알람은 현재 출근 루틴의 출발 시각보다 빨라야 합니다',
+      '현재 기상 알람은 출근 루틴의 출발 시각보다 빨라야 합니다',
     );
   });
 

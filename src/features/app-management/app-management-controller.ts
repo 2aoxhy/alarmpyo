@@ -14,8 +14,8 @@ export function getAppManagementPresentation(
 ): AppManagementPresentation {
   const playDistribution = getAppDistribution() === 'play';
   const baseUpdateSubtitle = playDistribution
-    ? 'Google Play에서 최신 버전을 확인합니다'
-    : '새 앱 설치 파일을 확인하고 안전하게 설치합니다';
+    ? 'Google Play에서 새 버전 확인'
+    : '설치 파일 확인 및 업데이트';
   return {
     appUpdateLabel: getCurrentAppUpdateLabel(),
     appUpdateSubtitle:

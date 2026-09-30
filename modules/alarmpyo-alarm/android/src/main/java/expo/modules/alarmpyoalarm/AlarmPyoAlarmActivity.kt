@@ -26,9 +26,11 @@ import java.util.Date
 import java.util.Locale
 
 class AlarmPyoAlarmActivity : Activity() {
+  private lateinit var rootView: FrameLayout
   private lateinit var timeText: TextView
   private lateinit var dateText: TextView
   private lateinit var shiftBadgeText: TextView
+  private lateinit var shiftMeaningLine: View
   private lateinit var shiftText: TextView
   private lateinit var actionHintText: TextView
   private lateinit var snoozeButton: Button
@@ -155,6 +157,7 @@ class AlarmPyoAlarmActivity : Activity() {
         )
       )
     }
+    rootView = root
 
     val content = LinearLayout(this).apply {
       orientation = LinearLayout.VERTICAL
@@ -230,6 +233,18 @@ class AlarmPyoAlarmActivity : Activity() {
       LinearLayout.LayoutParams.WRAP_CONTENT,
       LinearLayout.LayoutParams.WRAP_CONTENT
     ))
+
+    shiftMeaningLine = View(this).apply {
+      importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+      background = roundedShape(
+        alarmpyoColor(R.color.alarmpyo_accent),
+        dp(99).toFloat()
+      )
+    }
+    alarmCard.addView(shiftMeaningLine, LinearLayout.LayoutParams(dp(40), dp(3)).apply {
+      gravity = Gravity.CENTER_HORIZONTAL
+      topMargin = dp(12)
+    })
 
     timeText = label(
       "--:--",
@@ -397,7 +412,12 @@ class AlarmPyoAlarmActivity : Activity() {
     timeText.text = SimpleDateFormat("HH:mm", Locale.KOREA).format(alarmDate)
     dateText.text = SimpleDateFormat("M월 d일 EEEE", Locale.KOREA).format(alarmDate)
     val shiftVisualStyle = AlarmPyoShiftVisualPolicy.resolve(newPlan.shiftTypeId)
+    val shiftBackground = alarmpyoColor(shiftVisualStyle.background)
     val shiftAccent = alarmpyoColor(shiftVisualStyle.accent)
+    rootView.background = GradientDrawable(
+      GradientDrawable.Orientation.TL_BR,
+      intArrayOf(shiftBackground, alarmpyoColor(R.color.alarmpyo_background))
+    )
     shiftBadgeText.text = when {
       source == AlarmPyoAlarmSource.TIMER ->
         AlarmPyoQuickTimerPresentation.badge(newPlan.isSingleRepeat())
@@ -408,7 +428,8 @@ class AlarmPyoAlarmActivity : Activity() {
       else -> "출근 준비"
     }
     shiftBadgeText.setTextColor(alarmpyoColor(shiftVisualStyle.foreground))
-    shiftBadgeText.background = roundedShape(shiftAccent, dp(99).toFloat())
+    shiftBadgeText.background = roundedShape(shiftBackground, dp(99).toFloat())
+    shiftMeaningLine.background = roundedShape(shiftAccent, dp(99).toFloat())
     shiftText.text = when {
       source == AlarmPyoAlarmSource.TIMER -> AlarmPyoQuickTimerPresentation.message(newPlan)
       newPlan.isSingleRepeat() && newPlan.shiftTypeId == "test" -> "시험 알람이 한 번 더 울립니다."

@@ -23,21 +23,25 @@ export function ShiftChip({
   const styles = useThemedStyles(createStyles);
   const appearance = getShiftAppearance(shift, palette, isDark);
   const specialWork = getShiftCategory(shift) === 'special-work';
+  const showMeaningRail = specialWork || Boolean(appearance.meaningColor);
   const content = (
     <View
       style={[
         styles.chip,
         compact && styles.compact,
         {
-          backgroundColor: specialWork ? palette.surfaceSoft : appearance.softColor,
+          backgroundColor: appearance.softColor,
           borderColor: selected ? palette.selectionBorder : palette.transparent,
         },
       ]}>
-      {specialWork ? (
+      {showMeaningRail ? (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[styles.specialWorkRail, { backgroundColor: appearance.accentColor }]}
+          style={[
+            styles.specialWorkRail,
+            { backgroundColor: appearance.meaningColor ?? palette.amber },
+          ]}
         />
       ) : null}
       <AnimatedShiftIcon

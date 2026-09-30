@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultAppData } from '../../services/app-data-service';
 
 import {
+  applySharedWakePatch,
   buildWorkScheduleOverview,
   createShiftDrafts,
   formatAlarmOption,
   formatDraftWakeTimeSummary,
   formatShiftTimeSummary,
   formatWakeTimeSummary,
+  getActiveWorkShiftIds,
   getEditorSectionForDraftId,
   isShiftDraftValid,
   resolveWakeTimeOptionColumns,
@@ -52,6 +54,39 @@ describe('shift settings model', () => {
     expect(getEditorSectionForDraftId('day')).toBe('day');
     expect(getEditorSectionForDraftId('night')).toBe('night');
     expect(getEditorSectionForDraftId('substitute-night')).toBe('substitute');
+  });
+
+  it('2교대 근무 시간에는 주간과 야간만 표시해요', () => {
+    expect(
+      getActiveWorkShiftIds(['day', 'day', 'night', 'night', 'off', 'off']),
+    ).toEqual(['day', 'night']);
+  });
+
+  it('주간 고정 근무 시간에는 주간만 표시해요', () => {
+    expect(
+      getActiveWorkShiftIds(['day', 'day', 'day', 'day', 'day', 'off', 'off']),
+    ).toEqual(['day']);
+  });
+
+  it('공통 기상 설정은 지정한 근무 초안에만 한 번에 적용해요', () => {
+    const drafts = createShiftDrafts(
+      createDefaultAppData('2026-08-09').shiftTypes,
+    );
+    const updated = applySharedWakePatch(drafts, ['day', 'night'], {
+      alarmMinutesBefore: 120,
+    });
+
+    expect(updated.find((draft) => draft.id === 'day')?.alarmMinutesBefore).toBe(
+      120,
+    );
+    expect(
+      updated.find((draft) => draft.id === 'night')?.alarmMinutesBefore,
+    ).toBe(120);
+    expect(
+      updated.find((draft) => draft.id === 'evening')?.alarmMinutesBefore,
+    ).toBe(
+      drafts.find((draft) => draft.id === 'evening')?.alarmMinutesBefore,
+    );
   });
 
   it.each([320, 360, 412])(

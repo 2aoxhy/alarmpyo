@@ -9,184 +9,182 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-describe('첫 설정과 근무 시간 편집 계약', () => {
-  it('첫 화면은 네 분류만 보여주고 2·3교대의 조 수를 나중에 선택해요', () => {
-    const components = source('src/features/setup/setup-components.tsx');
-    const patterns = source('src/utils/work-pattern.ts');
+function setupSessionSource() {
+  return [
+    source('src/features/quick-setup/setup-session-screen.tsx'),
+    source('src/features/quick-setup/setup-session-steps.tsx'),
+  ].join('\n');
+}
 
-    expect(components).toContain('WORK_PATTERN_CATEGORIES.map');
-    expect(components).toContain("categoryId === 'two-shift' || categoryId === 'three-shift'");
-    expect(components).toContain('조 수를 선택합니다');
-    expect(patterns).toContain("name: '주간 고정'");
-    expect(patterns).toContain("name: '2교대'");
-    expect(patterns).toContain("name: '3교대'");
-    expect(patterns).toContain("name: '기타'");
+describe('통합 근무표 설정 화면 계약', () => {
+  it('최초 설정과 재설정은 같은 세션 화면을 사용해요', () => {
+    const setup = source('src/app/setup.tsx');
+    const quickSetup = source('src/app/quick-setup.tsx');
+
+    expect(setup).toContain('<SetupSessionScreen mode="initial" />');
+    expect(quickSetup).toContain('<SetupSessionScreen mode="reconfigure" />');
   });
 
-  it('주간 고정에서도 주간 시간을 편집하고 방식 전환 시 입력값을 유지해요', () => {
-    const setup = source('src/app/setup.tsx');
-    const shiftSettings = source('src/app/shift-settings.tsx');
-    const shiftEditor = source(
-      'src/features/shift-settings/shift-timing-editor.tsx',
+  it('재설정은 현재 근무표를 보존하고 표준 6종을 네 그룹으로 보여요', () => {
+    const screen = setupSessionSource();
+
+    expect(screen).toContain('근무표 설정');
+    expect(screen).toContain('근무 방식');
+    expect(screen).toContain('현재 근무표 사용');
+    expect(screen).toContain('직접 설정');
+    expect(screen).toContain('파일 불러오기');
+    expect(screen).toContain("session.source === 'current'");
+    expect(screen).toContain('QUICK_SETUP_GROUPS.map');
+    expect(screen).toContain('groupOptions.map');
+    expect(screen).toContain('option.detail');
+    expect(screen).not.toContain('조 수를 선택합니다');
+    expect(screen).not.toContain('<WorkModeStep');
+  });
+
+  it('오늘 근무·근무 예시·사용 근무 시간만 한 단계에서 확인해요', () => {
+    const screen = setupSessionSource();
+
+    expect(screen).toContain("session.step === 'schedule-anchor'");
+    expect(screen).toContain('오늘 근무');
+    expect(screen).toContain('근무 예시');
+    expect(screen).toContain('<WorkTimeEditor');
+    expect(screen).toContain("showDay={activeShiftIds.includes('day')}");
+    expect(screen).toContain("showEvening={activeShiftIds.includes('evening')}");
+    expect(screen).toContain("showNight={activeShiftIds.includes('night')}");
+    expect(screen).not.toContain('근무표 표시 시작일');
+    expect(screen).not.toContain('DatePickerField');
+    expect(screen).not.toContain("router.push('/shift-settings?focus=time'");
+  });
+
+  it('알람은 하나의 토글로 설정하고 시간 충돌 시 수정으로 연결해요', () => {
+    const screen = setupSessionSource();
+
+    expect(screen).toContain('<ToggleRow');
+    expect(screen).toContain('title="근무 알람"');
+    expect(screen).toContain('actionLabel="시간 수정"');
+    expect(screen).toContain("enabled ? 'prepare' : 'schedule-only'");
+    expect(screen).toContain('validation.safety.canEnableAlarms');
+    expect(screen).not.toContain('근무표만 저장');
+    expect(screen).not.toContain('이대로 사용');
+  });
+
+  it('최초·재설정은 store의 단일 setup commit을 사용해요', () => {
+    const screen = setupSessionSource();
+    const store = source('src/application/runtime/store/commands-coordinator.ts');
+
+    expect(screen).toContain('buildWorkPatternMutation(currentDraft, data.shiftTypes)');
+    expect(screen).toContain('await commitSetup({');
+    expect(screen).toContain("session.source === 'current'");
+    expect(screen).toContain('pattern: data.pattern');
+    expect(store).toContain("mode === 'reconfigure'");
+    expect(store).toMatch(/await context\.storage\.writeAutomaticBackup\(\s*current\)/);
+    expect(store).toContain('notificationsEnabled,');
+    expect(store).toContain('primarySaved: result.primarySaved');
+    expect(screen).not.toContain('await createBackup();');
+    expect(screen).not.toContain('await updatePatternDetailed(');
+    expect(screen).not.toContain('await enableAlarms()');
+    expect(screen).not.toContain('await disableAlarms()');
+    expect(screen).not.toContain('applySharedWorkSettings(');
+  });
+
+  it('기존 최초 설정과 간편 설정 초안을 새 세션으로 복원해요', () => {
+    const screen = setupSessionSource();
+    const model = source(
+      'src/features/quick-setup/setup-session-model.ts',
+    );
+    const repository = source(
+      'src/features/quick-setup/quick-setup-draft-repository.ts',
     );
 
-    expect(setup).toContain("showDay={validation.activeShiftIds.includes('day')}");
-    expect(setup).toContain("showEvening={validation.activeShiftIds.includes('evening')}");
-    expect(setup).toContain("showNight={validation.activeShiftIds.includes('night')}");
-    expect(setup).toContain('<WeekdaySchedule dayEnd={dayEnd} dayStart={dayStart} />');
-    expect(setup).toContain('<PatternSequenceEditor sequence={sequence}');
-    expect(shiftSettings).not.toContain('lockTime=');
-    expect(shiftEditor).not.toContain('editable={!lockTime}');
-  });
-
-  it('근무 방식만 바꿀 때 저장된 주간 시간을 기본값으로 덮어쓰지 않아요', () => {
-    const pattern = source('src/app/pattern.tsx');
-    const controller = source(
-      'src/features/setup/work-pattern-editor-controller.ts',
+    expect(screen).toContain('migrateQuickSetupDraft({');
+    expect(screen).toContain(
+      'migrateInitialSetupDraft({',
     );
-
-    expect(pattern).toContain('<PatternSequenceEditor onChange={changeSequence} sequence={draft.sequence}');
-    expect(pattern).toContain('sourceTimes');
-    expect(pattern).toContain('buildWorkPatternMutation');
-    expect(pattern).toContain("createWorkPatternEditorController('edit')");
-    expect(controller).toContain('disableAlarmsOnChange = mode === \'initial\'');
-    expect(pattern).not.toContain('DAY_SHIFT_START_MINUTES');
-    expect(pattern).not.toContain('DAY_SHIFT_END_MINUTES');
+    expect(model).toContain('export type SetupSessionDraftV2');
+    expect(model).toContain("draft.version === 2");
+    expect(repository).toContain('SETUP_SESSION_DRAFT_KEY');
+    expect(repository).toContain('QUICK_SETUP_DRAFT_KEY');
   });
 
-  it('손대지 않은 시간에만 프리셋 대표 시간을 적용하고 회사 시간 확인을 요구해요', () => {
-    const setup = source('src/app/setup.tsx');
+  it('첫 설정은 오늘부터 시작하고 재설정의 현재 시작일은 보존해요', () => {
+    const screen = setupSessionSource();
 
-    expect(setup).toContain('applySetupPresetSuggestions({');
-    expect(setup).toContain('editedFields: editedWorkTimeFields');
-    expect(setup).toContain('getSuggestedWorkTimesForPreset(nextPresetId)');
-    expect(setup).toContain("markWorkTimeEdited('dayStart')");
-    expect(setup).toContain("? '이대로 사용'");
-    expect(setup).toContain('회사 시간과 다르면 필요한 항목만 수정해야 합니다.');
-    expect(setup).not.toContain('이 시간이 맞아요');
+    expect(screen).toContain('resolveSetupScheduleStartDate({');
+    expect(screen).toContain("session.source === 'current'");
+    expect(screen).not.toContain('<DatePickerField');
+    expect(screen).not.toContain('다른 날짜부터 표시');
   });
 
-  it('주간 고정과 같은 사용자 순서를 요일 기준으로 전환한다고 안내해요', () => {
-    const setup = source('src/app/setup.tsx');
-    const pattern = source('src/app/pattern.tsx');
+  it('단계 전환은 TalkBack 제목 초점만 사용해 중복 낭독하지 않아요', () => {
+    const screen = setupSessionSource();
 
-    expect(setup).toContain('const normalizedToWeekday =');
-    expect(setup).toContain("validation.effectivePresetId !== 'weekday'");
-    expect(setup).toContain('입력한 순서는 주간 고정과 같으므로');
-    expect(pattern).toContain("validation.effectivePresetId === 'weekday'");
-    expect(pattern).toContain('이 순서는 주간 고정과 같으므로');
+    expect(screen).toContain('AccessibilityInfo.setAccessibilityFocus(node)');
+    expect(screen).not.toContain('AccessibilityInfo.announceForAccessibility');
+    expect(screen).toContain('const stepHeadingRef = useRef<Text>(null)');
+    const steps = source('src/features/quick-setup/setup-session-steps.tsx');
+    expect(steps.match(/accessibilityRole="header" aria-level=\{2\} ref=\{headingRef\}/g)).toHaveLength(3);
+    expect(steps).not.toContain('accessible\n        accessibilityLabel="오늘 근무와 시간"');
+    expect(screen).toContain('accessibilityRole="progressbar"');
+    expect(screen).toContain('accessibilityValue={{ min: 1, max: 3, now: step }}');
   });
 
-  it('알람 권한은 안전한 일정에서 사용자가 선택할 때만 요청해요', () => {
-    const setup = source('src/app/setup.tsx');
+  it('320dp와 큰 글자에서 진행·버튼·시간 입력을 세로 배치해요', () => {
+    const screen = setupSessionSource();
 
-    expect(setup).toContain('const [draft, setDraft] = useState<WorkPatternDraft>');
-    expect(setup).toContain('if (effectiveAlarmsWanted)');
-    expect(setup).toContain('disabled={!scheduleSafety.canEnableAlarms}');
-    expect(setup).toContain("createWorkPatternEditorController('initial')");
-    expect(setup).toContain('!scheduleSafety.canSave');
-    expect(setup).toContain('지금 건너뛰어도 설정의 알람에서 나중에 켤 수 있습니다.');
+    expect(screen).toContain('width <= 360 || fontScale >= 1.4');
+    expect(screen).toContain('width <= 320 || fontScale >= 1.3');
+    expect(screen).toContain('styles.footerStacked');
+    expect(screen).toContain('styles.previewRowStacked');
+    expect(screen).toContain('stackTimeInputs={stackTimeInputs}');
   });
 
-  it('최초 설정도 편집 화면과 같은 공용 초안 검증과 원자적 mutation을 사용해요', () => {
-    const setup = source('src/app/setup.tsx');
-
-    expect(setup).toContain('restoreInitialWorkPatternDraft(initialWorkPatternDraft, draft)');
-    expect(setup).toContain('validateWorkPatternDraft(draft, data.shiftTypes)');
-    expect(setup).toContain('buildWorkPatternMutation(draft, data.shiftTypes)');
-    expect(setup).toContain('completeInitialSetup(payload)');
-    expect(setup).not.toContain('validateSetupInput({');
-    expect(setup).not.toContain('buildInitialSetupPayload({');
-  });
-
-  it('긴 회사 순서는 가상화하고 현재 항목 상태를 TalkBack에 한 번만 전달해요', () => {
+  it('시간 오류는 입력 이탈 또는 다음 동작 후에만 표시해요', () => {
+    const screen = setupSessionSource();
     const components = source('src/features/setup/setup-components.tsx');
 
-    expect(components).toContain('<FlatList');
-    expect(components).toContain('`${index + 1}/${sequence.length}, ${SEQUENCE_LABELS[id]}`');
-    expect(components).toContain('selected={activeIndex === index}');
-    expect(components).toContain('선택한 날짜의 근무만 변경합니다.');
-    expect(components).toContain('accessibilityRole="radiogroup"');
-    expect(components).not.toContain('selected={false}');
-    expect(components).not.toContain('선택됨`');
-  });
-
-  it('2단계는 모든 휴무 순서를 즉시 차단하고 첫 오류 화면과 입력으로 이동해요', () => {
-    const setup = source('src/app/setup.tsx');
-    const pattern = source('src/app/pattern.tsx');
-    const components = source('src/features/setup/setup-components.tsx');
-
-    expect(setup).toContain('stepTwoBlockingIssues.length > 0');
-    expect(setup).toContain('getFirstWorkPatternIssueTarget(checked)');
-    expect(pattern).toContain('getFirstWorkPatternIssueTarget(checked)');
+    expect(screen).toContain('setRevealValidation(true)');
+    expect(screen).toContain('revealErrors={revealValidation}');
+    expect(components).toContain("touchedFields.has('start')");
+    expect(components).toContain("touchedFields.has('end')");
     expect(components).toContain('target.current?.focus()');
-    expect(components).toContain('focusShiftTypeId');
   });
 
-  it('근무표 본문 저장 뒤 알람 동기화만 실패하면 해당 작업만 다시 시도해요', () => {
-    const pattern = source('src/app/pattern.tsx');
-    const store = source('src/store/app-store.tsx');
+  it('저장 안내는 마지막 단계에 한 줄로 표시해요', () => {
+    const screen = setupSessionSource();
 
-    expect(pattern).toContain('updatePatternDetailed(');
-    expect(pattern).toContain("issue.issueCode === 'alarm-sync-failed'");
-    expect(pattern).toContain("outcome.issue === 'alarm-sync-partial'");
-    expect(pattern).toContain('resyncAlarms(true)');
-    expect(store).toContain('saveOutcome: saveOutcomeRef.current');
+    expect(screen).toContain('설정은 이 기기에 저장됩니다.');
+    expect(screen).not.toContain('앱 삭제 시 근무표·메모·설정 삭제');
   });
 
-  it('진입 목적에 맞게 근무 시간과 기상 시간 제목을 구분해요', () => {
-    const shiftSettings = source('src/app/shift-settings.tsx');
-
-    expect(shiftSettings).toContain("focus === 'wake'");
-    expect(shiftSettings).toContain("? '기상 시간'");
-    expect(shiftSettings).toContain("focus === 'time'");
-    expect(shiftSettings).toContain("? '근무 시간'");
-    expect(shiftSettings).toContain(": '근무표 설정';");
-    expect(shiftSettings).toContain(
-      '<Stack.Screen options={{ title: screenTitle }} />',
-    );
-  });
-
-  it('앱 삭제 위험과 외부 백업 경로를 첫 설정에서 안내해요', () => {
-    const setup = source('src/app/setup.tsx');
-
-    expect(setup).toContain('자료는 이 휴대폰에만 저장됩니다');
-    expect(setup).toContain('앱을 삭제하면 근무표·메모·설정도 함께 삭제됩니다.');
-    expect(setup).toContain('설정 후 데이터 메뉴에서 외부 백업을 만들 수 있습니다.');
-  });
-
-  it('로고 전환 뒤 최초 설정에 브랜드 헤일로와 저장 진행 상태를 표시합니다', () => {
-    const setup = source('src/app/setup.tsx');
+  it('최초 설정은 장식 배경 없이 저장 진행 상태만 표시해요', () => {
+    const screen = setupSessionSource();
     const onboarding = source(
       'src/features/setup/setup-onboarding-surface.tsx',
     );
-    const launch = source('src/components/launch-transition-overlay.tsx');
 
-    expect(setup).toContain('background={<SetupBrandHaloBackdrop />}');
-    expect(setup).toContain('<SetupApplyingOverlay visible={saving} />');
-    expect(setup).toContain('오늘 근무는 어떻게 되십니까?');
-    expect(setup).toContain('actionLabel="다시 시도"');
-    expect(onboarding).toContain('export function SetupBrandHaloBackdrop()');
-    expect(onboarding).toContain("colors={['#123D36', '#152433', '#101214']}");
-    expect(onboarding).not.toContain('filter: [{ blur:');
-    expect(onboarding).toContain('if (!visible || reduceMotion || !appActive) return;');
-    expect(onboarding).not.toContain('docs/design-qa');
-    expect(launch).toContain('markFade: 440');
-    expect(launch).toContain('wordmarkFade: 440');
-    expect(launch).toContain('fullMotionHold: 440');
-    expect(launch).toContain('fullMotionExit: 300');
+    expect(screen).not.toContain('SetupBrandHaloBackdrop');
+    expect(screen).toContain('<SetupApplyingOverlay visible={busy} />');
+    expect(onboarding).not.toContain('LinearGradient');
+    expect(onboarding).not.toContain('brandHalo');
+    expect(onboarding).toContain('<ActivityIndicator');
   });
 
-  it('시간 오류는 포커스를 벗어나거나 다음·저장을 누른 뒤에만 표시합니다', () => {
-    const setup = source('src/app/setup.tsx');
-    const pattern = source('src/app/pattern.tsx');
+  it('기존 긴 근무 순서 편집은 가상화와 단일 선택 상태를 유지해요', () => {
     const components = source('src/features/setup/setup-components.tsx');
 
-    expect(setup).toContain('setRevealValidation(true)');
-    expect(pattern).toContain('setRevealValidation(true)');
-    expect(components).toContain("touchedFields.has('start')");
-    expect(components).toContain("touchedFields.has('end')");
-    expect(components).toContain('showStartError && styles.invalidInput');
-    expect(components).toContain('showEndError && styles.invalidInput');
+    expect(components).toContain('<FlatList');
+    expect(components).toContain('accessibilityRole="radiogroup"');
+    expect(components).toContain('selected={activeIndex === index}');
+    expect(components).not.toContain('선택됨`');
+  });
+
+  it('근무표 상세 편집도 공용 mutation과 부분 실패 복구를 유지해요', () => {
+    const pattern = source('src/app/pattern.tsx');
+    const store = source('src/application/runtime/store/commands-coordinator.ts');
+
+    expect(pattern).toContain('buildWorkPatternMutation');
+    expect(pattern).toContain("issue.issueCode === 'alarm-sync-failed'");
+    expect(pattern).toContain('resyncAlarms(true)');
+    expect(store).toContain('saveOutcome: context.saveOutcomeRef.current');
   });
 });

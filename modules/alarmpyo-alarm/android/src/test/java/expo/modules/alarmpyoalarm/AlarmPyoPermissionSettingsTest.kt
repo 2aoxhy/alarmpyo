@@ -87,21 +87,85 @@ class AlarmPyoPermissionSettingsTest {
   }
 
   @Test
-  fun `do not disturb and battery use public settings without privileged access requests`() {
+  fun `do not disturb uses public settings without privileged access requests`() {
     val dnd = AlarmPyoPermissionSettings.intentSpecs(
       apiLevel = 36,
       target = AlarmPyoPermissionSettingsTarget.DO_NOT_DISTURB
     )
-    val battery = AlarmPyoPermissionSettings.intentSpecs(
-      apiLevel = 36,
-      target = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION
-    )
-
     assertEquals(Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS, dnd[0].action)
     assertEquals(Settings.ACTION_SOUND_SETTINGS, dnd[1].action)
     assertFalse(dnd.any { it.action == Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS })
-    assertEquals(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, battery[0].action)
-    assertFalse(battery.any { it.action == Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS })
+  }
+
+  @Test
+  fun `battery restrictions opens this app's details without a global optimization list or exemption request`() {
+    for (apiLevel in Build.VERSION_CODES.O..36) {
+      val specs = AlarmPyoPermissionSettings.intentSpecs(
+        apiLevel = apiLevel,
+        target = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION
+      )
+
+      assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, specs.first().action)
+      assertEquals(AlarmPyoPermissionSettingsDestination.APP_DETAILS, specs.first().destination)
+      assertTrue(specs.first().packageData)
+      assertFalse(specs.any { it.action == Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS })
+      assertFalse(specs.any { it.action == Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS })
+      assertEquals(Settings.ACTION_APPLICATION_SETTINGS, specs[1].action)
+      assertEquals(Settings.ACTION_SETTINGS, specs[2].action)
+    }
+  }
+
+  @Test
+  fun `battery app details is the primary destination and preserves the requested target`() {
+    val attempts = mutableListOf<AlarmPyoPermissionSettingsDestination>()
+    val result = AlarmPyoPermissionSettings.launchFirstAvailable(
+      requestedTarget = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION,
+      specs = AlarmPyoPermissionSettings.intentSpecs(
+        apiLevel = 36,
+        target = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION
+      )
+    ) { spec ->
+      attempts += spec.destination
+      true
+    }
+
+    assertEquals(listOf(AlarmPyoPermissionSettingsDestination.APP_DETAILS), attempts)
+    assertEquals(
+      mapOf(
+        "opened" to true,
+        "requestedTarget" to "battery-optimization",
+        "openedTarget" to "app-details",
+        "fallbackUsed" to false
+      ),
+      result.toMap()
+    )
+  }
+
+  @Test
+  fun `battery settings only falls back to an app list when app details cannot open`() {
+    val attempts = mutableListOf<AlarmPyoPermissionSettingsDestination>()
+    val result = AlarmPyoPermissionSettings.launchFirstAvailable(
+      requestedTarget = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION,
+      specs = AlarmPyoPermissionSettings.intentSpecs(
+        apiLevel = 36,
+        target = AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION
+      )
+    ) { spec ->
+      attempts += spec.destination
+      spec.destination == AlarmPyoPermissionSettingsDestination.APPLICATION_SETTINGS
+    }
+
+    assertEquals(
+      listOf(
+        AlarmPyoPermissionSettingsDestination.APP_DETAILS,
+        AlarmPyoPermissionSettingsDestination.APPLICATION_SETTINGS
+      ),
+      attempts
+    )
+    assertTrue(result.opened)
+    assertTrue(result.fallbackUsed)
+    assertEquals(AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION, result.requestedTarget)
+    assertEquals(AlarmPyoPermissionSettingsDestination.APPLICATION_SETTINGS, result.openedTarget)
   }
 
   @Test

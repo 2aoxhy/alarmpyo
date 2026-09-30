@@ -1,13 +1,9 @@
 import { isValidDateKey } from '../../utils/date';
+import { AppDataValidationError } from '../../models/app-data-validation-error';
 
 export type UnknownRecord = Record<string, unknown>;
 
-export class AppDataValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AppDataValidationError';
-  }
-}
+export { AppDataValidationError };
 
 export function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

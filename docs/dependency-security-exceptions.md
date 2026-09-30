@@ -1,32 +1,34 @@
 # 의존성 보안 예외 기록
 
-검토일은 2026-08-12이며 예외 만료일은 2026-09-09예요. 기계 판독 정책은
-[`dependency-security-policy.json`](../dependency-security-policy.json)에 있어요.
+## 현재 정책 · 2026-09-30
 
-## 임시 허용 항목
+활성 예외는 없습니다. 기계 판독 정책은
+[`dependency-security-policy.json`](../dependency-security-policy.json)의 빈 `exceptions` 배열입니다.
+높은 등급·치명적 취약점은 전이 의존성을 포함해 모두 차단합니다.
 
-| 패키지 | 보안 권고 | 등급 | 만료일 |
-| --- | --- | --- | --- |
-| `image-size` | [`GHSA-w3rx-r6r6-pgpr`](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr) | 높음 | 2026-09-09 |
-| `image-size` | [`GHSA-5p2g-fcmc-qvqq`](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq) | 높음 | 2026-09-09 |
+`npm run audit:dependencies`는 production 의존성을, `npm run audit:tooling`은 개발 도구를 포함해 검사합니다.
+원본 검사는 각각 `audit:dependencies:raw`, `audit:tooling:raw`입니다.
+조회 실패, 잘못된 JSON, 지원하지 않는 보고서 버전, 불완전한 집계·권고·의존 경로도 검사 실패로 처리합니다.
+npm의 정상 취약점 보고서 종료 코드 1은 조회 실패와 구분합니다.
 
-두 항목은 Expo와 Metro가 빌드 과정에서 저장소의 로컬 이미지 크기를 읽을 때
-사용하는 `image-size`의 서비스 거부 취약점이에요. 현재 공개된 최신 버전
-`2.0.2`까지 영향을 받고 수정 버전은 아직 없어요. 앱에 설치되는 근무표와 알람
-런타임에는 `image-size`가 포함되지 않으며, 빌드에서는 관리 중인 로컬 자산만
-처리해요.
+주간·수동 검사 외에 정책·의존성·URI 호환 코드의 PR 및 `main` 변경에서도 검사합니다.
+설치 성공 후 production 감사가 실패하더라도 tooling 감사를 실행하며, 어느 검사든 실패하면 작업 전체가 실패합니다.
+작업 요약에는 검사 커밋, 앱 버전, 패키지, 권고, 의존 경로와 결과 이유를 남기고 레지스트리 오류 원문은 출력하지 않습니다.
 
-`npm run audit:dependencies`는 npm 감사 결과를 읽고 위 두 권고에서 파생된
-경고만 만료일까지 허용해요. 새로운 높은 등급 또는 치명적 취약점, 정책과 다른
-패키지의 경고, 만료된 예외는 모두 실패해요. 원본 결과가 필요하면
-`npm run audit:dependencies:raw`를 실행해요. 개발 도구까지 포함한 검사는
-`npm run audit:tooling`, 원본 검사는 `npm run audit:tooling:raw`로 실행해요.
+## 해결된 임시 예외 · 이력 보존
 
-`npm audit fix --force`가 제안하는 Expo·React Native 하향은 현재 SDK와 네이티브
-모듈 호환성을 깨뜨리므로 적용하지 않아요. `image-size` 수정 버전이 공개되거나
-Expo의 Metro 의존성이 교체되면 예외를 제거하고 즉시 다시 검사해요.
+검토일: 2026-08-12. 당시 만료일: 2026-09-09. 두 항목은 현재 정책에서 제거되었습니다.
 
-만료 전에 수정 버전이 나오면 Expo·Metro 호환성을 확인해 갱신한 뒤 이 예외를
-제거해요. 수정 버전이 계속 없다면 신뢰한 저장소 이미지에만 쓰이는 빌드 도구라는
-노출 범위를 다시 확인하고, 검토일로부터 최대 30일까지만 새 만료일을 승인해요.
-검토 없이 만료일만 늘리지 않으며 만료된 예외는 canary 검사도 차단해요.
+| 패키지 | 보안 권고 | 등급 | 당시 만료일 | 현재 상태 |
+| --- | --- | --- | --- | --- |
+| `image-size` | [`GHSA-w3rx-r6r6-pgpr`](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr) | 높음 | 2026-09-09 | 의존성 제거·해결 |
+| `image-size` | [`GHSA-5p2g-fcmc-qvqq`](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq) | 높음 | 2026-09-09 | 의존성 제거·해결 |
+
+당시 Expo·Metro가 저장소의 로컬 이미지 크기를 읽는 빌드 경로에 한정해 일시 허용했습니다.
+앱의 근무표·알람 런타임에는 포함되지 않았으며, 검토 당시 공개 버전에는 수정판이 없었습니다.
+현재 잠금 파일의 공식 Metro 0.84.5는 해당 `image-size` 의존성을 제거했습니다.
+URI 디코더 호환 코드와 Metro의 잘못된 이미지 입력에 대한 회귀 테스트를 보안 workflow에서도 실행합니다.
+
+예외 만료일은 연장하지 않았습니다. 이 표는 과거 검토 기록이며 현재 허용 목록이 아닙니다.
+`npm audit fix --force`로 SDK나 네이티브 의존성을 임의 하향하지 않습니다.
+새 예외는 정책 파일만 추가해 활성화할 수 없으며 코드와 영향 범위의 별도 검토가 필요합니다.

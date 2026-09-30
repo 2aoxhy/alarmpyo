@@ -11,7 +11,7 @@ import {
 import { useAppDialog } from '@/components/app-dialog';
 import { AppIcon } from '@/components/app-icon';
 import { AppButton, AppText } from '@/components/ui-kit';
-import { radii, spacing, type AppPalette } from '@/constants/app-theme';
+import { spacing, type AppPalette } from '@/constants/app-theme';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
@@ -306,8 +306,6 @@ const createStyles = (palette: AppPalette) =>
       flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: radii.medium,
-      backgroundColor: palette.indigoSoft,
     },
     copy: { minWidth: 0, flex: 1, gap: spacing.tiny },
     currentSound: {
@@ -315,8 +313,9 @@ const createStyles = (palette: AppPalette) =>
       justifyContent: 'center',
       gap: spacing.tiny,
       padding: spacing.medium,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
     },
     loadingRow: {
       minHeight: 64,
@@ -324,8 +323,9 @@ const createStyles = (palette: AppPalette) =>
       alignItems: 'center',
       gap: spacing.small,
       paddingHorizontal: spacing.medium,
-      borderRadius: radii.medium,
-      backgroundColor: palette.surfaceSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.line,
     },
     errorBlock: { gap: spacing.small },
     actionRow: {

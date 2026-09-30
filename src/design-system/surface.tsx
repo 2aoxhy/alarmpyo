@@ -1,13 +1,7 @@
 import { useMemo, type PropsWithChildren } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  type StyleProp,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 
-import { radius, space } from './tokens';
+import { shape, space } from './tokens';
 import {
   type DesignSystemThemeProps,
   useDesignSystemTheme,
@@ -16,6 +10,7 @@ import {
 export type SurfaceProps = PropsWithChildren<DesignSystemThemeProps & {
   tone?: 'base' | 'muted' | 'selected';
   density?: 'regular' | 'compact';
+  /** @deprecated 평면형 공통 표면에는 그림자를 사용하지 않습니다. */
   elevated?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -52,9 +47,10 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
   return StyleSheet.create({
     surface: {
       padding: space.lg,
-      borderWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      borderRadius: radius.lg,
+      borderRadius: shape.section,
       backgroundColor: colors.surface,
     },
     compact: {
@@ -67,15 +63,8 @@ function createStyles(colors: ReturnType<typeof useDesignSystemTheme>['colors'])
       borderColor: colors.borderStrong,
       backgroundColor: colors.surfaceSelected,
     },
-    elevated:
-      Platform.OS === 'web'
-        ? { boxShadow: '0 10px 28px rgba(0,0,0,0.28)' }
-        : {
-            elevation: 4,
-            shadowColor: '#000000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.24,
-            shadowRadius: 20,
-          },
+    elevated: {
+      borderColor: colors.borderStrong,
+    },
   });
 }

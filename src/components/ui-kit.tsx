@@ -3,10 +3,15 @@ import {
   type PropsWithChildren,
   type ReactNode,
   type Ref,
+  useEffect,
+  useId,
+  useState,
 } from 'react';
+import { useIsFocused } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -26,11 +31,15 @@ import {
 } from 'react-native-safe-area-context';
 
 import { AppIcon, type AppIconName } from '@/components/app-icon';
+import {
+  resolveScreenContentBottomInset,
+  useGlobalBottomOverlayLayout,
+} from '@/components/global-bottom-overlay-layout';
 import { type AppPalette } from '@/constants/app-theme';
 import {
   createSemanticColors,
   interaction,
-  radius,
+  shape,
   resolveTextTone,
   size as controlSize,
   space,
@@ -60,6 +69,7 @@ type AppTextProps = PropsWithChildren<{
   color?: string;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  'aria-level'?: 1 | 2 | 3 | 4 | 5 | 6;
 }> & Pick<
   TextProps,
   'accessibilityLabel' | 'accessibilityRole' | 'maxFontSizeMultiplier' | 'selectable'
@@ -76,6 +86,7 @@ export const AppText = forwardRef<Text, AppTextProps>(function AppText({
   selectable,
   accessibilityLabel,
   accessibilityRole,
+  'aria-level': ariaLevel,
 }, ref) {
   const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -84,6 +95,7 @@ export const AppText = forwardRef<Text, AppTextProps>(function AppText({
       ref={ref}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
+      aria-level={ariaLevel}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       numberOfLines={numberOfLines}
       selectable={selectable}
@@ -108,6 +120,7 @@ export function Screen({
   maxContentWidth = 600,
   safeAreaEdges = DEFAULT_SCREEN_SAFE_AREA_EDGES,
   showsVerticalScrollIndicator = Platform.OS !== 'web',
+  removeClippedSubviews,
 }: PropsWithChildren<{
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
@@ -117,30 +130,64 @@ export function Screen({
   maxContentWidth?: number;
   safeAreaEdges?: readonly Edge[];
   showsVerticalScrollIndicator?: boolean;
+  removeClippedSubviews?: boolean;
 }>) {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const styles = useThemedStyles(createStyles);
   const { fontScale } = useWindowDimensions();
+  const footerOwner = useId();
+  const hasFooter = Boolean(footer);
+  const [footerInset, setFooterInset] = useState(0);
+  const {
+    contentInset: globalBottomOverlayInset,
+    registerBottomControlInset,
+  } = useGlobalBottomOverlayLayout();
   const floatingTabBarContentOffset = resolveFloatingTabBarLayout(
     fontScale,
     insets.bottom,
     Platform.OS === 'web',
   ).contentOffset;
+  const contentBottomInset = resolveScreenContentBottomInset({
+    floatingControlInset: floatingTabBarContentOffset,
+    footerInset: footer ? footerInset : null,
+    footerPadding: space.xl,
+    globalOverlayInset: globalBottomOverlayInset,
+    overlayGap: space.sm,
+  });
+
+  useEffect(() => {
+    if (!isFocused || !hasFooter || footerInset <= 0) {
+      registerBottomControlInset(footerOwner, 0);
+      return;
+    }
+    registerBottomControlInset(footerOwner, footerInset);
+    return () => registerBottomControlInset(footerOwner, 0);
+  }, [footerInset, footerOwner, hasFooter, isFocused, registerBottomControlInset]);
+
+  const measureFooter = (event: LayoutChangeEvent) => {
+    const nextInset =
+      event.nativeEvent.layout.height + Math.max(footerBottomOffset, 0);
+    setFooterInset((current) => (current === nextInset ? current : nextInset));
+  };
   const content = (
     <View
       style={[
         styles.screenContent,
         { maxWidth: maxContentWidth },
         contentStyle,
-        footer
-          ? styles.screenContentWithFooter
-          : { paddingBottom: floatingTabBarContentOffset },
+        { paddingBottom: contentBottomInset },
       ]}>
       {children}
     </View>
   );
   return (
-    <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
+    <SafeAreaView
+      accessibilityElementsHidden={!isFocused}
+      edges={safeAreaEdges}
+      importantForAccessibility={isFocused ? 'auto' : 'no-hide-descendants'}
+      pointerEvents={isFocused ? 'auto' : 'none'}
+      style={[styles.safeArea, !isFocused && styles.screenHidden]}>
       {background ? (
         <View
           accessibilityElementsHidden
@@ -160,6 +207,7 @@ export function Screen({
             contentContainerStyle={styles.scrollContent}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
+            removeClippedSubviews={removeClippedSubviews}
             showsVerticalScrollIndicator={showsVerticalScrollIndicator}>
             {content}
           </ScrollView>
@@ -168,6 +216,7 @@ export function Screen({
         )}
         {footer ? (
           <View
+            onLayout={measureFooter}
             style={[
               styles.footer,
               {
@@ -209,7 +258,7 @@ export function SectionHeader({
     if (!hasAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderCenteredOnly]}>
-          <Heading level={3} style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleFull}>
             {title}
           </Heading>
         </View>
@@ -219,7 +268,7 @@ export function SectionHeader({
     if (stackCenteredAction) {
       return (
         <View style={[styles.sectionHeader, styles.sectionHeaderStacked]}>
-          <Heading level={3} style={styles.sectionHeaderTitleFull}>
+          <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleFull}>
             {title}
           </Heading>
           <Pressable
@@ -242,7 +291,7 @@ export function SectionHeader({
     return (
       <View style={[styles.sectionHeader, styles.sectionHeaderCentered]}>
         <View style={styles.sectionHeaderSide} />
-        <Heading level={3} style={styles.sectionHeaderTitleCentered}>
+        <Heading level={3} semanticLevel={2} style={styles.sectionHeaderTitleCentered}>
           {title}
         </Heading>
         <View style={styles.sectionHeaderSide}>
@@ -268,7 +317,7 @@ export function SectionHeader({
 
   return (
     <View style={styles.sectionHeader}>
-      <Heading level={3}>
+      <Heading level={3} semanticLevel={2}>
         {title}
       </Heading>
       {action && onAction ? (
@@ -338,11 +387,12 @@ export function ListRow({
   allowSubtitleWrapping?: boolean;
   elementRef?: Ref<React.ElementRef<typeof Pressable>>;
 }) {
-  const { isDark, palette } = useAppTheme();
+  const { palette } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const rowFocus = useWebFocusVisible();
   const { fontScale, width } = useWindowDimensions();
   const reflow = shouldReflowControl(width, fontScale);
+  const titleLineHeight = typeScale.label.lineHeight * Math.min(fontScale, 2);
   const foreground = disabled || loading
     ? palette.disabledInk
     : destructive
@@ -354,9 +404,7 @@ export function ListRow({
       : palette.danger
     : disabled || loading
       ? palette.disabledInk
-      : isDark
-        ? palette.indigoDark
-        : palette.indigo;
+      : palette.inkSoft;
   return (
     <Pressable
       ref={elementRef}
@@ -374,29 +422,39 @@ export function ListRow({
         (disabled || loading) && styles.rowDisabled,
         rowFocus.focusVisible && onPress && !disabled && !loading && styles.webFocusVisible,
       ]}>
-      <IconTile
-        icon={icon}
-        color={iconForeground}
-        backgroundColor={destructive ? palette.dangerSoft : palette.surfaceSoft}
-      />
-      <View style={styles.listRowText}>
-        <AppText variant="label" color={foreground} style={styles.listRowTitle}>
-          {title}
-        </AppText>
-        {subtitle ? (
-          <AppText
-            variant="caption"
-            tone="secondary"
-            numberOfLines={
-              allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2
-            }
-            style={styles.listRowSubtitle}>
-            {subtitle}
+      <View style={[styles.listRowMain, reflow && styles.listRowMainReflow]}>
+        <View style={[styles.listRowIcon, { height: titleLineHeight }]}>
+          <AppIcon
+            accessible={false}
+            color={iconForeground}
+            name={icon}
+            size={controlSize.iconMedium}
+          />
+        </View>
+        <View style={styles.listRowText}>
+          <AppText variant="label" color={foreground} style={styles.listRowTitle}>
+            {title}
           </AppText>
-        ) : null}
+          {subtitle ? (
+            <AppText
+              variant="caption"
+              tone="secondary"
+              numberOfLines={
+                allowSubtitleWrapping || reflow || fontScale >= 1.3 ? undefined : 2
+              }
+              style={styles.listRowSubtitle}>
+              {subtitle}
+            </AppText>
+          ) : null}
+        </View>
       </View>
       {loading || trailing || onPress ? (
-        <View style={styles.listRowTrailing}>
+        <View
+          style={[
+            styles.listRowTrailing,
+            reflow && styles.listRowTrailingReflow,
+            { minHeight: titleLineHeight },
+          ]}>
           {loading ? (
             <ActivityIndicator color={palette.indigo} size="small" />
           ) : (
@@ -431,14 +489,15 @@ export function MenuGroup({
     <View style={[styles.menuGroup, style]}>
       <AppText
         accessibilityRole="header"
+        aria-level={2}
         style={[styles.menuGroupTitle, centered && styles.menuGroupTitleCentered]}
         tone="secondary"
         variant="label">
         {title}
       </AppText>
-      <Card density="compact" style={styles.menuGroupCard}>
+      <View style={styles.menuGroupRows}>
         {children}
-      </Card>
+      </View>
     </View>
   );
 }
@@ -453,6 +512,9 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flex: 1,
     backgroundColor: palette.canvas,
     overflow: 'hidden',
+  },
+  screenHidden: {
+    display: 'none',
   },
   keyboardAvoider: { flex: 1 },
   scrollContent: {
@@ -527,7 +589,7 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   iconTile: {
     width: controlSize.minimumTouchTarget,
     height: controlSize.minimumTouchTarget,
-    borderRadius: radius.sm,
+    borderRadius: shape.control,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -536,12 +598,33 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
-  listRowReflow: { alignItems: 'flex-start' },
-  rowPressed: { opacity: interaction.pressedOpacity },
+  listRowReflow: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+    gap: space.xs,
+  },
+  listRowMain: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+  },
+  listRowMainReflow: {
+    width: '100%',
+    flex: 0,
+  },
+  listRowIcon: {
+    width: controlSize.minimumTouchTarget,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowPressed: { backgroundColor: palette.surfaceSoft },
   rowDisabled: {
-    borderRadius: radius.md,
     backgroundColor: palette.disabledSurface,
   },
   listRowText: {
@@ -564,6 +647,9 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  listRowTrailingReflow: {
+    alignSelf: 'flex-end',
+  },
   menuGroup: {
     gap: space.sm,
   },
@@ -575,15 +661,17 @@ const createStyles = (palette: AppPalette, isDark: boolean) => ({
   menuGroupTitleCentered: {
     textAlign: 'center',
   },
-  menuGroupCard: {
-    paddingHorizontal: space.lg,
+  menuGroupRows: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.line,
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: palette.line,
   },
   menuDividerInset: {
-    marginLeft: controlSize.minimumTouchTarget + space.md,
+    marginLeft: space.lg + controlSize.minimumTouchTarget + space.md,
   },
 } satisfies Record<string, ViewStyle | TextStyle>);
 

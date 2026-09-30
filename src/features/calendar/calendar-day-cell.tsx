@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/status-badge';
 import type { AppPalette } from '@/constants/app-theme';
 import { fontFamily } from '@/constants/typography';
 import { useWebFocusVisible } from '@/hooks/use-web-focus-visible';
+import type { DayAlarmOverride } from '@/models/app-data';
 import type { EffectiveDay } from '@/services/app-data-service';
 import { resolveCalendarDayViewModel } from '@/services/calendar-month-view-model';
 import type { PayrollCalendarEntry } from '@/services/payroll-schedule';
@@ -41,6 +42,8 @@ export type CalendarDayCellStyles = ReturnType<
 
 type Props = {
   calendarLayout: CalendarLayout;
+  alarmOverride: DayAlarmOverride | null;
+  automaticScheduleHidden: boolean;
   cell: CalendarCell;
   effectiveDay: EffectiveDay;
   elementRef?: Ref<React.ElementRef<typeof Pressable>>;
@@ -64,6 +67,8 @@ type Props = {
 };
 
 export const CalendarDayCell = memo(function CalendarDayCell({
+  alarmOverride,
+  automaticScheduleHidden,
   calendarLayout,
   cell,
   effectiveDay,
@@ -124,6 +129,8 @@ export const CalendarDayCell = memo(function CalendarDayCell({
     resolveCalendarDayViewModel({
       cell,
       effectiveDay,
+      alarmOverride,
+      automaticScheduleHidden,
       hasDirectScheduleOverride: hasOverride,
       hasNote,
       holiday,
@@ -201,23 +208,35 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           selectionSegment === 'end' && styles.selectedCellEnd,
           isToday && { opacity: todayBlink },
         ]}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.dayIndicatorRow}>
-          {isSelected ? (
-            <View style={styles.selectedCheck}>
-              <AppIcon
-                accessible={false}
-                color={palette.canvas}
-                name="checkmark"
-                size={10}
-                strokeWidth={2.6}
-              />
+        {selectionMode || hasNote || alarmOverride ? (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.dayIndicatorRow}>
+            {isSelected ? (
+              <View style={styles.selectedCheck}>
+                <AppIcon
+                  accessible={false}
+                  color={palette.canvas}
+                  name="checkmark"
+                  size={10}
+                  strokeWidth={2.6}
+                />
+              </View>
+            ) : <View style={styles.indicatorPlaceholder} />}
+            <View style={styles.indicatorMetadata}>
+              {alarmOverride ? (
+                <AppIcon
+                  accessible={false}
+                  color={palette.indigoDark}
+                  name="alarm-outline"
+                  size={12}
+                />
+              ) : null}
+              {hasNote ? <View style={styles.noteDot} /> : null}
             </View>
-          ) : <View style={styles.indicatorPlaceholder} />}
-          {hasNote ? <View style={styles.noteDot} /> : null}
-        </View>
+          </View>
+        ) : null}
         <View style={styles.dayHeader}>
           <View
             style={[
@@ -254,12 +273,14 @@ export const CalendarDayCell = memo(function CalendarDayCell({
 
         {simplified ? (
           <>
-            <CalendarDateMetadataMarkers
-              compact
-              markers={statusDisplay.markers}
-              palette={palette}
-              styles={styles}
-            />
+            {statusDisplay.markers.length > 0 ? (
+              <CalendarDateMetadataMarkers
+                compact
+                markers={statusDisplay.markers}
+                palette={palette}
+                styles={styles}
+              />
+            ) : null}
             <View style={styles.simpleShiftSlot}>
               {shift || dayExceptionLabel ? (
                 <StatusBadge
@@ -309,11 +330,13 @@ export const CalendarDayCell = memo(function CalendarDayCell({
           </>
         ) : (
           <>
-            <CalendarDateMetadataMarkers
-              markers={statusDisplay.markers}
-              palette={palette}
-              styles={styles}
-            />
+            {statusDisplay.markers.length > 0 ? (
+              <CalendarDateMetadataMarkers
+                markers={statusDisplay.markers}
+                palette={palette}
+                styles={styles}
+              />
+            ) : null}
 
             <View
               style={[
@@ -446,6 +469,8 @@ function areCalendarDayCellPropsEqual(previous: Props, next: Props): boolean {
   return (
     selectionUnchanged &&
     previous.calendarLayout === next.calendarLayout &&
+    previous.alarmOverride === next.alarmOverride &&
+    previous.automaticScheduleHidden === next.automaticScheduleHidden &&
     previous.cell === next.cell &&
     previous.effectiveDay === next.effectiveDay &&
     previous.elementRef === next.elementRef &&
@@ -557,6 +582,14 @@ export function createCalendarDayCellStyles(palette: AppPalette) {
       backgroundColor: palette.white,
     },
     indicatorPlaceholder: { width: 16, height: 16 },
+    indicatorMetadata: {
+      minWidth: 16,
+      height: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 3,
+    },
     noteDot: {
       width: 5,
       height: 5,

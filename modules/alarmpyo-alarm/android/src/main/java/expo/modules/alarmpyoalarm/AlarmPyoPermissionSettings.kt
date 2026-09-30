@@ -134,13 +134,9 @@ internal object AlarmPyoPermissionSettings {
       ),
       *appDetailsSpecs().toTypedArray()
     )
-    AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION -> listOf(
-      AlarmPyoPermissionSettingsIntentSpec(
-        destination = AlarmPyoPermissionSettingsDestination.BATTERY_OPTIMIZATION,
-        action = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-      ),
-      *appDetailsSpecs().toTypedArray()
-    )
+    // The battery optimization action opens a global app list and ignores package data.
+    // App details is the public, package-scoped entry point to this app's battery controls.
+    AlarmPyoPermissionSettingsTarget.BATTERY_OPTIMIZATION -> appDetailsSpecs()
     AlarmPyoPermissionSettingsTarget.APP_DETAILS -> appDetailsSpecs()
   }
 

@@ -4,9 +4,14 @@ export type StorageAdapter = {
   removeItem?: (key: string) => Promise<void>;
 };
 
-export type StorageWriter = {
+export type StorageWriteOperations = {
   write: (key: string, value: string) => Promise<void>;
   remove: (key: string) => Promise<void>;
+};
+
+export type StorageWriter = StorageWriteOperations & {
+  /** Use the supplied operations inside the callback; re-enqueueing would deadlock. */
+  runExclusive: <T>(operation: (writer: StorageWriteOperations) => Promise<T>) => Promise<T>;
 };
 
 export type SerializedMutationCoordinator = {
@@ -33,22 +38,21 @@ export function createSerializedStorageWriter(
   removedValue = '',
 ): StorageWriter {
   let tail: Promise<void> = Promise.resolve();
-
+  const operations: StorageWriteOperations = {
+    write: (key, value) => storage.setItem(key, value),
+    remove: (key) => storage.removeItem
+      ? storage.removeItem(key)
+      : storage.setItem(key, removedValue),
+  };
+  const runExclusive = <T>(operation: (writer: StorageWriteOperations) => Promise<T>) => {
+    const task = tail.then(() => operation(operations));
+    tail = task.then(() => undefined, () => undefined);
+    return task;
+  };
   return {
-    write(key, value) {
-      const task = tail.then(() => storage.setItem(key, value));
-      tail = task.catch(() => undefined);
-      return task;
-    },
-    remove(key) {
-      const task = tail.then(() =>
-        storage.removeItem
-          ? storage.removeItem(key)
-          : storage.setItem(key, removedValue),
-      );
-      tail = task.catch(() => undefined);
-      return task;
-    },
+    write: (key, value) => runExclusive((writer) => writer.write(key, value)),
+    remove: (key) => runExclusive((writer) => writer.remove(key)),
+    runExclusive,
   };
 }
 

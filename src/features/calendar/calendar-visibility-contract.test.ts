@@ -21,6 +21,10 @@ const supportSections = readFileSync(
   resolve(process.cwd(), 'src/features/calendar/calendar-support-sections.tsx'),
   'utf8',
 );
+const calendarScreen = readFileSync(
+  resolve(process.cwd(), 'src/app/(tabs)/calendar.tsx'),
+  'utf8',
+);
 
 describe('달력 가시성 계약', () => {
   it('토요일은 중립 회색이 아닌 별도 의미색을 사용해요', () => {
@@ -94,5 +98,12 @@ describe('달력 가시성 계약', () => {
     expect(dayCell).toContain('width: 16');
     expect(dayCell).not.toContain("selectedCheck: {\n      position: 'absolute'");
     expect(dayCell).toContain('outlineColor: palette.focus');
+  });
+
+  it('6주 달력은 없는 표식 행을 접고 하단 안내 뒤에 여백을 둡니다', () => {
+    expect(dayCell).toContain('selectionMode || hasNote || alarmOverride');
+    expect(dayCell.match(/statusDisplay\.markers\.length > 0/g)).toHaveLength(2);
+    expect(calendarScreen).toContain('style={screenStyles.bottomClearance}');
+    expect(calendarScreen).toContain('bottomClearance: { height: spacing.small }');
   });
 });

@@ -35,6 +35,7 @@ export type ShiftDraft = {
 };
 
 export type EditorSection = 'day' | 'evening' | 'night' | 'substitute';
+export type WorkShiftEditorSection = Exclude<EditorSection, 'substitute'>;
 
 export type WorkSchedulePreviewItem = {
   dateKey: string;
@@ -92,6 +93,16 @@ export function getEditorSectionForDraftId(id: string): EditorSection {
   return 'substitute';
 }
 
+/** 현재 패턴에서 실제로 사용하는 근무만 고정된 주간→오후→야간 순서로 표시합니다. */
+export function getActiveWorkShiftIds(
+  patternShiftTypeIds: readonly string[],
+): WorkShiftEditorSection[] {
+  const activeIds = new Set(patternShiftTypeIds);
+  return (['day', 'evening', 'night'] as const).filter((id) =>
+    activeIds.has(id),
+  );
+}
+
 export function createShiftDrafts(shiftTypes: readonly ShiftType[]): ShiftDraft[] {
   return shiftTypes
     .filter(
@@ -107,6 +118,17 @@ export function createShiftDrafts(shiftTypes: readonly ShiftType[]): ShiftDraft[
       alarmEnabled: shift.alarmEnabled,
       alarmMinutesBefore: shift.alarmMinutesBefore,
     }));
+}
+
+export function applySharedWakePatch(
+  drafts: readonly ShiftDraft[],
+  draftIds: readonly string[],
+  patch: Pick<Partial<ShiftDraft>, 'alarmEnabled' | 'alarmMinutesBefore'>,
+): ShiftDraft[] {
+  const targetIds = new Set(draftIds);
+  return drafts.map((draft) =>
+    targetIds.has(draft.id) ? { ...draft, ...patch } : draft,
+  );
 }
 
 export function isShiftDraftValid(draft: ShiftDraft): boolean {

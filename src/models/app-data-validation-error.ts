@@ -1,0 +1,6 @@
+export class AppDataValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AppDataValidationError';
+  }
+}

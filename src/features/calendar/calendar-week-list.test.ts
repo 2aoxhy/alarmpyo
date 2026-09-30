@@ -140,6 +140,7 @@ describe('달력 주차 목록', () => {
   it('날짜와 실제 근무 다음에 전체 메타데이터를 정해진 순서로 표시합니다', () => {
     expect(
       buildCalendarWeekListMetadata({
+        hasAlarmOverride: true,
         hasNote: true,
         hasOverride: true,
         holidayFullLabel: '광복절',
@@ -150,6 +151,7 @@ describe('달력 주차 목록', () => {
       { kind: 'payday', label: '급여일 · 2026년 8월 월급날' },
       { kind: 'note', label: '메모 있음' },
       { kind: 'override', label: '직접 변경' },
+      { kind: 'alarm', label: '날짜별 알람' },
     ]);
 
     const dateIndex = weekListSource.indexOf('<View style={styles.dateMetadata}>');

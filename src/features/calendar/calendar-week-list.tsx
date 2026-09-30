@@ -34,6 +34,8 @@ import {
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
 type Props = {
+  alarmOverrides: AppData['alarmOverrides'];
+  automaticScheduleHiddenDateKeySet: ReadonlySet<string>;
   cellRows: readonly (readonly CalendarCell[])[];
   effectiveDays: ReadonlyMap<string, EffectiveDay>;
   fontScale: number;
@@ -54,6 +56,8 @@ type Props = {
 };
 
 export function CalendarWeekList({
+  alarmOverrides,
+  automaticScheduleHiddenDateKeySet,
   cellRows,
   effectiveDays,
   fontScale,
@@ -82,6 +86,7 @@ export function CalendarWeekList({
         <View key={group.weekNumber} style={styles.weekGroup}>
           <AppText
             accessibilityRole="header"
+            aria-level={3}
             style={styles.weekHeader}
             variant="label">
             {group.label}
@@ -96,6 +101,8 @@ export function CalendarWeekList({
 
               return (
                 <CalendarWeekListRow
+                  alarmOverride={alarmOverrides[cell.dateKey] ?? null}
+                  automaticScheduleHidden={automaticScheduleHiddenDateKeySet.has(cell.dateKey)}
                   key={cell.dateKey}
                   cell={cell}
                   effectiveDay={effectiveDay}
@@ -131,6 +138,8 @@ export function CalendarWeekList({
 type WeekListStyles = ReturnType<typeof createStyles>;
 
 function CalendarWeekListRow({
+  alarmOverride,
+  automaticScheduleHidden,
   cell,
   effectiveDay,
   elementRef,
@@ -149,6 +158,8 @@ function CalendarWeekListRow({
   todayBlink,
   weekdayIndex,
 }: {
+  alarmOverride: AppData['alarmOverrides'][string] | null;
+  automaticScheduleHidden: boolean;
   cell: CalendarCell;
   effectiveDay: EffectiveDay;
   elementRef?: Ref<React.ElementRef<typeof Pressable>>;
@@ -186,9 +197,17 @@ function CalendarWeekListRow({
     !dayException && shift?.id.startsWith('substitute-'),
   );
   const isToday = cell.dateKey === today;
-  const statusLabel = dayExceptionLabel ?? shift?.name ?? (scheduleActive ? '일정 없음' : '일정 적용 전');
+  const statusLabel =
+    dayExceptionLabel ??
+    shift?.name ??
+    (automaticScheduleHidden
+      ? '표시 범위 밖'
+      : scheduleActive
+        ? '일정 없음'
+        : '일정 적용 전');
   const shiftTimeLabel = formatCalendarWeekListTime(shift);
   const metadataItems = buildCalendarWeekListMetadata({
+    hasAlarmOverride: Boolean(alarmOverride),
     hasNote,
     hasOverride,
     holidayFullLabel: holiday?.accessibilityLabel ?? null,
@@ -199,6 +218,8 @@ function CalendarWeekListRow({
     selectionMode,
   );
   const dayViewModel = resolveCalendarDayViewModel({
+    alarmOverride,
+    automaticScheduleHidden,
     cell,
     effectiveDay,
     hasDirectScheduleOverride: hasOverride,
@@ -417,6 +438,7 @@ function CalendarWeekMetadataList({
               item.kind === 'payday' && styles.paydayMetadataIndicator,
               item.kind === 'note' && styles.noteMetadataIndicator,
               item.kind === 'override' && styles.overrideMetadataIndicator,
+              item.kind === 'alarm' && styles.alarmMetadataIndicator,
             ]}
           />
           <AppText
@@ -536,6 +558,7 @@ function createStyles(palette: AppPalette) {
     paydayMetadataIndicator: { backgroundColor: palette.amber },
     noteMetadataIndicator: { backgroundColor: palette.indigoDark },
     overrideMetadataIndicator: { backgroundColor: palette.mint },
+    alarmMetadataIndicator: { backgroundColor: palette.indigoDark },
     metadataText: { minWidth: 0, flex: 1 },
     pressedRow: { opacity: 0.74 },
     focusVisible:

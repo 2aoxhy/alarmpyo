@@ -1,4 +1,5 @@
 import type { PlayUpdateStatus } from '@/services/play-app-update-policy';
+import { formatAppReleaseVersionCode } from '../../utils/app-release-version';
 
 import {
   isPlayUpdatePromptSnoozed,
@@ -24,6 +25,13 @@ export type PlayUpdateModalPresentation = {
   primaryLabel: '업데이트' | '지금 설치' | '다시 시도' | null;
   primaryHint: string | undefined;
   snoozable: boolean;
+};
+
+export type PlayUpdateStatusBarPresentation = {
+  actionLabel: '설치' | '다시 시도' | null;
+  message: string;
+  title: string;
+  tone: 'info' | 'success' | 'warning' | 'danger';
 };
 
 /** Keeps the known target version when Play Core reports a transient failure
@@ -89,14 +97,81 @@ export function shouldPresentPlayUpdateModal(
   now = Date.now(),
 ): boolean {
   const kind = resolvePlayUpdateNoticeKind(status);
-  if (!status || kind === null || kind === 'downloading' || kind === 'installed') {
+  // 중앙 알림은 새 버전을 처음 발견했을 때만 사용해요. 다운로드 이후의
+  // 상태는 비차단 상태 바로 이어서 보여 줘 모달이 두 번 뜨지 않게 합니다.
+  if (!status || kind !== 'available') {
     return false;
   }
-  if (kind === 'installing') return true;
   return !isPlayUpdatePromptSnoozed(
     snooze,
     status.availableVersionCode,
     now,
+  );
+}
+
+export function getPlayUpdateStatusBarPresentation(
+  kind: PlayUpdateNoticeKind | null,
+  progress: number | null,
+): PlayUpdateStatusBarPresentation | null {
+  switch (kind) {
+    case 'downloading':
+      return {
+        actionLabel: null,
+        message:
+          progress === null
+            ? 'Google Play에서 준비 중'
+            : `${Math.round(progress)}% 완료`,
+        title: '업데이트 다운로드 중',
+        tone: 'info',
+      };
+    case 'downloaded':
+      return {
+        actionLabel: '설치',
+        message: '다운로드 완료',
+        title: '업데이트 준비 완료',
+        tone: 'success',
+      };
+    case 'installing':
+      return {
+        actionLabel: null,
+        message: 'Google Play에서 처리 중',
+        title: '업데이트 설치 중',
+        tone: 'warning',
+      };
+    case 'failed':
+      return {
+        actionLabel: '다시 시도',
+        message: '네트워크 연결 확인',
+        title: '업데이트 실패',
+        tone: 'danger',
+      };
+    case 'available':
+    case 'installed':
+    case null:
+      return null;
+  }
+}
+
+export function shouldPresentPlayUpdateStatusBar(
+  status: PlayUpdateStatus | null,
+  snooze: PlayUpdatePromptSnooze | null,
+  now = Date.now(),
+): boolean {
+  const kind = resolvePlayUpdateNoticeKind(status);
+  if (
+    !status ||
+    kind === null ||
+    kind === 'available' ||
+    kind === 'installed'
+  ) {
+    return false;
+  }
+
+  const canceled =
+    status.state === 'canceled' || status.installStatus === 'canceled';
+  return !(
+    canceled &&
+    isPlayUpdatePromptSnoozed(snooze, status.availableVersionCode, now)
   );
 }
 
@@ -127,17 +202,17 @@ export function getPlayUpdateTransitionAnnouncement(
   if (previous === current || current === null) return null;
   switch (current) {
     case 'available':
-      return '새 앱 버전을 사용할 수 있습니다.';
+      return '새 버전 있음';
     case 'downloading':
-      return '업데이트 다운로드를 시작했습니다.';
+      return '다운로드 시작';
     case 'downloaded':
-      return '업데이트 설치 준비를 마쳤습니다.';
+      return '설치 준비 완료';
     case 'installing':
-      return '업데이트를 설치하고 있습니다.';
+      return '설치 중';
     case 'failed':
-      return '업데이트를 완료하지 못했습니다. 다시 시도할 수 있습니다.';
+      return '업데이트 실패 · 다시 시도 가능';
     case 'installed':
-      return '업데이트를 설치했습니다.';
+      return '설치 완료';
   }
 }
 
@@ -145,12 +220,12 @@ export function getPlayUpdateModalPresentation(
   kind: PlayUpdateNoticeKind | null,
   versionCode: number,
 ): PlayUpdateModalPresentation {
-  const versionLabel = versionCode > 0 ? `V${versionCode}` : '새 버전';
+  const versionLabel = formatAppReleaseVersionCode(versionCode);
   switch (kind) {
     case 'downloaded':
       return {
-        title: `${versionLabel} 설치 준비 완료`,
-        message: '다운로드를 마쳤습니다. 저장된 근무표를 유지한 채 설치합니다.',
+        title: `${versionLabel} 설치 준비`,
+        message: '다운로드 완료 · 저장된 근무표 유지',
         primaryLabel: '지금 설치',
         primaryHint: '다운로드한 업데이트를 설치합니다.',
         snoozable: true,
@@ -158,16 +233,15 @@ export function getPlayUpdateModalPresentation(
     case 'installing':
       return {
         title: `${versionLabel} 설치 중`,
-        message: 'Google Play가 업데이트를 안전하게 설치하고 있습니다.',
+        message: 'Google Play에서 처리 중',
         primaryLabel: null,
         primaryHint: undefined,
         snoozable: false,
       };
     case 'failed':
       return {
-        title: '업데이트를 완료하지 못했습니다',
-        message:
-          '인터넷 연결과 Google Play 상태를 확인한 뒤 다시 시도할 수 있습니다.',
+        title: '업데이트 실패',
+        message: '인터넷 연결과 Google Play 상태 확인',
         primaryLabel: '다시 시도',
         primaryHint: 'Google Play 업데이트를 다시 시도합니다.',
         snoozable: true,
@@ -178,8 +252,7 @@ export function getPlayUpdateModalPresentation(
     case null:
       return {
         title: `새 버전 ${versionLabel}`,
-        message:
-          'Google Play에서 새 기능과 개선 사항을 안전하게 설치할 수 있습니다.',
+        message: 'Google Play에서 업데이트',
         primaryLabel: '업데이트',
         primaryHint: 'Google Play에서 업데이트를 시작합니다.',
         snoozable: true,

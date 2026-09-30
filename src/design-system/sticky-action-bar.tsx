@@ -1,6 +1,5 @@
 import { useMemo, type PropsWithChildren } from 'react';
 import {
-  Platform,
   StyleSheet,
   type StyleProp,
   View,
@@ -37,9 +36,9 @@ export function StickyActionBar({
   theme,
   testID,
 }: StickyActionBarProps) {
-  const { colors, isDark } = useDesignSystemTheme(theme);
+  const { colors } = useDesignSystemTheme(theme);
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const bottomPadding = includeSafeArea ? Math.max(insets.bottom, space.md) : space.md;
 
   return (
@@ -56,7 +55,7 @@ export function StickyActionBar({
   );
 }
 
-function createStyles(colors: SemanticColors, isDark: boolean) {
+function createStyles(colors: SemanticColors) {
   return StyleSheet.create({
     container: {
       width: '100%',
@@ -65,11 +64,6 @@ function createStyles(colors: SemanticColors, isDark: boolean) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.border,
       backgroundColor: colors.surface,
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: isDark ? 0.24 : 0.08,
-      shadowRadius: 14,
-      elevation: Platform.OS === 'android' ? 8 : 0,
     },
     absolute: {
       position: 'absolute',

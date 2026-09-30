@@ -12,8 +12,11 @@ function source(path: string): string {
 describe('빠른 타이머 화면 계약', () => {
   const tabs = source('src/app/(tabs)/_layout.tsx');
   const timer = source('src/app/(tabs)/timer.tsx');
+  const stepper = source('src/features/timer/quick-timer-duration-stepper.tsx');
   const controller = source('src/features/timer/quick-timer-controller.ts');
   const countdown = source('src/features/timer/quick-timer-countdown.tsx');
+  const displayModel = source('src/features/timer/quick-timer-display-model.ts');
+  const presets = source('src/features/timer/quick-timer-presets.tsx');
   const settings = source('src/components/settings-home.tsx');
 
   it('하단 메뉴를 오늘·달력·타이머·설정 순서로 표시해요', () => {
@@ -28,14 +31,19 @@ describe('빠른 타이머 화면 계약', () => {
     expect(settings).toBeGreaterThan(quickTimer);
     expect(tabs).toContain("title: '타이머'");
     expect(tabs).toContain('resolveFloatingTabBarHorizontalLayout(windowWidth, 4)');
+    expect(tabs).toContain('detachInactiveScreens');
   });
 
-  it('15분·30분·45분·60분을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
-    expect(timer).toContain('quickTimerController.durations.map');
+  it('15분·30분·45분·직접 입력을 제공하고 실행 중에는 교체 확인을 거칩니다', () => {
+    expect(timer.match(/<QuickTimerPresets/g)).toHaveLength(2);
     expect(controller).toContain('QUICK_TIMER_DURATIONS');
-    expect(timer).toContain('한 번에 하나의 타이머만 실행할 수 있습니다.');
-    expect(timer).toContain('실행 중인 타이머를 변경하시겠습니까?');
-    expect(timer).toContain('현재 타이머를 취소하고');
+    expect(presets).toContain('label="직접 입력"');
+    expect(timer).toContain('<QuickTimerDurationStepper');
+    expect(timer).toContain('onSubmit={submitCustomDuration}');
+    expect(timer).not.toContain('label="60분"');
+    expect(timer).toContain('한 번에 1개만 실행');
+    expect(timer).toContain('`${durationMinutes}분으로 변경`');
+    expect(presets).toContain('현재 타이머를 취소하고');
   });
 
   it('실행 중에는 일시정지·초기화, 일시정지 중에는 재개를 제공합니다', () => {
@@ -45,8 +53,8 @@ describe('빠른 타이머 화면 계약', () => {
     expect(timer).toContain('quickTimerController.reset()');
     expect(timer).toContain("label={paused ? '타이머 재개' : '일시정지'}");
     expect(timer).toContain("label={ringing ? '타이머 종료' : '초기화'}");
-    expect(countdown).toContain('재개하면 남은 시간부터 다시 시작합니다.');
-    expect(countdown).toContain('paused\n    ? anchor.remainingMillis');
+    expect(displayModel).toContain('재개하면 남은 시간부터 다시 시작합니다.');
+    expect(displayModel).toContain('paused\n    ? anchor.remainingMillis');
     expect(countdown).toContain('if (!active || !screenActive) return;');
   });
 
@@ -60,12 +68,13 @@ describe('빠른 타이머 화면 계약', () => {
   it('활성 화면에서만 monotonic 남은 시간을 갱신하고 카운트다운을 자동 낭독하지 않아요', () => {
     expect(timer).toContain('const screenActive = useScreenActive();');
     expect(timer).toContain('monotonic: performance.now()');
-    expect(timer).toContain('createQuickTimerCountdownAnchor(');
+    expect(timer).toContain('createQuickTimerDisplayObservation(');
+    expect(displayModel).toContain('createQuickTimerCountdownAnchor(');
     expect(timer).toContain('nextStatus.remainingMillis');
-    expect(countdown).toContain('getQuickTimerRemainingMillis(');
+    expect(displayModel).toContain('getQuickTimerRemainingMillis(');
     expect(countdown).not.toContain('status.fireAt -');
     expect(countdown).not.toContain('accessibilityLiveRegion="polite"');
-    expect(countdown).toContain('getQuickTimerRemainingLabel(remainingMillis)');
+    expect(displayModel).toContain('getQuickTimerRemainingLabel(remainingMillis)');
   });
 
   it('권한 조치가 필요하면 기존 활성 타이머를 새 예약 성공으로 오인하지 않아요', () => {
@@ -92,26 +101,154 @@ describe('빠른 타이머 화면 계약', () => {
 
   it('5분 재알람은 원래 타이머 길이 대신 재알람 상태로 읽어요', () => {
     expect(timer).toContain('getQuickTimerDisplayLabel(status)');
-    expect(countdown).toContain('`${label}. 일시정지했습니다.');
-    expect(countdown).toContain('`${label}. ${formatQuickTimerTarget(');
+    expect(displayModel).toContain('`${label}. 일시정지했습니다.');
+    expect(displayModel).toContain('`${label}. ${targetLabel}에 울립니다.');
   });
 
   it('지원하지 않는 플랫폼과 권한 문제를 명시적으로 안내해요', () => {
-    expect(timer).toContain('지원되는 Android 설치본');
+    expect(timer).toContain('Android 설치본에서만');
     expect(timer).toContain('actionLabel={alarmCopy.openSettings.text}');
     expect(timer).toContain('알람음·진동');
-    expect(settings).toContain('소리·진동·권한');
+    expect(settings).toContain('근무표와 알람');
   });
 
   it('프리셋은 화면 폭과 글자 크기에 따라 1·2·4열로 재배치해요', () => {
     expect(timer).toContain('shouldStackQuickTimerActions(width, fontScale)');
     expect(timer).toContain('resolveQuickTimerPresetColumns(width, fontScale)');
-    expect(timer).toContain('styles.presetButtonFull');
-    expect(timer).toContain('styles.presetButtonHalf');
-    expect(timer).toContain('styles.presetButtonQuarter');
-    expect(timer).toContain("flexWrap: 'wrap'");
-    expect(timer).toContain('minHeight: 64');
+    expect(presets).toContain('getQuickTimerPresetRows(columns)');
+    expect(presets).toContain('rows.map');
+    expect(presets).not.toContain("flexWrap: 'wrap'");
+    expect(presets).toContain('minHeight: 64');
+    expect(presets).toContain('elementRef={directInputButtonRef}');
+    expect(timer).toContain('restoreDirectInputFocus');
+    expect(timer).toContain('customDurationInitialMinutes');
+    expect(timer).not.toContain('key={`${customDurationOpen}');
     expect(countdown).toContain('maxFontSizeMultiplier={2}');
     expect(timer).toContain('resolveQuickTimerCountdownSize(width, fontScale)');
+  });
+
+  it('상태 전환과 숫자 입력 중에도 프리셋·도움말 native 경계를 유지하고 clipping을 끕니다', () => {
+    expect(timer).toContain('removeClippedSubviews={false}');
+    expect(presets.match(/collapsable=\{false\}/g)).toHaveLength(2);
+    expect(presets).toContain('testID="quick-timer-presets"');
+    expect(presets).not.toContain('setInterval');
+    expect(stepper.match(/removeClippedSubviews=\{false\}/g)).toHaveLength(2);
+    expect(stepper).toContain('<View collapsable={false} testID="quick-timer-duration-range">');
+    expect(stepper).toMatch(/collapsable=\{false\}\s+style=\{styles.inputHintContainer\}/);
+  });
+
+  it('시간 변경·일시정지·재개 시 카운트다운 텍스트를 재마운트하지 않습니다', () => {
+    const countdownElement = timer.match(/<QuickTimerCountdown\s[\s\S]*?\/>/u)?.[0];
+    expect(countdownElement).toBeDefined();
+    expect(countdownElement).not.toMatch(/\bkey=/);
+    expect(countdownElement).toContain('observationKey={statusObservationKey');
+    expect(countdown).toContain('collapsable={false}');
+    expect(countdown).toContain('testID="quick-timer-countdown"');
+    expect(countdown).toContain('[active, observationKey, screenActive]');
+    expect(timer).toContain('setDisplayObservation(nextObservation)');
+    expect(timer).not.toContain('setCountdownAnchor');
+    expect(countdownElement).toContain('observedClock={displayObservation.clock}');
+    expect(countdown).toContain('{presentation.countdown}');
+    expect(countdown).toContain('{presentation.detail}');
+  });
+
+  it('직접 입력은 부드러운 1~60분 휠과 중앙 숫자 입력을 함께 제공해요', () => {
+    expect(stepper).toContain('presentationStyle="fullScreen"');
+    expect(stepper).toContain('onRequestClose={handleRequestClose}');
+    expect(stepper).toContain('QUICK_TIMER_DURATIONS.map');
+    expect(stepper).not.toContain('<FlatList');
+    expect(stepper).toContain('snapToInterval={wheelLayout.itemHeight}');
+    expect(stepper).toContain('decelerationRate="normal"');
+    expect(stepper).not.toContain('disableIntervalMomentum');
+    expect(stepper).not.toContain('SCROLL_SETTLE_DELAY_MS = 80');
+    expect(stepper).toContain('SCROLL_FALLBACK_SETTLE_DELAY_MS = 220');
+    expect(stepper).toContain('quickTimerOffsetToDuration(');
+    expect(stepper).toContain('quickTimerDurationToOffset(');
+    expect(stepper).toContain('interactionRevisionRef');
+    expect(stepper).toContain('dragRevisionRef');
+    expect(stepper).toContain('momentumRevisionRef');
+    expect(stepper).toContain('programmaticScrollRef');
+    expect(stepper).toContain('shouldAcceptQuickTimerWheelEvent({');
+    expect(stepper).toContain("entryModeRef.current === 'wheel'");
+    expect(stepper).toMatch(/accessibilityRole=\{\s*entryMode === 'wheel' \? 'adjustable' : undefined\s*\}/);
+    expect(stepper).toContain("actionName === 'increment'");
+    expect(stepper).toContain("actionName === 'decrement'");
+    expect(stepper).toContain("actionName === 'activate'");
+    expect(stepper).toContain('onAccessibilityTap={beginNumericEntry}');
+    expect(stepper).toContain('importantForAccessibility="no-hide-descendants"');
+    expect(stepper).toContain('<TextInput');
+    expect(stepper).toContain('inputMode="numeric"');
+    expect(stepper).toContain('keyboardType="number-pad"');
+    expect(stepper).toContain('maxLength={2}');
+    expect(stepper).toContain('parseQuickTimerDurationInput(');
+    expect(stepper).toMatch(/pointerEvents=\{\s*entryMode === 'numeric' \? 'none' : 'auto'\s*\}/);
+    expect(stepper).toContain('scheduleAdjustableFocus');
+    expect(stepper).toContain('focusRevisionRef');
+    expect(stepper).toContain('clearSettleTimeout();');
+    expect(stepper).toContain('styles.selectedValueSide');
+    expect(stepper).toContain("entryMode === 'numeric',");
+    expect(stepper).toContain('style={styles.inputHintContainer}');
+    expect(stepper).toContain("flexShrink: 0");
+    expect(stepper).not.toContain('transform: [{ scale:');
+    expect(stepper).toContain('quick-timer-stepper-start');
+    expect(stepper).toContain('accessibilityViewIsModal');
+    expect(stepper).toContain("from 'react-native-safe-area-context'");
+    expect(stepper).toContain('includeFontPadding: false');
+    expect(stepper).toContain('wasVisibleRef');
+    expect(stepper).toContain('<ScrollView');
+    expect(stepper).toContain('keyboardShouldPersistTaps="handled"');
+    expect(stepper).toContain('testID="quick-timer-duration-range"');
+    expect(stepper).toContain('testID="quick-timer-duration-help"');
+    expect(stepper).toContain('입력한 시간으로 타이머를 시작합니다.');
+    expect(stepper).not.toContain('setNumericInputError');
+    expect(stepper).toContain("entryMode === 'numeric' && !numericInputResult.valid");
+    expect(stepper).not.toContain('quick-timer-adjust-');
+    expect(stepper).not.toContain('초');
+    expect(stepper).not.toContain('00시');
+  });
+
+  it('Android IME 겹침만 확보하고 뒤로가기로 숫자 입력을 함께 닫지 않습니다', () => {
+    expect(stepper).toContain("navigationBarTranslucent={Platform.OS === 'android'}");
+    expect(stepper).toContain("statusBarTranslucent={Platform.OS === 'android'}");
+    expect(stepper).toContain("edges={['top', 'right', 'bottom', 'left']}");
+    expect(stepper).toContain('ref={modalViewportRef}');
+    expect(stepper).toContain('onLayout={measureKeyboardOverlap}');
+    expect(stepper).toContain('measureInWindow');
+    expect(stepper).toContain('createQuickTimerKeyboardLayoutSession');
+    expect(stepper).toContain("Keyboard.addListener('keyboardDidShow'");
+    expect(stepper).toContain("Keyboard.addListener('keyboardDidHide'");
+    expect(stepper).toContain('session.dispose()');
+    expect(stepper).toContain('shown.remove()');
+    expect(stepper).toContain('hidden.remove()');
+    expect(stepper).toMatch(/Platform.OS === 'android' && \{\s*paddingBottom: androidKeyboardInset,?\s*\}/);
+    expect(stepper).toMatch(/behavior=\{\s*Platform.OS === 'ios' \? 'padding' : undefined\s*\}/);
+    const keyboardDismissal = stepper.slice(
+      stepper.indexOf("if (action === 'dismiss-keyboard')"),
+      stepper.indexOf('handleCancel();', stepper.indexOf("if (action === 'dismiss-keyboard')")),
+    );
+    expect(keyboardDismissal).toContain('Keyboard.dismiss()');
+    expect(keyboardDismissal).toContain('return;');
+    expect(keyboardDismissal).not.toMatch(/setNumericInput|setEntryMode|onCancel|onSubmit/);
+  });
+
+  it('공통 버튼은 아이콘과 문구를 같은 기준선의 콘텐츠 묶음에 배치해요', () => {
+    const button = source('src/design-system/button.tsx');
+
+    expect(button).toContain('style={styles.content}');
+    expect(button).toContain('style={styles.iconSlot}');
+    expect(button).toContain('includeFontPadding: false');
+    expect(button).toContain("alignItems: 'center'");
+    expect(button).not.toContain('minWidth: size.regularControl');
+  });
+
+  it('상태 관측 revision으로 오래된 조회가 새 작업 결과를 덮지 않아요', () => {
+    expect(timer).toContain('createQuickTimerObservationSession');
+    expect(timer).toContain('observationSession.activate()');
+    expect(timer).toContain('observationSession.deactivate()');
+    expect(timer).toContain('observationSession.isCurrent(observationRevision)');
+    expect(timer).toContain("claimTimerAction('schedule')");
+    expect(timer).toContain('releaseTimerAction(observationRevision)');
+    expect(timer).toContain('observationSession.hasPendingAction()');
+    expect(timer).toContain('visible={customDurationOpen && screenActive}');
   });
 });

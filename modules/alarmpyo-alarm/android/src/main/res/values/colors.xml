@@ -4,9 +4,14 @@
     <color name="alarmpyo_background">#101214</color>
     <color name="alarmpyo_accent">#58D9BC</color>
     <color name="alarmpyo_day">#0E4B43</color>
+    <color name="alarmpyo_day_accent">#58D9BC</color>
     <color name="alarmpyo_evening">#4A3518</color>
+    <color name="alarmpyo_evening_accent">#F0C36A</color>
     <color name="alarmpyo_night">#112B46</color>
+    <color name="alarmpyo_night_accent">#89CEFF</color>
     <color name="alarmpyo_off">#2A2F35</color>
+    <color name="alarmpyo_off_accent">#B5BDC8</color>
+    <color name="alarmpyo_substitute_accent">#F0C36A</color>
     <color name="alarmpyo_training">#173650</color>
     <color name="alarmpyo_reserve">#313819</color>
     <color name="alarmpyo_unknown">#424A54</color>
@@ -19,12 +24,9 @@
     <color name="alarmpyo_surface_soft">#20FFFFFF</color>
     <color name="alarmpyo_surface_border">#30FFFFFF</color>
 
-    <!-- Widget chrome stays neutral dark. Shift meaning is limited to the small
-         glyph so the card remains consistent with the app's gray hierarchy. -->
+    <!-- Widget chrome stays neutral dark. Shift meaning is limited to the 3dp
+         rail so the card remains consistent with the app's gray hierarchy. -->
     <color name="alarmpyo_widget_card_background">#181B1F</color>
-    <color name="alarmpyo_widget_card_background_soft">#22262B</color>
-    <color name="alarmpyo_widget_panel_background">#22262B</color>
-    <color name="alarmpyo_widget_panel_border">#737D89</color>
     <color name="alarmpyo_widget_card_border">#737D89</color>
     <color name="alarmpyo_widget_icon_day">#7AE6D0</color>
     <color name="alarmpyo_widget_icon_evening">#F0C36A</color>

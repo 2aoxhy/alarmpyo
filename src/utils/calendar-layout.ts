@@ -37,6 +37,7 @@ type CalendarWeekListShiftTiming = Readonly<{
 }>;
 
 export type CalendarWeekListMetadataKind =
+  | 'alarm'
   | 'holiday'
   | 'payday'
   | 'note'
@@ -48,6 +49,7 @@ export type CalendarWeekListMetadataItem = Readonly<{
 }>;
 
 export function buildCalendarWeekListMetadata(input: {
+  hasAlarmOverride?: boolean;
   hasNote: boolean;
   hasOverride: boolean;
   holidayFullLabel: string | null;
@@ -69,6 +71,9 @@ export function buildCalendarWeekListMetadata(input: {
   if (input.hasNote) items.push({ kind: 'note', label: '메모 있음' });
   if (input.hasOverride) {
     items.push({ kind: 'override', label: '직접 변경' });
+  }
+  if (input.hasAlarmOverride) {
+    items.push({ kind: 'alarm', label: '날짜별 알람' });
   }
   return items;
 }
